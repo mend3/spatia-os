@@ -8,6 +8,7 @@
  */
 import { on, ui, emit } from './core/bus.js';
 import * as state from './core/state.js';
+import * as session from './core/session.js';
 import * as api from './core/api.js';
 import { createScene } from './space/scene.js';
 import { DIRTY_LABELS } from './space/rings.js';
@@ -47,6 +48,9 @@ async function main() {
   }
 
   state.install();
+  // Depois do `state`: os dois assinam o mesmo barramento, e o contexto da sessão referencia
+  // o regime cognitivo — instalar antes o faria observar um store que ainda não existe.
+  session.install();
   keys.install();
 
   const audio = createAudio();
@@ -205,6 +209,19 @@ async function main() {
   });
 
   installShortcuts(scene, audio, answer, terminal, router, streams, systray);
+
+  /*
+   * Uma janela para o contexto, no console.
+   *
+   * Instrumentação que não dá para inspecionar é instrumentação que ninguém confere — e store
+   * que ninguém confere diverge da tela em silêncio, que é exatamente o defeito que ele existe
+   * para impedir. Uma leitura só, sem estado escrito: `espatial.session()` e `espatial.state()`.
+   * Não é API pública; é a janela de quem está depurando.
+   */
+  window.espatial = Object.freeze({
+    session: () => session.snapshot(),
+    state: () => state.snapshot(),
+  });
 
   // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.
   on('ui.open-app', ({ id }) => router.navigate(id));

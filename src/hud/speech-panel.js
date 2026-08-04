@@ -269,7 +269,7 @@ export function createSpeechPanel(root) {
     return row;
   }
 
-  surface.attach(panel, { onClose: () => setOpen(false) });
+  surface.attach(panel, { name: 'voz', onClose: () => setOpen(false) });
 
   function setOpen(open) {
     panel.classList.toggle('open', open);

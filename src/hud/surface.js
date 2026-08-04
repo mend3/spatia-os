@@ -23,8 +23,8 @@
  * a tecla por conta própria, com `stopPropagation` no meio, nem o inspetor fechava nem a
  * resposta saía da tela. Este módulo expõe `closeTop()` para entrar naquela cadeia.
  */
-import { el } from './dom.js';
 import { button } from './button.js';
+import * as session from '../core/session.js';
 
 // Base do empilhamento. 8 é o valor que o leitor já usava para passar na frente do `.inspector`
 // e dos slots; cada painel acima do primeiro sobe a partir daí.
@@ -37,6 +37,9 @@ function restack() {
   stack.forEach((entry, depth) => {
     entry.panel.style.zIndex = String(BASE_Z + depth);
   });
+  // O contexto da sessão é quem responde "o que está aberto". A pilha vive aqui porque é aqui
+  // que a ordem se decide; publicá-la é o que impede um segundo registro de painéis abertos.
+  session.panelChanged(stack.map((entry) => entry.panel.dataset.panel || entry.panel.className.split(' ')[0]));
 }
 
 /**
@@ -49,10 +52,14 @@ function restack() {
  * @param {HTMLElement} panel  a raiz do painel
  * @param {object} spec
  * @param {Function} spec.onClose  o que fechar significa para ESTE painel (o `setOpen(false)` dele)
+ * @param {string} [spec.name]     nome legível, para o contexto da sessão
  */
-export function attach(panel, { onClose }) {
+export function attach(panel, { onClose, name }) {
   panel.classList.add('surface');
   panel.dataset.surface = 'overlay';
+  // Nome legível para o contexto da sessão: `panels: ['afinacao','permissoes']` responde a
+  // pergunta; `panels: ['controls','perms']` obriga a traduzir classe de CSS de cabeça.
+  if (name) panel.dataset.panel = name;
 
   const close = button({ variant: 'bare', size: 'xs', title: 'fechar (Esc)' });
   close.classList.add('surface-close');

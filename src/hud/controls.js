@@ -139,7 +139,7 @@ export function createControls(root) {
   // isso pelo CSSOM custa mais do que a classe explícita, que não tem como não funcionar.
   const leftColumn = root.querySelector('aside');
 
-  surface.attach(panel, { onClose: () => setOpen(false) });
+  surface.attach(panel, { name: 'afinacao', onClose: () => setOpen(false) });
 
   function setOpen(open) {
     panel.classList.toggle('open', open);

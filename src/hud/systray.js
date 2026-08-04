@@ -24,6 +24,7 @@
  * `close()` para entrar naquela cadeia na posição certa.
  */
 import * as prefs from '../core/prefs.js';
+import * as session from '../core/session.js';
 
 export function createSystray(root) {
   const tray = root.querySelector('[data-systray]');
@@ -52,6 +53,7 @@ export function createSystray(root) {
       item.button.setAttribute('aria-expanded', String(on));
     }
     open = name;
+    session.trayChanged(name);
   }
 
   function close() {

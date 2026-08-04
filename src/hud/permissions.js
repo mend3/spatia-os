@@ -216,7 +216,7 @@ export function createPermissions(root, { onChange } = {}) {
     }
   }
 
-  surface.attach(panel, { onClose: () => setOpen(false) });
+  surface.attach(panel, { name: 'permissoes', onClose: () => setOpen(false) });
 
   function setOpen(open) {
     panel.classList.toggle('open', open);
