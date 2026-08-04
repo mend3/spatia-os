@@ -572,7 +572,7 @@
     orbitais (`#bodies`, z-index 2), que passavam por cima dele.
   */
   #hud:has(.surface[data-surface="overlay"].open),
-  #hud:has(.widget[data-widget="fs-content"]) { z-index: 3; }
+  #hud:has(.widget[data-panel-surface]) { z-index: 3; }
   /*
     Lição 1 (mora no `.surface`): o `#hud` é `pointer-events: none` para não bloquear a órbita
     da câmera, e só `a, button, input, .clickable` reativam. O corpo do leitor é `div`, então a
@@ -585,13 +585,27 @@
     `:has()` ao tempo em que há painel montado — elevar sempre mataria a profundidade em que os
     astros passam à frente da interface, que é o efeito, não um acidente.
   */
-  .widget[data-widget="fs-content"] {
+  /*
+    Widget de palco que é JANELA. O escopo era `[data-widget="fs-content"]` — o nome de UM
+    widget — então a página de configuração nasceu sem fundo e o disco de acreção atravessou o
+    texto. Agora quem opta é o contrato (`surface: true`), e o host marca a moldura.
+  */
+  .widget[data-panel-surface] {
     align-items: stretch; justify-content: flex-start;
-    /* O leitor NÃO rola em si: quem rola é o `.widget-body`, para o título ficar grudado. */
+    /*
+      As lições 1 e 2 valem aqui TAMBÉM, e por herança nenhuma: o widget recebe o ATRIBUTO
+      `data-panel-surface`, não a classe `.surface` (a classe traz fundo e rolagem próprios, que
+      no palco moram no `.widget-body` para o título poder grudar). Ao refatorar, estas três
+      linhas foram removidas supondo herança que não existia, e o painel voltou a ser
+      atravessado pelo ponteiro — `elementFromPoint` no centro dele devolvia CANVAS de novo.
+    */
+    pointer-events: auto;
+    position: relative; z-index: 8;
+    /* A moldura NÃO rola em si: quem rola é o `.widget-body`, para o título ficar grudado. */
     overflow: visible;
     background: none; border: none; padding: 0; backdrop-filter: none;
   }
-  .widget[data-widget="fs-content"] > .widget-body {
+  .widget[data-panel-surface] > .widget-body {
     align-items: stretch;
     /* Vertical apenas, como pedido: linha longa quebra (`chunk-text` já faz word-break) em vez
        de criar uma segunda barra que rola o texto para fora da leitura. */
@@ -620,15 +634,29 @@
    * `flex: 0 0 auto` devolve a altura natural a cada bloco. Aí a soma passa do teto, o
    * `overflow-y: auto` do pai finalmente tem overflow, e a barra aparece.
    */
-  .widget[data-widget="fs-content"] > .widget-body > * {
+  .widget[data-panel-surface] > .widget-body > * {
     flex: 0 0 auto;
   }
-  .widget[data-widget="fs-content"] .fs-title {
+  .widget[data-panel-surface] .fs-title {
     /* O caminho do arquivo fica fixo ao rolar: sem isso você perde de vista o que está lendo. */
     position: sticky; top: -12px; z-index: 1;
     background: rgba(4,6,10,0.97); padding: 4px 0 6px;
     color: var(--amber); font-size: 9px; letter-spacing: 0.16em; word-break: break-all;
   }
+  /* ---------------- página de configuração ---------------- */
+
+  .config { display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: start; }
+  .config-menu { display: flex; flex-direction: column; gap: 4px; }
+  /* Container flex encolhe os filhos: sem isto o rótulo da seção quebra em duas linhas. */
+  .config-menu .btn { flex: 0 0 auto; justify-content: flex-start; white-space: nowrap; }
+  .config-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .config-key { display: grid; grid-template-columns: 68px 1fr auto; gap: 10px;
+                align-items: baseline; padding: 2px 0; }
+  .config-kbd { color: var(--amber); font: inherit; font-size: 10px; letter-spacing: 0.1em; }
+  .config-key-label { color: var(--ink-dim); font-size: 9px; letter-spacing: 0.16em; }
+  .config-key-note { color: var(--ink-faint); font-size: 7.5px; letter-spacing: 0.14em;
+                     font-style: normal; }
+
   .widget-error { color: var(--bad); font-size: 9px; }
   .widget-empty { color: var(--ink-faint); font-size: 9px; line-height: 1.5; }
   .widget-hint { font-style: normal; color: var(--ink-faint); }

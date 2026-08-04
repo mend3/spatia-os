@@ -19,6 +19,7 @@ import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
 import { snapshot } from '../core/state.js';
 import * as api from '../core/api.js';
+import * as keys from '../core/keys.js';
 
 const COLORS = { files: 0x7ee0c0, system: 0xffab54, web: 0xff9b4a, bridge: 0x5ce1e6 };
 
@@ -47,7 +48,7 @@ export function registerApps() {
     tagline: 'saúde, custo, permissões, afinação',
     color: COLORS.system,
     orbit: { radius: 15.5, inclination: 0.36, phase: 2.1 },
-    widgets: ['sys-about', 'sys-services', 'vitals', 'sys-quota', 'sky-time', 'timeline'],
+    widgets: ['sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -209,9 +210,103 @@ function registerFilesWidgets() {
   });
 
   listWidget({
+    id: 'sys-config',
+    title: 'CONFIGURAÇÃO',
+    hint: 'seções',
+    slot: 'stage',
+    surface: true,
+    /**
+     * A página de configuração — menu lateral à esquerda, seção à direita.
+     *
+     * Ela NÃO reconstrói os controles. As seções de afinação, permissões e voz apenas abrem os
+     * painéis que já existem (`createControls` / `createPermissions` / `createSpeechPanel`),
+     * pelos MESMOS gatilhos que a systray usa. Duplicar a construção daqueles controles aqui
+     * garantiria divergência na primeira alteração: dois lugares desenhando o mesmo slider,
+     * lendo o mesmo store, e só um deles atualizado quando o parâmetro mudasse.
+     *
+     * O que a página acrescenta é o que NÃO cabia num popover: a lista completa de atalhos, que
+     * nenhuma outra superfície mostrava desde que a linha fixa do rodapé saiu.
+     */
+    render(view) {
+      const page = el('div', 'config');
+      const menu = el('nav', 'config-menu');
+      const body = el('div', 'config-body');
+      page.append(menu, body);
+
+      const abrir = (seletor) => () => document.querySelector(seletor)?.click();
+      const SECTIONS = [
+        { id: 'atalhos', name: 'ATALHOS', render: renderShortcuts },
+        { id: 'afinacao', name: 'AFINAÇÃO', open: abrir('[data-tune-toggle]'),
+          note: 'a cena inteira — núcleo, céu, grafo, câmera, lente, áudio' },
+        { id: 'permissoes', name: 'PERMISSÕES', open: abrir('[data-perms-toggle]'),
+          note: 'o que o agente pode fazer, e com quais ferramentas' },
+        { id: 'voz', name: 'VOZ', open: abrir('[data-speech-toggle]'),
+          note: 'motor, timbre e mistura da fala' },
+      ];
+
+      let active = SECTIONS[0].id;
+
+      function renderShortcuts(into) {
+        /*
+         * Gerado de `keys.list()`, NUNCA escrito à mão.
+         *
+         * A versão manual desta lista morava no rodapé e apodreceu: anunciava `G` depois de a
+         * tecla ter virado ⌘G. Aqui a tecla é derivada do próprio registro do atalho, então um
+         * `bind` que mude passa a aparecer certo sem ninguém lembrar de vir aqui.
+         */
+        const groups = new Map();
+        for (const entry of keys.list()) {
+          if (!groups.has(entry.group)) groups.set(entry.group, []);
+          groups.get(entry.group).push(entry);
+        }
+        const blocks = [];
+        for (const [group, entries] of groups) {
+          blocks.push(el('div', 'controls-group', group));
+          for (const entry of entries) {
+            const row = el('div', 'config-key');
+            row.append(el('kbd', 'config-kbd', entry.keys));
+            row.append(el('span', 'config-key-label', entry.label));
+            // "vale digitando" é a distinção que decide se um atalho pode ser uma letra solta —
+            // é a regra que fez `G` sair e ⌘G entrar, e ela merece estar visível.
+            if (entry.whileTyping) row.append(el('i', 'config-key-note', 'vale digitando'));
+            blocks.push(row);
+          }
+        }
+        if (!blocks.length) blocks.push(el('div', 'widget-empty', 'nenhum atalho registrado'));
+        into.replaceChildren(...blocks);
+      }
+
+      function draw() {
+        menu.replaceChildren(
+          ...SECTIONS.map((section) => {
+            const item = button({ variant: 'select', size: 'sm', on: section.id === active });
+            item.textContent = section.name;
+            item.addEventListener('click', () => {
+              active = section.id;
+              // Seção que é atalho para um painel ABRE o painel e continua marcada: a página é
+              // o índice, o painel é o lugar onde se mexe.
+              section.open?.();
+              draw();
+            });
+            return item;
+          })
+        );
+        const section = SECTIONS.find((entry) => entry.id === active);
+        if (section?.render) section.render(body);
+        else body.replaceChildren(el('div', 'widget-empty', section?.note || ''));
+      }
+
+      draw();
+      view.set([page]);
+      return null;
+    },
+  });
+
+  listWidget({
     id: 'fs-content',
     title: 'CONTEÚDO',
     slot: 'stage',
+    surface: true,
     render(view) {
       const handler = async ({ source }) => {
         view.empty('lendo…');

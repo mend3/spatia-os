@@ -226,7 +226,7 @@ export function createPermissions(root, { onChange } = {}) {
     if (open) document.activeElement?.blur?.();
   }
 
-  bind({ code: TOGGLE_KEY, label: 'P PERMISSÕES' }, () => setOpen(!panel.classList.contains('open')));
+  bind({ code: TOGGLE_KEY, label: 'PERMISSÕES', group: 'PAINÉIS' }, () => setOpen(!panel.classList.contains('open')));
 
   const trigger = root.querySelector('[data-perms-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));

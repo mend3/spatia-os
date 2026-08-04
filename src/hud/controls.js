@@ -114,7 +114,7 @@ export function createControls(root) {
    * `meta` casa ⌘ OU Ctrl (ver `matches` em keys.js), então serve mac e linux sem ramificar.
    */
   const alterna = () => setOpen(!panel.classList.contains('open'));
-  bind({ code: 'KeyG', meta: true, whileTyping: true, label: '⌘G AFINAR' }, alterna);
+  bind({ code: 'KeyG', meta: true, whileTyping: true, label: 'AFINAÇÃO', group: 'PAINÉIS' }, alterna);
   /*
    * A crase continua valendo e também ALTERNA — nunca só uma das direções.
    *
@@ -123,7 +123,7 @@ export function createControls(root) {
    * escrita no prompt em abertura de painel, trocando um atalho conveniente por um campo de
    * texto que engole caractere.
    */
-  bind({ code: TOGGLE_KEY }, alterna);
+  bind({ code: TOGGLE_KEY, alias: true }, alterna);
 
   const trigger = root.querySelector('[data-tune-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));

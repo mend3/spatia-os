@@ -21,6 +21,43 @@
 
 const bindings = [];
 
+/*
+ * Como uma tecla vira TEXTO — e por que isso não pode ser escrito à mão.
+ *
+ * Os rótulos eram `'⌘G AFINAR'`, `'P PERMISSÕES'`, `'TAB CINEMA'`: a tecla escrita dentro da
+ * string. Trocar a tecla no `bind` não trocava o texto, e a barra de dicas passou meses
+ * anunciando `G` depois de o atalho ter virado ⌘G. O `label` agora é só a AÇÃO; a tecla é
+ * DERIVADA do próprio spec, então não existe mais um segundo lugar para envelhecer.
+ */
+const KEY_NAMES = {
+  Escape: 'ESC', Tab: 'TAB', Home: 'HOME', Backquote: '`', Space: 'ESPAÇO', Enter: '⏎',
+};
+
+/** O texto da tecla, a partir do spec que a registra. */
+export function render(spec) {
+  if (spec.keys) return spec.keys; // padrões (1–4) não têm tecla única para derivar
+  const base =
+    KEY_NAMES[spec.code] ||
+    KEY_NAMES[spec.key] ||
+    (spec.code?.startsWith('Key') ? spec.code.slice(3) : null) ||
+    (spec.code?.startsWith('Digit') ? spec.code.slice(5) : null) ||
+    spec.key ||
+    spec.code ||
+    '?';
+  return `${spec.meta ? '⌘' : ''}${spec.alt ? '⌥' : ''}${base}`;
+}
+
+/**
+ * Assinatura da combinação. Duas iguais são conflito.
+ *
+ * O `matches` percorre a lista e retorna no PRIMEIRO acerto: dois componentes pedindo a mesma
+ * tecla nunca deu erro — o segundo simplesmente não disparava, em silêncio, e o sintoma
+ * aparecia como "o atalho parou de funcionar" longe da causa. O registro de apps já falha alto
+ * em id duplicado (`kernel/registry.js`); aqui é a mesma disciplina.
+ */
+const signature = (spec) =>
+  `${spec.meta ? 'M' : ''}${spec.alt ? 'A' : ''}:${spec.code || spec.key || spec.pattern?.source || '?'}`;
+
 /** O foco está num lugar onde teclas são texto, não comando? */
 export function isTyping(target = document.activeElement) {
   if (!target) return false;
@@ -47,6 +84,12 @@ export function isTyping(target = document.activeElement) {
  * @param {Function} handler
  */
 export function bind(spec, handler) {
+  const taken = bindings.find((entry) => signature(entry) === signature(spec));
+  if (taken) {
+    throw new Error(
+      `atalho duplicado: ${render(spec)} já está em "${taken.label || taken.action || 'sem rótulo'}"`
+    );
+  }
   bindings.push({ ...spec, handler });
   return () => {
     const index = bindings.findIndex((entry) => entry.handler === handler);
@@ -86,7 +129,24 @@ export function install() {
   );
 }
 
-/** A barra de dicas se monta a partir dos atalhos registrados, não de texto fixo. */
+/**
+ * Os atalhos registrados, como DADO — a fonte única de qualquer superfície que os liste.
+ *
+ * `alias` fica de fora: a crase é um segundo caminho para a afinação, não um segundo comando, e
+ * listar os dois faria a mesma ação aparecer duas vezes com nomes de tecla diferentes.
+ */
+export function list() {
+  return bindings
+    .filter((spec) => spec.label && !spec.alias)
+    .map((spec) => ({
+      keys: render(spec),
+      label: spec.label,
+      group: spec.group || 'GERAL',
+      whileTyping: Boolean(spec.whileTyping),
+    }));
+}
+
+/** A barra de dicas, derivada da mesma lista. Nunca texto fixo. */
 export function hints() {
-  return bindings.filter((spec) => spec.label).map((spec) => spec.label);
+  return list().map((entry) => `${entry.keys} ${entry.label}`);
 }

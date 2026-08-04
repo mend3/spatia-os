@@ -25,6 +25,14 @@ export function createWidgetHost(root) {
   function build(contract, ctx) {
     const frame = el('section', `widget widget-${contract.slot}`);
     frame.dataset.widget = contract.id;
+    /*
+     * Superfície de painel — o contrato pede, o host marca, o CSS `.surface` faz o resto.
+     *
+     * Antes as regras do painel eram escritas em cima de `[data-widget="fs-content"]`, então
+     * um widget novo no palco nascia SEM fundo: o disco de acreção atravessava o texto e a
+     * página ficava ilegível. Foi o que aconteceu com a página de configuração.
+     */
+    if (contract.surface) frame.dataset.panelSurface = 'true';
     if (contract.grow) frame.style.flex = String(contract.grow);
 
     // `stage` é o centro da tela e não leva moldura: a resposta tem que nascer do espaço,

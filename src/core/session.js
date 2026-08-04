@@ -95,6 +95,14 @@ export function install() {
   }
 
   on('ui.open-app', ({ id }) => commit({ route: id, focusedBody: id }));
+  /*
+   * A rota também muda pelo HASH — dock, atalho numérico, link colado, botão de voltar. Escutar
+   * só o `ui.open-app` (que é o clique num corpo) deixava o contexto afirmando rota vazia
+   * enquanto um app estava aberto na tela.
+   */
+  const readHash = () => commit({ route: (location.hash || '').replace(/^#\/?/, '') });
+  window.addEventListener('hashchange', readHash);
+  readHash();
   on('ui.state-changed', () => commit({}));
 }
 

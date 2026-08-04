@@ -100,11 +100,11 @@ export function createRouter({ host, scene, chrome }) {
 
   // Dígito entra no app da posição; Home volta ao sistema. A supressão durante digitação é do
   // `keys`, não daqui — era `1` na busca de arquivos navegando em vez de escrever.
-  bind({ pattern: /^[1-9]$/, label: '1-4 APPS' }, (event) => {
+  bind({ pattern: /^[1-9]$/, keys: '1–4', label: 'IR AO APP', group: 'NAVEGAÇÃO' }, (event) => {
     const app = listApps()[Number(event.key) - 1];
     if (app) navigate(app.id);
   });
-  bind({ key: 'Home' }, () => navigate(ROUTE_ROOT));
+  bind({ key: 'Home', label: 'RAIZ', group: 'NAVEGAÇÃO' }, () => navigate(ROUTE_ROOT));
 
   /**
    * Clicar num corpo do céu leva ao app de arquivos, no nó clicado.

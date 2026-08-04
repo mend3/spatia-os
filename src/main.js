@@ -366,7 +366,7 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
    * `Esc` é o único atalho que vale COM foco em texto (`whileTyping`): ele é a saída, e exigir
    * desfocar antes de poder sair seria o oposto de uma saída.
    */
-  keys.bind({ key: 'Escape', whileTyping: true, label: 'ESC SAIR' }, () => {
+  keys.bind({ key: 'Escape', whileTyping: true, label: 'SAIR', group: 'NAVEGAÇÃO' }, () => {
     if (systray?.isOpen()) {
       // Primeiro da cadeia: o popover é sempre o gesto mais recente quando está aberto, e a
       // ordem do Esc é desfazer o último passo antes dos anteriores.
@@ -397,7 +397,7 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
     audio.click({ frequency: 165, gain: 0.05, decay: 0.5 }); // 55×3 — saída, grave
   });
 
-  keys.bind({ code: 'Tab', label: 'TAB CINEMA' }, () => {
+  keys.bind({ code: 'Tab', label: 'CINEMA', group: 'CENA' }, () => {
     cinematic = !cinematic;
     prefs.set('view.cinematic', cinematic);
     document.body.classList.toggle('cinematic', cinematic);
@@ -413,7 +413,7 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
    * porque a tela diria "não mudo" com o alto-falante calado. A tecla é gesto do usuário, que é
    * exatamente o que a política de autoplay pede, então dá para ligar aqui mesmo.
    */
-  keys.bind({ code: 'KeyM', meta: true, label: '⌘M MUDO' }, async () => {
+  keys.bind({ code: 'KeyM', meta: true, label: 'MUDO', group: 'ÁUDIO' }, async () => {
     muted = !muted;
     prefs.set('audio.muted', muted);
     if (!muted && !audio.isEnabled()) {
@@ -427,7 +427,7 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
     audio.setVolume(muted ? 0 : tuning.get('volume'));
   });
 
-  keys.bind({ code: 'KeyR', alt: true, label: 'ALT+R CÂMERA' }, () => scene.release());
+  keys.bind({ code: 'KeyR', alt: true, label: 'SOLTAR CÂMERA', group: 'CENA' }, () => scene.release());
 
   /*
    * ⌘S grava o enquadramento. Vale COM foco no prompt (`whileTyping`) porque o modificador não
@@ -438,7 +438,7 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
    * guardado, e confirmação sem retorno visível não confirma nada. Por isso a nota sai nos dois
    * casos, dizendo qual foi.
    */
-  keys.bind({ code: 'KeyS', meta: true, whileTyping: true, label: '⌘S ÓRBITA' }, () => {
+  keys.bind({ code: 'KeyS', meta: true, whileTyping: true, label: 'GRAVAR ÓRBITA', group: 'CENA' }, () => {
     const saved = scene.saveOrbit();
     streams.note(saved ? 'ÓRBITA DA CÂMERA GRAVADA' : 'ÓRBITA JÁ ESTAVA GRAVADA', 'good');
     audio.click({ frequency: 660, gain: 0.045, decay: 0.35 });

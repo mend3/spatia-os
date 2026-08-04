@@ -292,7 +292,7 @@ export function createSpeechPanel(root) {
   const trigger = root.querySelector('[data-speech-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));
 
-  bind({ code: TOGGLE_KEY, label: 'V CONFIG VOZ' }, () => setOpen(!panel.classList.contains('open')));
+  bind({ code: TOGGLE_KEY, label: 'CONFIG VOZ', group: 'PAINÉIS' }, () => setOpen(!panel.classList.contains('open')));
 
   return { toggle: () => setOpen(!panel.classList.contains('open')) };
 }
