@@ -14,7 +14,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, metrics, qdrant
+from . import config, metrics, qdrant, recency
 
 logger = logging.getLogger("espatial.graph")
 
@@ -101,6 +101,10 @@ def build() -> dict:
             files[source]["sections"].append(section)
 
     nodes = list(files.values())
+    # Recência por git: é ela que vira o raio orbital no céu. `indexed_at` não serve (uma
+    # reindexação dá a mesma data a todos os 397 arquivos) e mtime também não (reflete a hora
+    # do clone). Ambos foram medidos — ver o docstring de `recency.py`.
+    recency.annotate(nodes)
     hubs, edges = _hierarchy(nodes)
     payload = {
         "nodes": hubs + nodes,

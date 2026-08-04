@@ -19,11 +19,20 @@
 import { emit, on } from '../core/bus.js';
 import { ROUTE_ROOT, getApp, hasApp, listApps } from './registry.js';
 import { bind } from '../core/keys.js';
+import * as motion from '../core/motion.js';
 
 export { ROUTE_ROOT };
 const FLIGHT_MS = 900;
 // Widgets entram com o voo já quase concluído; é o atraso que separa "chegar" de "cortar".
 const WIDGETS_IN_MS = 520;
+
+/*
+ * Com movimento reduzido, "cortar" é o comportamento CORRETO e não uma degradação: sem voo de
+ * câmera não há chegada para escalonar, e um atraso de 520ms sem movimento nenhum na tela seria
+ * só a interface travada. Os dois instantes colapsam em zero.
+ */
+const flightMs = () => (motion.isReduced() ? 0 : FLIGHT_MS);
+const widgetsInMs = () => (motion.isReduced() ? 0 : WIDGETS_IN_MS);
 
 export function createRouter({ host, scene, chrome }) {
   let current = null;
@@ -71,8 +80,8 @@ export function createRouter({ host, scene, chrome }) {
       } catch (error) {
         console.error(`[router] onEnter de ${id} falhou`, error);
       }
-      setTimeout(() => document.body.classList.remove('in-flight'), FLIGHT_MS - WIDGETS_IN_MS);
-    }, WIDGETS_IN_MS);
+      setTimeout(() => document.body.classList.remove('in-flight'), flightMs() - widgetsInMs());
+    }, widgetsInMs());
   }
 
   /** Widgets da vista de sistema. Declarado aqui porque o sistema não é um app do registro. */

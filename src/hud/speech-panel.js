@@ -11,11 +11,15 @@
  * dele.
  */
 import { el, set } from './dom.js';
+import { button } from './button.js';
 import * as prefs from '../core/prefs.js';
 import * as api from '../core/api.js';
 import { bind } from '../core/keys.js';
 
 const TOGGLE_KEY = 'KeyV';
+
+// Mesma duração do sinal de reversão do painel de permissões: um só gesto visual no sistema.
+const REVERT_FLASH_MS = 1200;
 
 export function createSpeechPanel(root) {
   const panel = el('div', 'perms speech-panel');
@@ -31,22 +35,52 @@ export function createSpeechPanel(root) {
   root.append(panel);
 
   let cfg = null;
+  // Última config CONFIRMADA pelo servidor — a âncora da reversão. `cfg` pode estar otimista.
+  let confirmed = null;
+  let seq = 0;
   let player = null;
 
+  /**
+   * Pinta primeiro, reconcilia depois, reverte visivelmente se falhar.
+   *
+   * A versão anterior esperava o round-trip antes de redesenhar: escolher uma voz tinha latência
+   * visível, e uma falha deixava a marca de seleção onde o operador clicou com um "falhou:" no
+   * cabeçalho — a tela afirmando um estado que o servidor não tem.
+   *
+   * Aqui a mentira é pior que no painel de permissões, porque o efeito é auditivo: o operador
+   * escolhe `pf_dora`, a tela mostra `pf_dora`, e a próxima frase sai com a voz antiga.
+   */
   async function patch(change) {
+    const mine = ++seq;
+    // O servidor deriva campos (`wire_voice`, `voice_ok`, `blend_ok`) do estado; no render
+    // otimista eles ainda são os antigos. Por isso o cabeçalho diz "aplicando…" em vez de já
+    // anunciar a voz efetiva: aquele texto é a resposta do motor, não o pedido.
+    cfg = { ...cfg, state: { ...cfg.state, ...change }, pending: true };
+    draw();
     set(status, 'aplicando…');
     try {
-      cfg = await api.setSpeech(change);
+      const fresh = await api.setSpeech(change);
+      if (mine !== seq) return;
+      confirmed = fresh;
+      cfg = fresh;
       draw();
       set(status, cfg.wire_voice);
     } catch (error) {
-      set(status, `falhou: ${error.message}`);
+      if (mine !== seq) return;
+      if (confirmed) {
+        cfg = confirmed;
+        draw();
+      }
+      set(status, `revertido: ${error.message}`);
+      panel.dataset.reverted = 'true';
+      setTimeout(() => delete panel.dataset.reverted, REVERT_FLASH_MS);
     }
   }
 
   async function load() {
     try {
       cfg = await api.speech();
+      confirmed = cfg;
       draw();
     } catch (error) {
       body.replaceChildren(el('div', 'widget-error', `config de voz indisponível: ${error.message}`));
@@ -67,12 +101,14 @@ export function createSpeechPanel(root) {
     body.append(el('div', 'controls-group', 'OUVIR'));
     const bench = el('div', 'bench');
     const input = el('input', 'fs-search');
-    input.value = 'Just tell me what you'd like to work on in the workspace and I'll take it from here. ';
+    // Aspas duplas: o texto tem apóstrofo (`you'd`, `I'll`), e entre aspas simples ele fecha a
+    // string no meio da frase. Foi assim que o módulo virou SyntaxError e o boot ficou preso em
+    // "verificando subsistemas" — um erro de parse aqui impede o `main()` de existir.
+    input.value = "Just tell me what you'd like to work on in the workspace and I'll take it from here.";
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') speak(input.value);
     });
-    const play = el('button', 'perm-mode', 'SINTETIZAR');
-    play.addEventListener('click', () => speak(input.value));
+    const play = button({ variant: 'select', size: 'xs', label: 'SINTETIZAR', onClick: () => speak(input.value) });
     const benchStatus = el('div', 'unit-sub', '');
     bench.append(input, play, benchStatus);
     body.append(bench);
@@ -108,9 +144,9 @@ export function createSpeechPanel(root) {
       const warn = el('div', 'widget-error',
         `a voz ${s.voice} é ${cfg.languages[mainLang]} e o idioma está em ${cfg.languages[s.lang_code]}`);
       body.append(warn);
-      const fix = el('button', 'perm-mode', 'USAR AUTO');
-      fix.addEventListener('click', () => patch({ lang_code: '' }));
-      body.append(fix);
+      body.append(
+        button({ variant: 'select', size: 'xs', label: 'USAR AUTO', onClick: () => patch({ lang_code: '' }) })
+      );
     }
 
     for (const [lang, voices] of Object.entries(cfg.catalog).sort()) {
@@ -118,7 +154,7 @@ export function createSpeechPanel(root) {
       for (const voice of [...voices].sort()) {
         const isMain = voice === s.voice;
         const isBlend = voice === s.blend_voice;
-        const row = el('button', `fs-row fs-file ${isMain ? 'on' : ''}`);
+        const row = button({ variant: 'row', size: 'row', on: isMain });
         row.append(el('span', 'fs-glyph', isMain ? '◆' : isBlend ? '◇' : '·'));
         row.append(el('span', 'fs-name', voice));
         if (isMain) row.append(el('span', 'fs-meta', 'PRINCIPAL'));
@@ -212,9 +248,9 @@ export function createSpeechPanel(root) {
     wrap.append(el('div', 'controls-group', label));
     const row = el('div', 'perm-modes');
     for (const [value, text] of options) {
-      const button = el('button', `perm-mode ${value === active ? 'on' : ''}`, text);
-      button.addEventListener('click', () => onPick(value));
-      row.append(button);
+      row.append(
+        button({ variant: 'select', size: 'xs', label: text, on: value === active, onClick: () => onPick(value) })
+      );
     }
     wrap.append(row);
     return wrap;

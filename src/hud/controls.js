@@ -1,9 +1,13 @@
 /**
  * Painel de afinação — construído a partir do SPEC, nunca escrito à mão.
  *
- * Fica escondido e abre com `G` (ou o botão AFINAR). Não é um painel de debug: usa a mesma
- * tipografia hairline da HUD e some no modo cinematográfico, porque o operador vai usá-lo
- * para achar o visual que ele quer — não para inspecionar variáveis.
+ * Fica escondido; alterna com ⌘G (ou a crase, ou o botão AFINAR). Não é um painel
+ * de debug: usa a mesma tipografia hairline da HUD e some no modo cinematográfico, porque o
+ * operador vai usá-lo para achar o visual que ele quer — não para inspecionar variáveis.
+ *
+ * Os defaults do SPEC são a afinação que o operador chegou usando este painel, capturada do
+ * navegador dele. Não são números de fábrica: RESTAURAR volta para o visual escolhido, não
+ * para um estado que ninguém queria ver.
  *
  * O slider escreve direto no store, e o store notifica a cena. Não existe botão "aplicar":
  * afinação visual só funciona com resposta no mesmo quadro.
@@ -12,17 +16,13 @@ import * as tuning from '../core/tuning.js';
 import { el, set } from './dom.js';
 import * as prefs from '../core/prefs.js';
 import { bind } from '../core/keys.js';
+import * as motion from '../core/motion.js';
 
 /**
- * Backquote, não letra.
+ * Alias em crase, convenção de painel de afinação e ausente em pergunta em português.
  *
- * O atalho era `G`, e o prompt recebe foco no boot — então o guarda "não sequestrar a tecla
- * enquanto se digita" descartava TODA tecla G, e o painel era inalcançável pelo teclado.
- * Letra solta como atalho global é incompatível com um campo de texto sempre focado: ou o
- * atalho engole o caractere, ou o campo engole o atalho.
- *
- * A crase é a convenção de painel de afinação e não aparece em pergunta em português. Ainda
- * assim, o botão visível é o caminho principal — atalho é atalho, não a única porta.
+ * O atalho principal é ⌘G — ver o raciocínio no `bind` abaixo. Letra SOLTA como atalho global
+ * é incompatível com um campo de texto sempre focado, e foi por isso que `G` puro saiu.
  */
 const TOGGLE_KEY = 'Backquote';
 
@@ -33,6 +33,26 @@ export function createControls(root) {
   const resetButton = el('button', 'controls-reset', 'RESTAURAR');
   header.append(resetButton);
   panel.append(header);
+
+  /*
+   * Aviso de movimento reduzido.
+   *
+   * Com `prefers-reduced-motion` ativo, a cena zera GRÃO e RESPIRAÇÃO e amortece as derivas —
+   * então esses sliders exibem um número que não está em vigor. Um controle que não controla, em
+   * silêncio, é o defeito que o painel de permissões existe para não cometer; aqui vale a mesma
+   * régua. O aviso só aparece quando a preferência está ligada.
+   */
+  const motionNote = el('div', 'controls-note', '');
+  panel.append(motionNote);
+  motion.subscribe((reduced) => {
+    motionNote.hidden = !reduced;
+    set(
+      motionNote,
+      reduced
+        ? 'MOVIMENTO REDUZIDO (preferência do sistema) · GRÃO e RESPIRAÇÃO em 0 · DERIVAS a 25%'
+        : ''
+    );
+  });
 
   const readouts = new Map();
   const inputs = new Map();
@@ -66,7 +86,7 @@ export function createControls(root) {
     inputs.set(key, slider);
   }
 
-  panel.append(el('div', 'controls-hint', 'G FECHA · VALORES PERSISTEM NESTE NAVEGADOR'));
+  panel.append(el('div', 'controls-hint', '⌘G ALTERNA · VALORES PERSISTEM NESTE NAVEGADOR'));
   root.append(panel);
 
   resetButton.addEventListener('click', () => tuning.reset());
@@ -79,7 +99,30 @@ export function createControls(root) {
     }
   });
 
-  bind({ code: TOGGLE_KEY, label: '` AFINAR' }, () => setOpen(!panel.classList.contains('open')));
+  /*
+   * Um atalho, as duas direções.
+   *
+   * Houve uma versão em que a crase abria e `G` fechava. Estava errado: atalho que entra por
+   * uma tecla e sai por outra obriga a decorar duas coisas para um gesto só.
+   *
+   * O modificador é o que torna a simetria possível. `G` puro não pode ser toggle global
+   * porque o prompt tem foco quase sempre — ou o atalho engole a letra ao digitar "grafo", ou
+   * o campo engole o atalho, e não há terceira opção. Com ⌘/Ctrl não existe caractere em
+   * disputa, então o mesmo atalho vale com o cursor no prompt e com ele fora: `whileTyping`.
+   *
+   * `meta` casa ⌘ OU Ctrl (ver `matches` em keys.js), então serve mac e linux sem ramificar.
+   */
+  const alterna = () => setOpen(!panel.classList.contains('open'));
+  bind({ code: 'KeyG', meta: true, whileTyping: true, label: '⌘G AFINAR' }, alterna);
+  /*
+   * A crase continua valendo e também ALTERNA — nunca só uma das direções.
+   *
+   * Sem `whileTyping`, ao contrário do ⌘G: crase é caractere, e num OS de desenvolvedor ela é
+   * digitada de verdade. Marcá-la como válida durante a digitação transformaria cada crase
+   * escrita no prompt em abertura de painel, trocando um atalho conveniente por um campo de
+   * texto que engole caractere.
+   */
+  bind({ code: TOGGLE_KEY }, alterna);
 
   const trigger = root.querySelector('[data-tune-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));

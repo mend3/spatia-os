@@ -22,6 +22,7 @@ import { createBlackHole } from './blackhole.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
 import { createGraph } from './graph.js';
+import * as motion from '../core/motion.js';
 import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
 import { createBodies } from './bodies.js';
@@ -117,7 +118,34 @@ export function createScene(canvas, { labelLayer } = {}) {
    * Nenhum deles conhece o painel: cada um expõe `tune(values)` e recebe o objeto inteiro.
    * Parâmetro novo no SPEC vira uma linha no módulo que o consome — e nada mais.
    */
-  tuning.subscribe((values) => {
+  /**
+   * A afinação depois de obedecer `prefers-reduced-motion`.
+   *
+   * O ajuste é aqui, no ÚNICO ponto por onde os valores passam para todos os módulos — não em
+   * cada shader. `grain` e `breath` vão a zero porque são movimento sem evento por trás; a
+   * deriva do céu e a velocidade orbital são AMORTECIDAS e não zeradas, porque órbita parada
+   * afirmaria que o sistema morreu, e o pedido é reduzir movimento, não remover estado.
+   *
+   * ⚠️ Isto faz o painel de afinação exibir um valor que não está em vigor. O painel diz isso na
+   * própria tela (`controls.js`); um slider que não controla nada, em silêncio, é pior que um
+   * slider ausente.
+   */
+  const QUIET_FACTOR = 0.25;
+  function respectMotion(values) {
+    if (!motion.isReduced()) return values;
+    return {
+      ...values,
+      grain: 0,
+      breath: 0,
+      cameraDrift: 0,
+      starDrift: values.starDrift * QUIET_FACTOR,
+      graphSpeed: values.graphSpeed * QUIET_FACTOR,
+      diskSpin: values.diskSpin * QUIET_FACTOR,
+    };
+  }
+
+  function fanOut(raw) {
+    const values = respectMotion(raw);
     tune = values;
     blackHole.tune(values);
     stars.tune(values);
@@ -129,7 +157,12 @@ export function createScene(canvas, { labelLayer } = {}) {
       camera.fov = values.fov;
       camera.updateProjectionMatrix();
     }
-  });
+  }
+
+  tuning.subscribe(fanOut);
+  // A preferência muda em runtime: religar "reduzir movimento" no sistema tem que apagar o grão
+  // sem reload, então a mudança reaplica a afinação inteira pelo mesmo caminho.
+  motion.subscribe(() => fanOut(tuning.values()));
 
   // ---------------------------------------------------------------- eventos → imagem
 
@@ -201,6 +234,39 @@ export function createScene(canvas, { labelLayer } = {}) {
     dragging = false;
     canvas.releasePointerCapture?.(event.pointerId);
   });
+
+  /*
+   * O ponteiro está sobre um painel da HUD, e não sobre o céu?
+   *
+   * O picking usa a ÚLTIMA coordenada que o canvas recebeu, e o canvas para de receber
+   * `pointermove` no instante em que o cursor entra num painel interativo. O efeito medido: o
+   * cursor está lendo o conteúdo de um arquivo e o rótulo de hover do céu continua acendendo,
+   * porque um nó em órbita passa por baixo daquela coordenada congelada. O tooltip "atravessava"
+   * o painel.
+   *
+   * A regra é do SISTEMA, não de cada painel — a mesma disciplina do `keys.js`, onde atalho
+   * global não dispara enquanto há foco em texto. Aqui: não há hover no céu enquanto o ponteiro
+   * está sobre a HUD. Escuta em `window` com `capture`, porque o evento pode ser consumido antes
+   * de borbulhar.
+   */
+  let pointerOffSky = false;
+  window.addEventListener(
+    'pointermove',
+    (event) => {
+      const off = event.target !== canvas;
+      if (off === pointerOffSky) return;
+      pointerOffSky = off;
+      // Sair do céu apaga o hover na hora. Esperar o próximo quadro de picking deixaria o
+      // rótulo aceso sobre o painel pelo tempo do intervalo.
+      if (off && (hovered || hoveredBody)) {
+        hovered = null;
+        hoveredBody = null;
+        canvas.style.cursor = '';
+        ui('hover', { node: null });
+      }
+    },
+    true
+  );
 
   canvas.addEventListener('pointermove', (event) => {
     const rect = canvas.getBoundingClientRect();
@@ -277,6 +343,13 @@ export function createScene(canvas, { labelLayer } = {}) {
     // o enquadramento, e devolve contraste para a HUD.
     orbit.targetDistance = id ? 30 : 54;
     orbit.targetPolar = id ? 1.06 : 1.33;
+    // Movimento reduzido: corte, não voo. O alvo já está no destino e a câmera é posta lá no
+    // mesmo quadro — a chegada continua acontecendo, só sem os 900ms de deslocamento.
+    if (motion.isReduced()) {
+      orbit.distance = orbit.targetDistance;
+      orbit.polar = orbit.targetPolar;
+      orbit.azimuth = orbit.targetAzimuth;
+    }
   }
 
   function focusOn(points) {
@@ -292,7 +365,8 @@ export function createScene(canvas, { labelLayer } = {}) {
     const elapsed = clock.elapsedTime;
     const started = performance.now();
 
-    const drift = DRIFT_BASE * tune.cameraDrift;
+    // Deriva automática é movimento contínuo sem evento por trás — o primeiro a sair.
+    const drift = motion.isReduced() ? 0 : DRIFT_BASE * tune.cameraDrift;
     if (!dragging && !userControlled) orbit.targetAzimuth += delta * drift;
     if (cinematic) orbit.targetAzimuth += delta * drift * 1.6;
 
@@ -329,7 +403,7 @@ export function createScene(canvas, { labelLayer } = {}) {
     // Picking limitado a ~16Hz e suspenso durante o arrasto: era ele que roubava o
     // orçamento de quadro justamente enquanto a câmera se movia. Arrastando, ninguém está
     // mirando num nó.
-    if (!dragging && performance.now() - lastPick > PICK_INTERVAL_MS) {
+    if (!dragging && !pointerOffSky && performance.now() - lastPick > PICK_INTERVAL_MS) {
       lastPick = performance.now();
       raycaster.setFromCamera(pointer, camera);
       // Corpo de app tem prioridade: é destino de navegação, e um nó do grafo atrás dele não
@@ -366,6 +440,8 @@ export function createScene(canvas, { labelLayer } = {}) {
     installApps: (apps) => bodies.install(apps),
     focusedBody: () => focusedBody,
     loadGraph: (payload) => graph.load(payload),
+    /** Janela temporal do céu, em espaço de recência — o mesmo eixo que já define o raio. */
+    revealSky: (value) => graph.reveal(value),
     installProviders: (providers) => satellites.install(providers),
     nodeCount: () => graph.count(),
     toolColor: (kind) => TOOL_COLORS[kind] ?? TOOL_COLORS.other,

@@ -16,7 +16,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, brain, config, embed, files, graph, llm, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
+from . import agent, attach, brain, config, dirty, embed, files, graph, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -36,11 +36,13 @@ ROUTE_LABELS = {
     "/api/health": "health",
     "/api/client": "client",
     "/api/config": "config",
+    "/api/mcp": "mcp",
     "/api/tts": "tts",
     "/api/system-events": "events",
     "/api/integrations": "integrations",
     "/api/speech": "speech",
     "/api/attach": "attach",
+    "/api/dirty": "dirty",
     "/metrics": "metrics",
 }
 
@@ -217,8 +219,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(self._health())
             elif route == "/api/config":
                 self._json(permissions.describe())
+            elif route == "/api/mcp":
+                # Rota própria, e não um campo do `/api/config`: o painel de MCP pergunta
+                # "quem está no ar e quem ficou de fora", que é outra pergunta que a de
+                # permissões — e ele precisa reconsultar sozinho quando a fonte muda.
+                self._json(mcp_scopes.snapshot(permissions.load()["setting_sources"]))
             elif route == "/api/speech":
                 self._json(speech.describe())
+            elif route == "/api/dirty":
+                # Rota SEPARADA da topologia de propósito: o estado local muda a cada Ctrl+S,
+                # e a topologia é cacheada por fingerprint e gravada em disco. Juntar os dois
+                # forçaria ou anel velho, ou reconstruir 397 nós a cada 15 segundos.
+                self._json({"files": dirty.table()})
             elif route == "/api/integrations":
                 self._json({
                     "webhooks": webhooks.availability(),

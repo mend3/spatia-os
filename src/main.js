@@ -27,6 +27,7 @@ import { registerApps, SYSTEM_VIEW } from './apps/index.js';
 import * as tuning from './core/tuning.js';
 import * as prefs from './core/prefs.js';
 import * as keys from './core/keys.js';
+import { button, setOn } from './hud/button.js';
 
 const hud = document.getElementById('hud');
 const canvas = document.getElementById('space');
@@ -106,10 +107,50 @@ async function main() {
   terminal.resize();
   window.addEventListener('resize', () => terminal.resize());
 
+  /**
+   * Destrava o áudio na primeira interação real, uma vez só.
+   *
+   * Três eventos porque três caminhos de entrada existem: mouse (`pointerdown`), teclado
+   * (`keydown`) e roda (`wheel`, que é como se orbita a câmera). `{ once: true }` em cada um não
+   * bastaria — o primeiro a disparar tem que remover os outros dois, senão sobram listeners
+   * armados para sempre esperando um gesto que já aconteceu.
+   */
+  function armAudioUnlock() {
+    const events = ['pointerdown', 'keydown', 'wheel'];
+    const unlock = async () => {
+      for (const name of events) window.removeEventListener(name, unlock, true);
+      const started = await audio.enable();
+      // Reporta o desfecho: o boot já disse `audio: false`, e sem isto a métrica ficaria
+      // afirmando que este cliente nunca teve som.
+      if (started) api.reportClient({ audio: true, audio_unlocked_by: 'gesture' });
+    };
+    for (const name of events) window.addEventListener(name, unlock, true);
+  }
+
   const boot = createBoot(bootRoot, {
     onEngage: async () => {
-      // Único ponto em que o áudio pode iniciar: dentro do gesto do usuário.
-      const started = await audio.enable();
+      /*
+       * O boot entra sozinho, então aqui NÃO existe mais gesto do usuário.
+       *
+       * A política de autoplay não mudou por isso: `enable()` tenta e devolve se conseguiu. Sem
+       * gesto ela devolve `false`, e a resposta certa não é insistir num loop nem mentir que o
+       * som está no ar — é armar o PRÓXIMO gesto real, qualquer um, para destravar. Um clique na
+       * dock ou a primeira tecla no prompt já serve, e o operador não precisa saber que existiu
+       * uma negociação.
+       */
+      /*
+       * `enable()` pode LANÇAR, não só devolver `false`.
+       *
+       * Numa aba sem gesto do usuário o `resume()` do AudioContext rejeita em vez de resolver
+       * com estado suspenso. Tratar só o `false` deixava a exceção subir e travar o boot.
+       */
+      let started = false;
+      try {
+        started = await audio.enable();
+      } catch (error) {
+        console.warn('[audio] bloqueado no boot; aguardando gesto', error);
+      }
+      if (!started) armAudioUnlock();
       api.reportClient({ boot: 'success', audio: started });
       emit({ t: 'state', state: 'idle', label: 'OCIOSO' });
       terminal.focus();
@@ -118,6 +159,10 @@ async function main() {
 
   // Áudio e cena assinam o mesmo estado, então som e imagem nunca divergem.
   on('ui.state-changed', ({ state: next }) => audio.setRegime(next));
+
+  // A janela temporal do céu. O widget do scrubber não conhece a cena e a cena não conhece o
+  // widget: os dois falam em espaço de recência, que é o mesmo eixo que já define o raio orbital.
+  on('ui.sky-reveal', ({ reveal }) => scene.revealSky(reveal));
 
   // O volume é afinação como qualquer outra — mesmo painel, mesma persistência.
   tuning.subscribe((values, key) => {
@@ -257,9 +302,8 @@ function createDock(root, apps) {
   const dock = root.querySelector('[data-dock]');
   const items = new Map();
 
-  const home = document.createElement('button');
-  home.className = 'dock-item';
-  home.dataset.app = ROUTE_ROOT;
+  // A dock é o primitivo `select`: uma rota ativa entre N é um conjunto exclusivo.
+  const home = button({ variant: 'select', size: 'sm', data: { app: ROUTE_ROOT } });
   home.append(
     Object.assign(document.createElement('span'), { className: 'dock-key', textContent: '⌂' }),
     Object.assign(document.createElement('span'), { textContent: 'SISTEMA' })
@@ -269,11 +313,14 @@ function createDock(root, apps) {
   items.set(ROUTE_ROOT, home);
 
   apps.forEach((app, index) => {
-    const item = document.createElement('button');
-    item.className = 'dock-item';
-    item.dataset.app = app.id;
-    item.title = app.tagline;
-    item.style.setProperty('--dock-color', `#${app.color.toString(16).padStart(6, '0')}`);
+    const item = button({
+      variant: 'select',
+      size: 'sm',
+      title: app.tagline,
+      // O acento é a cor do app. É o que faz a dock reusar a variante em vez de forkar.
+      accent: `#${app.color.toString(16).padStart(6, '0')}`,
+      data: { app: app.id },
+    });
     item.append(
       Object.assign(document.createElement('span'), { className: 'dock-dot' }),
       Object.assign(document.createElement('span'), { textContent: app.name }),
@@ -286,7 +333,7 @@ function createDock(root, apps) {
 
   return {
     setActive(id) {
-      for (const [key, item] of items) item.dataset.active = String(key === id);
+      for (const [key, item] of items) setOn(item, key === id);
     },
   };
 }

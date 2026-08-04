@@ -13,7 +13,9 @@
  */
 import { registerApp } from '../kernel/registry.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
+import { registerSkyTime } from './sky-time.js';
 import { el, set, shortPath, money } from '../hud/dom.js';
+import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
 import { snapshot } from '../core/state.js';
 import * as api from '../core/api.js';
@@ -22,6 +24,7 @@ const COLORS = { files: 0x7ee0c0, system: 0xffab54, web: 0xff9b4a, bridge: 0x5ce
 
 export function registerApps() {
   registerCoreWidgets();
+  registerSkyTime();
   registerFilesWidgets();
   registerSystemWidgets();
   registerWebWidgets();
@@ -33,7 +36,9 @@ export function registerApps() {
     tagline: 'o grafo como sistema de arquivos',
     color: COLORS.files,
     orbit: { radius: 12.5, inclination: -0.24, phase: 0.4 },
-    widgets: ['fs-tree', 'fs-locate', 'fs-content', 'timeline'],
+    // A janela do tempo entra aqui também: este é o app sobre o corpus, e navegar o corpus por
+    // data é a mesma operação que navegá-lo por pasta.
+    widgets: ['fs-tree', 'fs-locate', 'fs-content', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -42,7 +47,7 @@ export function registerApps() {
     tagline: 'saúde, custo, permissões, afinação',
     color: COLORS.system,
     orbit: { radius: 15.5, inclination: 0.36, phase: 2.1 },
-    widgets: ['sys-about', 'sys-services', 'vitals', 'sys-quota', 'timeline'],
+    widgets: ['sys-about', 'sys-services', 'vitals', 'sys-quota', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -51,7 +56,7 @@ export function registerApps() {
     tagline: 'provedores, resultados, ingestão',
     color: COLORS.web,
     orbit: { radius: 18.5, inclination: -0.42, phase: 3.9 },
-    widgets: ['web-providers', 'web-results', 'answer', 'timeline'],
+    widgets: ['web-search', 'web-providers', 'web-results', 'answer', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -60,12 +65,17 @@ export function registerApps() {
     tagline: 'integrações, webhooks, MCP',
     color: COLORS.bridge,
     orbit: { radius: 21, inclination: 0.18, phase: 5.4 },
-    widgets: ['br-webhooks', 'br-mcp', 'br-deliveries', 'timeline'],
+    widgets: ['br-webhooks', 'br-mcp', 'br-deliveries', 'sky-time', 'timeline'],
   });
 }
 
-/** Widgets da vista de sistema (a rota raiz) — o conjunto que já existia. */
-export const SYSTEM_VIEW = ['vitals', 'plan', 'timeline', 'answer', 'memory', 'tools', 'web-results'];
+/** Widgets da vista de sistema (a rota raiz). */
+export const SYSTEM_VIEW = [
+  'vitals', 'plan', 'timeline', 'answer', 'memory', 'tools', 'web-results',
+  // A fenda `strip` é dos residentes, e o scrubber pertence a ela: ele controla o CÉU, que está
+  // visível em toda rota, então tirá-lo da tela deixaria a janela temporal ativa e sem controle.
+  'sky-time',
+];
 
 // ---------------------------------------------------------------- ARQUIVOS
 
@@ -111,12 +121,13 @@ function registerFilesWidgets() {
         for (const part of cwd.split('/').filter(Boolean)) {
           acc = acc ? `${acc}/${part}` : part;
           const target = acc;
-          const button = el('button', 'fs-crumb-part', part);
-          button.addEventListener('click', () => {
+          // `crumb`, não `button`: o nome sombreava o primitivo importado dentro deste bloco.
+          const step = el('button', 'fs-crumb-part', part);
+          step.addEventListener('click', () => {
             cwd = target;
             notify();
           });
-          crumb.append(el('span', 'fs-crumb-sep', '/'), button);
+          crumb.append(el('span', 'fs-crumb-sep', '/'), step);
         }
         rows.push(crumb);
 
@@ -135,7 +146,7 @@ function registerFilesWidgets() {
         }
 
         for (const dir of [...dirs].sort()) {
-          const row = el('button', 'fs-row fs-dir');
+          const row = button({ variant: 'row', size: 'row', data: { entry: 'dir' } });
           row.append(el('span', 'fs-glyph', '▸'), el('span', 'fs-name', dir));
           row.addEventListener('click', () => {
             cwd = prefix ? `${prefix}${dir}` : dir;
@@ -144,7 +155,7 @@ function registerFilesWidgets() {
           rows.push(row);
         }
         for (const node of files.sort((a, b) => a.label.localeCompare(b.label))) {
-          const row = el('button', `fs-row fs-file kind-${node.kind}`);
+          const row = button({ variant: 'row', size: 'row', data: { entry: 'file', kind: node.kind } });
           row.append(el('span', 'fs-glyph', '·'), el('span', 'fs-name', node.label));
           row.append(el('span', 'fs-meta', `${node.chunks}`));
           row.addEventListener('click', () => emit({ t: 'ui.open-file', source: node.source }));
@@ -180,7 +191,7 @@ function registerFilesWidgets() {
           if (!hits.length) return view.empty('nenhum resultado');
           view.set(
             hits.map((hit) => {
-              const row = el('button', 'fs-row fs-file');
+              const row = button({ variant: 'row', size: 'row', data: { entry: 'file' } });
               row.append(el('span', 'hit-score', (hit.score ?? 0).toFixed(3)));
               row.append(el('span', 'fs-name', shortPath(hit.source, 40)));
               row.addEventListener('click', () => emit({ t: 'ui.open-file', source: hit.source }));
@@ -219,10 +230,21 @@ function registerFilesWidgets() {
           view.empty(`falhou: ${error.message}`);
         }
       };
+      /*
+       * SÓ `ui.open-file`. Assinar `ui.select` também abria DOIS painéis com o mesmo arquivo.
+       *
+       * `answer.js` já escuta `ui.select` para preencher o inspetor da direita — clicar numa
+       * estrela disparava os dois assinantes e o conteúdo aparecia duas vezes, um painel
+       * tapando o outro. Não era erro de layout: eram duas renderizações legítimas do mesmo
+       * evento.
+       *
+       * A divisão que sobra tem dono claro: estrela → inspetor da direita (leitura rápida do
+       * que se clicou no céu); árvore/busca → este leitor central (leitura longa, com fundo e
+       * rolagem). Antes de assinar `ui.select` aqui de novo, remova o de lá.
+       */
       const offOpen = on('ui.open-file', handler);
-      const offSelect = on('ui.select', ({ node }) => node?.source && handler({ source: node.source }));
-      view.empty('escolha um arquivo na árvore, ou clique numa estrela');
-      return { destroy: () => { offOpen(); offSelect(); } };
+      view.empty('escolha um arquivo na árvore');
+      return { destroy: () => offOpen() };
     },
   });
 }
@@ -333,6 +355,36 @@ function registerSystemWidgets() {
 // ---------------------------------------------------------------- WEB
 
 function registerWebWidgets() {
+  /*
+   * Campo de busca PRÓPRIO do app, que sempre pesquisa na internet.
+   *
+   * Estar no app Web não mudava nada: a única entrada era o compositor do rodapé, que respeita
+   * o toggle global. Perguntar na "página de web" e receber "o workspace não tem resposta" é a
+   * expectativa sendo violada — o app Web tem que buscar na web, sem depender de um toggle em
+   * outro canto da tela.
+   */
+  listWidget({
+    id: 'web-search',
+    title: 'BUSCAR NA INTERNET',
+    hint: 'SEMPRE WEB',
+    slot: 'left',
+    render(view) {
+      const box = el('input', 'fs-search');
+      box.placeholder = 'o que procurar na internet';
+      box.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        const query = box.value.trim();
+        if (!query) return;
+        box.value = '';
+        // `web: true` explícito — não é AUTO, não é heurística. Este campo tem uma promessa.
+        api.ask(query, { web: true });
+      });
+      view.push(box);
+      view.push(el('div', 'unit-sub', 'a pergunta sai da máquina · o resultado volta como meteoro'));
+      return null;
+    },
+  });
+
   listWidget({
     id: 'web-providers',
     title: 'PROVEDORES',
@@ -424,33 +476,107 @@ function registerBridgeWidgets() {
     },
   });
 
+  /*
+   * Servidores MCP — DUAS listas, de propósito.
+   *
+   * A versão anterior mostrava só o que o agente reporta no evento `brain`, e por isso não
+   * tinha como explicar uma ausência: `hub-board` não aparecia e a tela não dizia nada. O
+   * defeito não era a ausência do servidor, era a omissão silenciosa.
+   *
+   * Agora:
+   *   DECLARADO  — o que existe em arquivo, por escopo, com o escopo desligado marcado como
+   *                fora e o motivo escrito. Vem de `/api/mcp` e existe antes de perguntar nada.
+   *   REPORTADO  — o que o agente de fato recebeu na sessão. É a verdade, e é maior que a
+   *                lista declarada: conectores da conta (`claude.ai …`) não estão em arquivo
+   *                nenhum que este servidor possa ler.
+   *
+   * As duas listas discordarem é informação, não bug — e é por isso que ficam separadas em vez
+   * de fundidas numa só que esconderia a diferença.
+   */
   listWidget({
     id: 'br-mcp',
     title: 'SERVIDORES MCP',
-    hint: 'VIA AGENTE',
+    hint: 'DECLARADO vs SESSÃO',
     slot: 'right',
     grow: 1,
     render(view) {
-      function draw(brain) {
-        const servers = brain?.mcp || [];
-        if (!servers.length) {
-          return view.empty('faça uma pergunta: a lista vem do que o agente reporta ao iniciar');
-        }
-        view.set([
-          el('div', 'unit-sub', `${brain.tools} ferramentas na sessão · cwd ${brain.cwd}`),
-          ...servers.map((name) => {
-            const row = el('div', 'unit');
-            row.append(el('i', 'dot'), el('span', 'unit-name', name));
-            row.querySelector('.dot').dataset.status = 'on';
-            return row;
-          }),
-          // Honestidade explícita na própria tela: este servidor não é cliente MCP.
-          el('div', 'unit-sub', 'este servidor não fala MCP — quem alcança estes servidores é o agente'),
-        ]);
+      let inventory = null;
+
+      function unit(name, detail, status) {
+        const row = el('div', `unit ${status === 'on' ? '' : 'down'}`);
+        row.append(el('i', 'dot'), el('span', 'unit-name', name));
+        if (detail) row.append(el('span', 'unit-detail', detail));
+        row.querySelector('.dot').dataset.status = status;
+        return row;
       }
-      const store = snapshot();
-      if (store.brain) draw(store.brain);
-      else view.empty('faça uma pergunta: a lista vem do que o agente reporta ao iniciar');
+
+      function draw() {
+        const brain = snapshot().brain;
+        const blocks = [];
+
+        if (inventory) {
+          blocks.push(el('div', 'controls-group', 'DECLARADO EM ARQUIVO'));
+          for (const scope of inventory.scopes) {
+            const suffix = scope.loaded ? 'carregado' : 'FONTE DESLIGADA';
+            blocks.push(el('div', 'unit-sub', `${scope.label} · ${scope.where} · ${suffix}`));
+            if (!scope.servers.length) {
+              blocks.push(el('div', 'unit-sub', '  nenhum servidor neste escopo'));
+              continue;
+            }
+            for (const server of scope.servers) {
+              const inert = server.approved === false;
+              blocks.push(
+                unit(
+                  server.name,
+                  inert ? 'não aprovado' : server.transport,
+                  scope.loaded && !inert ? 'on' : 'off'
+                )
+              );
+            }
+          }
+          for (const item of inventory.excluded) {
+            blocks.push(el('div', 'unit-sub', `⚠ ${item.name} fora: ${item.reason}`));
+          }
+        } else {
+          blocks.push(el('div', 'unit-sub', 'inventário de escopos indisponível'));
+        }
+
+        blocks.push(el('div', 'controls-group', 'REPORTADO PELA SESSÃO'));
+        if (!brain) {
+          blocks.push(el('div', 'unit-sub', 'faça uma pergunta: esta lista vem do agente ao iniciar'));
+        } else {
+          blocks.push(el('div', 'unit-sub', `${brain.tools} ferramentas na sessão · cwd ${brain.cwd}`));
+          for (const name of brain.mcp || []) blocks.push(unit(name, '', 'on'));
+          // A diferença entre as listas é o dado mais informativo desta tela, então ela é
+          // calculada e escrita, não deixada para o operador cruzar com o olho.
+          const declared = new Set(
+            (inventory?.scopes || []).flatMap((scope) => scope.servers.map((s) => s.name))
+          );
+          const extra = (brain.mcp || []).filter((name) => !declared.has(name));
+          if (extra.length) {
+            blocks.push(
+              el('div', 'unit-sub', `${extra.length} não está em arquivo que este servidor leia (conector da conta)`)
+            );
+          }
+          const missing = [...declared].filter((name) => !(brain.mcp || []).includes(name));
+          if (missing.length) {
+            blocks.push(el('div', 'unit-sub', `⚠ declarado e ausente da sessão: ${missing.join(', ')}`));
+          }
+        }
+
+        // Honestidade explícita na própria tela: este servidor não é cliente MCP.
+        blocks.push(el('div', 'unit-sub', 'este servidor não fala MCP — quem alcança estes servidores é o agente'));
+        view.set(blocks);
+      }
+
+      api
+        .mcp()
+        .then((payload) => {
+          inventory = payload;
+          draw();
+        })
+        .catch(() => draw());
+      draw();
       return { destroy: on('brain', draw) };
     },
   });

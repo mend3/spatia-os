@@ -17,9 +17,12 @@
  * decadente, que é o comportamento físico certo perto de um horizonte.
  */
 import * as THREE from 'three';
+import * as motion from '../core/motion.js';
 
 const POOL = 2400;
 const LIFETIME = { infall: 2.2, outflow: 1.5, burst: 1.1 };
+// Fração das partículas emitidas com movimento reduzido.
+const QUIET_SHARE = 0.22;
 
 const VERTEX = /* glsl */ `
   uniform float uSize;
@@ -128,11 +131,21 @@ export function createParticles() {
     positions.set([particle.from.x, particle.from.y, particle.from.z], i * 3);
   }
 
+  /**
+   * Quantas partículas de verdade emitir.
+   *
+   * A redução mora AQUI e não nos sete call sites: `prefers-reduced-motion` pede menos
+   * movimento, e o evento continua sinalizado — uma partícula ainda marca o ponto onde algo
+   * aconteceu. Um piso de 1 porque zero apagaria o evento, que é informação, não enfeite.
+   */
+  const many = (count) => (motion.isReduced() ? Math.max(1, Math.round(count * QUIET_SHARE)) : count);
+
   return {
     object: points,
 
     /** Memória recuperada caindo no núcleo. */
     infall(from, tint = 0xffd9a0, count = 14) {
+      count = many(count);
       for (let n = 0; n < count; n++) {
         spawn('infall', from, scratch.set(0, 0, 0), tint, { scale: 1.1, jitter: 1.4 });
       }
@@ -140,6 +153,7 @@ export function createParticles() {
 
     /** Token saindo do núcleo em direção ao painel de resposta. */
     outflow(to, tint = 0xffe6bd, count = 3) {
+      count = many(count);
       for (let n = 0; n < count; n++) {
         spawn('outflow', scratch.set(0, 0, 0), to, tint, { scale: 0.8, jitter: 2.6 });
       }
@@ -147,6 +161,7 @@ export function createParticles() {
 
     /** Poeira estelar radial num ponto — nó novo, clique, erro. */
     burst(at, tint = 0xffffff, count = 22, spread = 5) {
+      count = many(count);
       for (let n = 0; n < count; n++) {
         const direction = new THREE.Vector3(
           Math.random() - 0.5,

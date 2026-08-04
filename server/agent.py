@@ -8,6 +8,7 @@ Todo evento leva tempo medido (`ms`). A timeline da tela não é decorativa — 
 real da execução, e é assim que se vê que a recuperação custou 80ms e o modelo local 9s.
 """
 import logging
+import re
 import time
 from typing import Iterator
 
@@ -21,9 +22,21 @@ MEMORY_LIMIT = 6
 # web é o único passo que expõe a pergunta a terceiros, então ela é opt-in por palavra
 # explícita ou por toggle da UI, nunca por inferência frouxa.
 WEB_TRIGGERS = (
+    # PT-BR
     "web", "internet", "notícia", "noticia", "hoje", "atual", "última", "ultima",
-    "recente", "mercado", "preço", "preco", "lançou", "lancou", "google", "pesquise",
+    "recente", "recentes", "mercado", "preço", "preco", "lançou", "lancou", "google",
+    "pesquise", "pesquisa", "busque", "melhores", "melhor", "comparação", "comparacao",
+    "tendência", "tendencia", "novidade", "novidades",
+    # EN — a lista era só em português, e por isso "best 3d repositories from 2025 and
+    # 2026" não disparava nada. Metade do que se pergunta a um agente é em inglês.
+    "latest", "news", "today", "current", "recent", "best", "top", "compare",
+    "comparison", "trending", "trends", "release", "released", "search", "google's",
+    "state of", "benchmark", "review", "reviews", "alternatives", "vs",
 )
+
+# Ano de 4 dígitos plausível também pede a internet: "de 2025", "in 2026" é pergunta sobre o
+# mundo, não sobre o repositório. O corpus indexado não sabe o que aconteceu num ano.
+YEAR_PATTERN = re.compile(r"\b(20[2-9]\d)\b")
 
 TOOL_KINDS = {
     "qdrant.query": "database",
@@ -40,7 +53,9 @@ def wants_web(question: str, forced: bool | None) -> bool:
     if forced is not None:
         return forced
     lowered = question.lower()
-    return any(trigger in lowered for trigger in WEB_TRIGGERS)
+    if any(trigger in lowered for trigger in WEB_TRIGGERS):
+        return True
+    return bool(YEAR_PATTERN.search(lowered))
 
 
 def run(question: str, *, web: bool | None = None) -> Iterator[dict]:

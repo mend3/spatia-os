@@ -25,6 +25,7 @@ export const search = (query, limit = 8) =>
 export const node = (source) => json(`/api/node?source=${encodeURIComponent(source)}`);
 export const file = (path) => json(`/api/file?path=${encodeURIComponent(path)}`);
 export const integrations = () => json('/api/integrations');
+export const mcp = () => json('/api/mcp');
 export const speech = () => json('/api/speech');
 export const setSpeech = (patch) =>
   fetch('/api/speech', {

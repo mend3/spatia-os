@@ -22,7 +22,14 @@ const STORAGE_KEY = 'espatial.prefs.v1';
 export const DEFAULTS = Object.freeze({
   // Controles do rodapé
   'voice.enabled': false,
-  'web.mode': false, // false = AUTO (por palavra na pergunta), true = sempre web
+  /*
+   * Três estados, não dois.
+   *
+   * Era booleano, e `false` era rotulado "AUTO" na tela — mas o cliente mandava `web=0`, que o
+   * servidor lê como "não pesquise" EXPLÍCITO. O AUTO nunca pesquisava nada. AUTO de verdade é
+   * não mandar o parâmetro, e isso exige um terceiro estado.
+   */
+  'web.mode': 'auto', // 'auto' | 'on' | 'off'
   'audio.muted': false,
 
   // Painéis e modos

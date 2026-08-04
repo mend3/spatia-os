@@ -178,7 +178,7 @@ controle que não controla. O painel mostra o comando resultante no pé, como pr
 |---|---|
 | ferramenta desligada | `--disallowedTools Nome` |
 | modo de permissão | `--permission-mode <modo>` |
-| carregar `.claude` do repo | `--setting-sources project` |
+| fonte de settings ligada | `--setting-sources project,local,user` |
 | skill desligada | `--disallowedTools "Skill(nome)"` |
 | agente desligado | `--disallowedTools "Task(nome)"` |
 | todas as skills desligadas | `--disable-slash-commands` |
@@ -189,6 +189,32 @@ O catálogo é **descoberto** em `.claude/agents/*.md` e `.claude/skills/*/SKILL
 ⚠️ Um acoplamento que não dá para esconder: skills e agentes do projeto só existem para a
 sessão se as settings do projeto forem carregadas — e isso traz os **hooks do projeto** junto.
 Não há flag que separe as duas coisas, e o painel diz isso em vez de fingir que separa.
+
+### As três fontes de settings, com o custo medido
+
+Um toggle só ("carregar `.claude` do repo") escondia que existem três fontes, e isso produziu um
+bug: `hub-board` e `graphiti` vivem no escopo **`local`** (`~/.claude.json` →
+`projects[<cwd>].mcpServers`, onde `claude mcp add` grava por default), que
+`--setting-sources project` não alcança. O painel de MCP não os listava e não dizia por quê.
+
+Medido em 2026-08-04 (`claude -p` com `claude-haiku-4-5`, `cache_creation_input_tokens` do frame
+`result`):
+
+| `--setting-sources` | cache criado | ferramentas | servidores MCP |
+|---|---|---|---|
+| (vazio) | 2.703 tk | 29 | 0 |
+| `project` | 15.573 tk | 41 | 5 |
+| `project,local` | 16.423 tk | 104 | 7 |
+| `project,local,user` | 25.489 tk | 159 | 8 |
+
+O escopo que faltava custa **~850 tokens**, não os ~9.100 do `user` — o medo de "trazer as
+regras globais de volta" era do escopo errado. Por isso `project,local` é o default e `user` é um
+toggle explícito com o custo escrito na própria linha.
+
+O painel `br-mcp` mostra **duas** listas: o **declarado em arquivo** (por escopo, com o motivo de
+cada exclusão) e o **reportado pela sessão**. As duas discordam de propósito — conectores da
+conta (`claude.ai …`) não estão em arquivo nenhum que este servidor possa ler, e fingir que a
+primeira lista explica a segunda seria voltar a omitir.
 
 ### A barreira que o modo assistente exige
 

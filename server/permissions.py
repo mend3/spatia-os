@@ -10,7 +10,7 @@ O que é aplicável e como:
 |---|---|
 | ferramenta desligada | `--disallowedTools Nome` |
 | modo de permissão | `--permission-mode <modo>` |
-| carregar config do repo | `--setting-sources project` |
+| fonte de settings ligada | `--setting-sources project,local,…` |
 | skill desligada | `--disallowedTools "Skill(nome)"` |
 | agente desligado | `--disallowedTools "Task(nome)"` |
 | todas as skills desligadas | `--disable-slash-commands` |
@@ -49,6 +49,28 @@ TOOLS = [
 
 MODES = ["bypassPermissions", "acceptEdits", "dontAsk", "default", "plan"]
 
+# As fontes de settings do CLI, com o custo MEDIDO de ligar cada uma.
+#
+# Não é estimativa. Medido em 2026-08-04 nesta máquina, `claude -p "responda apenas: ok"` com
+# `claude-haiku-4-5`, lendo `cache_creation_input_tokens` do frame `result`:
+#
+# | `--setting-sources` | cache criado | ferramentas | servidores MCP |
+# |---|---|---|---|
+# | (vazio) | 2.703 tk | 29 | 0 |
+# | `project` | 15.573 tk | 41 | 5 |
+# | `project,local` | 16.423 tk | 104 | 7 |
+# | `project,local,user` | 25.489 tk | 159 | 8 |
+#
+# A conclusão que muda a decisão: o escopo que trazia `hub-board` e `graphiti` é o **`local`**,
+# e ele custa ~850 tokens — não os ~9.100 do `user`. O medo de "trazer as regras globais de
+# volta" era do escopo errado. Por isso `local` entra LIGADO por default e `user` não.
+SETTING_SOURCES = [
+    ("project", "PROJETO", "skills, agentes, hooks e .mcp.json do repo", "+12,9k tk de cache"),
+    ("local", "LOCAL", "MCP de escopo local (~/.claude.json deste repo) + settings.local.json", "+0,9k tk de cache"),
+    ("user", "USUÁRIO", "as regras globais do ~/.claude — o agente passa a obedecê-las", "+9,1k tk de cache"),
+]
+SOURCE_IDS = [source for source, _, _, _ in SETTING_SOURCES]
+
 # Modo de recuperação: para onde o estado cai quando a config no disco está ilegível.
 # `plan` é o menor privilégio que o CLI oferece — o agente raciocina e não executa nada.
 RECOVERY_MODE = "plan"
@@ -60,7 +82,10 @@ _state: dict | None = None
 def _defaults() -> dict:
     return {
         "mode": config.get("AGENT_PERMISSION_MODE") or "bypassPermissions",
-        "load_repo_config": True,
+        # `project` + `local`: é o mínimo para o painel de MCP não mentir. Sem `local`, os
+        # servidores que o operador registrou com `claude mcp add` neste repo ficam de fora da
+        # sessão — e era exatamente o `hub-board` sumindo sem explicação.
+        "setting_sources": ["project", "local"],
         # Ausente = ligado. Só o que o operador desligou é registrado, então skill nova no
         # repo já nasce ativa em vez de aparecer desligada por não estar no arquivo.
         "tools_off": [],
@@ -94,6 +119,11 @@ def load() -> dict:
             try:
                 stored = json.loads(STORE.read_text(encoding="utf-8"))
                 state.update({k: v for k, v in stored.items() if k in state})
+                # Migração do booleano `load_repo_config` para a lista de fontes. Sem isto a
+                # chave antiga seria descartada em silêncio pelo filtro acima e a escolha do
+                # operador viraria o default — que é justamente o que `load()` não pode fazer.
+                if "setting_sources" not in stored and "load_repo_config" in stored:
+                    state["setting_sources"] = ["project", "local"] if stored["load_repo_config"] else []
             except (OSError, json.JSONDecodeError) as e:
                 logger.error(
                     f"config ilegível ({e}) — caindo para o MENOR privilégio ({RECOVERY_MODE}), "
@@ -116,7 +146,9 @@ def update(patch: dict) -> dict:
         merged["mode"] = current["mode"]
     for key in ("tools_off", "skills_off", "agents_off"):
         merged[key] = sorted({str(v) for v in (merged.get(key) or [])})
-    merged["load_repo_config"] = bool(merged["load_repo_config"])
+    # Ordem canônica das fontes, e fonte desconhecida cai fora: `--setting-sources xpto` faz o
+    # CLI recusar o comando inteiro, e o sintoma seria o agente nunca responder.
+    merged["setting_sources"] = [s for s in SOURCE_IDS if s in set(merged.get("setting_sources") or [])]
     # Qualquer alteração deliberada encerra o estado de recuperação.
     merged["recovered"] = False
 
@@ -139,8 +171,7 @@ def cli_flags() -> list[str]:
     state = load()
     argv = ["--permission-mode", state["mode"]]
 
-    sources = "project" if state["load_repo_config"] else ""
-    argv += ["--setting-sources", sources]
+    argv += ["--setting-sources", ",".join(state["setting_sources"])]
 
     deny: list[str] = list(state["tools_off"])
 
@@ -167,6 +198,10 @@ def describe() -> dict:
         "state": state,
         "modes": MODES,
         "tools": [{"id": name, "label": label, "kind": kind} for name, label, kind in TOOLS],
+        "sources": [
+            {"id": source, "label": label, "effect": effect, "cost": cost}
+            for source, label, effect, cost in SETTING_SOURCES
+        ],
         "catalog": catalog.snapshot(),
         "flags": cli_flags(),
     }

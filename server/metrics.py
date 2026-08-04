@@ -34,7 +34,7 @@ registry = promex.Registry()
 # como `other` pela guarda de cardinalidade — sem erro, e perdendo a distinção em silêncio.
 ROUTES = (
     "ask", "search", "graph", "node", "file", "health", "metrics", "client", "config", "tts",
-    "speech", "events", "integrations", "hook", "attach", "static",
+    "speech", "events", "integrations", "hook", "attach", "dirty", "static",
 )
 BRAINS = ("claude", "ollama")
 OUTCOMES = ("success", "error", "aborted")

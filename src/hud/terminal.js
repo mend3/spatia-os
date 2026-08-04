@@ -20,6 +20,7 @@ import { on } from '../core/bus.js';
 import * as api from '../core/api.js';
 import * as prefs from '../core/prefs.js';
 import { el } from './dom.js';
+import { button, setOn } from './button.js';
 
 const BARS = 42;
 
@@ -46,8 +47,10 @@ export function createTerminal(root, { audio }) {
   let recognition = null;
   // Nível vindo de fora (voz do servidor): quando presente, manda na onda.
   let external = null;
-  // Estado do controle vem do storage: o operador não deve reescolher a cada reload.
-  let webMode = prefs.get('web.mode');
+  // Estado do controle vem do storage: o operador não deve reescolher a cada reload. Coerção
+  // porque a versão antiga guardava booleano — storage velho não pode virar modo inválido.
+  const WEB_MODES = ['auto', 'on', 'off'];
+  let webMode = WEB_MODES.includes(prefs.get('web.mode')) ? prefs.get('web.mode') : 'auto';
 
   // ---------------------------------------------------------------- envio
 
@@ -66,7 +69,12 @@ export function createTerminal(root, { audio }) {
 
   function refresh() {
     const current = mode();
+    // `data-mode` escolhe o GLIFO; `data-on`/`data-tone` são o chrome do primitivo. Os três
+    // derivam do mesmo `mode()`, então não há como o desenho discordar do comportamento.
     sendBtn.dataset.mode = current;
+    setOn(sendBtn, current === 'send');
+    if (current === 'stop') sendBtn.dataset.tone = 'bad';
+    else delete sendBtn.dataset.tone;
     sendBtn.title = { mic: 'falar', send: 'enviar', stop: 'parar de gravar' }[current];
     ghost.textContent = input.value ? '' : 'faça uma pergunta ao núcleo';
 
@@ -74,13 +82,18 @@ export function createTerminal(root, { audio }) {
     for (const item of attached) {
       const chip = el('span', `chip ${item.path ? '' : 'pending'}`);
       chip.append(el('span', 'chip-name', item.name));
-      const drop = el('button', 'chip-drop', '×');
-      drop.title = 'remover anexo';
-      drop.addEventListener('click', () => {
-        attached.splice(attached.indexOf(item), 1);
-        refresh();
-      });
-      chip.append(drop);
+      chip.append(
+        button({
+          variant: 'bare',
+          size: 'xs',
+          label: '×',
+          title: 'remover anexo',
+          onClick: () => {
+            attached.splice(attached.indexOf(item), 1);
+            refresh();
+          },
+        })
+      );
       chips.append(chip);
     }
   }
@@ -140,7 +153,8 @@ export function createTerminal(root, { audio }) {
     attached.length = 0;
     refresh();
     audio.click({ frequency: 220, gain: 0.055, decay: 0.7 }); // 55×4 — confirmação grave
-    api.ask(body, { web: webMode });
+    // `null` em AUTO: é o que faz o servidor aplicar a heurística em vez de receber uma ordem.
+    api.ask(body, { web: webMode === 'auto' ? null : webMode === 'on' });
   }
 
   input.addEventListener('input', () => {
@@ -162,11 +176,17 @@ export function createTerminal(root, { audio }) {
   });
 
   function applyWeb() {
-    webToggle.dataset.on = String(webMode);
-    webToggle.textContent = webMode ? 'WEB · ON' : 'WEB · AUTO';
+    webToggle.dataset.on = String(webMode === 'on');
+    webToggle.dataset.mode = webMode;
+    webToggle.textContent = { auto: 'WEB · AUTO', on: 'WEB · ON', off: 'WEB · OFF' }[webMode];
+    webToggle.title = {
+      auto: 'o núcleo decide pela pergunta',
+      on: 'sempre pesquisar na internet',
+      off: 'nunca pesquisar na internet',
+    }[webMode];
   }
   webToggle.addEventListener('click', () => {
-    webMode = !webMode;
+    webMode = WEB_MODES[(WEB_MODES.indexOf(webMode) + 1) % WEB_MODES.length];
     prefs.set('web.mode', webMode);
     applyWeb();
   });

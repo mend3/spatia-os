@@ -17,7 +17,7 @@ const SHELL_MIN = 90;
 const SHELL_MAX = 340;
 
 const VERTEX = /* glsl */ `
-  uniform float uTime, uSize, uTwinkle, uBrightness;
+  uniform float uTime, uSize, uTwinkle, uBrightness, uScale;
   attribute float aSeed;
   attribute float aScale;
   attribute vec3 aTint;
@@ -28,13 +28,25 @@ const VERTEX = /* glsl */ `
     vTint = aTint;
     vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
 
-    // Cintilação: fase própria por estrela, senão o céu inteiro pisca junto.
+    // Cintilacao: fase propria por estrela, senao o ceu inteiro pisca junto.
     float flicker = 0.72 + 0.28 * sin(uTime * (0.5 + aSeed * 2.4) + aSeed * 42.0);
     vAlpha = mix(1.0, flicker, uTwinkle) * aScale * uBrightness;
 
     gl_Position = projectionMatrix * viewPosition;
-    // Atenuação por distância, com piso: estrela distante some, mas nunca vira zero pixel.
-    gl_PointSize = max(uSize * aScale * (200.0 / -viewPosition.z), 0.55);
+
+    /*
+     * Atenuacao por distancia. uScale e metade da altura do canvas em pixel FISICO — a mesma
+     * constante que o three usa em sizeAttenuation, nao uma escolha estetica.
+     *
+     * Aqui havia 200.0 fixo. Com a casca em z de 90 a 340 isso dava 0,3px de ponto, e o piso
+     * engolia: TODAS as 2600 estrelas saiam clampadas no mesmo valor. Multiplicador antes de
+     * um max() que sempre vence nao multiplica nada — era por isso que o slider de TAMANHO
+     * nao movia um pixel, e nao por falta de fiacao.
+     *
+     * NAO use crase em comentario aqui: ela fecha este template literal e o modulo inteiro
+     * vira SyntaxError. Ja aconteceu duas vezes neste arquivo.
+     */
+    gl_PointSize = max(uSize * aScale * (uScale / -viewPosition.z), 1.4);
   }
 `;
 
@@ -46,7 +58,9 @@ const FRAGMENT = /* glsl */ `
     // Ponto redondo com queda suave; quadrado aparece imediatamente em tela grande.
     float d = length(gl_PointCoord - 0.5) * 2.0;
     float core = 1.0 - smoothstep(0.0, 1.0, d);
-    float intensity = pow(core, 2.8) * vAlpha * 0.3;
+    // Expoente 2.8 e fator 0.3 vinham de quando o ponto tinha varios pixels para espalhar
+    // luz. Num ponto de 1,4px eles somam abaixo do discard e o ceu fica preto.
+    float intensity = pow(core, 1.5) * vAlpha;
     if (intensity < 0.004) discard;
     gl_FragColor = vec4(vTint * intensity, intensity);
   }
@@ -95,6 +109,8 @@ export function createStars() {
     uniforms: {
       uTime: { value: 0 },
       uSize: { value: 1.05 },
+      // Preenchido no primeiro quadro; o valor inicial só evita um NaN se algo ler antes.
+      uScale: { value: 500 },
       uTwinkle: { value: 1 },
       uBrightness: { value: 1 },
     },
@@ -114,6 +130,14 @@ export function createStars() {
     object: points,
     update(delta, elapsed) {
       material.uniforms.uTime.value = elapsed;
+      /*
+       * Lido do viewport a cada quadro em vez de por listener de resize.
+       *
+       * Deliberado: o canvas é a tela inteira, a leitura é de duas propriedades já em cache no
+       * browser, e evita que este módulo precise conhecer o renderer — que é justamente o
+       * arquivo que outra mão está editando agora.
+       */
+      material.uniforms.uScale.value = (window.innerHeight * (window.devicePixelRatio || 1)) / 2;
       // Deriva lentíssima: dá vida ao fundo sem competir com o disco por atenção.
       points.rotation.y += delta * 0.004 * tune.drift;
       points.rotation.x += delta * 0.0015 * tune.drift;
