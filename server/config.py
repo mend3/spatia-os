@@ -42,7 +42,11 @@ DEFAULTS = {
     "AGENT_MCP_CONFIG": "",
     # Raízes que o leitor de arquivos aceita servir. Vazio = só o próprio projeto.
     "FILE_ROOTS": "",
-    "SEARXNG_URL": "",
+    # Diretório inicial do app de Arquivos. Vazio = a raiz com mais arquivos do corpus.
+    "FILES_ROOT": "",
+    # O SearXNG é global no oracle e NÃO usa chave, então tem default: o loopback dele.
+    # Presença de variável não é prova de disponibilidade aqui — a checagem sonda de verdade.
+    "SEARXNG_URL": "http://localhost:8888",
     "BRAVE_API_KEY": "",
     "SERPAPI_API_KEY": "",
 }

@@ -89,9 +89,15 @@
 
   header { grid-column: 1 / -1; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 
-  .brand { display: flex; flex-direction: column; gap: 3px; }
-  .brand h1 { color: var(--amber); letter-spacing: 0.62em; font-size: 15px; }
-  .brand span { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.24em; }
+  /* Micro-grid de estado residente: dois pares por linha, valor em destaque. */
+  .headstat { display: grid; grid-template-columns: repeat(2, auto auto); gap: 2px 9px;
+              align-items: baseline; }
+  .hs-label { color: var(--ink-faint); font-size: 7.5px; letter-spacing: 0.2em; }
+  .hs-value { color: var(--ink); font-size: 11px; font-variant-numeric: tabular-nums;
+              letter-spacing: 0.04em; }
+  .hs-value[data-tone="warn"] { color: var(--busy); }
+  .hs-value[data-tone="bad"] { color: var(--bad); }
+  .hs-value[data-tone="good"] { color: var(--good); }
 
   .status { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; justify-content: center; }
   .status-state { display: flex; align-items: center; gap: 7px; color: var(--amber); letter-spacing: 0.26em; }
@@ -241,8 +247,23 @@
 
   footer { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
 
-  .prompt-line { display: grid; grid-template-columns: auto 1fr auto auto auto auto auto; align-items: center; gap: 10px;
+  /* Três zonas: compositor (elástico), forma de onda, configuração. */
+  .prompt-line { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: var(--gutter);
                  border-top: 1px solid var(--line); padding-top: 10px; }
+
+  /*
+    O compositor tem moldura própria — é o que declara "isto aqui é um campo, e estes botões
+    são dele". Sem a moldura, anexo e mic ficavam visualmente indistinguíveis dos toggles de
+    configuração ao lado.
+  */
+  .composer {
+    display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 9px;
+    border: 1px solid var(--line); padding: 5px 8px 5px 11px;
+    transition: border-color 200ms ease;
+  }
+  .composer:focus-within { border-color: var(--amber-dim); }
+  .prompt-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
   .prompt-caret { color: var(--amber); font-size: 15px; }
   .prompt-wrap { position: relative; }
   .prompt-wrap input {
@@ -251,7 +272,44 @@
   }
   .prompt-ghost { position: absolute; inset: 0; color: var(--ink-faint); pointer-events: none; font-size: 13px; }
 
-  canvas.waveform { width: 150px; height: 24px; }
+  canvas.waveform { width: 110px; height: 24px; }
+
+  /*
+    Botão de ação que muda de papel: mic quando não há texto, enviar quando há, parar quando
+    está gravando. É o padrão do WhatsApp/Telegram, e resolve o problema que o "segure espaço"
+    tinha por construção — não existe tecla envolvida, então falar nunca digita.
+  */
+  .icon-btn {
+    pointer-events: auto; background: none; border: 1px solid var(--line); cursor: pointer;
+    width: 30px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+    padding: 0; transition: border-color 180ms ease, background 180ms ease;
+  }
+  .icon-btn svg { width: 15px; height: 15px; fill: none; stroke: var(--ink-dim);
+                  stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-btn:hover { border-color: var(--amber-dim); }
+  .icon-btn:hover svg { stroke: var(--amber); }
+  .icon-btn.primary { border-color: var(--amber-dim); }
+  .icon-btn.primary svg { stroke: var(--amber); }
+  /* Um SVG por modo; só o do modo ativo é exibido. */
+  .icon-btn .ico-mic, .icon-btn .ico-send, .icon-btn .ico-stop { display: none; }
+  .icon-btn[data-mode="mic"] .ico-mic,
+  .icon-btn[data-mode="send"] .ico-send,
+  .icon-btn[data-mode="stop"] .ico-stop { display: block; }
+  .icon-btn[data-mode="send"] { background: var(--amber); border-color: var(--amber); }
+  .icon-btn[data-mode="send"] svg { stroke: var(--void); }
+  .icon-btn[data-mode="stop"] { border-color: var(--bad); }
+  .icon-btn[data-mode="stop"] svg { stroke: var(--bad); fill: var(--bad);
+                                    animation: throb 1s infinite; }
+
+  .attachments { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; }
+  .attachments:empty { display: none; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+          padding: 3px 7px; font-size: 8px; letter-spacing: 0.14em; color: var(--ink-dim);
+          pointer-events: auto; }
+  .chip-drop { background: none; border: none; color: var(--ink-faint); cursor: pointer;
+               font: inherit; font-size: 11px; line-height: 1; padding: 0; }
+  .chip-drop:hover { color: var(--bad); }
+  .chip.pending { opacity: 0.5; }
 
   .toggle {
     background: none; border: 1px solid var(--line); color: var(--ink-faint);
@@ -288,6 +346,110 @@
   .hover.on { opacity: 1; }
   .hover-label { color: var(--ink); font-size: 11px; letter-spacing: 0.16em; }
   .hover-meta { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.2em; }
+
+  /* ---------------- fendas de widget, dock e corpos ---------------- */
+
+  #hud { grid-template-rows: auto 1fr auto auto; }
+  .slot[data-slot="strip"] { grid-column: 1 / -1; display: flex; gap: var(--gutter); }
+  .slot[data-slot="strip"]:empty { display: none; }
+
+  .widget { display: flex; flex-direction: column; min-height: 0; }
+  .widget-stage { flex: 1; justify-content: flex-end; align-items: center; gap: 10px; }
+  .widget-body { min-height: 0; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+  .widget-stage > .widget-body { width: 100%; align-items: center; }
+  .widget-error { color: var(--bad); font-size: 9px; }
+  .widget-empty { color: var(--ink-faint); font-size: 9px; line-height: 1.5; }
+  .widget-hint { font-style: normal; color: var(--ink-faint); }
+
+  /* Depósito: fora de tela, dentro do documento — nó removido perde medida. */
+  .attic { position: fixed; left: -9999px; top: 0; width: 320px; height: 1px; overflow: hidden; }
+
+  /*
+    Transição de rota. Os widgets somem no começo do voo e voltam perto do fim; o router
+    escalona os dois instantes, e é esse desalinho que faz ler como chegada, não como corte.
+  */
+  #hud .slot { transition: opacity 380ms ease, transform 520ms cubic-bezier(0.16, 1, 0.3, 1); }
+  body.in-flight #hud .slot { opacity: 0; transform: translateY(12px); }
+
+  /* Dock: os apps como destinos, com o atalho numérico visível. */
+  .dock { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: center;
+          padding-top: 6px; }
+  .dock-item {
+    pointer-events: auto; background: none; border: 1px solid var(--line); cursor: pointer;
+    color: var(--ink-faint); font: inherit; font-size: 8.5px; letter-spacing: 0.2em;
+    padding: 5px 11px; display: inline-flex; align-items: center; gap: 7px;
+    transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+  .dock-item:hover { color: var(--ink); border-color: var(--amber-dim); }
+  .dock-item[data-active="true"] { color: var(--void); background: var(--dock-color, var(--amber));
+                                   border-color: transparent; }
+  .dock-key { color: var(--ink-faint); font-size: 7.5px; }
+  .dock-item[data-active="true"] .dock-key { color: rgba(0,0,0,0.5); }
+  .dock-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--dock-color, var(--amber)); }
+  .dock-item[data-active="true"] .dock-dot { background: var(--void); }
+
+  /* Rótulos dos corpos: DOM posicionado pela projeção da câmera, para usar a fonte da HUD. */
+  #bodies { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+  .body-label {
+    position: absolute; top: 0; left: 0; pointer-events: auto; cursor: pointer;
+    background: none; border: none; font: inherit; font-size: 9px; letter-spacing: 0.22em;
+    color: var(--ink-dim); display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap; padding: 3px 6px; transition: color 160ms ease;
+  }
+  .body-label:hover, .body-label[data-active="true"] { color: var(--body-color); }
+  .body-key { color: var(--ink-faint); font-size: 7.5px; border: 1px solid var(--line); padding: 0 3px; }
+  /* Controle: rótulo menor e mais discreto que app — ele alterna algo, não é destino. */
+  .body-label.body-control { font-size: 7.5px; letter-spacing: 0.26em; }
+  .body-label.body-control .body-name { opacity: 0.75; }
+
+  /* ---------------- widgets dos apps ---------------- */
+
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 3px 0; align-items: baseline; }
+  .kv-label { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.18em; }
+  .kv-value { color: var(--ink); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis;
+              white-space: nowrap; max-width: 15em; }
+
+  .unit { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
+          padding: 4px 0; }
+  .unit.down { opacity: 0.45; }
+  .unit-name { color: var(--ink-dim); font-size: 9.5px; letter-spacing: 0.12em; }
+  .unit-detail { color: var(--ink-faint); font-size: 8.5px; }
+  .unit-sub { grid-column: 2 / -1; color: var(--ink-faint); font-size: 8px; line-height: 1.5; }
+
+  .fs-crumb { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; padding-bottom: 6px;
+              border-bottom: 1px solid var(--line); margin-bottom: 5px; }
+  .fs-crumb-part { background: none; border: none; color: var(--amber-dim); font: inherit;
+                   font-size: 8.5px; cursor: pointer; padding: 0; }
+  .fs-crumb-part:hover { color: var(--amber); }
+  .fs-crumb-sep { color: var(--ink-faint); font-size: 8.5px; }
+  .fs-row { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; align-items: baseline;
+            background: none; border: none; font: inherit; text-align: left; cursor: pointer;
+            padding: 2px 0; color: var(--ink-dim); }
+  .fs-row:hover { color: var(--ink); }
+  .fs-glyph { color: var(--amber-dim); font-size: 8px; }
+  .fs-name { font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fs-meta { color: var(--ink-faint); font-size: 8px; }
+  .fs-dir .fs-name { color: var(--amber-dim); }
+  .fs-title { color: var(--amber-dim); font-size: 8.5px; letter-spacing: 0.18em;
+              padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .fs-search { width: 100%; background: none; border: none; border-bottom: 1px solid var(--line);
+               color: var(--ink); font: inherit; font-size: 10px; outline: none; padding: 4px 0;
+               margin-bottom: 6px; }
+
+  .delivery { display: grid; grid-template-columns: auto auto 1fr auto; gap: 9px; align-items: baseline;
+              padding: 3px 0; font-size: 9px; }
+  .delivery-source { color: var(--amber-dim); font-size: 8px; letter-spacing: 0.18em; }
+  .delivery-summary { color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .delivery-meta { color: var(--ink-faint); font-size: 8px; }
+
+  /* Painel de voz: mesma moldura dos outros painéis de configuração, à esquerda. */
+  .speech-panel { left: var(--gutter); right: auto;
+                  border-left: 1px solid var(--amber-dim); border-right: none; }
+  body.speech-open #hud > aside:first-of-type { opacity: 0; pointer-events: none; }
+  .bench { display: flex; flex-direction: column; gap: 5px; padding-bottom: 4px; }
+  .bench .perm-mode { align-self: flex-start; }
+  .fs-row.on .fs-name { color: var(--amber); }
+  .chips { display: flex; flex-direction: column; }
 
   /* ---------------- painel de afinação ---------------- */
 
@@ -422,12 +584,17 @@
 
 <canvas id="space"></canvas>
 
+<div id="bodies"></div>
+
 <div id="hud">
   <header>
-    <div class="brand">
-      <h1>ESPATIAL</h1>
-      <span>OBSERVATÓRIO COGNITIVO · NÚCLEO GRAVITACIONAL</span>
-    </div>
+    <!--
+      Aqui havia logo e slogan. Identidade não muda, então não merece espaço permanente — e a
+      aba do browser já diz o nome. O canto passa a mostrar o que precisa ser verdade em TODO
+      app e que não aparecia em nenhum: idade do índice (a métrica que envelhece em silêncio),
+      janela de uso e custo da sessão.
+    -->
+    <div class="headstat" data-headstat></div>
 
     <div class="status">
       <span class="status-state">
@@ -443,59 +610,64 @@
     </div>
   </header>
 
-  <aside>
-    <section>
-      <div class="label">SINAIS VITAIS <i>SESSÃO</i></div>
-      <div data-vitals></div>
-    </section>
-    <section>
-      <div class="label">PLANO <i>CICLO ATUAL</i></div>
-      <div data-plan class="scroll"></div>
-    </section>
-    <section style="flex:1">
-      <div class="label">TIMELINE <i>PERFIL REAL</i></div>
-      <div data-timeline class="scroll"></div>
-    </section>
-  </aside>
+  <aside class="slot" data-slot="left"></aside>
+  <div class="stage slot keep-cinematic" data-slot="stage"></div>
+  <aside class="slot" data-slot="right"></aside>
 
-  <div class="stage keep-cinematic">
-    <button class="answer-dismiss" data-answer-dismiss>FECHAR · ESC</button>
-    <div class="answer" data-answer></div>
-    <div class="answer-meta" data-answer-meta></div>
-    <div class="sources" data-sources></div>
-  </div>
+  <div class="slot strip" data-slot="strip"></div>
 
-  <aside>
-    <section style="flex:1">
-      <div class="label">MEMÓRIA RECUPERADA <i>VETORIAL</i></div>
-      <div data-memory class="scroll"></div>
-    </section>
-    <section>
-      <div class="label">FERRAMENTAS <i>CHAMADAS REAIS</i></div>
-      <div data-tools class="scroll"></div>
-    </section>
-    <section>
-      <div class="label">SATÉLITES DE BUSCA <i>WEB</i></div>
-      <div data-web class="scroll"></div>
-    </section>
-  </aside>
+  <nav class="dock" data-dock></nav>
 
   <footer class="keep-cinematic">
+    <div class="attachments" data-attachments></div>
     <div class="prompt-line">
-      <span class="prompt-caret">›</span>
-      <span class="prompt-wrap">
-        <input data-prompt autocomplete="off" spellcheck="false" aria-label="pergunta ao núcleo">
-        <span class="prompt-ghost" data-prompt-ghost>faça uma pergunta ao núcleo</span>
-      </span>
+      <!--
+        O COMPOSITOR: tudo que participa de escrever uma pergunta mora dentro dele — caret,
+        campo, anexo e o botão de ação. Anexo e mic eram irmãos no grid, ao lado dos toggles de
+        configuração, e liam como se fossem mais dois toggles. Fechá-los na mesma moldura do
+        campo é o que faz o olho entender que pertencem ao ato de compor, não ao de configurar.
+      -->
+      <div class="composer">
+        <span class="prompt-caret">›</span>
+        <span class="prompt-wrap">
+          <input data-prompt autocomplete="off" spellcheck="false" aria-label="pergunta ao núcleo">
+          <span class="prompt-ghost" data-prompt-ghost>faça uma pergunta ao núcleo</span>
+        </span>
+
+        <input type="file" data-attach-input multiple hidden
+               accept="image/*,audio/*,video/*,.pdf,.txt,.md,.json,.csv,.log,.py,.js,.ts,.yaml,.yml">
+        <button class="icon-btn" data-attach-btn title="anexar arquivo, imagem ou áudio">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6.5l-6 6a2.5 2.5 0 003.5 3.5l6-6a4 4 0 00-5.7-5.7l-6.5 6.5a5.5 5.5 0 007.8 7.8l5-5"/></svg>
+        </button>
+
+        <!--
+          Um botão, três papéis: mic sem texto, enviar com texto, parar gravando.
+          O modo é derivado do estado (input + reconhecimento), nunca guardado — estado
+          duplicado entre o que o botão mostra e o que ele faz é como o botão passa a mentir.
+        -->
+        <button class="icon-btn primary" data-send-btn data-mode="mic" title="falar">
+          <svg class="ico-mic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 013 3v5a3 3 0 01-6 0V6a3 3 0 013-3z"/><path d="M6 11a6 6 0 0012 0M12 17v4"/></svg>
+          <!-- Ponta em x=20 (direita). A versão anterior começava em `M4 12` e ia até x=20,
+               ou seja, ponta à ESQUERDA — um "enviar" apontando para trás. -->
+          <svg class="ico-send" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12L4 4l6 8-6 8z"/></svg>
+          <svg class="ico-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+        </button>
+      </div>
+
       <canvas class="waveform" data-waveform></canvas>
-      <button class="toggle" data-voice-toggle data-on="false">VOZ · OFF</button>
-      <button class="toggle" data-perms-toggle data-on="false">PERMISSÕES</button>
-      <button class="toggle" data-tune-toggle data-on="false">AFINAR</button>
-      <button class="toggle" data-web-toggle data-on="false">WEB · AUTO</button>
+
+      <!-- Configuração, não composição: cluster próprio, separado do compositor. -->
+      <div class="prompt-tools">
+        <button class="toggle" data-voice-toggle data-on="false">VOZ · OFF</button>
+        <button class="toggle" data-speech-toggle data-on="false">CONFIG VOZ</button>
+        <button class="toggle" data-perms-toggle data-on="false">PERMISSÕES</button>
+        <button class="toggle" data-tune-toggle data-on="false">AFINAR</button>
+        <button class="toggle" data-web-toggle data-on="false">WEB · AUTO</button>
+      </div>
     </div>
     <div class="footer-hints">
       <span data-voice-hint></span>
-      <span>TAB CINEMA · ` AFINAR · P PERMISSÕES · ALT+R LIBERAR CÂMERA · ⌘M MUDO</span>
+      <span>TAB CINEMA · ` AFINAR · P PERMISSÕES · V CONFIG VOZ · 1-4 APPS · ESC SAIR · ⌘M MUDO</span>
     </div>
   </footer>
 
@@ -511,6 +683,25 @@
     <span class="hover-label" data-hover-label></span>
     <span class="hover-meta" data-hover-meta></span>
   </div>
+</div>
+
+<!--
+  Depósito dos nós que os widgets adotam.
+  Eles nascem aqui e são movidos para a fenda do widget na montagem; ao desmontar, voltam.
+  Ficam DENTRO do documento de propósito: nó removido perde getBoundingClientRect, e o
+  inspetor e o waveform dependem de medida real.
+-->
+<div class="attic" aria-hidden="true">
+  <div data-vitals></div>
+  <div data-plan class="scroll"></div>
+  <div data-timeline class="scroll"></div>
+  <div data-memory class="scroll"></div>
+  <div data-tools class="scroll"></div>
+  <div data-web class="scroll"></div>
+  <button class="answer-dismiss" data-answer-dismiss>FECHAR · ESC</button>
+  <div class="answer" data-answer></div>
+  <div class="answer-meta" data-answer-meta></div>
+  <div class="sources" data-sources></div>
 </div>
 
 <div id="boot">

@@ -85,6 +85,11 @@ def build() -> dict:
                 "dir": "/".join(segments[:-1]),
                 "depth": len(segments),
                 "kind": classify(source),
+                # Caminho para a ÁRVORE, distinto de `source` (que é a chave no Qdrant).
+                # Fonte absoluta (`/Users/.../memory/x.md`, que o indexador adiciona por
+                # --include) tem primeiro segmento vazio, e isso desenhava uma pasta SEM NOME
+                # na raiz. Aqui ela ganha o repo virtual como raiz.
+                "path": _tree_path(source),
                 "chunks": 1,
                 "indexed_at": point.get("indexed_at", ""),
                 "sections": [],
@@ -115,6 +120,48 @@ def build() -> dict:
         f"{payload['stats']['chunks']} chunks, {len(hubs)} hubs"
     )
     return payload
+
+
+def _tree_path(source: str) -> str:
+    """Caminho de exibição na árvore. Relativo passa direto; absoluto ganha raiz virtual."""
+    if not source.startswith("/"):
+        return source
+    name = source.rsplit("/", 1)[-1]
+    return f"{repo_of(source)}/{name}"
+
+
+def age_days() -> int | None:
+    """Idade do índice em dias, do cache — sem tocar upstream.
+
+    Existe para o cabeçalho da UI. É o número que decai em silêncio: a busca continua
+    respondendo normalmente sobre um corpus velho, sem erro nenhum, e é o modo de falha que já
+    aconteceu neste ecossistema. Se não está visível em toda tela, não está visível.
+    """
+    payload = _cached
+    if not payload:
+        return None
+    newest = max((node.get("indexed_at") or "" for node in payload.get("nodes") or []), default="")
+    try:
+        indexed = datetime.strptime(newest, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+    return max(0, (date.today() - indexed).days)
+
+
+def files_root(payload: dict) -> str:
+    """Diretório inicial do app de Arquivos.
+
+    O corpus tem mais de uma raiz (o workspace e as memórias do agente), então não existe
+    prefixo comum — e abrir na raiz vazia mostra duas pastas em vez do conteúdo. O padrão é a
+    raiz com mais arquivos, que é o workspace; `FILES_ROOT` sobrescreve.
+
+    Derivado do dado, não fixo no código: se o corpus mudar, o ponto de partida acompanha.
+    """
+    override = config.get("FILES_ROOT")
+    if override:
+        return override
+    repos = (payload.get("stats") or {}).get("repos") or {}
+    return max(repos, key=repos.get) if repos else ""
 
 
 def publish_gauges(payload: dict) -> None:
@@ -224,6 +271,7 @@ def load(force: bool = False) -> dict:
             try:
                 disk = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
                 if disk.get("fingerprint") == fingerprint:
+                    disk.setdefault("files_root", files_root(disk))
                     _cached = disk
                     publish_gauges(disk)
                     return disk
@@ -233,6 +281,7 @@ def load(force: bool = False) -> dict:
         payload = build()
         payload["fingerprint"] = fingerprint
         payload["collection"] = collection
+        payload["files_root"] = files_root(payload)
         _cached = payload
         publish_gauges(payload)
         try:

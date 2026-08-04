@@ -16,6 +16,7 @@
  * estimando —, mas só quando o TTS do servidor não responde.
  */
 import { on } from '../core/bus.js';
+import * as prefs from '../core/prefs.js';
 
 // Fim de frase seguido de espaço/fim. O lookbehind evita quebrar em `v1.2` ou `etc.`
 // seguido de minúscula, que produziria fragmentos sem sentido para o motor.
@@ -203,6 +204,7 @@ export function createVoice(root, { onLevel } = {}) {
 
   function setEnabled(value) {
     enabled = value;
+    prefs.set('voice.enabled', value);
     if (toggle) {
       toggle.dataset.on = String(value);
       toggle.textContent = value ? 'VOZ · ON' : 'VOZ · OFF';
@@ -216,6 +218,22 @@ export function createVoice(root, { onLevel } = {}) {
   }
 
   toggle?.addEventListener('click', () => setEnabled(!enabled));
+
+  /*
+   * Restaura o estado salvo, mas SEM tocar no AudioContext.
+   *
+   * `setEnabled(true)` chama `audio().resume()`, e no carregamento da página não existe gesto
+   * do usuário — o browser recusa e o contexto fica suspenso, então a primeira fala sairia
+   * muda. O rótulo reflete o estado salvo; o contexto destrava no primeiro gesto real (o
+   * ENGATAR do boot, ou o próprio toggle).
+   */
+  if (prefs.get('voice.enabled')) {
+    enabled = true;
+    if (toggle) {
+      toggle.dataset.on = 'true';
+      toggle.textContent = 'VOZ · ON';
+    }
+  }
 
   return {
     setEnabled,

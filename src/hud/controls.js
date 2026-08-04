@@ -10,6 +10,8 @@
  */
 import * as tuning from '../core/tuning.js';
 import { el, set } from './dom.js';
+import * as prefs from '../core/prefs.js';
+import { bind } from '../core/keys.js';
 
 /**
  * Backquote, não letra.
@@ -77,11 +79,7 @@ export function createControls(root) {
     }
   });
 
-  window.addEventListener('keydown', (event) => {
-    if (event.code !== TOGGLE_KEY || event.metaKey || event.ctrlKey || event.altKey) return;
-    event.preventDefault();
-    setOpen(!panel.classList.contains('open'));
-  });
+  bind({ code: TOGGLE_KEY, label: '` AFINAR' }, () => setOpen(!panel.classList.contains('open')));
 
   const trigger = root.querySelector('[data-tune-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));
@@ -100,6 +98,7 @@ export function createControls(root) {
   function setOpen(open) {
     panel.classList.toggle('open', open);
     document.body.classList.toggle('tuning', open);
+    prefs.set('panel.tuning', open);
     leftColumn?.classList.toggle('dimmed', open);
     if (trigger) trigger.dataset.on = String(open);
     // Tira o foco do prompt ao abrir: com ele focado, seta e Home/End iriam para o texto em

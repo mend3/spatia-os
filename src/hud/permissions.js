@@ -9,7 +9,9 @@
  * novo aparece sozinho, item removido desaparece.
  */
 import { el, set } from './dom.js';
+import * as prefs from '../core/prefs.js';
 import { on } from '../core/bus.js';
+import { bind } from '../core/keys.js';
 
 const TOGGLE_KEY = 'KeyP';
 
@@ -148,15 +150,11 @@ export function createPermissions(root, { onChange } = {}) {
   function setOpen(open) {
     panel.classList.toggle('open', open);
     document.body.classList.toggle('perms-open', open);
+    prefs.set('panel.permissions', open);
     if (open) document.activeElement?.blur?.();
   }
 
-  window.addEventListener('keydown', (event) => {
-    if (event.code !== TOGGLE_KEY || event.metaKey || event.ctrlKey || event.altKey) return;
-    if (document.activeElement?.hasAttribute?.('data-prompt')) return;
-    event.preventDefault();
-    setOpen(!panel.classList.contains('open'));
-  });
+  bind({ code: TOGGLE_KEY, label: 'P PERMISSÕES' }, () => setOpen(!panel.classList.contains('open')));
 
   const trigger = root.querySelector('[data-perms-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));

@@ -18,9 +18,10 @@
  */
 import { on } from '../core/bus.js';
 import * as api from '../core/api.js';
+import * as prefs from '../core/prefs.js';
+import { el } from './dom.js';
 
 const BARS = 42;
-const HOLD_KEY = 'Space';
 
 export function createTerminal(root, { audio }) {
   const input = root.querySelector('[data-prompt]');
@@ -29,6 +30,14 @@ export function createTerminal(root, { audio }) {
   const canvas = root.querySelector('[data-waveform]');
   const context = canvas.getContext('2d');
   const webToggle = root.querySelector('[data-web-toggle]');
+  const sendBtn = root.querySelector('[data-send-btn]');
+  const attachBtn = root.querySelector('[data-attach-btn]');
+  const attachInput = root.querySelector('[data-attach-input]');
+  const chips = root.querySelector('[data-attachments]');
+
+  // Anexos pendentes desta pergunta. O agente recebe CAMINHO, não bytes: ele já tem `Read`,
+  // que lida com imagem e PDF melhor que qualquer coisa que eu enfiasse no prompt.
+  const attached = [];
 
   const levels = new Float32Array(BARS);
   let analyser = null;
@@ -37,22 +46,109 @@ export function createTerminal(root, { audio }) {
   let recognition = null;
   // Nível vindo de fora (voz do servidor): quando presente, manda na onda.
   let external = null;
-  let webMode = false;
+  // Estado do controle vem do storage: o operador não deve reescolher a cada reload.
+  let webMode = prefs.get('web.mode');
 
   // ---------------------------------------------------------------- envio
+
+  let lastSubmit = { text: '', at: 0 };
+
+  /**
+   * O botão tem três papéis, e o modo é derivado — nunca guardado.
+   *
+   * Estado duplicado entre "o que o botão mostra" e "o que ele faz" é como o botão passa a
+   * mentir. Aqui `mode()` lê o input e o reconhecimento, e o desenho segue.
+   */
+  function mode() {
+    if (recognition) return 'stop';
+    return input.value.trim() || attached.length ? 'send' : 'mic';
+  }
+
+  function refresh() {
+    const current = mode();
+    sendBtn.dataset.mode = current;
+    sendBtn.title = { mic: 'falar', send: 'enviar', stop: 'parar de gravar' }[current];
+    ghost.textContent = input.value ? '' : 'faça uma pergunta ao núcleo';
+
+    chips.replaceChildren();
+    for (const item of attached) {
+      const chip = el('span', `chip ${item.path ? '' : 'pending'}`);
+      chip.append(el('span', 'chip-name', item.name));
+      const drop = el('button', 'chip-drop', '×');
+      drop.title = 'remover anexo';
+      drop.addEventListener('click', () => {
+        attached.splice(attached.indexOf(item), 1);
+        refresh();
+      });
+      chip.append(drop);
+      chips.append(chip);
+    }
+  }
+
+  sendBtn.addEventListener('click', () => {
+    const current = mode();
+    if (current === 'send') submit();
+    else if (current === 'stop') recognition?.stop();
+    else startListening();
+  });
+
+  attachBtn.addEventListener('click', () => attachInput.click());
+
+  attachInput.addEventListener('change', async () => {
+    for (const file of [...attachInput.files]) {
+      // Entra na lista já como pendente: o upload de um arquivo grande leva tempo, e o
+      // operador precisa ver que o anexo foi aceito antes de terminar de subir.
+      const item = { name: file.name, path: '' };
+      attached.push(item);
+      refresh();
+      try {
+        const response = await fetch('/api/attach', {
+          method: 'POST',
+          headers: { 'X-Filename': encodeURIComponent(file.name) },
+          body: file,
+        });
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || response.status);
+        Object.assign(item, await response.json());
+      } catch (error) {
+        hint.textContent = `ANEXO FALHOU: ${error.message}`;
+        attached.splice(attached.indexOf(item), 1);
+      }
+      refresh();
+    }
+    attachInput.value = '';
+  });
 
   function submit(text) {
     const question = (text ?? input.value).trim();
     if (!question) return;
+    // Rede de segurança independente da voz: dois envios do MESMO texto em menos de 2s são o
+    // mesmo gesto (duplo Enter, evento repetido), e o segundo só abortaria o primeiro.
+    const now = performance.now();
+    if (question === lastSubmit.text && now - lastSubmit.at < 2000) return;
+    lastSubmit = { text: question, at: now };
+
+    // Anexo pronto entra como caminho no prompt; anexo ainda subindo é descartado com aviso,
+    // porque mandar um caminho que não existe faria o agente errar sem saber por quê.
+    const ready = attached.filter((item) => item.path);
+    const waiting = attached.length - ready.length;
+    const body = ready.length
+      ? `${question}\n\nAnexos (leia com a ferramenta Read):\n${ready.map((a) => `- ${a.path}`).join('\n')}`
+      : question;
+    if (waiting) hint.textContent = `${waiting} ANEXO(S) AINDA SUBINDO — NÃO FORAM ENVIADOS`;
+
     input.value = '';
-    ghost.textContent = '';
-    audio.click({ frequency: 1600, gain: 0.05 });
-    api.ask(question, { web: webMode });
+    attached.length = 0;
+    refresh();
+    audio.click({ frequency: 220, gain: 0.055, decay: 0.7 }); // 55×4 — confirmação grave
+    api.ask(body, { web: webMode });
   }
 
   input.addEventListener('input', () => {
-    ghost.textContent = input.value ? '' : 'faça uma pergunta ao núcleo';
-    if (input.value) audio.click({ frequency: 3200, gain: 0.014, decay: 0.04 });
+    refresh();
+    // Som por tecla é o mais fácil de tornar insuportável: fica quase inaudível e grave.
+    // 3200Hz a cada caractere era a pior combinação possível — região sensível do ouvido,
+    // repetida dezenas de vezes por frase.
+    if (input.value) audio.click({ frequency: 330, gain: 0.006, decay: 0.07 });
   });
 
   input.addEventListener('keydown', (event) => {
@@ -65,11 +161,16 @@ export function createTerminal(root, { audio }) {
     // ficou impossível de fechar sem F5.
   });
 
-  webToggle.addEventListener('click', () => {
-    webMode = !webMode;
+  function applyWeb() {
     webToggle.dataset.on = String(webMode);
     webToggle.textContent = webMode ? 'WEB · ON' : 'WEB · AUTO';
+  }
+  webToggle.addEventListener('click', () => {
+    webMode = !webMode;
+    prefs.set('web.mode', webMode);
+    applyWeb();
   });
+  applyWeb();
 
   // ---------------------------------------------------------------- microfone
 
@@ -86,22 +187,45 @@ export function createTerminal(root, { audio }) {
     recognition.interimResults = true;
     recognition.continuous = false;
 
+    /*
+     * `onresult` dispara várias vezes com `interimResults`, e o Chrome pode entregar um
+     * resultado FINAL mais de uma vez. Cada disparo chamava `submit()`, e duas perguntas em
+     * sequência produzem exatamente os dois sintomas juntos: `api.ask` faz `abort()` no
+     * início, então a segunda mata o stream da primeira — cujos eventos (plano, memória) já
+     * pintaram o painel. Painel com dados duplicados, e resposta que nunca fecha.
+     *
+     * A trava é por sessão de reconhecimento, não por texto: o mesmo enunciado pode
+     * legitimamente ser perguntado duas vezes, só não pelo mesmo ato de fala.
+     */
     recognition.onresult = (event) => {
       const transcript = [...event.results].map((result) => result[0].transcript).join('');
       input.value = transcript;
-      if (event.results[event.results.length - 1].isFinal) submit(transcript);
+      refresh();
+      if (!event.results[event.results.length - 1].isFinal) return;
+      // Transcreve e PARA — não envia sozinho.
+      //
+      // O envio automático era a origem da pergunta duplicada (o Chrome pode entregar mais de
+      // um resultado final) e não deixava revisar o que o reconhecimento entendeu. Com o botão
+      // que virou "enviar" assim que há texto, o gesto seguinte é óbvio e é do operador.
+      try {
+        recognition.stop();
+      } catch {
+        // Já encerrado.
+      }
     };
     recognition.onerror = (event) => {
       hint.textContent = `VOZ: ${event.error.toUpperCase()}`;
     };
     recognition.onend = () => {
       recognition = null;
-      hint.textContent = 'MANTENHA ESPAÇO PARA FALAR · ESC PARA ABORTAR';
+      hint.textContent = input.value.trim() ? 'REVISE E ENVIE' : 'NADA RECONHECIDO';
       stopMeter();
+      refresh();
     };
 
     recognition.start();
-    hint.textContent = '● OUVINDO';
+    hint.textContent = '● OUVINDO · TOQUE EM PARAR QUANDO TERMINAR';
+    refresh();
     await startMeter();
   }
 
@@ -125,29 +249,18 @@ export function createTerminal(root, { audio }) {
     analyser = null;
   }
 
-  window.addEventListener('keydown', (event) => {
-    if (event.code !== HOLD_KEY || event.repeat) return;
-    if (document.activeElement === input && input.value) return;
-    event.preventDefault();
-    startListening();
-  });
-
-  window.addEventListener('keyup', (event) => {
-    if (event.code !== HOLD_KEY) return;
-    recognition?.stop();
-  });
 
   // ---------------------------------------------------------------- fala
 
   // A fala é do `hud/voice.js`. Aqui só o som do sistema reagindo — havia um `speak()` neste
   // módulo atrás de um `root.dataset.voice` que ninguém nunca setava, ou seja, nunca falava.
-  on('answer', () => audio.sweepUp({ from: 420, to: 1900, seconds: 0.6 }));
+  on('answer', () => audio.sweepUp());
 
   on('error', () => audio.glitch());
   on('tool', (event) => {
-    if (event.phase === 'call') audio.click({ frequency: 900, gain: 0.05, decay: 0.16 });
+    if (event.phase === 'call') audio.click({ frequency: 275, gain: 0.04, decay: 0.45 }); // 55×5
   });
-  on('memory', () => audio.click({ frequency: 2100, gain: 0.05, decay: 0.2 }));
+  on('memory', () => audio.click({ frequency: 495, gain: 0.045, decay: 0.6 })); // 55×9
 
   // ---------------------------------------------------------------- desenho da onda
 
@@ -191,7 +304,8 @@ export function createTerminal(root, { audio }) {
     requestAnimationFrame(draw);
   }
 
-  hint.textContent = 'MANTENHA ESPAÇO PARA FALAR · ESC PARA ABORTAR';
+  hint.textContent = 'MIC PARA FALAR · CLIPE PARA ANEXAR · ESC PARA ABORTAR';
+  refresh();
   requestAnimationFrame(draw);
 
   return {

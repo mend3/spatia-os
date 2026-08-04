@@ -24,6 +24,14 @@ export const search = (query, limit = 8) =>
   json(`/api/search?q=${encodeURIComponent(query)}&n=${limit}`);
 export const node = (source) => json(`/api/node?source=${encodeURIComponent(source)}`);
 export const file = (path) => json(`/api/file?path=${encodeURIComponent(path)}`);
+export const integrations = () => json('/api/integrations');
+export const speech = () => json('/api/speech');
+export const setSpeech = (patch) =>
+  fetch('/api/speech', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  }).then((r) => (r.ok ? r.json() : r.json().then((b) => Promise.reject(new Error(b.error || r.status)))));
 
 /**
  * Abre o stream do ciclo cognitivo. `EventSource` não aceita cabeçalho nem POST, mas aqui
@@ -66,6 +74,38 @@ export function abort() {
 }
 
 export const isStreaming = () => currentStream !== null;
+
+/**
+ * Stream de eventos do sistema — o que acontece SEM ninguém perguntar (webhooks, hoje).
+ *
+ * Separado do `ask` de propósito: aquele é o ciclo de uma pergunta e fecha no `done`. Este
+ * fica aberto enquanto a página viver, porque o mundo externo não espera o operador.
+ *
+ * Reconecta com recuo: um servidor reiniciando não pode deixar a cena surda para sempre, e
+ * reconectar em loop apertado transformaria a queda num ataque ao próprio servidor.
+ */
+export function watchSystem() {
+  let backoff = 1000;
+  const connect = () => {
+    const stream = new EventSource('/api/system-events');
+    stream.onopen = () => {
+      backoff = 1000;
+    };
+    stream.onmessage = (message) => {
+      try {
+        emit(JSON.parse(message.data));
+      } catch {
+        // Frame ilegível não derruba o stream.
+      }
+    };
+    stream.onerror = () => {
+      stream.close();
+      setTimeout(connect, backoff);
+      backoff = Math.min(backoff * 2, 30_000);
+    };
+  };
+  connect();
+}
 
 /** Beacon de telemetria da cena — o servidor não tem como saber que o render engasgou. */
 export function reportClient(payload) {

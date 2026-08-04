@@ -83,5 +83,19 @@ def get_text(service: str, url: str, *, headers: Optional[dict] = None, timeout:
         return r.read().decode("utf-8", "replace")
 
 
+def probe(service: str, url: str, timeout: float = 2.0) -> bool:
+    """Sonda de vida: só o status HTTP importa, o corpo não é lido nem parseado.
+
+    Existe porque usar `get_json` para isso é uma armadilha: um `/healthz` que responde 200 com
+    corpo VAZIO levanta `JSONDecodeError`, que não é `UpstreamError` — então o `except` óbvio
+    não pega e a exceção vaza para quem só queria saber "está no ar?".
+    """
+    try:
+        with _request(service, url, timeout=timeout):
+            return True
+    except (UpstreamError, OSError, ValueError):
+        return False
+
+
 def encode_query(params: dict) -> str:
     return urllib.parse.urlencode({k: v for k, v in params.items() if v not in (None, "")})

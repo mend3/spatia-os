@@ -30,9 +30,11 @@ registry = promex.Registry()
 
 # ---------------------------------------------------------------- domínios de label
 
+# Enum fechado das rotas. Precisa acompanhar `app.ROUTE_LABELS`: rota que falte aqui é contada
+# como `other` pela guarda de cardinalidade — sem erro, e perdendo a distinção em silêncio.
 ROUTES = (
     "ask", "search", "graph", "node", "file", "health", "metrics", "client", "config", "tts",
-    "static",
+    "speech", "events", "integrations", "hook", "attach", "static",
 )
 BRAINS = ("claude", "ollama")
 OUTCOMES = ("success", "error", "aborted")
@@ -168,6 +170,21 @@ rate_limit_allowed = registry.gauge(
 )
 rate_limit_resets = registry.gauge(
     "espatial_rate_limit_resets_at_seconds", "Epoch em que a janela de uso reseta.", {"window": None},
+)
+
+# ---------------------------------------------------------------- webhooks
+
+WEBHOOK_SOURCES = ("github", "prometheus", "ci", "generic", "other")
+
+webhook_total = registry.counter(
+    "espatial_webhook_total", "Entregas de webhook recebidas.",
+    {"source": WEBHOOK_SOURCES, "outcome": OUTCOMES},
+)
+webhook_events = registry.histogram(
+    "espatial_webhook_events",
+    "Eventos publicados por entrega. Zero significa corpo que nenhum tradutor entendeu — "
+    "a entrega chegou e nada apareceu na tela.",
+    SMALL_COUNT,
 )
 
 # ---------------------------------------------------------------- voz

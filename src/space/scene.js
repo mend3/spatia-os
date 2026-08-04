@@ -24,6 +24,7 @@ import { createStars } from './stars.js';
 import { createGraph } from './graph.js';
 import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
+import { createBodies } from './bodies.js';
 
 const CAMERA = { fov: 46, near: 0.1, far: 900, start: new THREE.Vector3(0, 8, 54) };
 
@@ -47,8 +48,9 @@ const PICK_INTERVAL_MS = 60;
 const DRIFT_BASE = 0.014;
 const LONG_FRAME_MS = 50;
 const MAX_PIXEL_RATIO = 2;
+const ZERO = new THREE.Vector3();
 
-export function createScene(canvas) {
+export function createScene(canvas, { labelLayer } = {}) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: false, // o bloom e o grão já suavizam; MSAA aqui só custaria fill rate
@@ -68,8 +70,12 @@ export function createScene(canvas) {
   const particles = createParticles();
   const satellites = createSatellites();
   const wormholes = createWormholes();
+  const bodies = createBodies(labelLayer || document.body);
 
-  scene.add(stars.object, blackHole.group, graph.group, particles.object, satellites.group, wormholes.group);
+  scene.add(
+    stars.object, blackHole.group, graph.group, particles.object,
+    satellites.group, wormholes.group, bodies.group
+  );
 
   const composer = new EffectComposer(renderer);
   const lensing = createLensingPass();
@@ -95,6 +101,12 @@ export function createScene(canvas) {
   let hovered = null;
   let focusWeight = 0;
   let lastPick = 0;
+  let hoveredBody = null;
+  let focusedBody = null;
+  // Alvo de órbita quando dentro de um app: a câmera passa a orbitar O CORPO, com o núcleo
+  // ao fundo. `anchor` interpola entre a origem (sistema) e a posição do corpo.
+  const anchor = new THREE.Vector3();
+  const anchorTarget = new THREE.Vector3();
   const frames = { count: 0, long: 0, since: performance.now() };
   // Espelho local do store: o loop lê daqui em vez de chamar getters por quadro.
   let tune = tuning.values();
@@ -220,6 +232,12 @@ export function createScene(canvas) {
   );
 
   canvas.addEventListener('click', () => {
+    if (hoveredBody) {
+      // Corpo de app navega; corpo de controle alterna. A cena não sabe o que cada um faz —
+      // ela emite a intenção e quem registrou o controle decide.
+      ui(hoveredBody.type === 'control' ? 'toggle-control' : 'open-app', { id: hoveredBody.id });
+      return;
+    }
     if (!hovered) return;
     // Onda no espaço-tempo no ponto clicado, e o resto do sistema decide o que fazer.
     particles.burst(hovered.position, graph.kindColor(hovered.node.kind), 26, 4);
@@ -244,6 +262,23 @@ export function createScene(canvas) {
     return new THREE.Vector3(x * 2 - 1, y * 2 - 1, 0.55).unproject(camera);
   }
 
+  /**
+   * Ancora a câmera num corpo de app, ou devolve ao núcleo com `null`.
+   *
+   * Não move a câmera direto: move o ALVO. O loop persegue com suavização por tempo, então a
+   * chegada tem a mesma física do resto da cena e um segundo `focusBody` no meio do voo
+   * redireciona em vez de teleportar.
+   */
+  function focusBody(id) {
+    focusedBody = id;
+    userControlled = false;
+    // 15 punha a câmera DENTRO do disco (raio externo 39): o disco enchia o quadro e lavava
+    // a coluna de texto. 30 mantém o núcleo presente e grande, com o corpo do app ancorando
+    // o enquadramento, e devolve contraste para a HUD.
+    orbit.targetDistance = id ? 30 : 54;
+    orbit.targetPolar = id ? 1.06 : 1.33;
+  }
+
   function focusOn(points) {
     if (!points.length) return;
     focusTarget.set(0, 0, 0);
@@ -265,17 +300,22 @@ export function createScene(canvas) {
     orbit.polar = smooth(orbit.polar, orbit.targetPolar, tune.cameraEase, delta);
     orbit.distance = smooth(orbit.distance, orbit.targetDistance, RATE.zoom, delta);
 
+    // Âncora da órbita: origem no sistema, posição do corpo dentro de um app.
+    const bodyAt = focusedBody ? bodies.positionOf(focusedBody) : null;
+    anchorTarget.copy(bodyAt || ZERO);
+    anchor.lerp(anchorTarget, 1 - Math.exp(-2.6 * delta));
+
     // A câmera olha para o núcleo, mas se inclina na direção do que foi recuperado: o
     // sistema aponta a atenção para onde a memória acendeu, e depois relaxa de volta.
     focusWeight = smooth(focusWeight, 0, RATE.focus, delta);
     const lookAt = focusTarget.clone().multiplyScalar(focusWeight * 0.28);
 
     camera.position.set(
-      Math.sin(orbit.azimuth) * Math.sin(orbit.polar) * orbit.distance,
-      Math.cos(orbit.polar) * orbit.distance,
-      Math.cos(orbit.azimuth) * Math.sin(orbit.polar) * orbit.distance
+      anchor.x + Math.sin(orbit.azimuth) * Math.sin(orbit.polar) * orbit.distance,
+      anchor.y + Math.cos(orbit.polar) * orbit.distance,
+      anchor.z + Math.cos(orbit.azimuth) * Math.sin(orbit.polar) * orbit.distance
     );
-    camera.lookAt(lookAt);
+    camera.lookAt(lookAt.add(anchor));
 
     blackHole.update(delta, elapsed);
     stars.update(delta, elapsed);
@@ -284,6 +324,7 @@ export function createScene(canvas) {
     satellites.update(delta, elapsed);
     satellites.faceCamera(camera);
     wormholes.update(delta, elapsed, camera);
+    bodies.update(delta, elapsed, camera, focusedBody, hoveredBody?.id ?? null);
 
     // Picking limitado a ~16Hz e suspenso durante o arrasto: era ele que roubava o
     // orçamento de quadro justamente enquanto a câmera se movia. Arrastando, ninguém está
@@ -291,7 +332,14 @@ export function createScene(canvas) {
     if (!dragging && performance.now() - lastPick > PICK_INTERVAL_MS) {
       lastPick = performance.now();
       raycaster.setFromCamera(pointer, camera);
-      const picked = graph.pick(raycaster);
+      // Corpo de app tem prioridade: é destino de navegação, e um nó do grafo atrás dele não
+      // pode roubar o clique.
+      const body = bodies.pick(raycaster);
+      if (body?.id !== hoveredBody?.id) {
+        hoveredBody = body;
+        canvas.style.cursor = body ? 'pointer' : '';
+      }
+      const picked = body ? null : graph.pick(raycaster);
       if (picked?.node?.id !== hovered?.node?.id) {
         hovered = picked;
         ui('hover', { node: picked?.node ?? null });
@@ -314,6 +362,9 @@ export function createScene(canvas) {
   requestAnimationFrame(frame);
 
   return {
+    focusBody,
+    installApps: (apps) => bodies.install(apps),
+    focusedBody: () => focusedBody,
     loadGraph: (payload) => graph.load(payload),
     installProviders: (providers) => satellites.install(providers),
     nodeCount: () => graph.count(),

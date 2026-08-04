@@ -22,10 +22,14 @@ export function createFrame(root) {
   const stateLabel = root.querySelector('[data-state-label]');
   const stateDot = root.querySelector('[data-state-dot]');
   const services = root.querySelector('[data-services]');
+  const headstat = root.querySelector('[data-headstat]');
   const vitals = root.querySelector('[data-vitals]');
 
   const indicators = new Map();
   const meters = new Map();
+  // Último /api/health recebido: o tique de 1s redesenha o cabeçalho com ele sem refazer a
+  // chamada. Declarado aqui porque o `setInterval` abaixo o lê.
+  let lastHealth = null;
 
   function service(id, label) {
     const node = el('span', 'svc');
@@ -59,6 +63,59 @@ export function createFrame(root) {
   meter('window', 'JANELA 5H');
   meter('corpus', 'CORPUS', 'arq');
 
+  /*
+   * Estado residente do cabeçalho.
+   *
+   * Cada célula responde uma pergunta que o operador tem em QUALQUER app, e nenhuma delas é
+   * repetição de widget: os vitais só existem na vista de sistema, e a idade do índice não
+   * existia em lugar nenhum.
+   *
+   * A idade tem tom: verde hoje, amarelo a partir de 3 dias, vermelho a partir de 7. É o único
+   * jeito de uma métrica que decai devagar ser notada — número cinza envelhece sem ninguém ver.
+   */
+  const cells = new Map();
+
+  function headCell(id, label) {
+    const value = el('strong', 'hs-value', '—');
+    headstat.append(el('span', 'hs-label', label), value);
+    cells.set(id, value);
+  }
+
+  headCell('cost', 'CUSTO');
+  headCell('window', 'JANELA');
+  headCell('corpus', 'CORPUS');
+  headCell('index', 'ÍNDICE');
+
+  function tone(node, value) {
+    if (value) node.dataset.tone = value;
+    else delete node.dataset.tone;
+  }
+
+  function drawHead(health) {
+    const store = snapshot();
+    set(cells.get('cost'), money(store.cost));
+
+    if (store.limit?.resets_at) {
+      const remaining = Math.max(0, store.limit.resets_at * 1000 - Date.now());
+      const hours = Math.floor(remaining / 3_600_000);
+      set(cells.get('window'), `${hours}h${String(Math.floor((remaining % 3_600_000) / 60_000)).padStart(2, '0')}`);
+      tone(cells.get('window'), store.limit.status === 'allowed' ? '' : 'bad');
+    }
+
+    if (!health) return;
+    set(cells.get('corpus'), (health.qdrant?.points ?? 0).toLocaleString('pt-BR'));
+    tone(cells.get('corpus'), health.qdrant?.online ? '' : 'bad');
+
+    const age = health.index_age_days;
+    if (age === null || age === undefined) {
+      set(cells.get('index'), '?');
+      tone(cells.get('index'), 'warn');
+    } else {
+      set(cells.get('index'), age === 0 ? 'HOJE' : `${age}d`);
+      tone(cells.get('index'), age >= 7 ? 'bad' : age >= 3 ? 'warn' : 'good');
+    }
+  }
+
   function mark(id, status) {
     const indicator = indicators.get(id);
     if (indicator) indicator.dot.dataset.status = status;
@@ -82,6 +139,8 @@ export function createFrame(root) {
     set(seconds, now.seconds);
     set(date, now.date);
 
+    drawHead(lastHealth);
+
     const store = snapshot();
     set(meters.get('cost'), money(store.cost));
     set(meters.get('turns'), store.turns || '—');
@@ -99,6 +158,8 @@ export function createFrame(root) {
   return {
     /** Estado real dos serviços, vindo de `/api/health`. */
     applyHealth(health) {
+      lastHealth = health;
+      drawHead(health);
       mark('brain', health.claude_cli || health.brain === 'ollama' ? 'on' : 'off');
       mark('qdrant', health.qdrant?.online ? 'on' : 'off');
       mark('ollama', health.ollama?.online ? 'on' : 'off');

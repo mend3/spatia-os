@@ -11,6 +11,7 @@ primeira execução, sem nenhuma chave. Ele raspa HTML, então quebra quando a p
 import html
 import logging
 import re
+import time
 from typing import Callable
 
 from . import config, net
@@ -21,12 +22,48 @@ MAX_RESULTS = 6
 SNIPPET_CHARS = 240
 
 
+# O resultado da sonda do SearXNG, com validade curta: o `/api/health` é consultado em loop
+# pela UI, e sondar a cada chamada transformaria a checagem num ping constante.
+_PROBE_TTL_SECONDS = 30
+_searxng_probe: tuple[float, bool] = (0.0, False)
+
+
+def searxng_up() -> bool:
+    """Sonda o SearXNG de verdade.
+
+    Provedor sem chave é diferente em espécie dos com chave: para Brave e SerpAPI, a ausência
+    da variável É a resposta (sem credencial não há como consultar). Para o SearXNG,
+    self-hosted e keyless, a variável não prova nada — ela pode estar setada e o container
+    desligado, ou vazia e o serviço no ar no endereço padrão. Só a sonda responde.
+    """
+    global _searxng_probe
+    base = config.get("SEARXNG_URL").rstrip("/")
+    if not base:
+        return False
+    now = time.monotonic()
+    if now - _searxng_probe[0] < _PROBE_TTL_SECONDS:
+        return _searxng_probe[1]
+    # `net.probe`, não `get_json`: o `/healthz` do searxng responde 200 com corpo VAZIO, e
+    # parsear isso levantava JSONDecodeError — que não é UpstreamError, vazava do `except` e
+    # quebrava o /api/health inteiro. Sonda de vida não lê corpo.
+    up = net.probe("searxng", f"{base}/healthz") or net.probe("searxng", f"{base}/config")
+    _searxng_probe = (now, up)
+    return up
+
+
 def availability() -> list[dict]:
     """O que a UI desenha como satélite, com o motivo de estar offline."""
+    searxng = searxng_up()
     return [
         {"id": "brave", "label": "BRAVE", "online": bool(config.get("BRAVE_API_KEY")), "needs": "BRAVE_API_KEY"},
         {"id": "serpapi", "label": "SERPAPI", "online": bool(config.get("SERPAPI_API_KEY")), "needs": "SERPAPI_API_KEY"},
-        {"id": "searxng", "label": "SEARXNG", "online": bool(config.get("SEARXNG_URL")), "needs": "SEARXNG_URL"},
+        {
+            "id": "searxng",
+            "label": "SEARXNG",
+            "online": searxng,
+            # Sem chave para pedir: se estiver fora, o que falta é o serviço, não credencial.
+            "needs": "" if searxng else f"serviço em {config.get('SEARXNG_URL')} (oracle: make up searxng)",
+        },
         {"id": "duckduckgo", "label": "DDG·FALLBACK", "online": True, "needs": ""},
     ]
 

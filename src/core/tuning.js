@@ -44,7 +44,12 @@ export const SPEC = [
   ['LENTE', 'grain', 'GRÃO', 0, 0.12, 0.002, 0.03],
   ['LENTE', 'vignette', 'VINHETA', 0, 2, 0.05, 1],
 
-  ['ÁUDIO', 'volume', 'VOLUME', 0, 1, 0.02, 0.5],
+  ['ÁUDIO', 'volume', 'VOLUME', 0, 1, 0.02, 0.42],
+  // Conforto sonoro é gosto, não constante. Estes dois existem para você acertar o seu em vez
+  // de eu adivinhar: `ambient` é o quanto do ar/ruído rosa se ouve, `brightness` escala a
+  // frequência de corte do filtro global (mais baixo = mais abafado e mais quente).
+  ['ÁUDIO', 'ambient', 'AR AMBIENTE', 0, 3, 0.05, 1],
+  ['ÁUDIO', 'brightness', 'BRILHO', 0.3, 2, 0.02, 1],
 ];
 
 const DEFAULTS = Object.fromEntries(SPEC.map(([, key, , , , , value]) => [key, value]));

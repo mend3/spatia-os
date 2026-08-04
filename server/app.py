@@ -10,11 +10,13 @@ Ollama, provedores de busca) é acessado por aqui. O browser fala com uma origem
 import json
 import logging
 import mimetypes
+import socket
+import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, brain, config, embed, files, graph, llm, metrics, net, permissions, qdrant, recorder, speech, websearch
+from . import agent, attach, brain, config, embed, files, graph, llm, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -35,6 +37,10 @@ ROUTE_LABELS = {
     "/api/client": "client",
     "/api/config": "config",
     "/api/tts": "tts",
+    "/api/system-events": "events",
+    "/api/integrations": "integrations",
+    "/api/speech": "speech",
+    "/api/attach": "attach",
     "/metrics": "metrics",
 }
 
@@ -58,20 +64,36 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 — assinatura da stdlib
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path not in ("/api/client", "/api/config", "/api/tts"):
+
+        # `/hooks/<fonte>` vem de FORA por definição, então não passa pela barreira de mesma
+        # origem — quem protege aqui é o HMAC do corpo, não o cabeçalho do browser.
+        if parsed.path.startswith("/hooks/"):
+            self._hook(parsed.path[len("/hooks/"):].strip("/"))
+            return
+
+        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
-        if parsed.path in ("/api/config", "/api/tts") and not self._same_site():
+        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach") and not self._same_site():
             self._json({"error": "requisição cross-site recusada"}, status=403)
             return
+        # Anexo é binário e grande: lê antes do caminho de JSON, com teto próprio.
+        if parsed.path == "/api/attach":
+            self._attach()
+            return
+
         try:
             length = min(int(self.headers.get("Content-Length") or 0), MAX_BODY_BYTES)
             payload = json.loads(self.rfile.read(length) or b"{}")
             if parsed.path == "/api/config":
                 permissions.update(payload)
                 self._json(permissions.describe())
+                return
+            if parsed.path == "/api/speech":
+                speech.update(payload)
+                self._json(speech.describe())
                 return
             if parsed.path == "/api/tts":
                 self._tts(payload)
@@ -84,15 +106,71 @@ class Handler(BaseHTTPRequestHandler):
             label = ROUTE_LABELS.get(parsed.path, "client")
             metrics.http_requests.inc(route=label, status=str(getattr(self, "_status", 0)))
 
+    def _hook(self, source: str) -> None:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > webhooks.MAX_BODY_BYTES:
+            metrics.http_requests.inc(route="hook", status="413")
+            self._json({"error": "corpo grande demais"}, status=413)
+            return
+
+        body = self.rfile.read(length) if length else b""
+        result = webhooks.deliver(source or "generic", body, self.headers)
+        status = 202 if result["accepted"] else 401
+        metrics.http_requests.inc(route="hook", status=str(status))
+        self._json(result, status=status)
+
+    def _system_events(self) -> None:
+        """SSE de eventos que não vêm de uma pergunta — webhooks, hoje.
+
+        Stream separado do `/api/ask` de propósito: aquele é o ciclo de UMA pergunta e fecha
+        no `done`. Este vive enquanto a página viver, porque o mundo externo não espera o
+        operador perguntar nada.
+        """
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("Connection", "close")
+        self.end_headers()
+
+        queue = webhooks.subscribe()
+        try:
+            while True:
+                if queue:
+                    self._sse(queue.popleft())
+                    continue
+                # Comentário SSE como heartbeat: mantém o proxy/browser de fechar a conexão
+                # ociosa, e é ignorado pelo EventSource.
+                self.wfile.write(b": ping\n\n")
+                self.wfile.flush()
+                time.sleep(1.0)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        finally:
+            webhooks.unsubscribe(queue)
+            self.close_connection = True
+
+    def _attach(self) -> None:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0 or length > attach.MAX_BYTES:
+            metrics.http_requests.inc(route="attach", status="413")
+            self._json({"error": f"tamanho inválido ({length} bytes)"}, status=413)
+            return
+        saved = attach.save(self.rfile.read(length), self.headers.get("X-Filename", ""))
+        metrics.http_requests.inc(route="attach", status="200")
+        self._json(saved)
+
     def _tts(self, payload: dict) -> None:
         """Sintetiza e devolve MP3 — a única rota que não responde JSON."""
         text = str(payload.get("text") or "").strip()
         if not text:
             self._json({"error": "texto vazio"}, status=400)
             return
+        # Overrides valem só para esta chamada (a bancada de teste da UI usa isso); o resto
+        # vem do estado configurado, então a leitura da resposta soa igual em toda a sessão.
+        overrides = {k: v for k, v in payload.items() if k != "text" and v not in (None, "")}
         clock = time.monotonic()
         try:
-            audio = speech.synthesize(text, str(payload.get("voice") or ""))
+            audio, mime = speech.synthesize(text, overrides)
         except net.UpstreamError as e:
             metrics.upstream_errors.inc(service="tts", reason="unreachable")
             metrics.upstream_up.set(0, service="tts")
@@ -105,7 +183,7 @@ class Handler(BaseHTTPRequestHandler):
         metrics.tts_total.inc(outcome="success")
 
         self.send_response(200)
-        self.send_header("Content-Type", "audio/mpeg")
+        self.send_header("Content-Type", mime)
         self.send_header("Content-Length", str(len(audio)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
@@ -139,6 +217,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(self._health())
             elif route == "/api/config":
                 self._json(permissions.describe())
+            elif route == "/api/speech":
+                self._json(speech.describe())
+            elif route == "/api/integrations":
+                self._json({
+                    "webhooks": webhooks.availability(),
+                    "history": webhooks.history(),
+                    "providers": websearch.availability(),
+                })
+            elif route == "/api/system-events":
+                self._system_events()
             elif route == "/api/graph":
                 self._json(graph.load(force=query.get("force", ["0"])[0] == "1"))
             elif route == "/api/search":
@@ -166,7 +254,7 @@ class Handler(BaseHTTPRequestHandler):
             metrics.http_requests.inc(route=label, status=str(getattr(self, "_status", 0)))
             # `/api/ask` fica fora do histograma de latência de propósito: é um stream de
             # dezenas de segundos e empurraria toda rota curta para o primeiro bucket.
-            if label != "ask":
+            if label not in ("ask", "events"):
                 metrics.http_duration.observe(time.monotonic() - clock, route=label)
 
     # ---------- rotas ----------
@@ -193,19 +281,26 @@ class Handler(BaseHTTPRequestHandler):
         except net.UpstreamError as e:
             health["qdrant"] = {"online": False, "error": e.detail}
 
+        # Idade do índice: lida do cache da topologia, sem chamada upstream. O cabeçalho a
+        # mostra em toda tela porque é a métrica que envelhece sem ninguém perceber.
+        health["index_age_days"] = graph.age_days()
+
         models = llm.available()
         health["ollama"] = {"online": models is not None, "models": models or []}
 
-        voices = speech.available()
+        # O health reflete o estado CONFIGURADO, não o default do .env: é o que a UI mostra,
+        # e mostrar o default depois de o operador ter mudado a voz seria mentira.
+        voice = speech.describe()
         health["tts"] = {
-            "online": voices is not None,
-            "voice": config.get("TTS_VOICE"),
-            "voices": voices or [],
-            # A voz configurada existir no motor é diferente do motor estar no ar, e a UI
-            # precisa distinguir: voz inexistente falha em toda síntese, com 200 no health.
-            "voice_ok": bool(voices) and config.get("TTS_VOICE") in voices,
+            "online": voice["online"],
+            "voice": voice["wire_voice"],
+            "voices": voice["voices"],
+            "voice_ok": voice["voice_ok"] and voice["blend_ok"],
+            "lang": voice["effective_lang"],
+            "speed": voice["state"]["speed"],
+            "format": voice["state"]["response_format"],
         }
-        metrics.upstream_up.set(1 if voices is not None else 0, service="tts")
+        metrics.upstream_up.set(1 if voice["online"] else 0, service="tts")
 
         # A UI consulta esta rota periodicamente, e é isso que mantém os gauges de upstream
         # frescos: são observações de tráfego real, não sondas sintéticas.
@@ -326,10 +421,35 @@ def serve() -> None:
 
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.daemon_threads = True
-    logger.info(f"espatial-os em http://{host}:{port}  ·  cérebro={config.get('BRAIN')}")
+
+    # Segundo listener em ::1 quando o host é o loopback IPv4.
+    #
+    # `localhost` resolve para ::1 antes de 127.0.0.1 na maioria dos sistemas, e o Chrome segue
+    # essa ordem. Escutando só IPv4, digitar `localhost` dava página de erro do browser enquanto
+    # `curl` (que cai para IPv4) funcionava — um sintoma que aponta para todo lado menos para a
+    # causa. Continua sendo só loopback: `::1`, não `::`.
+    secondary = None
+    if host in ("127.0.0.1", "localhost"):
+        try:
+            class V6(ThreadingHTTPServer):
+                address_family = socket.AF_INET6
+
+            secondary = V6(("::1", port), Handler)
+            secondary.daemon_threads = True
+            threading.Thread(target=secondary.serve_forever, name="http-v6", daemon=True).start()
+        except OSError as e:
+            logger.warning(f"sem listener IPv6 (use 127.0.0.1 no browser): {e}")
+
+    logger.info(
+        f"espatial-os em http://{host}:{port}"
+        f"{' e http://[::1]:%d' % port if secondary else ''}"
+        f"  ·  cérebro={config.get('BRAIN')}"
+    )
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         logger.info("encerrando")
     finally:
         httpd.server_close()
+        if secondary:
+            secondary.server_close()

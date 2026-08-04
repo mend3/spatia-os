@@ -49,6 +49,10 @@ TOOLS = [
 
 MODES = ["bypassPermissions", "acceptEdits", "dontAsk", "default", "plan"]
 
+# Modo de recuperação: para onde o estado cai quando a config no disco está ilegível.
+# `plan` é o menor privilégio que o CLI oferece — o agente raciocina e não executa nada.
+RECOVERY_MODE = "plan"
+
 _lock = threading.Lock()
 _state: dict | None = None
 
@@ -62,21 +66,42 @@ def _defaults() -> dict:
         "tools_off": [],
         "skills_off": [],
         "agents_off": [],
+        # Marca que este estado veio de recuperação, não de escolha. A UI mostra o aviso; o
+        # primeiro `update` do operador o apaga, porque aí houve escolha.
+        "recovered": False,
     }
 
 
 def load() -> dict:
+    """Estado atual, do cache em memória, do disco, ou do default.
+
+    ⚠️ O caminho de recuperação **não** pode usar o default.
+
+    Primeira execução e config corrompida não são a mesma situação. Sem config, o default do
+    `.env` é a intenção declarada do operador. Com config ilegível, o default é o modo mais
+    permissivo que a instalação tem (`bypassPermissions`, nesta) — então perder o arquivo
+    *concedia mais autoridade* do que o estado perdido tinha, com um `logger.warning` que
+    ninguém lê. Falha de leitura tem que degradar para o menor privilégio, e dizer na tela
+    que degradou.
+    """
     global _state
     with _lock:
         if _state is not None:
             return _state
+
         state = _defaults()
         if STORE.is_file():
             try:
                 stored = json.loads(STORE.read_text(encoding="utf-8"))
                 state.update({k: v for k, v in stored.items() if k in state})
             except (OSError, json.JSONDecodeError) as e:
-                logger.warning(f"config ilegível, usando defaults: {e}")
+                logger.error(
+                    f"config ilegível ({e}) — caindo para o MENOR privilégio ({RECOVERY_MODE}), "
+                    "não para o default. Reabra o painel de permissões e reconfigure."
+                )
+                state = _defaults()
+                state["mode"] = RECOVERY_MODE
+                state["recovered"] = True
         _state = state
         return state
 
@@ -92,6 +117,8 @@ def update(patch: dict) -> dict:
     for key in ("tools_off", "skills_off", "agents_off"):
         merged[key] = sorted({str(v) for v in (merged.get(key) or [])})
     merged["load_repo_config"] = bool(merged["load_repo_config"])
+    # Qualquer alteração deliberada encerra o estado de recuperação.
+    merged["recovered"] = False
 
     with _lock:
         _state = merged
