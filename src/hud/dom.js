@@ -1,0 +1,58 @@
+/**
+ * Utilitários de DOM para a HUD.
+ *
+ * A HUD é feita de texto e linhas finas, sem componente e sem framework — o custo de um
+ * runtime de UI aqui seria pago em orçamento de quadro, e é o canvas que precisa dele.
+ *
+ * `set()` só escreve quando o valor muda: a HUD atualiza a cada token e reescrever
+ * `textContent` idêntico força layout à toa, dezenas de vezes por segundo.
+ */
+
+export function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+export function set(node, value) {
+  const next = String(value ?? '');
+  if (node.textContent !== next) node.textContent = next;
+}
+
+/** Mantém uma lista limitada, reciclando os nós já existentes em vez de recriar tudo. */
+export function feed(container, limit) {
+  return {
+    push(node) {
+      container.prepend(node);
+      while (container.children.length > limit) container.lastElementChild.remove();
+    },
+    clear() {
+      container.replaceChildren();
+    },
+  };
+}
+
+export function clock() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return {
+    time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    seconds: pad(now.getSeconds()),
+    date: now
+      .toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+      .toUpperCase()
+      .replace('.', ''),
+  };
+}
+
+/** Caminho longo encurtado pelo fim, que é a parte informativa de um path. */
+export function shortPath(source, max = 42) {
+  if (!source) return '';
+  if (source.length <= max) return source;
+  return `…${source.slice(-(max - 1))}`;
+}
+
+export function money(value) {
+  return `$${(value || 0).toFixed(4)}`;
+}
