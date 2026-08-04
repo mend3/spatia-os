@@ -1,6 +1,9 @@
 # Notas: systray no topo (e o que sobra para a página de configuração)
 
-Rascunho de desenho, **não implementado**. Escrito porque o subagente não pôde mais ser
+**Implementado em 2026-08-04** (`src/hud/systray.js` + o `data-systray` no `index.html`). O
+texto abaixo é o desenho que foi seguido; ficou como registro do porquê de cada escolha.
+
+Rascunho original. Escrito porque o subagente não pôde mais ser
 retomado e o contexto da sessão acabou. Pedido do usuário em 2026-08-04, com a barra de menus
 do macOS como referência visual:
 
@@ -91,7 +94,10 @@ crase é alias **sem** `whileTyping` porque crase é caractere e se digita.
    escalares em `prefs` para a guarda de "só se mudou" funcionar, e ⌘S com nota na tela.
    ⚠️ A armadilha que quase passou: `focusBody(null)` reescrevia a distância com a constante 54
    e anulava a restauração — sair de um app tem que voltar ao enquadramento DO OPERADOR.
-3. Systray (este documento).
+3. ~~Systray (este documento).~~ **Feito** em 2026-08-04. Os cinco botões viraram três glifos
+   colados no relógio, com popover ancorado. Os `data-*-toggle` continuam sendo os MESMOS
+   elementos, só que dentro dos popovers — os cinco módulos que os procuram por `querySelector`
+   no boot não precisaram de uma linha. Verificado com `elementFromPoint` **e** clique real.
 4. Página de configuração com menu lateral.
 5. SSOT de atalhos — ver [`atalhos-ssot-notas.md`](./atalhos-ssot-notas.md). Nota: `keys.hints()`
    já existe e **não tem chamador nenhum**; a barra do rodapé em `index.html` é texto fixo. Essa

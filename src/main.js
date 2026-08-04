@@ -21,6 +21,7 @@ import { createControls } from './hud/controls.js';
 import { createPermissions } from './hud/permissions.js';
 import { createVoice } from './hud/voice.js';
 import { createSpeechPanel } from './hud/speech-panel.js';
+import { createSystray } from './hud/systray.js';
 import { createWidgetHost } from './kernel/widgets.js';
 import { createRouter, ROUTE_ROOT } from './kernel/router.js';
 import { listApps } from './kernel/registry.js';
@@ -75,6 +76,13 @@ async function main() {
   const perms = createPermissions(hud);
   const speechPanel = createSpeechPanel(hud);
   const panels = { tuning: controls, permissions: perms, speech: speechPanel };
+  /*
+   * Depois dos painéis, de propósito: cada um deles procura o próprio gatilho por
+   * `querySelector` no `create*`, e os gatilhos agora moram dentro dos popovers da systray.
+   * A ordem não afeta a busca (o HTML já está no DOM), mas mantém a leitura honesta — a
+   * systray é a moldura dos controles, não a dona deles.
+   */
+  const systray = createSystray(hud);
   // A onda da HUD passa a ser desenhada com a amplitude real do áudio que o motor toca.
   const voice = createVoice(document, { onLevel: (level) => terminal.setLevel(level) });
 
@@ -195,7 +203,7 @@ async function main() {
       .join(' · ');
   });
 
-  installShortcuts(scene, audio, answer, terminal, router, streams);
+  installShortcuts(scene, audio, answer, terminal, router, streams, systray);
 
   // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.
   on('ui.open-app', ({ id }) => router.navigate(id));
@@ -323,7 +331,7 @@ function dirtyNote(shown, dropped, total) {
   return parts.join(' · ');
 }
 
-function installShortcuts(scene, audio, answer, terminal, router, streams) {
+function installShortcuts(scene, audio, answer, terminal, router, streams, systray) {
   // Estado restaurado do storage; o cinema é aplicado no boot por `restorePrefs`.
   let cinematic = prefs.get('view.cinematic');
   let muted = prefs.get('audio.muted');
@@ -341,7 +349,11 @@ function installShortcuts(scene, audio, answer, terminal, router, streams) {
    * desfocar antes de poder sair seria o oposto de uma saída.
    */
   keys.bind({ key: 'Escape', whileTyping: true, label: 'ESC SAIR' }, () => {
-    if (answer.isInspecting()) {
+    if (systray?.isOpen()) {
+      // Primeiro da cadeia: o popover é sempre o gesto mais recente quando está aberto, e a
+      // ordem do Esc é desfazer o último passo antes dos anteriores.
+      systray.close();
+    } else if (answer.isInspecting()) {
       answer.close();
     } else if (api.isStreaming()) {
       api.abort();

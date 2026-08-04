@@ -123,6 +123,64 @@
   .svc { display: inline-flex; align-items: center; gap: 5px; }
   .svc-label { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.2em; }
 
+  /* ---------------- systray ---------------- */
+
+  .header-right { display: flex; align-items: flex-start; gap: 16px; }
+  /* Os glifos alinham pela primeira linha do relógio, não pelo bloco inteiro. */
+  .systray { display: flex; align-items: center; gap: 4px; padding-top: 2px; }
+  /* `relative` para o menu ancorar no item, e não no header inteiro. */
+  .tray-item { position: relative; }
+
+  /*
+    O menu ancorado sob o item.
+
+    `pointer-events: auto` explícito: o `#hud` inteiro é `pointer-events: none` e só
+    `a/button/input/.clickable` reativam — um `div` interativo nasce MORTO ao clique aqui, e
+    isso já quebrou o scrubber e o leitor de arquivo. Os botões de dentro funcionariam por
+    conta própria, mas o painel precisa engolir o clique que cai entre eles, senão o gesto
+    atravessa para o céu e arrasta a câmera por baixo do menu aberto.
+  */
+  .tray-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 9;
+    display: flex; flex-direction: column; gap: 4px; padding: 6px;
+    min-width: 132px; pointer-events: auto;
+    background: rgba(4, 6, 10, 0.94); border: 1px solid var(--line);
+    backdrop-filter: blur(6px);
+  }
+  .tray-menu[hidden] { display: none; }
+  /* Container flex encolhe os filhos abaixo do conteúdo; o rótulo quebraria em duas linhas. */
+  .tray-menu .btn { flex: 0 0 auto; white-space: nowrap; justify-content: flex-start; }
+
+  /*
+    ⚠️ O `#hud` é `position: fixed` e CRIA CONTEXTO DE EMPILHAMENTO: nenhum z-index interno
+    vence o `#bodies` (z-index 2), que é irmão dele. O menu abre sobre o céu, então o `#hud`
+    inteiro precisa subir enquanto ele estiver aberto — o mesmo caminho já usado pelo leitor de
+    arquivo logo abaixo. O `:has()` limita a elevação ao tempo do menu aberto: elevar sempre
+    poria a HUD na frente dos corpos clicáveis o tempo todo.
+  */
+  #hud:has(.tray-menu:not([hidden])) { z-index: 3; }
+
+  /* O ITEM aberto fica aceso — é como se sabe qual menu está na tela sem olhar para ele. */
+  .btn[data-tray][aria-expanded="true"] { border-color: var(--amber-dim); }
+  .btn[data-tray][aria-expanded="true"] svg { stroke: var(--btn-accent); }
+
+  /*
+    Estado no PRÓPRIO glifo — a regra que economiza o espaço.
+
+    `web` é TRI-ESTADO e os três precisam ser distinguíveis à distância: `auto` neutro (o
+    sistema decide), `on` aceso (vai pesquisar), `off` apagado com um risco por cima (não vai).
+    ⚠️ `auto` NÃO é "desligado": ele significa não mandar o parâmetro. Tratá-lo como booleano
+    já quebrou uma vez — o AUTO enviava `web=0`, que o servidor lê como "não pesquise".
+  */
+  .btn[data-tray="voice"][data-on="true"] svg { stroke: var(--btn-accent); }
+  .btn[data-tray="web"][data-mode="on"] svg { stroke: var(--btn-accent); }
+  .btn[data-tray="web"][data-mode="off"] svg { stroke: var(--ink-faint); }
+  .btn[data-tray="web"][data-mode="off"]::after {
+    content: ''; position: absolute; left: 5px; right: 5px; top: 50%;
+    border-top: 1px solid var(--bad); transform: rotate(-32deg);
+  }
+  .btn[data-tray="web"] { position: relative; }
+
   .clockbox { text-align: right; }
   .clockbox strong { font-size: 26px; font-weight: 300; color: var(--ink); letter-spacing: 0.05em; }
   .clockbox sub { font-size: 12px; color: var(--amber-dim); vertical-align: baseline; }
@@ -849,9 +907,80 @@
       <span class="status-services" data-services></span>
     </div>
 
+    <!--
+      SYSTRAY — os itens de estado, imediatamente antes do relógio.
+
+      A faixa do topo já ERA uma systray e ninguém a tratava como tal: identidade e estado
+      residente à esquerda, o que o sistema está fazendo no centro, relógio à direita. É a
+      mesma estrutura da barra do macOS, e o lugar de wifi/bateria é exatamente aqui — colado
+      no relógio. Os cinco botões rotulados que moravam no rodapé eram *status items* fora de
+      casa. Nenhuma barra nova, nenhum deslocamento do header: o que existe foi estendido.
+
+      Um item de menu bar é GLIFO COMPACTO cujo desenho comunica o estado, e o clique abre um
+      menu ancorado. É por isso que a barra do macOS acomoda oito itens no espaço em que cinco
+      botões rotulados mal cabiam.
+
+      ⚠️ Os `data-*-toggle` continuam sendo ESTES elementos, só que aqui dentro. Cinco módulos
+      (`voice`, `terminal`, `speech-panel`, `permissions`, `controls`) os procuram por
+      `querySelector` no boot — recriá-los em JS ao abrir o popover devolveria `null` para
+      todos eles. Eles nascem no HTML, escondidos, e nenhum daqueles módulos precisou mudar.
+    -->
+    <!--
+      Systray e relógio no MESMO agrupamento à direita.
+
+      O header é `justify-content: space-between`; com quatro filhos soltos o espaço é repartido
+      igualmente e a systray fica boiando no meio do vão, longe do relógio. Encostar um no outro
+      não é ajuste fino: o agrupamento da direita é o que faz a barra ler como barra de menus —
+      é ali que o macOS põe wifi, bateria e relógio, nessa ordem, colados.
+    -->
+    <div class="header-right">
+    <div class="systray" data-systray>
+      <div class="tray-item">
+        <button type="button" class="btn" data-variant="icon" data-size="md" data-tray="voice"
+                aria-haspopup="true" aria-expanded="false" title="voz" aria-label="voz">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3"/>
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
+          </svg>
+        </button>
+        <div class="tray-menu" data-tray-menu="voice" hidden>
+          <button type="button" class="btn" data-variant="outline" data-size="sm" data-voice-toggle data-on="false">VOZ · OFF</button>
+          <button type="button" class="btn" data-variant="outline" data-size="sm" data-speech-toggle data-on="false">CONFIG VOZ</button>
+        </div>
+      </div>
+
+      <div class="tray-item">
+        <button type="button" class="btn" data-variant="icon" data-size="md" data-tray="web"
+                aria-haspopup="true" aria-expanded="false" title="pesquisa web" aria-label="pesquisa web">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8"/>
+            <path d="M4 12h16M12 4c2.5 2.6 2.5 12.4 0 16M12 4c-2.5 2.6-2.5 12.4 0 16"/>
+          </svg>
+        </button>
+        <div class="tray-menu" data-tray-menu="web" hidden>
+          <button type="button" class="btn" data-variant="outline" data-size="sm" data-web-toggle data-on="false">WEB · AUTO</button>
+        </div>
+      </div>
+
+      <div class="tray-item">
+        <button type="button" class="btn" data-variant="icon" data-size="md" data-tray="system"
+                aria-haspopup="true" aria-expanded="false" title="sistema" aria-label="sistema">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16"/>
+            <circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/>
+          </svg>
+        </button>
+        <div class="tray-menu" data-tray-menu="system" hidden>
+          <button type="button" class="btn" data-variant="outline" data-size="sm" data-perms-toggle data-on="false">PERMISSÕES</button>
+          <button type="button" class="btn" data-variant="outline" data-size="sm" data-tune-toggle data-on="false">AFINAR</button>
+        </div>
+      </div>
+    </div>
+
     <div class="clockbox">
       <strong><span data-clock-time>--:--</span><sub>:<span data-clock-seconds>--</span></sub></strong>
       <div data-clock-date>—</div>
+    </div>
     </div>
   </header>
 
@@ -901,18 +1030,24 @@
 
       <canvas class="waveform" data-waveform></canvas>
 
-      <!-- Configuração, não composição: cluster próprio, separado do compositor. -->
-      <div class="prompt-tools">
-        <button type="button" class="btn" data-variant="outline" data-size="sm" data-voice-toggle data-on="false">VOZ · OFF</button>
-        <button type="button" class="btn" data-variant="outline" data-size="sm" data-speech-toggle data-on="false">CONFIG VOZ</button>
-        <button type="button" class="btn" data-variant="outline" data-size="sm" data-perms-toggle data-on="false">PERMISSÕES</button>
-        <button type="button" class="btn" data-variant="outline" data-size="sm" data-tune-toggle data-on="false">AFINAR</button>
-        <button type="button" class="btn" data-variant="outline" data-size="sm" data-web-toggle data-on="false">WEB · AUTO</button>
-      </div>
+      <!--
+        Os cinco botões de configuração saíram daqui para a systray do topo (ver o `data-systray`
+        no header). Eles nunca foram parte de compor uma pergunta: eram estado do sistema
+        estacionado ao lado do campo de texto, e a proximidade fazia o olho lê-los como parte do
+        compositor. O rodapé fica só com o que serve a escrever.
+      -->
     </div>
+    <!--
+      A linha de dicas fixa saiu junto: ela dizia "` AFINAR · P PERMISSÕES · V CONFIG VOZ …"
+      escrito à mão, e já apodreceu uma vez anunciando uma tecla que tinha mudado. `keys.hints()`
+      existe justamente para montar essa lista a partir dos atalhos REGISTRADOS — e é isso que a
+      seção ATALHOS da página de configuração vai consumir (itens 4 e 5 da fila).
+
+      O que fica é a dica de VOZ, que é retorno dinâmico do microfone e não lista de atalho.
+      O espaço liberado é ganho: não preencher sem pedido.
+    -->
     <div class="footer-hints">
       <span data-voice-hint></span>
-      <span>TAB CINEMA · ` AFINAR · P PERMISSÕES · V CONFIG VOZ · 1-4 APPS · ESC SAIR · ⌘M MUDO</span>
     </div>
   </footer>
 
