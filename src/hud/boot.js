@@ -1,30 +1,31 @@
 /**
- * Sequência de boot — diagnóstico real e entrada automática.
+ * Sequência de boot — diagnóstico real e o gate do som.
  *
  * As linhas do boot mostram o resultado **real** de `/api/health`. Uma sequência falsa de
  * "SISTEMAS OK" seria mais bonita e ensinaria o operador a não ler a tela.
  *
- * Havia um botão ENGATAR aqui, e ele existia por um motivo técnico: o browser proíbe áudio sem
- * gesto do usuário, e o clique era o gesto. Ele saiu por pedido — a tela entra sozinha quando
- * o diagnóstico termina.
+ * ## O gate é sobre SOM, não sobre entrar
  *
- * A consequência NÃO desapareceu junto com o botão: sem gesto, o `AudioContext` nasce
- * `suspended` e o som ambiente não pode começar. Quem trata isso é o `main.js`, armando a
- * primeira interação real como destravamento e dizendo na tela que o áudio está aguardando.
- * Fingir que o áudio ligou seria o pior dos três caminhos.
+ * Esta tela já teve um botão ENGATAR e ele foi removido — mas o problema que ele resolvia era
+ * real: o browser proíbe áudio sem gesto do usuário, e sem gesto o `AudioContext` nasce
+ * `suspended`. Sem botão, a saída foi armar a primeira interação qualquer como destravamento —
+ * o que liga o som numa hora que ninguém pediu, por um clique que era para fazer outra coisa.
+ *
+ * A volta do botão **não desfaz aquela decisão**: o que se reprovava era um gate que perguntava
+ * "posso entrar?", uma pergunta sem alternativa e portanto sem valor. Agora a escolha é sobre o
+ * SOM, que é a única coisa aqui que o browser não deixa decidir sozinho:
+ *
+ * - **ATIVAR O SOM AMBIENTE** — o clique É o gesto que a política de autoplay exige, então o
+ *   áudio começa de fato, e não "tenta e falha em silêncio";
+ * - **IGNORAR** — entra sem som, e a escolha fica registrada (`audio.muted`) para o sistema não
+ *   ligar o som pelas costas no próximo clique.
+ *
+ * As duas entram. Uma pergunta com duas respostas legítimas não é pedágio.
  */
 import { el, set } from './dom.js';
+import { button } from './button.js';
 
 const STEP_DELAY_MS = 90;
-
-/*
- * Pausa entre o fim do diagnóstico e a entrada.
- *
- * Não é enfeite: o boot é a única tela que mostra o estado de cada subsistema, e entrar no
- * mesmo quadro em que a última linha aparece torna o diagnóstico ilegível. Tempo de ler o
- * resumo, não mais que isso.
- */
-const AUTO_ENTER_MS = 900;
 
 export function createBoot(root, { onEngage }) {
   const log = root.querySelector('[data-boot-log]');
@@ -79,29 +80,35 @@ export function createBoot(root, { onEngage }) {
     },
 
     /**
-     * Entra sozinho. Resolve quando a tela de boot já saiu de cena.
+     * Oferece a escolha do som e entra na resposta. Resolve quando a tela já saiu de cena.
      *
-     * `failed` trava a entrada: subsistema degradado ainda entra (o observatório opera parcial,
-     * e é o que o resumo diz), mas falha CRÍTICA não — entrar numa interface que não tem
-     * servidor atrás esconderia o erro justamente na tela feita para mostrá-lo.
+     * `failed` trava a entrada e nem oferece a escolha: subsistema degradado ainda entra (o
+     * observatório opera parcial, e é o que o resumo diz), mas falha CRÍTICA não — entrar numa
+     * interface que não tem servidor atrás esconderia o erro justamente na tela feita para
+     * mostrá-lo.
      */
     engage() {
       if (failed) return Promise.resolve();
+
       return new Promise((resolve) => {
-        setTimeout(async () => {
-          /*
-           * `onEngage` NÃO pode bloquear a entrada.
-           *
-           * Ele liga o áudio, e áudio é opcional — entrar não é. Sem este try/catch, uma exceção
-           * ali dentro matava o resto do callback: a tela de boot ficava para sempre exibindo
-           * "todos os subsistemas respondendo", com o diagnóstico todo verde e nenhum erro na
-           * tela. Foi o que aconteceu ao remover o botão ENGATAR — a aba recém-carregada não tem
-           * gesto do usuário, e é exatamente aí que a política de autoplay faz `enable()` falhar.
-           *
-           * Regra: nada que seja acessório ao boot pode ficar entre o diagnóstico e a interface.
-           */
+        const actions = el('div', 'boot-actions');
+
+        /*
+         * `onEngage` NÃO pode bloquear a entrada.
+         *
+         * Ele liga o áudio, e áudio é opcional — entrar não é. Sem este try/catch, uma exceção
+         * ali dentro mata o resto do callback e a tela de boot fica para sempre exibindo "todos
+         * os subsistemas respondendo", com o diagnóstico todo verde e nenhum erro visível. Já
+         * aconteceu uma vez, exatamente por causa da política de autoplay.
+         *
+         * Regra: nada que seja acessório ao boot pode ficar entre o diagnóstico e a interface.
+         */
+        const enter = async (ambient) => {
+          // O primeiro clique manda. Dois cliques rápidos não podem disparar dois engates.
+          actions.remove();
+          set(status, ambient ? 'ativando o som ambiente…' : 'entrando em silêncio…');
           try {
-            await onEngage();
+            await onEngage({ ambient });
           } catch (error) {
             console.error('[boot] engate falhou; entrando sem ele', error);
           }
@@ -109,7 +116,21 @@ export function createBoot(root, { onEngage }) {
           // Só remove do DOM depois da transição, senão o fade não acontece.
           setTimeout(() => root.remove(), 1400);
           resolve();
-        }, AUTO_ENTER_MS);
+        };
+
+        const sound = button({ variant: 'select', size: 'lg' });
+        sound.textContent = 'ATIVAR O SOM AMBIENTE';
+        sound.addEventListener('click', () => enter(true));
+
+        const silent = button({ variant: 'outline', size: 'lg' });
+        silent.textContent = 'IGNORAR';
+        silent.addEventListener('click', () => enter(false));
+
+        actions.append(sound, silent);
+        root.append(actions);
+        // Foco no som: `Enter` entra com áudio sem tirar a mão do teclado, e a tecla também é
+        // gesto do usuário para efeito da política de autoplay.
+        sound.focus();
       });
     },
 

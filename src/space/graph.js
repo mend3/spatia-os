@@ -17,6 +17,7 @@
 import * as THREE from 'three';
 import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
+import { createRings } from './rings.js';
 
 // Cor por natureza do conhecimento. A escala de "idade" do briefing (nova branca, antiga
 // azulada, muito usada amarela, esquecida vermelha) entra como *modulação* da ignição:
@@ -63,6 +64,19 @@ const REVEAL_DIM = 0.09;
 // Taxa da suavização por tempo (`1 - exp(-rate*delta)`). Alta o suficiente para o arraste
 // parecer direto, baixa o suficiente para a frente ser legível como movimento.
 const REVEAL_RATE = 16;
+
+// O `300.0 / -viewPosition.z` do vertex shader. Vive aqui porque duas contas dependem dele.
+const POINT_SCALE = 300;
+/*
+ * Teto de `gl_PointSize` da GPU, em pixels.
+ *
+ * Medido nesta máquina: `ALIASED_POINT_SIZE_RANGE` = [1, 511]. **A estrela satura nesse valor e
+ * a geometria do anel não** — sem espelhar o teto aqui, uma estrela perto da câmera para de
+ * crescer enquanto o anel continua, e ele descola exatamente no caso em que mais aparece.
+ * 511 é o piso comum entre GPUs; usar o valor real exigiria o contexto GL aqui dentro, e errar
+ * para MENOS só torna o anel conservador.
+ */
+const POINT_SIZE_CAP = 511;
 
 const VERTEX = /* glsl */ `
   uniform float uSize, uTime, uReveal, uRevealBand, uRevealDim, uPulse;
@@ -111,6 +125,12 @@ const FRAGMENT = /* glsl */ `
   }
 `;
 
+/** `smoothstep` do GLSL em JS — a atenuação da janela precisa bater com a do shader. */
+function smoothstep(edge0, edge1, x) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 /** Hash determinístico string → [0,1). Mesmo id, mesma órbita, em qualquer máquina. */
 function hash01(text, salt = 0) {
   let value = 2166136261 ^ salt;
@@ -121,16 +141,28 @@ function hash01(text, salt = 0) {
   return ((value >>> 0) % 100000) / 100000;
 }
 
+// Vetor de rascunho: a distância do nó à câmera é calculada por anel, por quadro.
+const TEMP = new THREE.Vector3();
+
 export function createGraph() {
   const group = new THREE.Group();
   let nodes = [];
   let index = new Map();
   let positions = null;
   let ignition = null;
+  let sizes = null;
   let points = null;
   let lines = null;
   let linePositions = null;
   let edgePairs = [];
+  // Caminho relativo à raiz do workspace → índice do nó. É a chave com que o `/api/dirty`
+  // fala, e existe para que casar "arquivo sujo" com "estrela" não custe uma varredura.
+  let byPath = new Map();
+  // source → estado local, para quem pergunta (o rótulo de hover). Separado do `rings`
+  // porque texto e geometria têm ciclos de vida diferentes.
+  let dirtyState = new Map();
+  const rings = createRings();
+  group.add(rings.group);
   const tune = { speed: 1 };
   // Alvo e valor corrente da janela: 1 = tudo revelado, que é como o céu nasce.
   const window = { target: 1, current: 1 };
@@ -159,6 +191,65 @@ export function createGraph() {
     depthWrite: false,
   });
 
+  /**
+   * A MESMA atenuação da janela temporal que o vertex shader calcula em `vReveal`, em JS.
+   *
+   * Está duplicada de propósito e não dá para evitar: o anel é geometria com material próprio,
+   * não um ponto daquele buffer. O que não pode é divergir — se uma das duas mudar, a estrela
+   * apaga e o anel fica aceso em volta do vazio.
+   */
+  const dimOf = (recency) =>
+    REVEAL_DIM + (1 - REVEAL_DIM) * (1 - smoothstep(0, REVEAL_BAND, recency - window.current));
+
+  /**
+   * Raio APARENTE da estrela `i`, nas unidades locais deste grupo — o que o anel precisa saber.
+   *
+   * Isto era uma constante (`0.39 * aSize`) em `rings.js`, e a constante estava errada de três
+   * jeitos ao mesmo tempo, todos medidos:
+   *
+   * | O que muda o tamanho da estrela | Efeito na razão anel/estrela |
+   * |---|---|
+   * | `graphSpread` (0.3 a 2.5) | escala a GEOMETRIA e não o ponto → oscilação de 8× |
+   * | `aIgnition` (até 1.6) | o pulso infla o ponto até ~4× → a estrela acesa engolia o anel |
+   * | altura do framebuffer × DPR | `gl_PointSize` é pixel; o mundo, não → ~4× entre monitores |
+   *
+   * A conta é a inversão exata do vertex shader. `gl_PointSize` é DIÂMETRO em pixels do
+   * framebuffer e vale `uSize·aSize·pulse·shrink·(300/z)`; um raio de mundo `R` à distância `z`
+   * ocupa `R·(H/2)/(z·tan(fov/2))` pixels. Igualando os dois, `z` cancela — é por isso que uma
+   * constante quase funcionava — e sobra tudo que a constante ignorava.
+   *
+   * Devolve o raio do SPRITE (metade do `gl_PointSize`), com o teto da GPU já aplicado. Onde o
+   * anel cai a partir daí é decisão de `rings.js` — por rodapé de tela, não pelo limbo.
+   */
+  function starRadius(i, elapsed, viewportHeight, camera) {
+    const spread = group.scale.x || 1;
+    // Distância de VISTA do nó — a mesma que o shader usa em `-viewPosition.z`. Ela entra e sai
+    // da conta (o ponto encolhe com 1/z e o mundo também), mas precisa estar nas duas pontas
+    // para que o teto de `gl_PointSize` seja aplicado em pixels, que é onde ele existe.
+    const distance = Math.max(
+      camera.position.distanceTo(
+        TEMP.set(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]).multiplyScalar(spread)
+      ),
+      0.001
+    );
+    const pulseAmount = material.uniforms.uPulse.value;
+    // A MESMA expressão do shader, inclusive o termo oscilante: se o ponto respira, o anel
+    // respira junto. Com `prefers-reduced-motion` o `uPulse` é 0 nos dois lugares pelo mesmo
+    // uniform — nenhum caminho separado para manter em dia.
+    const pulse = 1 + ignition[i] * (1.6 + Math.sin(elapsed * 9) * 0.35 * pulseAmount);
+    const within = 1 - smoothstep(0, REVEAL_BAND, nodes[i].recency - window.current);
+    const shrink = 0.62 + (1 - 0.62) * within;
+    const tangent = Math.tan((camera.fov * Math.PI) / 360);
+    // A MESMA expressão do `gl_PointSize`, com o MESMO teto que a GPU aplica.
+    const point = Math.min(
+      material.uniforms.uSize.value * sizes[i] * pulse * shrink * (POINT_SCALE / distance),
+      POINT_SIZE_CAP
+    );
+    // De pixels de volta para unidades locais: um raio `R` a distância `z` ocupa
+    // `R·H/(2·tan(fov/2)·z)` pixels. O `/spread` desfaz a escala que o grupo pai vai reaplicar.
+    return (point * tangent * distance) / (viewportHeight * spread);
+  }
+
   function load(payload) {
     dispose();
     nodes = (payload.nodes || []).filter(isSkyNode).map((node, i) => makeOrbit(node, i));
@@ -167,7 +258,7 @@ export function createGraph() {
     const count = nodes.length;
     positions = new Float32Array(count * 3);
     ignition = new Float32Array(count);
-    const sizes = new Float32Array(count);
+    sizes = new Float32Array(count);
     const recencies = new Float32Array(count);
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
@@ -183,6 +274,7 @@ export function createGraph() {
         : 1.5 + Math.log2(1 + node.chunks) * 0.3;
       color.setHex(KIND_COLORS[node.kind] ?? KIND_COLORS.other);
       colors.set([color.r, color.g, color.b], i * 3);
+      registerPath(node, i);
     });
 
     const geometry = new THREE.BufferGeometry();
@@ -208,6 +300,27 @@ export function createGraph() {
 
     advance(0);
     return count;
+  }
+
+  /**
+   * Indexa o nó pelo caminho com que o `/api/dirty` fala.
+   *
+   * ⚠️ Esta regra é a INVERSA de `dirty.state_of` no servidor, e as duas têm que continuar
+   * concordando: lá o primeiro segmento do `source` (o repo) é descartado para consultar a
+   * tabela do `git status`, que é relativa à raiz do workspace. Aqui ele é descartado para
+   * construir a mesma chave. Mudar o formato de `source` de um lado sem o outro não quebra
+   * nada visivelmente — só apaga todos os anéis, em silêncio.
+   *
+   * `source` absoluto fica de fora pelo mesmo motivo que lá: são as memórias do agente, que
+   * não moram em git nenhum e portanto não têm alteração local a reportar.
+   */
+  function registerPath(node, i) {
+    if (node.type !== 'file') return;
+    const source = node.source || '';
+    if (!source || source.startsWith('/')) return;
+    const slash = source.indexOf('/');
+    if (slash < 0) return;
+    byPath.set(source.slice(slash + 1), i);
   }
 
   function makeOrbit(node, i) {
@@ -271,6 +384,9 @@ export function createGraph() {
   }
 
   function dispose() {
+    rings.set([]);
+    byPath = new Map();
+    dirtyState = new Map();
     for (const object of [points, lines]) {
       if (!object) continue;
       group.remove(object);
@@ -306,7 +422,41 @@ export function createGraph() {
       window.target = Math.max(0, Math.min(1, value));
     },
 
-    update(delta, elapsed) {
+    /**
+     * Põe anel nas estrelas cujo arquivo está alterado no disco.
+     *
+     * `table` é o `{caminho: estado}` do `/api/dirty`, cru. Caminho que não corresponde a
+     * nenhum nó do céu é ignorado em silêncio aqui — mas contado no retorno, porque "editei um
+     * arquivo e não apareceu anel" tem duas causas muito diferentes (não está indexado × está
+     * quebrado) e quem chama precisa poder dizer qual foi.
+     *
+     * Devolve `{ shown, dropped, total }`.
+     */
+    markDirty(table) {
+      const files = table || {};
+      const entries = [];
+      dirtyState = new Map();
+
+      for (const [path, state] of Object.entries(files)) {
+        const i = byPath.get(path);
+        if (i === undefined) continue;
+        dirtyState.set(nodes[i].source, state);
+        entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency });
+      }
+
+      return { ...rings.set(entries), total: Object.keys(files).length };
+    },
+
+    /** Estado local do arquivo daquele nó, ou `null` se limpo/desconhecido. */
+    dirtyOf: (source) => dirtyState.get(source) ?? null,
+
+    /** Apaga os anéis sem afirmar árvore limpa — para quando o disco deixa de ser verificável. */
+    forgetDirty() {
+      dirtyState = new Map();
+      rings.set([]);
+    },
+
+    update(delta, elapsed, camera, viewportHeight) {
       if (!positions) return;
       material.uniforms.uTime.value = elapsed;
       // Suavização por TEMPO, nunca fração por quadro: fração por quadro produz travadinha em
@@ -316,6 +466,13 @@ export function createGraph() {
         material.uniforms.uReveal.value = window.current;
       }
       advance(elapsed);
+      // Depois de `advance`, nunca antes: o anel lê a posição QUE ACABOU de ser escrita. Um
+      // quadro de atraso aqui aparece como o anel arrastando atrás da estrela.
+      if (camera && viewportHeight) {
+        rings.follow(positions, camera, dimOf, (i) =>
+          starRadius(i, elapsed, viewportHeight, camera)
+        );
+      }
       // Decaimento: memória usada volta a brilhar e depois apaga de novo. Sem o decaimento
       // o céu vira um acúmulo permanente de tudo que já foi consultado.
       let dirty = false;

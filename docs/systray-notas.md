@@ -82,9 +82,17 @@ crase é alias **sem** `whileTyping` porque crase é caractere e se digita.
 
 ## Fila pendente nesta linha de trabalho
 
-1. Anéis de Saturno em arquivos alterados — servidor pronto (`/api/dirty`), falta o cliente.
-2. Persistir órbita da câmera por tick + ⌘S manual (ver o pedido do usuário; tratar
-   `visibilitychange`/`pagehide`, escrever só se mudou, feedback visível).
+1. ~~Anéis de Saturno em arquivos alterados.~~ **Feito** em 2026-08-04 — `space/rings.js` +
+   `space/ring-profiles.js` (perfil radial real de Saturno/Urano/Júpiter, um por estado do
+   `git status`). Passou por três revisões; os achados e o que ficou de fila estão em
+   [`revisao-fidelidade-notas.md`](./revisao-fidelidade-notas.md).
+2. ~~Persistir órbita da câmera por tick + ⌘S manual.~~ **Feito** em 2026-08-04 — salvamento a
+   cada 5s só quando houve gesto, `visibilitychange`/`pagehide` (nunca `beforeunload`), três
+   escalares em `prefs` para a guarda de "só se mudou" funcionar, e ⌘S com nota na tela.
+   ⚠️ A armadilha que quase passou: `focusBody(null)` reescrevia a distância com a constante 54
+   e anulava a restauração — sair de um app tem que voltar ao enquadramento DO OPERADOR.
 3. Systray (este documento).
 4. Página de configuração com menu lateral.
-5. SSOT de atalhos — ver [`atalhos-ssot-notas.md`](./atalhos-ssot-notas.md).
+5. SSOT de atalhos — ver [`atalhos-ssot-notas.md`](./atalhos-ssot-notas.md). Nota: `keys.hints()`
+   já existe e **não tem chamador nenhum**; a barra do rodapé em `index.html` é texto fixo. Essa
+   é a duplicação a matar.

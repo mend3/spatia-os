@@ -34,7 +34,12 @@
 import { el } from './dom.js';
 
 const VARIANTS = new Set(['outline', 'select', 'icon', 'row', 'bare']);
-const SIZES = new Set(['xs', 'sm', 'md', 'row']);
+/*
+ * `md` é o quadrado de GLIFO (30×26), não um tamanho de texto — pedir `md` para um rótulo longo
+ * espreme a frase num botão de ícone. `lg` é o tamanho de texto grande, para o botão que é a
+ * ação principal de uma tela (o gate do boot).
+ */
+const SIZES = new Set(['xs', 'sm', 'md', 'lg', 'row']);
 
 /**
  * @param {object} spec
@@ -45,6 +50,7 @@ const SIZES = new Set(['xs', 'sm', 'md', 'row']);
  * @param {string} [spec.title]          tooltip e rótulo acessível
  * @param {string} [spec.accent]         cor do acento (CSS color) — o default é âmbar
  * @param {string} [spec.tone]           `bad` para ação destrutiva/de parada
+ * @param {string} [spec.emphasis]       `primary` para a ação que a tela está propondo
  * @param {object} [spec.data]           dataset extra: DADO (`kind`, `app`), nunca estilo
  * @param {Function} [spec.onClick]
  * @returns {HTMLButtonElement}
@@ -57,6 +63,7 @@ export function button({
   title,
   accent,
   tone,
+  emphasis,
   data,
   onClick,
 } = {}) {
@@ -71,6 +78,10 @@ export function button({
   node.dataset.size = size;
   node.dataset.on = String(Boolean(on));
   if (tone) node.dataset.tone = tone;
+  // Ênfase é ESTILO, então é parâmetro nomeado e não `data` — o `data` é para dado (`kind`,
+  // `app`). A variante `icon` já lia `data-emphasis` vindo por `data`, o que contrariava a
+  // regra do próprio primitivo; agora há um caminho só.
+  if (emphasis) node.dataset.emphasis = emphasis;
   if (title) {
     node.title = title;
     // Botão só de glifo não tem texto para o leitor de tela ler.

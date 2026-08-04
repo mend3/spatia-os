@@ -41,6 +41,21 @@ export const DEFAULTS = Object.freeze({
   // Última rota visitada. O hash manda quando presente; isto é o fallback para quem abre a
   // página sem hash e espera voltar onde estava.
   'route.last': '',
+
+  /*
+   * Onde o operador deixou o observatório apontando.
+   *
+   * Três escalares e não um objeto `{azimuth, polar, distance}`: o `set` daqui compara com
+   * `===`, e dois objetos com o mesmo conteúdo nunca são `===`. Guardado como objeto, TODO
+   * salvamento escreveria no localStorage e notificaria os assinantes — inclusive o salvamento
+   * periódico que não mudou nada. Em escalares, a guarda que já existe faz o trabalho.
+   *
+   * Os defaults são os mesmos de `CAMERA.start`/`orbit` em `space/scene.js`. Divergir aqui
+   * faria a primeira sessão nascer num enquadramento e a segunda em outro.
+   */
+  'camera.azimuth': 0,
+  'camera.polar': 1.33,
+  'camera.distance': 54,
 });
 
 const listeners = new Set();

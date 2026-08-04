@@ -305,6 +305,13 @@
   .btn[data-size="md"] { width: 30px; height: 26px; padding: 0; }
   /* `row` herda o tamanho de fonte do contexto — quem manda no texto é o `.fs-name` dentro. */
   .btn[data-size="row"] { padding: 2px 0; gap: 7px; }
+  /*
+    `lg`: botão de texto que é a AÇÃO da tela, não um controle no canto dela. Existe para o gate
+    do boot. Entrou no primitivo em vez de virar regra local porque tamanho é exatamente o que o
+    primitivo possui — a alternativa era o boot redefinir padding e fonte por fora, que é o fork
+    que este arquivo já pagou uma vez.
+  */
+  .btn[data-size="lg"] { font-size: 10px; letter-spacing: 0.3em; padding: 12px 26px; gap: 9px; }
 
   /* Interruptor independente: tinta e borda acentuadas quando ligado. */
   .btn[data-variant="outline"] { border-color: var(--line); }
@@ -344,6 +351,27 @@
   /* Sem moldura nenhuma. Uma ação que não é um alvo visual — descartar, fechar. */
   .btn[data-variant="bare"] { padding: 0; font-size: 11px; line-height: 1; }
   .btn[data-variant="bare"]:hover { color: var(--bad); }
+
+  /*
+    Foco visível, na cor do sistema.
+
+    O default do browser é um anel AZUL — a única coisa azul numa interface de âmbar sobre
+    vazio, e ela aparecia em cima do botão em foco no boot. Tirar o anel sem substituir seria
+    pior: quem navega por teclado perderia a única pista de onde está. `:focus-visible` (e não
+    `:focus`) porque o anel deve aparecer para o teclado, não a cada clique de mouse.
+  */
+  .btn:focus-visible { outline: 2px solid var(--btn-accent); outline-offset: 2px; }
+
+  /*
+    Ênfase primária: a ação que a tela está propondo.
+
+    Duas ações lado a lado com o MESMO peso não são uma escolha, são um enigma — foi como o
+    gate do boot nasceu. A regra é genérica de propósito: a variante `icon` já tinha a dela
+    (mais específica, continua valendo), e não faz sentido cada variante reinventar "esta é a
+    principal".
+  */
+  .btn[data-emphasis="primary"] { color: var(--btn-accent); border-color: var(--btn-accent); }
+  .btn[data-emphasis="primary"]:hover { background: var(--btn-accent); color: var(--void); }
 
   /*
     Troca de GLIFO do botão de ação, e não de estilo: é qual SVG aparece, não como o botão se
@@ -773,13 +801,22 @@
   .boot-line.ok .boot-value { color: var(--ink-dim); }
   .boot-line.bad .boot-label, .boot-line.bad .boot-value { color: var(--bad); }
   .boot-status { color: var(--ink-dim); font-size: 9.5px; letter-spacing: 0.16em; min-height: 1.2em; }
-  #boot button {
-    background: none; border: 1px solid var(--amber-dim); color: var(--amber);
-    font: inherit; font-size: 11px; letter-spacing: 0.4em; padding: 12px 34px; cursor: pointer;
-    transition: background 240ms ease, color 240ms ease;
-  }
-  #boot button:hover:not(:disabled) { background: var(--amber); color: var(--void); }
-  #boot button:disabled { border-color: var(--ink-faint); color: var(--ink-faint); cursor: default; }
+  /*
+    Só o LAYOUT da fileira. A aparência dos dois botões vem do primitivo `.btn` (`hud/button.js`)
+    como a de qualquer outro botão do sistema.
+
+    Aqui havia um bloco `#boot button { ... }`, herdado do ENGATAR removido, que redefinia
+    borda, cor, fonte e padding. Ele não era só código morto: `#boot button` tem especificidade
+    de ID e vencia `.btn[data-variant]`, então qualquer botão colocado nesta tela sairia do
+    sistema de design sem ninguém pedir — o sétimo fork que o primitivo existe para impedir.
+  */
+  .boot-actions { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; justify-content: center; }
+  /*
+    `flex: 0 0 auto` + `nowrap`: sem os dois, o container flex encolhe os filhos abaixo do
+    conteúdo e o rótulo — que é longo e tem `letter-spacing` largo — quebra em três linhas e
+    vaza para fora da própria borda. Foi exatamente o que aconteceu na primeira versão.
+  */
+  .boot-actions .btn { flex: 0 0 auto; white-space: nowrap; }
 
   @media (max-width: 900px) {
     #hud { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
@@ -918,13 +955,60 @@
   <div class="boot-log" data-boot-log></div>
   <div class="boot-status" data-boot-status>verificando subsistemas…</div>
   <!--
-    O botão ENGATAR ficava aqui. Saiu por pedido: o boot entra sozinho quando o diagnóstico
-    termina. O motivo TÉCNICO dele (o gesto que a política de autoplay exige para o áudio)
-    passou para `main.js`, que arma a primeira interação real como destravamento — ver
-    `armAudioUnlock`. Não reintroduza o botão sem ler aquele comentário.
+    Os dois botões do gate (ATIVAR O SOM AMBIENTE · IGNORAR) são criados em `hud/boot.js`, não
+    aqui: eles só existem depois de o diagnóstico terminar, e marcá-los no HTML os faria piscar
+    na tela durante a checagem, oferecendo uma escolha antes de haver o que escolher.
+
+    Histórico, para não refazer a volta: o botão ENGATAR original ficava aqui e foi removido
+    porque perguntava "posso entrar?" — pergunta de uma resposta só. O gate atual pergunta sobre
+    o SOM, que é a única coisa desta tela que o browser não deixa o sistema decidir sozinho.
   -->
 </div>
 
+<!--
+  Guarda de último recurso do boot — clássico, NÃO módulo, e ANTES do módulo de propósito.
+
+  O modo de falha que ela existe para matar: um erro de sintaxe ou um import quebrado em
+  QUALQUER arquivo do grafo de módulos impede o `main.js` inteiro de executar. Nenhum
+  try/catch dentro do `main.js` alcança isso — ele nunca roda. O resultado na tela é a pior
+  falha possível: "verificando subsistemas…" para sempre, sem uma palavra sobre a causa, com
+  o motivo real visível só no console. Uma tela de boot que não sabe dizer que o boot falhou
+  é pior que não ter tela de boot.
+
+  `capture: true` porque erro de CARREGAMENTO de recurso não borbulha — ele só existe na fase
+  de captura, no elemento que falhou.
+-->
+<script>
+  (function () {
+    var reported = false;
+    function report(reason) {
+      if (reported) return;
+      var status = document.querySelector('[data-boot-status]');
+      // Boot já concluído: o elemento saiu de cena e não há nada a informar aqui. Um erro
+      // depois da entrada é assunto do log da sessão, não da tela de partida.
+      if (!status) return;
+      reported = true;
+      status.textContent = reason;
+      status.style.color = 'var(--bad)';
+    }
+    window.addEventListener(
+      'error',
+      function (event) {
+        var target = event.target;
+        if (target && target !== window && target.tagName === 'SCRIPT') {
+          report('módulo não carregou: ' + (target.src || 'origem desconhecida'));
+          return;
+        }
+        report('falha ao iniciar: ' + (event.message || 'erro desconhecido'));
+      },
+      true
+    );
+    window.addEventListener('unhandledrejection', function (event) {
+      var reason = event.reason;
+      report('falha ao iniciar: ' + ((reason && reason.message) || reason || 'promessa rejeitada'));
+    });
+  })();
+</script>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>

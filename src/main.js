@@ -10,6 +10,7 @@ import { on, ui, emit } from './core/bus.js';
 import * as state from './core/state.js';
 import * as api from './core/api.js';
 import { createScene } from './space/scene.js';
+import { DIRTY_LABELS } from './space/rings.js';
 import { createAudio } from './audio/engine.js';
 import { createFrame } from './hud/frame.js';
 import { createStreams } from './hud/streams.js';
@@ -128,29 +129,31 @@ async function main() {
   }
 
   const boot = createBoot(bootRoot, {
-    onEngage: async () => {
-      /*
-       * O boot entra sozinho, então aqui NÃO existe mais gesto do usuário.
-       *
-       * A política de autoplay não mudou por isso: `enable()` tenta e devolve se conseguiu. Sem
-       * gesto ela devolve `false`, e a resposta certa não é insistir num loop nem mentir que o
-       * som está no ar — é armar o PRÓXIMO gesto real, qualquer um, para destravar. Um clique na
-       * dock ou a primeira tecla no prompt já serve, e o operador não precisa saber que existiu
-       * uma negociação.
-       */
-      /*
-       * `enable()` pode LANÇAR, não só devolver `false`.
-       *
-       * Numa aba sem gesto do usuário o `resume()` do AudioContext rejeita em vez de resolver
-       * com estado suspenso. Tratar só o `false` deixava a exceção subir e travar o boot.
-       */
+    /**
+     * `ambient` é a resposta do gate do boot — som ligado ou entrada em silêncio.
+     *
+     * O clique nos botões É o gesto que a política de autoplay exige, então aqui `enable()`
+     * tem tudo para funcionar. Mesmo assim ele pode LANÇAR (numa aba sem gesto válido o
+     * `resume()` REJEITA em vez de resolver com estado suspenso), e tratar só o `false`
+     * deixava a exceção subir e travar o boot. O `armAudioUnlock` fica como rede: se o gesto
+     * não valeu por algum motivo, o próximo destrava.
+     *
+     * "IGNORAR" não arma rede nenhuma e registra `audio.muted`. É escolha, não adiamento —
+     * ligar o som depois, por um clique que era para fazer outra coisa, contradiria o que o
+     * operador acabou de responder. O caminho de volta é ⌘M, que reabre o áudio.
+     */
+    onEngage: async ({ ambient }) => {
+      prefs.set('audio.muted', !ambient);
       let started = false;
-      try {
-        started = await audio.enable();
-      } catch (error) {
-        console.warn('[audio] bloqueado no boot; aguardando gesto', error);
+      if (ambient) {
+        try {
+          started = await audio.enable();
+        } catch (error) {
+          console.warn('[audio] gesto do boot não destravou; aguardando o próximo', error);
+        }
+        if (started) audio.setVolume(tuning.get('volume'));
+        else armAudioUnlock();
       }
-      if (!started) armAudioUnlock();
       api.reportClient({ boot: 'success', audio: started });
       emit({ t: 'state', state: 'idle', label: 'OCIOSO' });
       terminal.focus();
@@ -177,11 +180,22 @@ async function main() {
     }
     hover.classList.add('on');
     hover.querySelector('[data-hover-label]').textContent = node.label;
-    hover.querySelector('[data-hover-meta]').textContent =
-      `${node.kind} · ${node.chunks} chunk(s)${node.type === 'file' ? '' : ' · agregado'}`;
+    // O anel sem legenda é enfeite: quem passa o cursor precisa ler QUAL dos três estados é.
+    const dirty = node.type === 'file' ? scene.dirtyOf(node.source) : null;
+    hover.querySelector('[data-hover-meta]').textContent = [
+      node.kind,
+      `${node.chunks} chunk(s)`,
+      node.type === 'file' ? null : 'agregado',
+      // Sem `?? dirty.toUpperCase()`, um estado novo no servidor (`conflicted`, p.ex.) faria o
+      // anel ser pintado como ALTERADO enquanto o rótulo CALA — céu e texto discordando em
+      // silêncio, que é o modo de falha mais caro de diagnosticar.
+      dirty ? DIRTY_LABELS[dirty] ?? dirty.toUpperCase() : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
   });
 
-  installShortcuts(scene, audio, answer, terminal, router);
+  installShortcuts(scene, audio, answer, terminal, router, streams);
 
   // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.
   on('ui.open-app', ({ id }) => router.navigate(id));
@@ -208,6 +222,9 @@ async function main() {
     streams.note(`TOPOLOGIA INDISPONÍVEL: ${error.message}`, 'bad');
   }
 
+  // Sem topologia não há estrela para receber anel — sondar o disco só gastaria `git status`.
+  if (nodeCount) watchDirty(scene, streams);
+
   // O router entra em cena depois de saúde e topologia: um app que carrega dados no onEnter
   // não deve fazê-lo antes de o sistema saber o que está no ar.
   router.start(SYSTEM_VIEW);
@@ -221,7 +238,92 @@ async function main() {
   await boot.engage();
 }
 
-function installShortcuts(scene, audio, answer, terminal, router) {
+/*
+ * Sondagem das alterações locais — os anéis de Saturno.
+ *
+ * Deliberadamente MENOR que o TTL de 15s do cache do servidor (`server/dirty.py`), e não igual
+ * a ele. Com os dois períodos iguais, uma sondagem que chega logo antes de o cache expirar
+ * recebe a foto velha e a próxima só vem 15s depois — o atraso de pior caso vira 30s, o dobro
+ * do anunciado. Sondar mais rápido não custa `git status` nenhum (quem decide isso é o cache do
+ * servidor); custa um GET, e é o preço de o anel acompanhar mesmo o Ctrl+S.
+ */
+const DIRTY_POLL_MS = 6_000;
+
+/**
+ * Mantém os anéis em dia com o disco.
+ *
+ * Aba escondida não sonda: cada sondagem que vence o cache é um `git status --porcelain` por
+ * raiz git (o workspace e cada submódulo), e pagar isso por uma aba que ninguém está olhando é
+ * gastar CPU do operador para desenhar o que ele não vê. Ao voltar para a aba a sondagem é
+ * imediata — esperar o próximo tique mostraria o disco de até 15s atrás.
+ */
+function watchDirty(scene, streams) {
+  // Começa em 0 e não em `null`: árvore limpa no boot é o caso comum, e anunciar "0 arquivos"
+  // toda vez que o observatório sobe é ruído.
+  let announced = 0;
+  let failing = false;
+
+  async function poll() {
+    if (document.hidden) return;
+    try {
+      const payload = await api.dirty();
+      // Validação de fronteira: um 200 sem `files` (ou com `files` que não é objeto) cairia em
+      // `total = 0` e a tela anunciaria "ÁRVORE LIMPA" em verde — afirmando sobre o disco a
+      // partir de uma resposta que não diz nada sobre o disco.
+      const files = payload?.files;
+      if (!files || typeof files !== 'object' || Array.isArray(files)) {
+        throw new Error('resposta sem tabela de arquivos');
+      }
+      const { shown, dropped, total } = scene.markDirty(files);
+      failing = false;
+      if (shown === announced) return;
+      announced = shown;
+      streams.note(dirtyNote(shown, dropped, total), shown ? '' : 'good');
+    } catch (error) {
+      /*
+       * Falha = APAGAR os anéis, não mantê-los.
+       *
+       * Mantidos, o céu segue afirmando "este arquivo está alterado" e o hover segue dizendo
+       * ALTERADO por tempo indeterminado, com base numa leitura que já não se consegue
+       * verificar — inclusive depois de o operador ter commitado tudo. Some-se a isso que a
+       * nota de erro rola para fora do log e a afirmação falsa fica sozinha na tela. Sumir com
+       * o anel é a única leitura honesta: não se sabe.
+       */
+      scene.forgetDirty();
+      announced = 0;
+      // Uma nota por queda, não uma a cada tique: um servidor fora do ar não pode encher o log.
+      if (failing) return;
+      failing = true;
+      streams.note(`ALTERAÇÕES LOCAIS INDISPONÍVEIS: ${error.message} · ANÉIS REMOVIDOS`, 'bad');
+    }
+  }
+
+  setInterval(poll, DIRTY_POLL_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) poll();
+  });
+  poll();
+}
+
+/**
+ * O que a nota diz, e por que ela diz mais do que o número de anéis.
+ *
+ * "Editei um arquivo e não apareceu anel" tem duas causas, e o operador não tem como
+ * distingui-las olhando o céu: ou o arquivo não está indexado (não tem estrela), ou passou do
+ * teto de anéis. As duas são contadas em separado — calar qualquer uma faz o céu afirmar que
+ * só aquilo mudou.
+ */
+function dirtyNote(shown, dropped, total) {
+  if (!total) return 'ÁRVORE LIMPA · NENHUM ANEL';
+  const unindexed = total - shown - dropped;
+  const parts = [`TRABALHO LOCAL · ${total} ARQUIVO(S)`];
+  if (shown !== total) parts.push(`${shown} NO CÉU`);
+  if (dropped) parts.push(`${dropped} ALÉM DO TETO`);
+  if (unindexed > 0) parts.push(`${unindexed} FORA DO ÍNDICE`);
+  return parts.join(' · ');
+}
+
+function installShortcuts(scene, audio, answer, terminal, router, streams) {
   // Estado restaurado do storage; o cinema é aplicado no boot por `restorePrefs`.
   let cinematic = prefs.get('view.cinematic');
   let muted = prefs.get('audio.muted');
@@ -264,14 +366,44 @@ function installShortcuts(scene, audio, answer, terminal, router) {
     audio.click({ frequency: cinematic ? 165 : 440, gain: 0.05, decay: 0.9 });
   });
 
-  keys.bind({ code: 'KeyM', meta: true, label: '⌘M MUDO' }, () => {
+  /*
+   * ⌘M é também o caminho de VOLTA de quem escolheu "IGNORAR" no boot.
+   *
+   * Quem ignorou entrou sem `audio.enable()`, então o `AudioContext` nem existe: só devolver o
+   * volume não produziria som nenhum, e o atalho falharia em silêncio — a pior forma de falhar,
+   * porque a tela diria "não mudo" com o alto-falante calado. A tecla é gesto do usuário, que é
+   * exatamente o que a política de autoplay pede, então dá para ligar aqui mesmo.
+   */
+  keys.bind({ code: 'KeyM', meta: true, label: '⌘M MUDO' }, async () => {
     muted = !muted;
     prefs.set('audio.muted', muted);
+    if (!muted && !audio.isEnabled()) {
+      try {
+        await audio.enable();
+      } catch (error) {
+        console.warn('[audio] não destravou no ⌘M', error);
+      }
+    }
     // Volta ao volume afinado, não a uma constante: mudo é toggle, não reset.
     audio.setVolume(muted ? 0 : tuning.get('volume'));
   });
 
   keys.bind({ code: 'KeyR', alt: true, label: 'ALT+R CÂMERA' }, () => scene.release());
+
+  /*
+   * ⌘S grava o enquadramento. Vale COM foco no prompt (`whileTyping`) porque o modificador não
+   * disputa caractere nenhum — é a mesma regra que fez ⌘G entrar e `G` sair.
+   *
+   * O salvamento também acontece sozinho (a cada 5s e ao esconder a aba), mas silencioso: o
+   * atalho existe para o operador CONFIRMAR que o enquadramento que ele acabou de compor está
+   * guardado, e confirmação sem retorno visível não confirma nada. Por isso a nota sai nos dois
+   * casos, dizendo qual foi.
+   */
+  keys.bind({ code: 'KeyS', meta: true, whileTyping: true, label: '⌘S ÓRBITA' }, () => {
+    const saved = scene.saveOrbit();
+    streams.note(saved ? 'ÓRBITA DA CÂMERA GRAVADA' : 'ÓRBITA JÁ ESTAVA GRAVADA', 'good');
+    audio.click({ frequency: 660, gain: 0.045, decay: 0.35 });
+  });
 }
 
 /**
@@ -341,4 +473,16 @@ function createDock(root, apps) {
 main().catch((error) => {
   console.error('[espatial] falha na inicialização', error);
   api.reportClient({ boot: 'error' });
+  /*
+   * Diga na TELA, não só no console.
+   *
+   * Este `catch` já existia e engolia o erro para a interface: qualquer exceção no meio do
+   * `main` deixava a tela de boot exibindo "verificando subsistemas…" para sempre. A guarda
+   * clássica no `index.html` cobre o que acontece ANTES do módulo rodar; esta cobre o que
+   * acontece depois. As duas escrevem no mesmo lugar porque, para quem olha, é a mesma falha.
+   */
+  const status = bootRoot?.querySelector('[data-boot-status]');
+  if (!status) return;
+  status.textContent = `falha ao iniciar: ${error?.message || error}`;
+  status.style.color = 'var(--bad)';
 });

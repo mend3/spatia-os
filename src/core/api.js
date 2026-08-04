@@ -24,6 +24,7 @@ export const search = (query, limit = 8) =>
   json(`/api/search?q=${encodeURIComponent(query)}&n=${limit}`);
 export const node = (source) => json(`/api/node?source=${encodeURIComponent(source)}`);
 export const file = (path) => json(`/api/file?path=${encodeURIComponent(path)}`);
+export const dirty = () => json('/api/dirty');
 export const integrations = () => json('/api/integrations');
 export const mcp = () => json('/api/mcp');
 export const speech = () => json('/api/speech');

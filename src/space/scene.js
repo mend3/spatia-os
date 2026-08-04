@@ -18,6 +18,7 @@ import { OutputPass } from '../../vendor/jsm/postprocessing/OutputPass.js';
 
 import { on, ui } from '../core/bus.js';
 import * as tuning from '../core/tuning.js';
+import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
@@ -49,6 +50,14 @@ const PICK_INTERVAL_MS = 60;
 const DRIFT_BASE = 0.014;
 const LONG_FRAME_MS = 50;
 const MAX_PIXEL_RATIO = 2;
+/*
+ * Salvamento periódico da órbita. Não é "a cada quadro": o que se guarda é ONDE O OPERADOR
+ * DEIXOU a câmera, e entre dois gestos não há nada de novo para gravar.
+ */
+const ORBIT_SAVE_MS = 5_000;
+// 3 casas ≈ 0.06° de azimute. Abaixo disso é ruído de float, e ruído de float faria a guarda
+// de "só se mudou" do `prefs` disparar uma escrita a cada tique, para sempre.
+const ORBIT_STEP = 1e3;
 const ZERO = new THREE.Vector3();
 
 export function createScene(canvas, { labelLayer } = {}) {
@@ -86,10 +95,43 @@ export function createScene(canvas, { labelLayer } = {}) {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
-  const orbit = {
-    azimuth: 0, polar: 1.33, distance: 54,
-    targetAzimuth: 0, targetPolar: 1.33, targetDistance: 54,
+  /*
+   * Órbita restaurada da sessão anterior — corrente E alvo no mesmo valor.
+   *
+   * Só o alvo faria a câmera VOAR da posição inicial até a salva no primeiro segundo, o que lê
+   * como a cena se ajeitando sozinha. Os limites são os mesmos do `wheel` e do `pointermove`
+   * porque storage é entrada não confiável: um valor fora de faixa vindo de uma versão antiga
+   * (ou editado à mão) põe a câmera dentro do disco ou a 10 mil unidades daqui.
+   */
+  const startOrbit = {
+    azimuth: readOrbit('camera.azimuth', -Infinity, Infinity),
+    polar: readOrbit('camera.polar', 0.22, 2.9),
+    distance: readOrbit('camera.distance', 12, 260),
   };
+  const orbit = {
+    azimuth: startOrbit.azimuth, polar: startOrbit.polar, distance: startOrbit.distance,
+    targetAzimuth: startOrbit.azimuth,
+    targetPolar: startOrbit.polar,
+    targetDistance: startOrbit.distance,
+  };
+  /*
+   * Só o que o OPERADOR moveu é digno de gravar.
+   *
+   * A deriva automática muda o azimute continuamente; gravá-la escreveria no localStorage a
+   * cada tique da sessão inteira e ainda restauraria uma posição que ninguém escolheu. A marca
+   * é levantada nos gestos reais (arrasto, roda) e no foco de um app.
+   */
+  let orbitMoved = false;
+  /*
+   * O enquadramento "em casa" — para onde `focusBody(null)` volta.
+   *
+   * Era a constante 54/1.33 escrita dentro do `focusBody`, e isso ANULAVA a restauração: o
+   * `router.start` chama `focusBody` no boot, então a órbita recém-lida do storage era
+   * sobrescrita pelo default antes do primeiro quadro — e o salvamento periódico gravava o
+   * default por cima do que o operador tinha deixado. Medido: a câmera voltava para 54 em toda
+   * sessão. Sair de um app tem que devolver ao enquadramento DO OPERADOR, não ao de fábrica.
+   */
+  const HOME = { polar: startOrbit.polar, distance: startOrbit.distance };
   const pointer = new THREE.Vector2(-2, -2);
   const raycaster = new THREE.Raycaster();
   const clock = new THREE.Clock();
@@ -227,6 +269,7 @@ export function createScene(canvas, { labelLayer } = {}) {
   canvas.addEventListener('pointerdown', (event) => {
     dragging = true;
     userControlled = true;
+    orbitMoved = true;
     canvas.setPointerCapture(event.pointerId);
   });
 
@@ -277,6 +320,7 @@ export function createScene(canvas, { labelLayer } = {}) {
     if (!dragging) return;
     // O mouse move o ALVO, não a câmera. Delta de ponteiro é ruidoso e não vem alinhado com
     // o quadro; aplicá-lo direto na câmera transporta esse ruído para a imagem.
+    orbitMoved = true;
     orbit.targetAzimuth -= event.movementX * 0.0042;
     orbit.targetPolar = THREE.MathUtils.clamp(
       orbit.targetPolar - event.movementY * 0.0034, 0.22, 2.9
@@ -288,6 +332,7 @@ export function createScene(canvas, { labelLayer } = {}) {
     (event) => {
       event.preventDefault();
       userControlled = true;
+      orbitMoved = true;
       orbit.targetDistance = THREE.MathUtils.clamp(
         orbit.targetDistance * (1 + Math.sign(event.deltaY) * 0.08),
         12,
@@ -341,8 +386,8 @@ export function createScene(canvas, { labelLayer } = {}) {
     // 15 punha a câmera DENTRO do disco (raio externo 39): o disco enchia o quadro e lavava
     // a coluna de texto. 30 mantém o núcleo presente e grande, com o corpo do app ancorando
     // o enquadramento, e devolve contraste para a HUD.
-    orbit.targetDistance = id ? 30 : 54;
-    orbit.targetPolar = id ? 1.06 : 1.33;
+    orbit.targetDistance = id ? 30 : HOME.distance;
+    orbit.targetPolar = id ? 1.06 : HOME.polar;
     // Movimento reduzido: corte, não voo. O alvo já está no destino e a câmera é posta lá no
     // mesmo quadro — a chegada continua acontecendo, só sem os 900ms de deslocamento.
     if (motion.isReduced()) {
@@ -359,6 +404,60 @@ export function createScene(canvas, { labelLayer } = {}) {
     focusTarget.divideScalar(points.length);
     focusWeight = 1;
   }
+
+  /** Lê um escalar da órbita do storage, preso à mesma faixa que a interação impõe. */
+  function readOrbit(key, min, max) {
+    const value = prefs.get(key);
+    if (typeof value !== 'number' || !Number.isFinite(value)) return prefs.DEFAULTS[key];
+    return THREE.MathUtils.clamp(value, min, max);
+  }
+
+  const quantize = (value) => Math.round(value * ORBIT_STEP) / ORBIT_STEP;
+
+  /**
+   * Grava a órbita. `force` é o ⌘S; sem ele, só grava se houve gesto do operador.
+   *
+   * Não escreve nada quando o valor não mudou — a guarda é do próprio `prefs.set`, e é por isso
+   * que os três escalares são chaves separadas em vez de um objeto (dois objetos de conteúdo
+   * igual nunca são `===`, e a guarda nunca dispararia).
+   *
+   * Devolve se havia algo a gravar, para quem quiser dar retorno na tela.
+   */
+  function saveOrbit(force = false) {
+    if (!force && !orbitMoved) return false;
+    orbitMoved = false;
+    /*
+     * Dentro de um app o enquadramento é DERIVADO (o `focusBody` escolhe distância e polar para
+     * emoldurar o corpo), não escolhido — gravá-lo faria a próxima sessão nascer com a moldura
+     * de um app que talvez nem esteja aberto. Só o azimute, que continua sendo do operador,
+     * atravessa. `HOME` guarda o resto, e é ele que vai para o disco.
+     */
+    if (focusedBody) {
+      prefs.set('camera.azimuth', quantize(orbit.targetAzimuth));
+      return true;
+    }
+    HOME.polar = orbit.targetPolar;
+    HOME.distance = orbit.targetDistance;
+    prefs.set('camera.azimuth', quantize(orbit.targetAzimuth));
+    prefs.set('camera.polar', quantize(orbit.targetPolar));
+    prefs.set('camera.distance', quantize(orbit.targetDistance));
+    return true;
+  }
+
+  setInterval(() => saveOrbit(), ORBIT_SAVE_MS);
+
+  /*
+   * `visibilitychange` e `pagehide` — nunca `beforeunload`.
+   *
+   * `beforeunload` não é confiável em nenhum browser moderno para gravar: ele não dispara no
+   * descarte de aba em background nem em mobile, e ainda desliga o bfcache. `pagehide` cobre o
+   * fechamento real e `visibilitychange` cobre trocar de aba, que é como a sessão termina de
+   * fato na maior parte das vezes.
+   */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) saveOrbit();
+  });
+  window.addEventListener('pagehide', () => saveOrbit());
 
   function frame() {
     const delta = Math.min(clock.getDelta(), 0.1);
@@ -393,7 +492,9 @@ export function createScene(canvas, { labelLayer } = {}) {
 
     blackHole.update(delta, elapsed);
     stars.update(delta, elapsed);
-    graph.update(delta, elapsed);
+    // `canvas.height` é o framebuffer (CSS × devicePixelRatio), que é a unidade de
+    // `gl_PointSize` — é ele, e não o tamanho CSS, que dimensiona o anel junto com a estrela.
+    graph.update(delta, elapsed, camera, canvas.height);
     particles.update(delta);
     satellites.update(delta, elapsed);
     satellites.faceCamera(camera);
@@ -442,6 +543,11 @@ export function createScene(canvas, { labelLayer } = {}) {
     loadGraph: (payload) => graph.load(payload),
     /** Janela temporal do céu, em espaço de recência — o mesmo eixo que já define o raio. */
     revealSky: (value) => graph.reveal(value),
+    /** Anéis de Saturno nos arquivos alterados no disco. Recebe o `{caminho: estado}` cru. */
+    markDirty: (table) => graph.markDirty(table),
+    /** Apaga os anéis sem afirmar árvore limpa — quando o disco deixa de ser verificável. */
+    forgetDirty: () => graph.forgetDirty(),
+    dirtyOf: (source) => graph.dirtyOf(source),
     installProviders: (providers) => satellites.install(providers),
     nodeCount: () => graph.count(),
     toolColor: (kind) => TOOL_COLORS[kind] ?? TOOL_COLORS.other,
@@ -460,6 +566,9 @@ export function createScene(canvas, { labelLayer } = {}) {
       frames.since = now;
       return sample;
     },
+
+    /** Grava a órbita agora (o ⌘S). Devolve se havia gesto novo a registrar. */
+    saveOrbit: () => saveOrbit(true),
 
     /** Devolve o controle da câmera à deriva automática. */
     release() {
