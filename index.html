@@ -516,18 +516,80 @@
    * forma permanente mataria a ilusão de profundidade em que os astros passam à frente da
    * interface — que é o efeito, não um acidente. Ler arquivo é um modo; fora dele, nada muda.
    */
+  /* ---------------- superfície de painel (o primitivo) ---------------- */
+
+  /*
+    UMA superfície para tudo que é "janela": o leitor de arquivo e os painéis de configuração.
+    O leitor já tinha resolvido, à força, os quatro problemas que qualquer painel central tem —
+    e as soluções estavam presas ao seletor dele. Painel novo ou recomeçava do zero, ou virava
+    um fork com metade das lições. As quatro estão logo abaixo, num lugar só.
+
+    O leitor continua no palco (ele é conteúdo de um app); os painéis de configuração continuam
+    overlays fixos, porque ⌘G / P / V têm que valer em QUALQUER rota e um widget só existe
+    dentro do app que o declara. O que é compartilhado é a superfície, não o mecanismo de
+    montagem.
+  */
+  .surface {
+    pointer-events: auto;             /* lição 1, abaixo */
+    position: relative; z-index: 8;   /* lição 2 */
+    overflow-y: auto; overflow-x: hidden;
+    background: linear-gradient(180deg, rgba(4,6,10,0.96), rgba(4,6,10,0.9));
+    border-left: 1px solid var(--amber-dim);
+    padding: 12px 14px 14px;
+    backdrop-filter: blur(4px);
+    /* lição 4: barra discreta — a HUD é hairline. */
+    scrollbar-width: thin; scrollbar-color: var(--amber-dim) transparent;
+  }
+  /* lição 3: item de flex ENCOLHE por padrão; sem isto não há transbordo e não há o que rolar. */
+  .surface > * { flex: 0 0 auto; }
+  /*
+    O × pregado no topo à direita. `sticky` e não `absolute`: a superfície ROLA, e um botão de
+    fechar que sai de vista ao rolar obriga a rolar de volta só para poder sair.
+  */
+  .surface-close {
+    position: sticky; top: 0; align-self: flex-end; z-index: 2;
+    font-size: 15px; line-height: 1; padding: 0 2px; margin-bottom: -6px;
+    color: var(--ink-faint);
+  }
+  .surface-close:hover { color: var(--bad); }
+  /* Rolagem em UM nível só: o corpo interno de um painel não pode disputar com a superfície. */
+  .surface .perms-body { overflow: visible; min-height: auto; }
+
+  /* Overlay: painel de configuração, centrado, sobre a cena. */
+  .surface[data-surface="overlay"] {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    top: calc(var(--gutter) + 74px);
+    width: min(660px, 72vw); max-height: 66vh;
+    display: none; flex-direction: column;
+  }
+  .surface[data-surface="overlay"].open {
+    display: flex; animation: rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /*
+    ⚠️ A elevação do `#hud` cobre AGORA qualquer superfície montada — leitor ou painel.
+    Antes valia só para o leitor, e um painel de configuração aberto ficava atrás dos astros
+    orbitais (`#bodies`, z-index 2), que passavam por cima dele.
+  */
+  #hud:has(.surface[data-surface="overlay"].open),
   #hud:has(.widget[data-widget="fs-content"]) { z-index: 3; }
+  /*
+    Lição 1 (mora no `.surface`): o `#hud` é `pointer-events: none` para não bloquear a órbita
+    da câmera, e só `a, button, input, .clickable` reativam. O corpo do leitor é `div`, então a
+    roda do mouse chegava no canvas atrás — o painel tinha `overflow-y: auto` e mesmo assim não
+    rolava, e `elementFromPoint` no centro dele devolvia CANVAS. Fundo e rolagem sem ponteiro é
+    scrollbar de enfeite.
+
+    Lição 2 (idem): o `#hud` é `position: fixed` e cria contexto de empilhamento, então z-index
+    no painel NUNCA venceria o `#bodies`. A elevação tem que ser do `#hud`, e limitada por
+    `:has()` ao tempo em que há painel montado — elevar sempre mataria a profundidade em que os
+    astros passam à frente da interface, que é o efeito, não um acidente.
+  */
   .widget[data-widget="fs-content"] {
     align-items: stretch; justify-content: flex-start;
-    position: relative; z-index: 8;
-    /*
-     * O `#hud` é `pointer-events: none` para não bloquear a órbita da câmera, e só
-     * `a, button, input, .clickable` reativam. O corpo do leitor é `div`, então a roda do mouse
-     * chegava no canvas atrás: o painel tinha `overflow-y: auto` e ainda assim não rolava, e
-     * `elementFromPoint` no centro dele devolvia CANVAS. Fundo e rolagem sem ponteiro é
-     * scrollbar de enfeite.
-     */
-    pointer-events: auto;
+    /* O leitor NÃO rola em si: quem rola é o `.widget-body`, para o título ficar grudado. */
+    overflow: visible;
+    background: none; border: none; padding: 0; backdrop-filter: none;
   }
   .widget[data-widget="fs-content"] > .widget-body {
     align-items: stretch;
@@ -690,31 +752,22 @@
   .delivery-summary { color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .delivery-meta { color: var(--ink-faint); font-size: 8px; }
 
-  /* Painel de voz: mesma moldura dos outros painéis de configuração, à esquerda. */
-  .speech-panel { left: var(--gutter); right: auto;
-                  border-left: 1px solid var(--amber-dim); border-right: none; }
-  body.speech-open #hud > aside:first-of-type { opacity: 0; pointer-events: none; }
+  /*
+    Os três painéis de configuração não declaram mais posição própria: quem posiciona é
+    `.surface[data-surface="overlay"]`. Cada um tinha o seu canto (afinação à esquerda,
+    permissões à direita, voz à esquerda), com regra própria para APAGAR a coluna que ficava
+    embaixo — três molduras, três comportamentos, e a coluna sumindo por baixo de um painel que
+    o operador não pediu para trocar. Centrados sobre a cena, não há coluna a apagar.
+  */
   .bench { display: flex; flex-direction: column; gap: 5px; padding-bottom: 4px; }
   .bench .btn { align-self: flex-start; }
   .chips { display: flex; flex-direction: column; }
 
   /* ---------------- painel de afinação ---------------- */
 
-  .controls {
-    position: fixed; left: var(--gutter); bottom: 8vh; width: 268px;
-    max-height: 74vh; overflow-y: auto; pointer-events: auto;
-    display: none; flex-direction: column; gap: 1px;
-    background: linear-gradient(180deg, rgba(4,6,10,0.95), rgba(4,6,10,0.88));
-    border-left: 1px solid var(--amber-dim); padding: 12px 14px 14px;
-    backdrop-filter: blur(3px);
-  }
-  /* Com o painel aberto a coluna esquerda sai de cena: é o mesmo espaço, um dono por vez. */
-  /* Com o painel aberto a coluna esquerda sai de cena: é o mesmo espaço, um dono por vez. */
+  .controls { gap: 1px; }
   #hud aside { transition: opacity 320ms ease; }
   #hud aside.dimmed { opacity: 0; pointer-events: none; }
-
-  .controls { top: calc(var(--gutter) + 62px); bottom: auto; max-height: calc(100vh - 20vh); }
-  .controls.open { display: flex; animation: rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
   .controls-head { display: flex; justify-content: space-between; align-items: baseline;
                    border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 10px; }
   .controls-title { color: var(--amber); font-size: 9px; letter-spacing: 0.34em; }
@@ -749,17 +802,7 @@
 
   /* ---------------- painel de permissões ---------------- */
 
-  .perms {
-    position: fixed; right: var(--gutter); top: calc(var(--gutter) + 62px);
-    width: min(400px, 33vw); max-height: 78vh; pointer-events: auto;
-    display: none; flex-direction: column;
-    background: linear-gradient(180deg, rgba(4,6,10,0.96), rgba(4,6,10,0.9));
-    border-right: 1px solid var(--amber-dim); padding: 12px 14px 14px;
-    backdrop-filter: blur(3px);
-  }
-  .perms.open { display: flex; animation: rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  /* Com as permissões abertas a coluna direita sai: mesmo espaço, um dono por vez. */
-  body.perms-open #hud > aside:last-of-type { opacity: 0; pointer-events: none; }
+
   .perms-body { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
   .perms-status { color: var(--ink-faint); font-size: 8px; letter-spacing: 0.16em; }
 

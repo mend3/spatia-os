@@ -13,6 +13,7 @@ import { button } from './button.js';
 import * as prefs from '../core/prefs.js';
 import { on } from '../core/bus.js';
 import { bind } from '../core/keys.js';
+import * as surface from './surface.js';
 
 const TOGGLE_KEY = 'KeyP';
 
@@ -215,10 +216,13 @@ export function createPermissions(root, { onChange } = {}) {
     }
   }
 
+  surface.attach(panel, { onClose: () => setOpen(false) });
+
   function setOpen(open) {
     panel.classList.toggle('open', open);
     document.body.classList.toggle('perms-open', open);
     prefs.set('panel.permissions', open);
+    surface.track(panel, open, () => setOpen(false));
     if (open) document.activeElement?.blur?.();
   }
 

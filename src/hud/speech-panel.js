@@ -15,6 +15,7 @@ import { button } from './button.js';
 import * as prefs from '../core/prefs.js';
 import * as api from '../core/api.js';
 import { bind } from '../core/keys.js';
+import * as surface from './surface.js';
 
 const TOGGLE_KEY = 'KeyV';
 
@@ -268,10 +269,13 @@ export function createSpeechPanel(root) {
     return row;
   }
 
+  surface.attach(panel, { onClose: () => setOpen(false) });
+
   function setOpen(open) {
     panel.classList.toggle('open', open);
     document.body.classList.toggle('speech-open', open);
     prefs.set('panel.speech', open);
+    surface.track(panel, open, () => setOpen(false));
     if (trigger) trigger.dataset.on = String(open);
     if (open) {
       document.activeElement?.blur?.();

@@ -30,6 +30,7 @@ import * as tuning from './core/tuning.js';
 import * as prefs from './core/prefs.js';
 import * as keys from './core/keys.js';
 import { button, setOn } from './hud/button.js';
+import * as surface from './hud/surface.js';
 
 const hud = document.getElementById('hud');
 const canvas = document.getElementById('space');
@@ -353,6 +354,15 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
       // Primeiro da cadeia: o popover é sempre o gesto mais recente quando está aberto, e a
       // ordem do Esc é desfazer o último passo antes dos anteriores.
       systray.close();
+    } else if (surface.closeTop()) {
+      /*
+       * Painéis fecham em CASCATA, um Esc por painel, do topo para baixo (LIFO).
+       *
+       * `closeTop` já devolve se havia algo a fechar, então ele é a própria condição — perguntar
+       * antes e fechar depois abriria espaço para os dois discordarem. Painel aberto sobre painel
+       * é caso normal, e fechar a pilha inteira num Esc só transformaria "voltar um passo" em
+       * "perder o contexto todo".
+       */
     } else if (answer.isInspecting()) {
       answer.close();
     } else if (api.isStreaming()) {

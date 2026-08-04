@@ -17,6 +17,7 @@ import { el, set } from './dom.js';
 import * as prefs from '../core/prefs.js';
 import { bind } from '../core/keys.js';
 import * as motion from '../core/motion.js';
+import * as surface from './surface.js';
 
 /**
  * Alias em crase, convenção de painel de afinação e ausente em pergunta em português.
@@ -138,12 +139,16 @@ export function createControls(root) {
   // isso pelo CSSOM custa mais do que a classe explícita, que não tem como não funcionar.
   const leftColumn = root.querySelector('aside');
 
+  surface.attach(panel, { onClose: () => setOpen(false) });
+
   function setOpen(open) {
     panel.classList.toggle('open', open);
     document.body.classList.toggle('tuning', open);
     prefs.set('panel.tuning', open);
-    leftColumn?.classList.toggle('dimmed', open);
+    // A superfície é CENTRADA agora, não mais a coluna esquerda — apagar a coluna deixaria de
+    // fazer sentido (ela nem está mais embaixo) e cobraria um espaço que ninguém ocupou.
     if (trigger) trigger.dataset.on = String(open);
+    surface.track(panel, open, () => setOpen(false));
     // Tira o foco do prompt ao abrir: com ele focado, seta e Home/End iriam para o texto em
     // vez do slider, e ajustar com o teclado é metade do valor de um painel de afinação.
     if (open) document.activeElement?.blur?.();
