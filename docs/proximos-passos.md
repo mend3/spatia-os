@@ -17,8 +17,10 @@ só e sem pós-processamento, a faixa escura sobre o astro aparece. `OPTICAL_DEP
 (palpite escolhido sem conseguir ver o efeito) para **2,0** — dentro da faixa real do anel B
 (1,5–2,5), e escolhido vendo.
 
-⚠️ **O anel continua visualmente ruim** por outro motivo, que a bancada também expôs: ele é uma
-faixa lisa com perfil de densidade, sem granulação nem textura de rocha. Está sob pesquisa.
+⚠️ **O anel continua visualmente ruim** por outro motivo: ele é uma faixa lisa com perfil de
+densidade, sem granulação. Quatro candidatas estão na bancada (`src/sandbox/ring-variants.js`),
+com a pesquisa e a recomendação em [`catalogo-celeste.md`](catalogo-celeste.md) e no relatório do
+commit. **Falta escolher** — a comparação a 25px foi feita a olho, não com timer de GPU.
 
 ## 2. ~~Medir o custo do pós-processamento~~ — FEITO em 2026-08-05
 
@@ -69,7 +71,16 @@ em largura. i18n aqui é redesenhar largura, não trocar string.
 Se um dia for feito, o que falta além do catálogo: datas (`toLocaleString('pt-BR')` espalhado) e
 as mensagens que o servidor manda prontas no stream de eventos.
 
-## 5. Mecanismos de sistema
+## 5. Taxonomia de corpos celestes
+
+O céu chama todo arquivo de "estrela", e o usuário notou o sintoma: **anel é de planeta**. A
+proposta completa, com regras físicas e o que foi descartado por ser decorativo, está em
+[`catalogo-celeste.md`](catalogo-celeste.md). Nada implementado.
+
+O item de maior valor por linha: **cometa extinto** (churn alto numa janela antiga + recência
+baixa = ponto quente abandonado), que custa um `if` a mais na passada de `git log` que já existe.
+
+## 6. Mecanismos de sistema
 
 Dez estão especificados em [`OS-SCREENS.md`](OS-SCREENS.md) §2, com a ordem de construção em §4.
 São **projeto, não conserto** — cada um é uma decisão de produto antes de ser código.

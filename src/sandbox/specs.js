@@ -17,6 +17,7 @@ import { createBodies } from '../space/bodies.js';
 import { createStars } from '../space/stars.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from '../space/satellites.js';
 import { createParticles } from '../space/particles.js';
+import { RING_VARIANTS } from './ring-variants.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -29,6 +30,14 @@ export const NEUTRAL = Object.freeze({
   volume: 0, ambient: 0, brightness: 1,
 });
 
+/*
+ * As variações do anel entram como espécimes de primeira classe.
+ *
+ * Elas vivem em arquivo separado porque são CANDIDATAS, não produção: o anel de `space/rings.js`
+ * continua sendo o que a cena desenha, e a bancada é onde as quatro disputam. Misturá-las no
+ * mesmo arquivo apagaria essa diferença — e a pergunta "qual delas está no ar?" passaria a
+ * depender de ler código em vez de olhar.
+ */
 export const SPECS = [
   {
     id: 'anel',
@@ -281,4 +290,6 @@ export const SPECS = [
       };
     },
   },
+
+  ...RING_VARIANTS,
 ];
