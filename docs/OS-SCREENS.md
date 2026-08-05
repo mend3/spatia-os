@@ -749,6 +749,13 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 
 ## 4. Ordem de construção
 
+> **Estado em 2026-08-05.** Da Fase 3, o item 12 (fail-safe da config corrompida) teve a metade
+> de INTERFACE entregue: `state.recovered` agora aparece no painel de permissões, que era a
+> promessa que o servidor fazia e a tela não cumpria. O fail-open que a §2.8 descreve continua
+> aberto. Nada mais desta ordem foi construído — as entregas desta sessão foram conserto e
+> ambientação da cena, não mecanismos de sistema. O que está aberto fora daqui está em
+> [`proximos-passos.md`](proximos-passos.md).
+
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue
 existir sem), depois **valor visível por esforço**.
 
