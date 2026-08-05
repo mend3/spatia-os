@@ -157,9 +157,30 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     backdrop.object,
     stars.object, blackHole.group, graph.group, planet.object, photosphere.object,
     particles.object,
-    links.object,
     satellites.group, wormholes.group, bodies.group
   );
+
+  /*
+   * Arcs belong INSIDE the graph group, not beside it.
+   *
+   * `links.update` is fed `graph.positions()` — the raw buffer, which holds coordinates LOCAL to
+   * that group. The group carries the `graphSpread` scale (0.3–3.5, default 2.6) and the stars
+   * are children of it, so they render at `local × spread` while an arc parented to the scene
+   * root rendered at `local`. Every endpoint landed at `1/spread ≈ 38%` of its star's distance
+   * from the origin: arcs collapsed toward the cluster, worst for the bodies farthest out. The
+   * shape looked right because the whole arc shrank uniformly — only its anchoring was wrong.
+   *
+   * Parenting is the fix rather than copying the scale onto `links.object`, and the difference
+   * matters: `tune()` runs on every slider move, so a copied scale is a second source of truth
+   * that must be re-synced forever, and it would break outright the day the group gains a
+   * rotation or an offset. It is also free — no per-frame work. Same treatment `rings.group`
+   * already gets (`graph.js`, `group.add(rings.group)`), and for the same reason.
+   *
+   * Scale-invariant by construction, so nothing else needs adjusting: the Bézier bulge is a
+   * fraction of the chord, `aAlong` is normalized per arc, and the shader has no world-space
+   * term. `renderOrder = 1` still sorts globally because the group's own renderOrder is 0.
+   */
+  graph.group.add(links.object);
 
   const composer = new EffectComposer(renderer);
   const lensing = createLensingPass();
