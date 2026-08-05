@@ -30,7 +30,7 @@ import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams } from './planet.js';
 import { createLinks } from './links.js';
-import { classify, allows } from './catalog.js';
+import { resolveBody, SURFACE } from './solver.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
 
 /*
@@ -970,18 +970,35 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * estrela tem fotosfera, não crosta — então a superfície é a exceção, e ela precisa de
      * permissão explícita.
      */
-    const classe = pouso ? classify(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) }) : null;
-    const podeTerSuperficie = classe ? allows(classe, 'surface') : false;
-
     /*
-     * Duas superfícies possíveis, e o CATÁLOGO escolhe — nunca este bloco.
+     * O SOLVER decide, e este bloco só obedece.
      *
-     * Crosta pertence a corpo sólido; fotosfera, a corpo emissivo. São classes diferentes de
-     * objeto e desenhá-las com o mesmo shader seria dizer que um arquivo comum e um arquivo em
-     * edição são a mesma coisa de tamanhos diferentes.
+     * Antes eram duas condições soltas aqui — `allows(classe,'surface')` e
+     * `classe.features.photosphere` — que juntas formavam a regra sem que nada a chamasse de
+     * regra. Cada superfície nova exigiria uma terceira condição e a chance de duas se
+     * sobreporem crescia com o número delas. Agora existe UM lugar que responde "o que este
+     * corpo desenha de perto", e ele responde também o que RECUSOU e por quê.
      */
-    const temFotosfera = Boolean(classe?.features?.photosphere);
-    if (pouso && temFotosfera && !podeTerSuperficie) {
+    const decisao = pouso
+      ? resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) })
+      : null;
+    const classe = decisao?.klass ?? null;
+    /*
+     * A sonda carrega a decisão INTEIRA, e `recusados` é a metade que não existia.
+     *
+     * "Este corpo não desenha nada ao aproximar" tinha três causas indistinguíveis: âncora não
+     * resolvida, nível de detalhe zero, ou a classe não permitir superfície nenhuma. A terceira
+     * agora se lê pelo nome, com a frase do catálogo junto — que é como os 27 corpos de
+     * `supernova` deixam de ser um mistério e viram um item de trabalho.
+     */
+    probe.classe = classe?.id ?? null;
+    probe.tipo = decisao?.surface ?? SURFACE.NONE;
+    probe.recusados = decisao?.rejected ?? [];
+    // `tipo` é o que o solver DECIDIU; `desenhado`, o que a tela fez. Enquanto a galáxia só
+    // existir na bancada os dois divergem nos 71 hubs, e é assim que a pendência fica legível.
+    probe.desenhado = false;
+
+    if (pouso && decisao.surface === SURFACE.PHOTOSPHERE) {
       if (focusedNode !== starSource) {
         starParamsCache = photosphereParams(pouso.node, hash01, graph.kindColor(pouso.node.kind));
         starSource = focusedNode;
@@ -993,13 +1010,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       probe.level = level;
       probe.raio = pouso.radius;
       probe.dist = camera.position.distanceTo(pouso.position);
-      probe.tipo = 'fotosfera';
+      probe.desenhado = true;
     } else if (starSource) {
       photosphere.update(starParamsCache, camera, 0, elapsed);
       starSource = null;
     }
 
-    if (pouso && podeTerSuperficie) {
+    if (pouso && decisao.surface === SURFACE.PLANET) {
       if (focusedNode !== planetSource) {
         planetParamsCache = planetParams(pouso.node);
         planetSource = focusedNode;
@@ -1027,9 +1044,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       probe.level = level;
       probe.raio = pouso.radius;
       probe.dist = camera.position.distanceTo(pouso.position);
-      // O ramo da fotosfera carimba `tipo` e este não carimbava, então a sonda dizia "nada" com a
-      // superfície desenhando na tela — leitura errada que já custou uma rodada de depuração.
-      probe.tipo = 'planeta';
+      probe.desenhado = true;
     } else if (planetSource) {
       planet.update({ ...planetParamsCache, light: [0, 0, 1] }, camera, 0, elapsed);
       graph.haloOf(null, 0);
