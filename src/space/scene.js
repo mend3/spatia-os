@@ -1027,6 +1027,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       probe.level = level;
       probe.raio = pouso.radius;
       probe.dist = camera.position.distanceTo(pouso.position);
+      // O ramo da fotosfera carimba `tipo` e este não carimbava, então a sonda dizia "nada" com a
+      // superfície desenhando na tela — leitura errada que já custou uma rodada de depuração.
+      probe.tipo = 'planeta';
     } else if (planetSource) {
       planet.update({ ...planetParamsCache, light: [0, 0, 1] }, camera, 0, elapsed);
       graph.haloOf(null, 0);

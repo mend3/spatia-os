@@ -45,6 +45,11 @@ janela de tempo fixa responde sempre a mesma pergunta: *quanto este arquivo foi 
 últimas N semanas?*
 """
 CHURN_WINDOW_DAYS = 30
+# The far edge of the DORMANT window: commits older than the churn window but newer than this.
+# A file worked hard in 30-180d and quiet since is an abandoned hot spot — the extinct comet of
+# `docs/catalogo-celeste.md`, which calls it the best signal in the catalog. It costs one more
+# `if` in the same `git log` pass, exactly like the current churn did.
+DORMANT_WINDOW_DAYS = 180
 
 _lock = threading.Lock()
 _cache: tuple[float, tuple[dict[str, int], dict[str, int]]] = (0.0, ({}, {}))
@@ -77,8 +82,10 @@ def _git_roots(root: Path) -> list[Path]:
     return roots
 
 
-def _last_commits(git_root: Path, prefix: str, cutoff: int) -> tuple[dict[str, int], dict[str, int]]:
-    """Uma passada, dois resultados: última data por caminho, e churn na janela.
+def _last_commits(
+    git_root: Path, prefix: str, cutoff: int, dormant_cutoff: int
+) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    """Uma passada, TRÊS resultados: última data por caminho, churn na janela, e churn dormente.
 
     O churn sai de graça: o `git log --name-only` que data os arquivos já lista TODOS os
     caminhos de TODOS os commits. Contar os que caem dentro da janela não custa uma segunda
@@ -95,10 +102,11 @@ def _last_commits(git_root: Path, prefix: str, cutoff: int) -> tuple[dict[str, i
         ).stdout
     except (OSError, subprocess.SubprocessError) as e:
         logger.warning(f"git log falhou em {git_root}: {e}")
-        return {}
+        return {}, {}, {}
 
     stamps: dict[str, int] = {}
     churn: dict[str, int] = {}
+    dormant: dict[str, int] = {}
     current = None
     for line in out.splitlines():
         if not line.strip():
@@ -112,11 +120,16 @@ def _last_commits(git_root: Path, prefix: str, cutoff: int) -> tuple[dict[str, i
             stamps.setdefault(key, current)
             if current >= cutoff:
                 churn[key] = churn.get(key, 0) + 1
-    return stamps, churn
+            elif current >= dormant_cutoff:
+                # `elif`, não um segundo `if`: as janelas são DISJUNTAS de propósito. Um arquivo
+                # que continua sendo mexido soma no churn recente e não pode somar também no
+                # dormente — senão "trabalhado e abandonado" incluiria "trabalhado ontem".
+                dormant[key] = dormant.get(key, 0) + 1
+    return stamps, churn, dormant
 
 
-def _tables() -> tuple[dict[str, int], dict[str, int]]:
-    """`(datas, churn)`, em cache. As duas saem da MESMA passada de `git log`."""
+def _tables() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    """`(datas, churn, dormente)`, em cache. As três saem da MESMA passada de `git log`."""
     global _cache
     with _lock:
         age, cached = _cache
@@ -125,25 +138,31 @@ def _tables() -> tuple[dict[str, int], dict[str, int]]:
 
         root = _workspace_root()
         if not root or not (root / ".git").exists():
-            _cache = (time.monotonic(), ({}, {}))
+            _cache = (time.monotonic(), ({}, {}, {}))
             return _cache[1]
 
         started = time.monotonic()
-        cutoff = int(time.time()) - CHURN_WINDOW_DAYS * 86_400
+        now = int(time.time())
+        cutoff = now - CHURN_WINDOW_DAYS * 86_400
+        dormant_cutoff = now - DORMANT_WINDOW_DAYS * 86_400
         stamps: dict[str, int] = {}
         churn: dict[str, int] = {}
+        dormant: dict[str, int] = {}
         for git_root in _git_roots(root):
             prefix = "" if git_root == root else f"{git_root.relative_to(root)}/"
-            dated, touched = _last_commits(git_root, prefix, cutoff)
+            dated, touched, cooled = _last_commits(git_root, prefix, cutoff, dormant_cutoff)
             stamps.update(dated)
             for key, count in touched.items():
                 churn[key] = churn.get(key, 0) + count
+            for key, count in cooled.items():
+                dormant[key] = dormant.get(key, 0) + count
 
         logger.info(
-            f"recência: {len(stamps)} caminhos datados e {len(churn)} tocados nos últimos "
-            f"{CHURN_WINDOW_DAYS}d, em {(time.monotonic() - started) * 1000:.0f}ms"
+            f"recência: {len(stamps)} caminhos datados, {len(churn)} tocados nos últimos "
+            f"{CHURN_WINDOW_DAYS}d e {len(dormant)} só entre {CHURN_WINDOW_DAYS} e "
+            f"{DORMANT_WINDOW_DAYS}d, em {(time.monotonic() - started) * 1000:.0f}ms"
         )
-        _cache = (time.monotonic(), (stamps, churn))
+        _cache = (time.monotonic(), (stamps, churn, dormant))
         return _cache[1]
 
 
@@ -154,11 +173,22 @@ def table() -> dict[str, int]:
 
 def churn_of(source: str) -> int:
     """Quantas vezes este arquivo foi tocado na janela. 0 quando o git não o conhece."""
-    _, churn = _tables()
-    if source.startswith("/"):
-        return 0
-    relative = source.split("/", 1)[1] if "/" in source else source
-    return churn.get(relative, 0)
+    _, churn, _ = _tables()
+    return churn.get(_git_key(source), 0) if not source.startswith("/") else 0
+
+
+def dormant_churn_of(source: str) -> int:
+    """Toques na janela ANTIGA (entre `CHURN_WINDOW_DAYS` e `DORMANT_WINDOW_DAYS`).
+
+    Alto aqui e baixo em `churn_of` é a assinatura do ponto quente abandonado.
+    """
+    _, _, dormant = _tables()
+    return dormant.get(_git_key(source), 0) if not source.startswith("/") else 0
+
+
+def _git_key(source: str) -> str:
+    """O caminho como o git o conhece: sem o primeiro segmento, que é o nome da raiz."""
+    return source.split("/", 1)[1] if "/" in source else source
 
 
 def changed_at(source: str) -> Optional[int]:
@@ -285,3 +315,6 @@ def _annotate_supernova(nodes: list[dict]) -> None:
         # O piso já entra com intensidade visível (o `+ 1` no numerador): virar supernova é o
         # evento, e um evento que nasce invisível não é um evento.
         node["supernova"] = round(min(1.0, (count - SUPERNOVA_FLOOR + 1) / span), 4) if count else 0.0
+        # Churn da janela antiga, cru. Quem decide o que é "alto" é o cliente, com o mesmo
+        # critério relativo ao pico que a supernova usa — normalizar aqui exigiria duas passadas.
+        node["dormant"] = dormant_churn_of(node.get("source", ""))

@@ -49,6 +49,13 @@
 
 /** Piso de churn para um arquivo virar supernova, na escala 0…1 normalizada pelo corpus. */
 const SUPERNOVA_FLOOR = 0.001;
+/**
+ * Toques na janela dormente (30–180d) para um arquivo contar como ponto quente ABANDONADO.
+ *
+ * 2, não 1: um toque isolado é ruído de manutenção — renomear uma variável, corrigir um typo — e
+ * com o piso em 1 a classe abocanharia 47 dos 397 arquivos. Com 2 são 5, medidos em 2026-08-05.
+ */
+const DORMANT_FLOOR = 2;
 
 export const CELESTIAL = [
   {
@@ -145,7 +152,11 @@ export const CELESTIAL = [
     id: 'cometa-extinto',
     name: 'COMETA EXTINTO',
     priority: 25,
-    status: 'declared',
+    /*
+     * `partial`: a SUPERFÍCIE já desenha (a classe permite `surface`, e `planet.js` a monta como
+     * em qualquer corpo sólido). A CAUDA continua só declarada — nenhuma geometria a desenha.
+     */
+    status: 'partial',
     /*
      * O sinal de maior valor operacional do catálogo: **ponto quente ABANDONADO**. Um arquivo que
      * foi muito trabalhado e esfriou.
@@ -158,8 +169,19 @@ export const CELESTIAL = [
      * Custo: um `if` a mais na passada de `git log` que o servidor já faz — a mesma de onde saiu
      * o churn atual. Falta uma SEGUNDA janela (ex.: 30–180 dias) em `server/recency.py`.
      */
-    from: 'churn alto numa janela ANTIGA + recência baixa (segunda janela, ainda não coletada)',
-    test: () => false,
+    from: 'churn na janela ANTIGA (30–180d) sem nenhum toque nos últimos 30d (`node.dormant`)',
+    /*
+     * A recência baixa NÃO é um terceiro teste, é consequência: zero toques em 30 dias já obriga
+     * o último commit a ser antigo. Medido nos candidatos deste corpus — recência entre 0,15 e
+     * 0,24, todos na periferia. Um limiar de recência aqui seria um botão sem evidência.
+     *
+     * ⚠️ O PISO É MODESTO PORQUE O CORPUS É JOVEM, e vale registrar a medida que o contradiz: o
+     * documento aposta neste como o melhor sinal do lote, mas em 2026-08-05 só 5 arquivos têm 2+
+     * toques dormentes e nenhum recente. Os de churn dormente ALTO (29, 22, 20) continuam sendo
+     * mexidos — logo são supernova, não cometa. O sinal é fino hoje e engorda conforme o
+     * repositório envelhece; o campo passa a ser coletado agora justamente por isso.
+     */
+    test: (node) => node.type === 'file' && (node.dormant || 0) >= DORMANT_FLOOR && !node.churn,
     features: {
       tail: 'cauda apontando para FORA do núcleo, comprimento pela recência perdida',
       /*

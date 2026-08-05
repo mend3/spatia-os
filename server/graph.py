@@ -20,7 +20,7 @@ logger = logging.getLogger("espatial.graph")
 
 CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # Versão do FORMATO do nó. Ver o uso no fingerprint.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
