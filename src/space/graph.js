@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
 import { createRings } from './rings.js';
+import { classify } from './catalog.js';
 
 // Cor por natureza do conhecimento. A escala de "idade" do briefing (nova branca, antiga
 // azulada, muito usada amarela, esquecida vermelha) entra como *modulação* da ignição:
@@ -152,31 +153,33 @@ const FRAGMENT = /* glsl */ `
   varying float vSupernova;
   varying float vSeed;
 
-  const float SHELL_RADIUS = 0.78;
-  const float SHELL_WIDTH = 0.085;
   const float TAU = 6.28318530718;
-  // Quanto o raio da casca ondula, e quanto ela se ROMPE em arcos.
-  const float LOBES = 0.17;
-  const float FILAMENT = 0.66;
+  // Envoltorio: onde comeca, ate onde vai, quanto rende e quanto o contorno ondula.
+  const float ENV_INNER = 0.34;
+  const float ENV_OUTER = 1.0;
+  const float ENV_GAIN = 0.55;
+  const float ENV_LOBES = 0.22;
 
   /*
-   * A casca do remanescente: irregular e rompida, nao um circulo.
+   * O envoltorio do remanescente: NEBULOSIDADE, nao casca.
    *
-   * Tres harmonicas BAIXAS no raio dao o contorno assimetrico (Cas A, Veu do Cisne, que sao
-   * assim porque a onda de choque atravessa um meio interestelar irregular). Ruido de verdade
-   * nao serve: a 20px ele vira um anel mais grosso e o efeito custa sem aparecer.
+   * Duas tentativas falharam antes, e pelo mesmo motivo: um anel concentrico liso, depois uma
+   * casca filamentar rompida em arcos. As duas tinham BORDA — e qualquer coisa com borda
+   * definida a volta do nucleo le como anel, por mais irregular que seja o contorno. Anel ja e
+   * outra classe do catalogo, entao o defeito nao era o desenho, era a categoria.
    *
-   * Os cortes usam uma harmonica ALTA e sao o que resolve a colisao com o anel planetario, que
-   * ocupa exatamente esta faixa de raio. Casca fechada, por mais ondulada, o olho ainda le como
-   * anel; casca ROMPIDA em arcos, nao.
+   * Remanescente de verdade preenche uma regiao e some SEM borda. E o preenchimento que o torna
+   * inconfundivel com uma elipse nitida — e as harmonicas baixas no contorno externo sao o que
+   * o separa da corona da ignicao, que e circular e perfeita.
    */
-  float remnant(vec2 pc, float seed){
+  float envelope(vec2 pc, float seed){
     float a = atan(pc.y, pc.x) + seed * TAU;
-    float warp = cos(3.0 * a) * 0.50 + cos(5.0 * a + 1.7) * 0.32 + cos(7.0 * a + 4.1) * 0.18;
-    float radius = SHELL_RADIUS * (1.0 + LOBES * warp);
-    float t = (length(pc) - radius) / SHELL_WIDTH;
-    float breaks = 0.5 + 0.5 * cos(9.0 * a + seed * 11.0);
-    return exp(-t * t) * mix(1.0, breaks * breaks, FILAMENT);
+    float warp = cos(2.0 * a) * 0.50 + cos(3.0 * a + 1.7) * 0.30 + cos(5.0 * a + 4.1) * 0.20;
+    float outer = ENV_OUTER * (1.0 + ENV_LOBES * warp);
+    // smoothstep com as bordas INVERTIDAS: 1 no interior, 0 no contorno, sem degrau em lugar
+    // nenhum. Ao quadrado para a queda ficar mais rapida no meio e mais macia no fim.
+    float fill = smoothstep(outer, ENV_INNER, length(pc));
+    return fill * fill;
   }
 
   void main(){
@@ -185,9 +188,7 @@ const FRAGMENT = /* glsl */ `
     float core = pow(1.0 - smoothstep(0.0, 1.0, d), 2.2);
     // Corona só em nó aceso: dá o "volta a brilhar" sem inflar o céu inteiro.
     float corona = (1.0 - smoothstep(0.0, 1.3, d)) * vIgnition * 0.55;
-    // 1.5 compensa o que os cortes tiraram: a casca rompida perde area, e sem o ganho a
-    // supernova mais forte do corpus ficaria mais apagada do que era antes de virar filamento.
-    float shell = remnant(pc, vSeed) * vSupernova * 1.5;
+    float shell = envelope(pc, vSeed) * vSupernova * ENV_GAIN;
     float intensity = (core + corona + shell) * vReveal;
     if (intensity < 0.004) discard;
     gl_FragColor = vec4(vColor * intensity, intensity);
@@ -543,6 +544,14 @@ export function createGraph() {
         const i = byPath.get(path);
         if (i === undefined) continue;
         dirtyState.set(nodes[i].source, state);
+        /*
+         * O CATÁLOGO decide se este corpo pode ter anel — não este laço.
+         *
+         * Antes, sujo bastava, e um arquivo que também era supernova saía com anel E casca: duas
+         * classes no mesmo objeto. `classify` devolve UMA classe, e só a de planeta anelado
+         * desenha anel. Regra em `space/catalog.js`, com o porquê da prioridade.
+         */
+        if (classify(nodes[i], { dirty: state }).id !== 'planeta-anelado') continue;
         entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency });
       }
 
