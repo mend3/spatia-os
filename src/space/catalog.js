@@ -237,6 +237,16 @@ export const CELESTIAL = [
     features: {
       core: 'sprite emissivo; raio por log2(chunks), cor por kind, órbita por recência',
       corona: 'só em nó aceso pela busca — evento, e ele passa',
+      /*
+       * A superfície que a estrela realmente tem, e ela é o oposto do planeta num ponto que
+       * decide o shader: NÃO HÁ TERMINADOR. Estrela é emissiva, não iluminada de fora — o
+       * volume vem do escurecimento de limbo (`I(μ)/I₀ = 1 − u(1 − μ)`, u ≈ 0,6 no visível),
+       * que é a feição mais reconhecível de um disco estelar.
+       *
+       * Proibir crosta e não dar NADA no lugar deixava 371 dos 459 corpos sem o que revelar no
+       * zoom. A resposta fiel nunca foi afrouxar a proibição — era esta entrada.
+       */
+      photosphere: 'granulação que ferve, escurecimento de limbo, manchas frias e fáculas no limbo',
     },
     forbids: {
       ring: 'estrela tem DISCO DE DETRITOS, não anel: radiação e Poynting–Robertson varrem',
@@ -250,7 +260,7 @@ export const CELESTIAL = [
        * estrela é granulação convectiva e escurecimento de limbo, que é outro shader e outra
        * feição; enquanto ele não existir, a estrela continua sendo um ponto de perto também.
        */
-      surface: 'estrela tem FOTOSFERA, não crosta: relevo e mar afirmariam corpo sólido',
+      surface: 'estrela tem FOTOSFERA, não crosta: relevo e mar afirmariam corpo sólido — mas ela TEM fotosfera, ver `features.photosphere`',
     },
   },
 ];

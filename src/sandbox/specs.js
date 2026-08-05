@@ -18,7 +18,8 @@ import {
   createPlanet, planetParams,
   LOD_FAR_PX as PLANET_FAR_PX, LOD_NEAR_PX as PLANET_NEAR_PX,
 } from '../space/planet.js';
-import { KIND_COLORS } from '../space/graph.js';
+import { KIND_COLORS, hash01 } from '../space/graph.js';
+import { createPhotosphere, photosphereParams } from '../space/photosphere.js';
 import { createBlackHole } from '../space/blackhole.js';
 import { createBodies } from '../space/bodies.js';
 import { createStars } from '../space/stars.js';
@@ -150,6 +151,70 @@ export const SPECS = [
           });
         },
         dispose: () => rings.dispose(),
+      };
+    },
+  },
+
+  {
+    id: 'fotosfera',
+    name: 'FOTOSFERA',
+    /*
+     * A superfície da ESTRELA — a classe padrão do céu, e portanto o objeto que mais gente vai
+     * ver de perto.
+     *
+     * Ela precisa da bancada por um motivo específico: quase tudo nela é função de `mu`, o
+     * cosseno do ângulo com a linha de visada. Escurecimento de limbo, fáculas e a própria
+     * leitura de volume dependem de OLHAR O DISCO INTEIRO, do centro à borda, e na cena o astro
+     * só chega a esse tamanho depois de travar a câmera nele.
+     *
+     * ⚠️ E ela precisa do TEMPO CORRENDO, ao contrário de todos os outros espécimes: granulação
+     * que não ferve é textura, e textura é justamente o defeito que este shader existe para não
+     * ser. É o primeiro espécime da bancada em que apertar CORRER faz parte do teste.
+     */
+    distance: 3.4,
+    controls: [
+      { key: 'semente', label: 'SEMENTE (caminho)', type: 'range', min: 0, max: 1, step: 0.001, value: 0.31 },
+      { key: 'tipo', label: 'TIPO (kind)', type: 'enum', options: Object.keys(KIND_COLORS), value: 'config' },
+      { key: 'massa', label: 'MASSA (chunks)', type: 'range', min: 1, max: 240, step: 1, value: 103 },
+      { key: 'manchas', label: 'MANCHAS ×', type: 'range', min: 0, max: 3, step: 0.01, value: 1 },
+      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1 },
+    ],
+    watch: [
+      'o centro do disco é NÍTIDO e a borda escurece — é a lei de limbo, e é ela que dá o volume',
+      'NÃO pode haver terminador: estrela é emissiva, e uma metade escura significaria o shader do planeta',
+      'com o tempo CORRENDO a granulação ferve no lugar; se ela desliza, virou textura rolando',
+      'perto da borda aparece um granulado mais claro (fáculas) — cresce ao CONTRÁRIO do limbo',
+      'manchas são ALARANJADAS, nunca pretas: 19% do brilho por Stefan-Boltzmann, não ausência de emissão',
+      'MANCHAS a zero: o disco fica liso e ainda assim redondo — se ficar chapado, o limbo não entrou',
+      'RAIO abaixo de 90px: some inteiro. Acima de 200px: a oitava fina da granulação entra',
+    ],
+    build(ctx) {
+      const star = createPhotosphere();
+      return {
+        object: star.object,
+        update(values, camera, clock) {
+          // Semente pelo CAMINHO, como na cena: testar por outra porta deixaria de testar a
+          // parte que garante que um arquivo não troca de estrela quando o corpus muda.
+          const caminho = `bancada/fotosfera-${values.semente.toFixed(3)}.md`;
+          const base = photosphereParams(
+            { source: caminho, kind: values.tipo, chunks: Math.round(values.massa) },
+            hash01,
+            KIND_COLORS[values.tipo] ?? KIND_COLORS.other
+          );
+          star.object.scale.setScalar(values.raio);
+          const px = (values.raio * window.innerHeight)
+            / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
+          const nivel = star.update(
+            { ...base, spots: base.spots * values.manchas }, camera, px, clock.elapsed
+          );
+          ctx.report({
+            'manchas': (base.spots * values.manchas).toFixed(2),
+            'pixels': px.toFixed(0),
+            'nível': nivel.toFixed(2),
+            'terminador': 'não existe (emissiva)',
+          });
+        },
+        dispose: () => star.dispose(),
       };
     },
   },

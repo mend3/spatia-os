@@ -22,7 +22,7 @@ import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
-import { createGraph } from './graph.js';
+import { createGraph, hash01 } from './graph.js';
 import * as motion from '../core/motion.js';
 import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
@@ -31,6 +31,7 @@ import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams } from './planet.js';
 import { createLinks } from './links.js';
 import { classify, allows } from './catalog.js';
+import { createPhotosphere, photosphereParams } from './photosphere.js';
 
 /*
  * `start.z` acompanha `graphSpread`: a casca de nós foi de 46–110 para 68–160 unidades, e uma
@@ -138,12 +139,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   const links = createLinks();
   const planet = createPlanet();
+  const photosphere = createPhotosphere();
+  let starParamsCache = null;
+  let starSource = null;
   let planetSource = null;
 
   scene.add(
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
-    stars.object, blackHole.group, graph.group, planet.object, particles.object,
+    stars.object, blackHole.group, graph.group, planet.object, photosphere.object,
+    particles.object,
     links.object,
     satellites.group, wormholes.group, bodies.group
   );
@@ -771,6 +776,32 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     const classe = pouso ? classify(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) }) : null;
     const podeTerSuperficie = classe ? allows(classe, 'surface') : false;
+
+    /*
+     * Duas superfícies possíveis, e o CATÁLOGO escolhe — nunca este bloco.
+     *
+     * Crosta pertence a corpo sólido; fotosfera, a corpo emissivo. São classes diferentes de
+     * objeto e desenhá-las com o mesmo shader seria dizer que um arquivo comum e um arquivo em
+     * edição são a mesma coisa de tamanhos diferentes.
+     */
+    const temFotosfera = Boolean(classe?.features?.photosphere);
+    if (pouso && temFotosfera && !podeTerSuperficie) {
+      if (focusedNode !== starSource) {
+        starParamsCache = photosphereParams(pouso.node, hash01, graph.kindColor(pouso.node.kind));
+        starSource = focusedNode;
+      }
+      photosphere.object.position.copy(pouso.position);
+      photosphere.object.scale.setScalar(pouso.radius);
+      const level = photosphere.update(starParamsCache, camera, pouso.px, elapsed);
+      graph.haloOf(level > 0.002 ? focusedNode : null, level);
+      probe.level = level;
+      probe.raio = pouso.radius;
+      probe.dist = camera.position.distanceTo(pouso.position);
+      probe.tipo = 'fotosfera';
+    } else if (starSource) {
+      photosphere.update(starParamsCache, camera, 0, elapsed);
+      starSource = null;
+    }
 
     if (pouso && podeTerSuperficie) {
       if (focusedNode !== planetSource) {
