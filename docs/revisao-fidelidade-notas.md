@@ -34,9 +34,11 @@ Pedido do usuário que originou isto:
 
 ---
 
-## Correção — bugs que fazem código existente nunca funcionar
+## ✅ Correção — bugs que faziam código existente nunca funcionar (TODOS CORRIGIDOS em 2026-08-05)
 
-Custo P cada um. Valor por linha maior que qualquer feature nova.
+Os seis foram corrigidos e verificados de ponta a ponta — ver o commit `fix: os seis bugs de
+correção`. Ficam aqui porque o padrão que os unia é a régua que vale para os próximos:
+**código presente, caminho nunca percorrido, nenhum erro na tela.**
 
 1. **ENTREGAS RECENTES congelado para sempre.** `webhooks.py:150-157` põe `origin:"webhook"`
    só no evento `phase:"call"`; `apps/index.js:474` exige `origin==='webhook' && phase==='result'`

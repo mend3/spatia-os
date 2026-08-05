@@ -1,5 +1,9 @@
 # Revisão de próximos passos — 2026-08-04
 
+> **Atualizado em 2026-08-05.** Os seis bugs de correção da §5 e o `fps == 0` da §1 foram
+> consertados, e os perfis de qualidade da §1 foram implementados (`core/profiles.js` + a seção
+> PERFIL da página de configuração). O que sobrou aberto está marcado abaixo.
+
 Escrita depois de fechar a fila de cinco itens (anéis, órbita, systray, página de configuração,
 SSOT de atalhos). Pedido do usuário:
 
@@ -10,7 +14,7 @@ Tudo abaixo tem medida ou arquivo:linha. O que é estimativa está marcado como 
 
 ---
 
-## 1. Perfis de qualidade — o item de maior valor por esforço
+## 1. ✅ Perfis de qualidade — IMPLEMENTADO em 2026-08-05
 
 ### O que está medido
 
@@ -47,12 +51,13 @@ sugerir o perfil, nunca aplicá-lo sozinho. Trocar a aparência da cena sem pedi
 de erro do slider que exibe um valor que não está em vigor — o `respectMotion` em `scene.js` já
 avisa na tela quando faz isso, e a mesma honestidade vale aqui.
 
-### Um defeito que impede medir a cauda
+### ✅ Um defeito que impedia medir a cauda — CORRIGIDO em 2026-08-05
 
 `server/app.py:200` usa `if payload.get("fps")` — **`fps == 0` é falsy e some**. A aba travada,
 que é o caso que `metrics.py:16-17` diz querer pegar, reporta 0 e nunca entra no histograma.
 Sem corrigir isso, qualquer perfil automático estaria sendo calibrado contra um universo do qual
-os piores casos foram removidos. **Corrigir antes de construir os perfis, não depois.**
+os piores casos foram removidos. **Corrigido antes dos perfis**, como devia: `is not None` em `fps` e em `long_frames`.
+Verificado — 3 amostras com `fps=0` movem o contador, e o bucket baixo passa a existir.
 
 ---
 
@@ -117,11 +122,10 @@ valor/custo, na minha leitura:
 
 ---
 
-## 5. A fila que já tem evidência
+## 5. ✅ A fila de bugs de correção — FECHADA em 2026-08-05
 
-`docs/revisao-fidelidade-notas.md` tem 29 achados com arquivo:linha, dos quais **nenhum dos 6
-bugs de correção foi consertado**. Eles continuam sendo o melhor valor por linha do repositório,
-porque são funcionalidades que existem no código e **nunca funcionam**:
+Os seis foram consertados e verificados de ponta a ponta. Ficam registrados porque o padrão que
+os unia vale como régua: **código presente, caminho nunca percorrido, nenhum erro na tela.**
 
 - ENTREGAS RECENTES com condição impossível (`origin` só no evento `call`);
 - ferramentas internas sem `id`, que nunca fecham a linha na HUD — e, com `BRAIN=ollama`, o
@@ -138,13 +142,17 @@ anel, e a nota culpa "FORA DO ÍNDICE" um arquivo indexado), submódulo aninhado
 
 ---
 
-## 6. Ordem que eu seguiria
+## 6. O que sobrou, na ordem
 
-1. Os 6 bugs de correção + os 3 do servidor (§5) — custo P cada, e todos são "existe e não
-   funciona", não "não existe".
-2. O `fps == 0` (§1) — uma linha, e sem ela não há como calibrar perfil nenhum.
-3. Perfis de qualidade (§1) — o pedido, e o que torna a cena utilizável fora desta máquina.
-4. `plural()` (§3) — barato, melhora o português hoje, não se desfaz.
-5. §2.2 desejado vs real (§4) — a menor das três integrações e a que mais muda o boot.
-6. Fidelidade da cena (`revisao-fidelidade-notas.md` §21-29) — beaming do disco, órbitas que de
-   fato cruzam o plano, distribuição espectral invertida. Nenhum custa mais que ~0.1ms de GPU.
+1. **Medir o custo do pós-processamento** (§2). Os perfis foram montados a partir do que domina
+   por razão ESTRUTURAL, não de medição comparativa — e essa medição ainda não existe.
+   `performance_start_trace` do DevTools resolve em minutos, e é o que diz se `EQUILIBRADO`
+   está no lugar certo entre os outros dois.
+2. **`plural()`** (§3) — barato, melhora o português hoje, não se desfaz.
+3. **§2.2 desejado vs real** (§4) — a menor das três integrações e a que mais muda o boot.
+4. **Fidelidade da cena** (`revisao-fidelidade-notas.md` §21-29) — beaming do disco (hoje é um
+   hotspot orbitando, não um crescente), órbitas que de fato cruzem o plano, distribuição
+   espectral invertida (40% do céu é azul, contra ~0.7% reais). Nenhum custa mais que ~0.1ms.
+5. **Os três bugs de servidor** que o anel expôs e continuam abertos: quoting do `git status`
+   (acento e rename nunca acendem anel), submódulo aninhado invisível, `AGENT_CWD` vazio
+   desligando a feature em silêncio.
