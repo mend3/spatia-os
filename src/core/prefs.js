@@ -37,6 +37,12 @@ export const DEFAULTS = Object.freeze({
   'panel.permissions': false,
   'panel.speech': false,
   'view.cinematic': false,
+  /*
+   * Perfil de qualidade em vigor. `''` = nunca escolhido, e essa distinção importa: só quem
+   * NUNCA escolheu recebe a sugestão automática. Depois de escolher, o operador manda —
+   * sugerir de novo a cada boot seria a interface discutindo com uma decisão já tomada.
+   */
+  'view.profile': '',
 
   // Última rota visitada. O hash manda quando presente; isto é o fallback para quem abre a
   // página sem hash e espera voltar onde estava.

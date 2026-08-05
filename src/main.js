@@ -30,6 +30,7 @@ import { registerApps, SYSTEM_VIEW } from './apps/index.js';
 import * as tuning from './core/tuning.js';
 import * as prefs from './core/prefs.js';
 import * as keys from './core/keys.js';
+import * as profiles from './core/profiles.js';
 import { button, setOn } from './hud/button.js';
 import * as surface from './hud/surface.js';
 
@@ -258,11 +259,71 @@ async function main() {
   api.watchSystem();
 
   restorePrefs(panels, audio);
+  installProfiles(scene, streams);
+  /*
+   * A página de configuração pede pelo BARRAMENTO, não chamando a cena.
+   *
+   * Ela é um widget e não conhece `scene` — e não deveria: um widget que alcança a cena por
+   * referência direta passa a só funcionar montado no app que a tem. Pelo evento, a mesma
+   * seção serve qualquer superfície futura que queira trocar de perfil.
+   */
+  on('ui.apply-profile', ({ id }) => {
+    const perfil = profiles.byId(id);
+    if (!perfil) return;
+    applyProfile(scene, perfil);
+    streams.note(`PERFIL ${perfil.name} APLICADO`, 'good');
+  });
 
   await boot.report(health, nodeCount);
   api.startTelemetry(() => ({ ...scene.sampleTelemetry(), audio: audio.isEnabled() }));
   await boot.engage();
 }
+
+/**
+ * Perfil de qualidade: aplica o escolhido e, só na primeira vez, MEDE e sugere.
+ *
+ * A sugestão nunca se aplica sozinha. Trocar a aparência da cena por conta própria é a mesma
+ * classe de erro do slider que exibe um valor que não está em vigor — o `respectMotion` da cena
+ * já diz na tela quando faz isso, e a mesma régua vale aqui. E a medição é do LOOP REAL, não da
+ * string do navegador: `userAgent` responde "que máquina é" e a pergunta é "esta cena, com este
+ * corpus, nesta janela, roda?".
+ */
+function installProfiles(scene, streams) {
+  const escolhido = prefs.get('view.profile');
+  const perfil = profiles.byId(escolhido) || profiles.byId(profiles.DEFAULT_PROFILE);
+  applyProfile(scene, perfil, { silent: true });
+
+  // Quem já escolheu não é interrogado de novo a cada boot.
+  if (escolhido) return;
+
+  /*
+   * Espera antes de medir: os primeiros segundos incluem compilação de shader, upload de
+   * buffers e a carga da topologia. Medir ali diria que toda máquina é lenta.
+   */
+  setTimeout(() => {
+    const amostra = scene.sampleTelemetry();
+    const sugerido = profiles.suggest({ fps: amostra.fps, longFrames: amostra.long_frames });
+    if (sugerido === profiles.DEFAULT_PROFILE) return;
+    const nome = profiles.byId(sugerido)?.name ?? sugerido;
+    streams.note(
+      `${Math.round(amostra.fps)} FPS MEDIDOS · PERFIL ${nome} RECOMENDADO EM SISTEMA › CONFIGURAÇÃO`,
+      'warn'
+    );
+  }, PROFILE_PROBE_MS);
+}
+
+/** Aplica um perfil inteiro: os 22 parâmetros no store, e o resto na cena. */
+export function applyProfile(scene, perfil, { silent = false } = {}) {
+  if (!perfil) return;
+  tuning.apply(perfil.tuning);
+  scene.applyProfile(perfil);
+  prefs.set('view.profile', perfil.id);
+  if (!silent) ui('profile-changed', { id: perfil.id });
+}
+
+// Tempo até a primeira medição valer. Antes disso a amostra inclui compilação de shader e a
+// carga da topologia, e diria que qualquer máquina é lenta.
+const PROFILE_PROBE_MS = 12_000;
 
 /*
  * Sondagem das alterações locais — os anéis de Saturno.

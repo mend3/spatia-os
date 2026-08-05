@@ -20,6 +20,8 @@ import { on, emit } from '../core/bus.js';
 import { snapshot } from '../core/state.js';
 import * as api from '../core/api.js';
 import * as keys from '../core/keys.js';
+import * as prefs from '../core/prefs.js';
+import { PROFILES } from '../core/profiles.js';
 
 const COLORS = { files: 0x7ee0c0, system: 0xffab54, web: 0xff9b4a, bridge: 0x5ce1e6 };
 
@@ -235,6 +237,7 @@ function registerFilesWidgets() {
 
       const abrir = (seletor) => () => document.querySelector(seletor)?.click();
       const SECTIONS = [
+        { id: 'perfil', name: 'PERFIL', render: renderProfiles },
         { id: 'atalhos', name: 'ATALHOS', render: renderShortcuts },
         { id: 'afinacao', name: 'AFINAÇÃO', open: abrir('[data-tune-toggle]'),
           note: 'a cena inteira — núcleo, céu, grafo, câmera, lente, áudio' },
@@ -245,6 +248,38 @@ function registerFilesWidgets() {
       ];
 
       let active = SECTIONS[0].id;
+
+      /**
+       * Os três perfis, com o custo dito em português.
+       *
+       * A seção existe porque o painel de afinação tem 22 sliders e nenhum agrupamento por
+       * CUSTO: quem abre numa máquina fraca não tem como saber quais três decidem o FPS.
+       * Escolher aqui reescreve os 22 de uma vez — é o mesmo store, com nome.
+       */
+      function renderProfiles(into) {
+        const atual = prefs.get('view.profile');
+        const blocks = [el('div', 'controls-group', 'QUALIDADE')];
+        for (const perfil of PROFILES) {
+          const linha = el('div', 'config-profile');
+          const escolha = button({ variant: 'select', size: 'sm', on: perfil.id === atual });
+          escolha.textContent = perfil.name;
+          escolha.addEventListener('click', () => {
+            emit({ t: 'ui.apply-profile', id: perfil.id });
+            // Redesenha para o botão marcado acompanhar a escolha na hora.
+            setTimeout(() => renderProfiles(into), 60);
+          });
+          linha.append(escolha, el('span', 'config-profile-note', perfil.note));
+          blocks.push(linha);
+        }
+        blocks.push(
+          el(
+            'div',
+            'widget-hint',
+            'o perfil reescreve os 22 parâmetros da afinação · ajustar um slider depois não muda o nome'
+          )
+        );
+        into.replaceChildren(...blocks);
+      }
 
       function renderShortcuts(into) {
         /*

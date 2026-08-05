@@ -658,6 +658,10 @@
   /* Container flex encolhe os filhos: sem isto o rótulo da seção quebra em duas linhas. */
   .config-menu .btn { flex: 0 0 auto; justify-content: flex-start; white-space: nowrap; }
   .config-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .config-profile { display: grid; grid-template-columns: 132px 1fr; gap: 10px;
+                    align-items: baseline; padding: 3px 0; }
+  .config-profile .btn { justify-content: center; }
+  .config-profile-note { color: var(--ink-faint); font-size: 8px; letter-spacing: 0.14em; }
   .config-key { display: grid; grid-template-columns: 68px 1fr auto; gap: 10px;
                 align-items: baseline; padding: 2px 0; }
   .config-kbd { color: var(--amber); font: inherit; font-size: 10px; letter-spacing: 0.1em; }

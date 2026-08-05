@@ -87,6 +87,22 @@ export function set(key, value) {
   notify(key);
 }
 
+/**
+ * Aplica um CONJUNTO de valores de uma vez — é o que um perfil de qualidade faz.
+ *
+ * `patch` parcial sobre os DEFAULTS, não sobre os valores atuais: um perfil descreve um estado
+ * completo da cena, e mesclar com o que estava ali faria trocar de perfil deixar resíduo do
+ * anterior — trocar de PLENO para MÍNIMO e de volta não devolveria PLENO.
+ *
+ * Uma notificação só (`notify(null)`), não 22: cada `set` refaz a cadeia de afinação inteira
+ * na cena, e 22 refazeres seguidos aparecem como um tranco na imagem.
+ */
+export function apply(patch) {
+  current = { ...DEFAULTS, ...(patch || {}) };
+  persist();
+  notify(null);
+}
+
 export function reset() {
   current = { ...DEFAULTS };
   persist();

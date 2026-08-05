@@ -196,9 +196,16 @@ class Handler(BaseHTTPRequestHandler):
         só o loop de render sabe, e 400 nós a 20fps é regressão de produto."""
         if payload.get("boot"):
             metrics.client_boot.inc(outcome=str(payload["boot"]))
-        if payload.get("fps"):
+        # ⚠️ `is not None`, NUNCA truthiness.
+        #
+        # Era `if payload.get("fps")`, e **`fps == 0` é falsy**: a aba travada — exatamente o
+        # caso que o docstring desta função e o de `metrics.py` dizem querer pegar — reportava
+        # zero e sumia do histograma. O universo medido ficava sem os piores casos, que é o
+        # oposto de medir a cauda. Mesmo raciocínio em `long_frames`: zero quadro longo é uma
+        # medição, não a ausência de uma.
+        if payload.get("fps") is not None:
             metrics.client_fps.observe(float(payload["fps"]))
-        if payload.get("long_frames"):
+        if payload.get("long_frames") is not None:
             metrics.client_long_frames.inc(float(payload["long_frames"]))
         if payload.get("nodes") is not None:
             metrics.client_nodes.set(float(payload["nodes"]))

@@ -66,7 +66,20 @@ export function createScene(canvas, { labelLayer } = {}) {
     antialias: false, // o bloom e o grão já suavizam; MSAA aqui só custaria fill rate
     powerPreference: 'high-performance',
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+  /*
+   * O `pixelRatio` é o parâmetro mais caro da cena e é QUADRÁTICO: DPR 2 desenha 4× os
+   * fragmentos de DPR 1, em toda a cadeia de pós-processamento. Por isso ele é do PERFIL, e não
+   * um slider entre os 22 — um controle contínuo aqui convidaria a ajustar em passos de 0.05
+   * uma grandeza que só tem três respostas úteis.
+   */
+  let pixelCeiling = MAX_PIXEL_RATIO;
+  const applyPixelRatio = () => {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelCeiling));
+    // `setSize` de novo porque o buffer de desenho muda de tamanho junto com o ratio; sem isto
+    // o composer continua no tamanho antigo e a imagem sai esticada.
+    resize();
+  };
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelCeiling));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
 
@@ -569,6 +582,21 @@ export function createScene(canvas, { labelLayer } = {}) {
 
     /** Grava a órbita agora (o ⌘S). Devolve se havia gesto novo a registrar. */
     saveOrbit: () => saveOrbit(true),
+
+    /**
+     * Aplica a parte da cena que um perfil de qualidade decide.
+     *
+     * O `tuning` (os 22 parâmetros) é aplicado por quem chama, direto no store — ele já se
+     * distribui sozinho pelo `subscribe`. O que passa por aqui é só o que NÃO é afinação:
+     * resolução de desenho e teto de anéis.
+     */
+    applyProfile({ pixelRatio, maxRings }) {
+      if (typeof maxRings === 'number') graph.setMaxRings(maxRings);
+      if (typeof pixelRatio === 'number' && pixelRatio !== pixelCeiling) {
+        pixelCeiling = pixelRatio;
+        applyPixelRatio();
+      }
+    },
 
     /** Devolve o controle da câmera à deriva automática. */
     release() {

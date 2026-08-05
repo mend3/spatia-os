@@ -450,6 +450,9 @@ export function createGraph() {
     /** Estado local do arquivo daquele nó, ou `null` se limpo/desconhecido. */
     dirtyOf: (source) => dirtyState.get(source) ?? null,
 
+    /** Teto de anéis do perfil de qualidade — repassado para quem os desenha. */
+    setMaxRings: (value) => rings.setMaxRings(value),
+
     /** Apaga os anéis sem afirmar árvore limpa — para quando o disco deixa de ser verificável. */
     forgetDirty() {
       dirtyState = new Map();

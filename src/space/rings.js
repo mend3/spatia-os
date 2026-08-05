@@ -97,7 +97,7 @@ const OPACITY = 0.9;
  * o céu vira um campo de anéis que não informa nada. Quem chama recebe quantos ficaram de fora
  * e é responsável por dizê-lo — corte silencioso lê como "é só isso que mudou".
  */
-const MAX_RINGS = 64;
+let maxRings = 64;
 
 const VERTEX = /* glsl */ `
   varying vec2 vUv;
@@ -231,7 +231,7 @@ export function createRings() {
      * Devolve `{ shown, dropped }`.
      */
     set(entries) {
-      const kept = entries.length > MAX_RINGS ? entries.slice(0, MAX_RINGS) : entries;
+      const kept = entries.length > maxRings ? entries.slice(0, maxRings) : entries;
       grow(kept.length);
 
       active.length = 0;
@@ -291,6 +291,11 @@ export function createRings() {
         ring.mesh.scale.setScalar(radiusOf(ring.index) * FOOTPRINT);
         ring.mesh.material.uniforms.uOpacity.value = OPACITY * dimOf(ring.recency);
       }
+    },
+
+    /** Teto de anéis — quem decide é o perfil de qualidade. */
+    setMaxRings(value) {
+      maxRings = Math.max(1, Math.round(value));
     },
 
     count: () => active.length,
