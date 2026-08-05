@@ -157,10 +157,21 @@ Kepler, `ω² = GM/r³`, onde `M` é a massa **central**: um corpo pesado e um l
 orbitam no mesmo ritmo. Fazer a massa própria mudar a própria órbita seria a cena afirmando uma
 falsidade.
 
+⚠️ **UMA CONTRADIÇÃO ABERTA, e ela está entre este documento e o `motion-catalog.js`.** A linha
+abaixo diz que a massa governa a rotação do disco de um hub. O catálogo de movimento diz o oposto,
+na entrada `patternSpin`: a taxa é propriedade da ONDA, não da pasta, e toda galáxia compartilha.
+
+As duas não podem valer, e a segunda tem o argumento mais forte — braço espiral é onda de densidade
+(Lin–Shu), e a velocidade do PADRÃO é da onda; massa governa a curva de rotação do MATERIAL, que
+não é o que a cena desenha. Duas saídas, e é decisão de produto: corrigir esta frase, ou dar à
+massa um papel dinâmico que exista de verdade — **alcance do anel** e **esfera de Hill das luas**,
+ambos declarados no `catalogo-celeste.md` e nenhum implementado. A segunda torna a frase verdadeira
+em vez de apagá-la.
+
 Na prática, hoje:
 
-- **hub** (o único corpo com filhos) → massa governa rotação do disco, alcance do anel, esfera de
-  Hill das luas;
+- **hub** (o único corpo com filhos) → massa governa o TAMANHO. A rotação do padrão é da onda, e
+  alcance do anel e esfera de Hill continuam declarados apenas;
 - **folha** → mantém `ω ∝ r^-1.5`, raio = recência, massa central única (o núcleo);
 - **atração mútua** → **não**. Exige integração, integração exige estado, e estado faz a posição
   depender do histórico da sessão — some a garantia do README de que *"o mesmo conhecimento cai
@@ -241,6 +252,10 @@ pela mesma sonda os candidatos rejeitados **com o motivo**.
 
 ## 6. Animação
 
+O SSOT vive em [`src/space/motion-catalog.js`](../src/space/motion-catalog.js): as leis, as taxas,
+o `reduced` de cada uma e — como no `catalog.js` — o que cada movimento **proíbe**. Cada entrada
+declara o próprio `status`, e hoje só `patternSpin` é lido de lá.
+
 `f(tempo)` puro: nenhum estado interno, nenhuma integração. É o que a cena já faz — `graph.js:511`
 calcula `angle = phase + elapsed * speed`, sem velocidade acumulada, e é isso que sustenta a posição
 determinística.
@@ -292,6 +307,14 @@ incluindo os 9 `lock` que não entram no céu):
 | `galaxia` | 71 | 502px, **nada** |
 | `supernova` | 27 | 470px, **nada** |
 | `cometa-extinto` | 5 | 975px, nível 1, planeta desenha |
+
+**Depois, medido em 2026-08-05 no mesmo caminho.** Os dois buracos fecharam:
+
+| o que era | virou |
+|---|---|
+| `supernova`, 27 corpos sem nada | deixou de ser classe; o mais reescrito do corpus (`CLAUDE.md`, 26 toques em 30d) desenha fotosfera em nível 1 |
+| `galaxia`, 71 corpos sem nada | `space/galaxy.js` ligado à cena viva; `docs/operations` reporta `tipo: galaxy, desenhado: true` a 254px |
+| eixo de classe | `estrela` 383 · `cometa-extinto` 5 — `supernova` saiu |
 
 **Supernova como classe é o defeito, e ele é medível.** O catálogo a descreve como *"ESTADO DURÁVEL
 do repositório: diz 'este arquivo é um ponto quente', não 'algo aconteceu agora'"* — e mesmo assim a
@@ -366,13 +389,16 @@ contados, não enumerados; funções, classes e embeddings não são extraídos.
 
 ## Ordem de adoção
 
-1. **Galáxia por densidade + massa por `chunks`** — o ajuste de cosmologia nos hubs.
-2. **Solver de compatibilidade**, com sonda observável. Precisa vir **antes** do item 3: é ele que
-   segura o empilhamento quando as classes deixarem de garanti-lo sozinhas.
-3. **Supernova sai de forma e vira estado** — devolve superfície a 27 corpos; maior ganho por linha.
+1. ~~Galáxia por densidade + massa~~ — **feito**, e por CONCENTRAÇÃO de massa, não por densidade
+   média: a média manda a pasta mais rica do céu para lenticular sem braços, porque mede tamanho
+   de arquivo. Ver `space/galaxy-classes.js`.
+2. ~~Solver de compatibilidade~~ — **feito** (`space/solver.js`), com as recusas na sonda.
+3. ~~Supernova sai de forma e vira estado~~ — **feito**; 27 corpos recuperaram superfície.
 4. **Morfologia de cometa e estação** — leva a cobertura de 57% para 86%.
 5. **Excentricidade**, junto com a decisão sobre a colisão com "raio = recência".
 6. **Repo × pasta** como galáxia × sistema estelar.
+7. **Trazer os movimentos `own` para o catálogo** — `keplerOrbit`, `boil`, `spin` e `pulse` são
+   movimento real com a constante dentro do próprio módulo. Substituição direta, sem risco.
 
 ## Estado de implementação
 
@@ -381,8 +407,8 @@ Nenhuma linha desta tabela mente sobre estar pronta.
 | Estágio | Hoje |
 |---|---|
 | Identidade | existe — `kind` do `graph.py`, cor por `KIND_COLORS` |
-| Morfologia | 2 de 6 — fotosfera e planeta |
-| Cosmologia | parcial — massa vira tamanho (`log2`); capacidades por limiar não existem |
-| Estado | parcial — sujo, churn e foco existem; são aplicados direto, sem estágio próprio |
-| Solver | **não existe** — a exclusão vem da unicidade da classe |
-| Animação | parcial — órbita circular determinística; sem excentricidade |
+| Morfologia | 2 de 6 para arquivo (fotosfera, planeta) + galáxia para hub, na cena viva |
+| Cosmologia | parcial — massa vira tamanho (`log2`) e concentração vira classe de galáxia; capacidades por limiar não existem |
+| Estado | parcial — `envelope` já passa pelo solver; `dirty`, `hub`, `isolado` e `aceso` ainda são aplicados direto |
+| Solver | existe — `space/solver.js`: superfície + um conflito, com motivo e sonda. Falta o resto dos candidatos |
+| Animação | existe como SSOT — `space/motion-catalog.js`, 1 de 6 entradas `applied`; sem excentricidade |
