@@ -10,29 +10,39 @@ Tudo abaixo tem medida ou `arquivo:linha`. O que é estimativa está marcado com
 
 ---
 
-## 1. Validar a extinção do anel
+## 1. ~~Validar a extinção do anel~~ — FEITO em 2026-08-05, pela bancada
 
-Implementada e **não confirmada visualmente** (`space/rings.js`, `EXTINCTION_FRAGMENT`). O anel B
-tem τ≈1.5–2.5: passando na frente do astro ele é uma faixa ESCURA, e com blending aditivo o
-desenho fazia o oposto. Entrou um segundo passe multiplicativo com Beer-Lambert.
+A bancada (`sandbox.html`) resolveu o que a cena não deixava: com o tempo congelado, um objeto
+só e sem pós-processamento, a faixa escura sobre o astro aparece. `OPTICAL_DEPTH` saiu de 0,85
+(palpite escolhido sem conseguir ver o efeito) para **2,0** — dentro da faixa real do anel B
+(1,5–2,5), e escolhido vendo.
 
-Verificado: o shader compila, não há erro de console, o FPS não mudou (120). **Não verificado:**
-se o efeito aparece e se `OPTICAL_DEPTH = 0.85` é o valor certo. Uma tentativa de A/B ligando e
-desligando não concluiu — os dois astros comparados eram diferentes e a cena se move entre os
-quadros. Precisa de um olhar humano parado, com um arquivo sujo e a câmera travada nele.
+⚠️ **O anel continua visualmente ruim** por outro motivo, que a bancada também expôs: ele é uma
+faixa lisa com perfil de densidade, sem granulação nem textura de rocha. Está sob pesquisa.
 
-## 2. Medir o custo do pós-processamento
+## 2. ~~Medir o custo do pós-processamento~~ — FEITO em 2026-08-05
 
-Os três perfis de qualidade (`core/profiles.js`) foram montados a partir do que domina o
-orçamento de quadro por razão **estrutural** — `pixelRatio` é quadrático, a cadeia são três
-passes de tela cheia, o bloom borra em várias resoluções. Medição comparativa não existe.
+`EXT_disjoint_timer_query_webgl2`, via `scene.sampleRenderCost()` (exposto em
+`window.espatial.renderCost()`). Num Apple M5 a 3024×1484 com DPR 2, três leituras consistentes:
 
-É ela que diria se `EQUILIBRADO` está no lugar certo entre `MÍNIMO` e `PLENO`. O
-`performance_start_trace` do DevTools resolve em minutos, e o resultado deve voltar para o
-comentário de `profiles.js`, que hoje declara a estimativa como estimativa.
+| | ms de GPU por quadro |
+|---|---|
+| cena inteira, sem pós-processamento | **0,45** |
+| com a cadeia (lente + bloom + output) | **3,5 a 4,3** |
+| fração do quadro que é pós-processamento | **87–90%** |
 
-Junto, o que continua sem medida: `advance()` com um corpus grande (o cabeçalho de `graph.js`
-chama ~468 sin/cos de "irrelevante" — plausível a 468 nós, nunca medido a 5 000).
+Mais forte do que a estimativa dizia: a cena praticamente não custa nada. Os perfis cortam no
+lugar certo, e `pixelRatio` é de fato o parâmetro mais caro, porque é quadrático e multiplica
+justamente a parte que domina. O número foi para o cabeçalho de `core/profiles.js`, no lugar da
+estimativa.
+
+Três medidas que NÃO respondem, todas tentadas antes: comparar FPS (a 105 FPS o loop está preso
+no vsync), zerar `bloomStrength` (o passe continua rodando) e `gl.finish()` com relógio de parede
+(neste driver não sincroniza — reportou 0,1ms para 4,5 megapixels, o que não é crível).
+
+**Continua sem medida:** `advance()` com um corpus grande. O cabeçalho de `graph.js` chama ~468
+sin/cos de "irrelevante" — agora com número, eles cabem dentro dos 0,45ms a 468 nós, mas ninguém
+mediu a 5 000.
 
 ## 3. Dado que ainda chega ao browser e é descartado
 

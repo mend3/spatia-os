@@ -218,6 +218,8 @@ async function main() {
   window.espatial = Object.freeze({
     session: () => session.snapshot(),
     state: () => state.snapshot(),
+    /** Custo da cadeia de pós-processamento, medido na hora. Ver `scene.sampleRenderCost`. */
+    renderCost: (n) => scene.sampleRenderCost(n),
   });
 
   // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.

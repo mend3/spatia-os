@@ -638,6 +638,72 @@ export function createScene(canvas, { labelLayer } = {}) {
     nodeCount: () => graph.count(),
     toolColor: (kind) => TOOL_COLORS[kind] ?? TOOL_COLORS.other,
 
+    /**
+     * Quanto custa a cadeia de pós-processamento, em ms de GPU por quadro.
+     *
+     * Existe porque a pergunta volta toda vez que a cena muda, e porque as duas medidas óbvias
+     * NÃO respondem — as duas foram tentadas e falharam:
+     *
+     * | Tentativa | Por que não serve |
+     * |---|---|
+     * | comparar FPS | a 105 FPS o loop está preso no vsync: baixar o custo não aparece |
+     * | zerar `bloomStrength` | o PASSE continua rodando, só com o parâmetro em zero |
+     * | `gl.finish()` + relógio de parede | neste driver (ANGLE/Metal) não sincroniza: mediu 0.1ms para 4.5 megapixels, o que não é crível |
+     *
+     * `EXT_disjoint_timer_query_webgl2` é o instrumento certo: ele pergunta À GPU quanto tempo
+     * ELA levou, sem depender de o driver honrar um ponto de sincronia. O resultado chega
+     * assíncrono, por isso a assinatura é uma promessa.
+     *
+     * ⚠️ A comparação carrega uma diferença: `renderer.render` escreve no framebuffer padrão e
+     * o composer escreve em alvos intermediários. Serve para ordem de grandeza — que é a
+     * pergunta ("o pós vale metade do quadro ou 5%?"), não para benchmark.
+     */
+    async sampleRenderCost(samples = 30) {
+      const gl = renderer.getContext();
+      const ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+      if (!ext) return { erro: 'EXT_disjoint_timer_query_webgl2 indisponível neste contexto' };
+
+      const medir = (desenhar) =>
+        new Promise((resolve) => {
+          const query = gl.createQuery();
+          gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
+          for (let i = 0; i < samples; i++) desenhar();
+          gl.endQuery(ext.TIME_ELAPSED_EXT);
+
+          const colher = () => {
+            // `GPU_DISJOINT` marca que o relógio da GPU foi perturbado (troca de contexto,
+            // throttling): a amostra inteira vira lixo e não pode ser reportada como medida.
+            if (gl.getParameter(ext.GPU_DISJOINT_EXT)) {
+              gl.deleteQuery(query);
+              resolve(null);
+              return;
+            }
+            if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) {
+              requestAnimationFrame(colher);
+              return;
+            }
+            const nanos = gl.getQueryParameter(query, gl.QUERY_RESULT);
+            gl.deleteQuery(query);
+            resolve(nanos / 1e6 / samples);
+          };
+          requestAnimationFrame(colher);
+        });
+
+      const comCadeia = await medir(() => composer.render());
+      const semCadeia = await medir(() => renderer.render(scene, camera));
+      if (comCadeia === null || semCadeia === null) {
+        return { erro: 'relógio da GPU perturbado (GPU_DISJOINT) — amostra descartada' };
+      }
+      return {
+        comCadeia: +comCadeia.toFixed(3),
+        semCadeia: +semCadeia.toFixed(3),
+        custoDoPos: +(comCadeia - semCadeia).toFixed(3),
+        fracao: +((1 - semCadeia / comCadeia) * 100).toFixed(1),
+        pixelRatio: renderer.getPixelRatio(),
+        buffer: [canvas.width, canvas.height],
+      };
+    },
+
     /** Amostra de desempenho para o beacon; zera a janela a cada leitura. */
     sampleTelemetry() {
       const now = performance.now();

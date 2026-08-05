@@ -7,19 +7,27 @@
  *
  * ## O que realmente custa
  *
- * Medido nesta base: 120 FPS, zero quadros longos, 16 MB, num Apple M5 a 3024×1484 com DPR 2.
- * Essa é a máquina mais rápida que vai rodar isto, então os perfis não existem para ela — e é
- * por isso que a escolha do que cortar não pode sair de "achismo sobre o que parece pesado".
- * Os três itens abaixo dominam o orçamento de quadro por razões estruturais, não por medição
- * comparativa (que ainda não existe, e está anotada como tal em `docs/proximos-passos.md`):
+ * **MEDIDO** com `EXT_disjoint_timer_query_webgl2` (ver `scene.sampleRenderCost`), num Apple M5
+ * a 3024×1484 com DPR 2, três leituras consistentes:
  *
- * | Item | Por que domina |
+ * | | ms de GPU por quadro |
  * |---|---|
- * | `pixelRatio` | é QUADRÁTICO: DPR 2 → 4× os fragmentos de DPR 1, em toda a cadeia |
- * | pós-processamento | lente + bloom + output = três passes de tela CHEIA por quadro |
- * | bloom | além do passe, ele borra em várias resoluções — o mais caro dos três |
+ * | cena inteira, sem pós-processamento | **0,45** |
+ * | com a cadeia (lente + bloom + output) | **3,5 a 4,3** |
+ * | **fração do quadro que é pós-processamento** | **87–90%** |
  *
- * Tudo o mais (raycast a 16Hz, ~468 sin/cos por quadro, os anéis) é ruído perto disso.
+ * A conclusão é mais forte do que a estimativa anterior dizia: a cena praticamente não custa
+ * nada, e quase todo o orçamento de GPU são três passes de tela cheia. Por isso os perfis
+ * cortam POR AÍ — e por isso `pixelRatio` é o parâmetro mais caro de todos, já que ele é
+ * quadrático e multiplica exatamente a parte que domina.
+ *
+ * Tudo o mais (raycast a 16Hz, ~468 sin/cos por quadro, os anéis) é ruído perto disso — agora
+ * com número: eles cabem inteiros dentro dos 0,45ms.
+ *
+ * ⚠️ Três medidas que NÃO respondem esta pergunta, todas tentadas antes de chegar ao timer:
+ * comparar FPS (a 105 FPS o loop está preso no vsync), zerar `bloomStrength` (o passe continua
+ * rodando) e `gl.finish()` com relógio de parede (neste driver não sincroniza — reportou 0,1ms
+ * para 4,5 megapixels).
  *
  * ## O perfil NÃO se aplica sozinho
  *
