@@ -85,6 +85,27 @@ export const SYSTEM_VIEW = [
 
 // ---------------------------------------------------------------- ARQUIVOS
 
+/*
+ * O leitor central FECHÁVEL, para a cascata do Esc.
+ *
+ * Ele é um WIDGET no palco, não um painel da `surface` — então `surface.closeTop()` não o
+ * conhece, e o Esc caía até o último passo da cadeia, que é voltar para a rota raiz. Voltar de
+ * rota DESMONTA o app inteiro: o leitor fechava, sim, mas levando junto a busca e os resultados.
+ * Era o gesto certo pelo motivo errado, e destruía muito mais do que "desfazer um passo".
+ *
+ * Fica no módulo porque quem monta o widget e quem trata a tecla não se conhecem — a mesma razão
+ * de `ui.apply-profile` passar pelo barramento em vez de alcançar a cena.
+ */
+let readerClose = null;
+
+/**
+ * Fecha o leitor central de arquivo, se houver um aberto.
+ *
+ * @returns {boolean} se havia algo a fechar — é o que a cadeia do Esc usa para decidir se
+ *   continua descendo para os passos seguintes.
+ */
+export const closeFileReader = () => (readerClose ? readerClose() : false);
+
 function registerFilesWidgets() {
   // `null` = ainda não sabemos a raiz. Ela vem do servidor (`files_root`), derivada do corpus
   // em vez de fixa no código: o corpus tem duas raízes (workspace e memórias do agente), e
@@ -164,7 +185,7 @@ function registerFilesWidgets() {
           const row = button({ variant: 'row', size: 'row', data: { entry: 'file', kind: node.kind } });
           row.append(el('span', 'fs-glyph', '·'), el('span', 'fs-name', node.label));
           row.append(el('span', 'fs-meta', `${node.chunks}`));
-          row.addEventListener('click', () => emit({ t: 'ui.open-file', source: node.source }));
+          row.addEventListener('click', () => reveal(node.source));
           rows.push(row);
         }
 
@@ -226,6 +247,23 @@ function registerFilesWidgets() {
     },
   });
 
+  /**
+   * Revelar um arquivo: CENTRALIZA o astro dele e abre o leitor.
+   *
+   * São dois gestos que o operador entende como um só — "me mostra este arquivo" quer dizer
+   * onde ele está no céu E o que tem dentro. Antes só o segundo acontecia, e o resultado era
+   * um painel abrindo sobre um céu que não tinha se mexido: nada dizia de onde aquilo veio.
+   *
+   * ⚠️ NÃO emite `ui.select`. A cena escuta esse evento para travar a câmera, mas `answer.js`
+   * também o escuta para preencher o inspetor da DIREITA — e o leitor central já vai abrir por
+   * `ui.open-file`. Os dois juntos renderizam o mesmo arquivo em dois painéis sobrepostos, que
+   * é um defeito que este arquivo já pagou uma vez. `ui.focus-node` só tem a cena como ouvinte.
+   */
+  const reveal = (source) => {
+    emit({ t: 'ui.focus-node', source });
+    emit({ t: 'ui.open-file', source });
+  };
+
   listWidget({
     id: 'fs-locate',
     title: 'LOCALIZAR',
@@ -235,29 +273,43 @@ function registerFilesWidgets() {
     render(view) {
       const box = el('input', 'fs-search');
       box.placeholder = 'descreva o que procura';
+
+      /*
+       * Os resultados têm CONTÊINER PRÓPRIO, e isto é a correção de um defeito real.
+       *
+       * O comentário anterior aqui afirmava que "o input fica FORA da área rolável" — e ele
+       * ficava dentro. `view.set`/`view.empty` substituem os filhos do corpo do widget, então a
+       * primeira busca apagava o próprio campo de busca: ver os resultados custava perder a
+       * possibilidade de buscar outra coisa ou corrigir um termo errado. Com o campo e a lista
+       * em nós irmãos, só a lista é trocada.
+       */
+      const results = el('div', 'fs-results');
+      view.set([box, results]);
+
+      const say = (text) => results.replaceChildren(el('div', 'widget-empty', text));
+
       box.addEventListener('keydown', async (event) => {
         if (event.key !== 'Enter') return;
         const query = box.value.trim();
         if (!query) return;
-        view.empty('buscando…');
+        say('buscando…');
         try {
           const { hits } = await api.search(query, 12);
-          if (!hits.length) return view.empty('nenhum resultado');
-          view.set(
-            hits.map((hit) => {
+          if (!hits.length) return say('nenhum resultado');
+          results.replaceChildren(
+            ...hits.map((hit) => {
               const row = button({ variant: 'row', size: 'row', data: { entry: 'file' } });
               row.append(el('span', 'hit-score', (hit.score ?? 0).toFixed(3)));
               row.append(el('span', 'fs-name', shortPath(hit.source, 40)));
-              row.addEventListener('click', () => emit({ t: 'ui.open-file', source: hit.source }));
+              row.addEventListener('click', () => reveal(hit.source));
               return row;
             })
           );
         } catch (error) {
-          view.empty(`falhou: ${error.message}`);
+          say(`falhou: ${error.message}`);
         }
       });
-      // O input fica FORA da área rolável: buscar não pode exigir rolar até o campo.
-      view.push(box);
+
       return null;
     },
   });
@@ -270,6 +322,18 @@ function registerFilesWidgets() {
    * isso há dois caminhos — a variável para quem ainda vai montar, e o `open` para quem já está
    * montado. O widget registra o seu `open` ao montar e o solta ao sair.
    */
+  /*
+   * O leitor central FECHÁVEL, para a cascata do Esc.
+   *
+   * Ele é um WIDGET no palco, não um painel da `surface` — então `surface.closeTop()` não o
+   * conhece, e o Esc caía até o fim da cadeia, onde o último passo é voltar para a rota raiz.
+   * Voltar de rota DESMONTA o app inteiro: o leitor fechava, sim, mas levando junto a busca e
+   * os resultados. Era o gesto certo pelo motivo errado, e destruía mais do que devia.
+   *
+   * Registrado ao montar e solto ao sair, como `openSection`. Devolve se HAVIA algo a fechar,
+   * porque é isso que a cadeia precisa para decidir se continua descendo.
+   */
+
   let pendingSection = null;
   let openSection = null;
   on('ui.config-section', ({ id }) => {
@@ -579,6 +643,15 @@ function registerFilesWidgets() {
        * que se clicou no céu); árvore/busca → este leitor central (leitura longa, com fundo e
        * rolagem). Antes de assinar `ui.select` aqui de novo, remova o de lá.
        */
+      readerClose = () => {
+        if (!lendo) return false;
+        lendo = false;
+        // Volta ao REPOUSO, que é também a superfície de hover do céu — fechar o leitor
+        // devolve a área para quem estava usando antes, em vez de deixar um vazio mudo.
+        view.empty(REPOUSO);
+        return true;
+      };
+
       const offOpen = on('ui.open-file', handler);
 
       /*
@@ -618,7 +691,7 @@ function registerFilesWidgets() {
       });
 
       view.empty(REPOUSO);
-      return { destroy: () => { offOpen(); offHover(); } };
+      return { destroy: () => { offOpen(); offHover(); readerClose = null; } };
     },
   });
 }

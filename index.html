@@ -760,6 +760,8 @@
   .fs-search { width: 100%; background: none; border: none; border-bottom: 1px solid var(--line);
                color: var(--ink); font: inherit; font-size: 10px; outline: none; padding: 4px 0;
                margin-bottom: 6px; }
+  /* Os resultados rolam; o campo de busca acima deles nunca sai da tela. */
+  .fs-results { display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; }
 
   /*
     Scrubber da janela temporal. Hairline: a pista é uma linha, a frente revelada é a mesma

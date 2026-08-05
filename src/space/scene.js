@@ -296,6 +296,12 @@ export function createScene(canvas, { labelLayer } = {}) {
    * módulo de busca. A cena responde a "isto foi selecionado", venha de onde vier.
    */
   on('ui.select', ({ node }) => focusNode(node?.source ?? null));
+  /*
+   * Focar SEM abrir inspetor. `ui.select` faz as duas coisas porque nasceu do clique no céu, mas
+   * quem já vai abrir o leitor central (árvore, busca) precisa só da câmera — e emitir
+   * `ui.select` ali abriria um segundo painel com o mesmo arquivo.
+   */
+  on('ui.focus-node', ({ source }) => focusNode(source ?? null));
 
   on('ui.cinematic', ({ on: enabled }) => {
     cinematic = enabled;

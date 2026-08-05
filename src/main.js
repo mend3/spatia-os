@@ -25,7 +25,7 @@ import { createSystray } from './hud/systray.js';
 import { createWidgetHost } from './kernel/widgets.js';
 import { createRouter, ROUTE_ROOT } from './kernel/router.js';
 import { listApps } from './kernel/registry.js';
-import { registerApps, SYSTEM_VIEW } from './apps/index.js';
+import { registerApps, SYSTEM_VIEW, closeFileReader } from './apps/index.js';
 import * as tuning from './core/tuning.js';
 import * as prefs from './core/prefs.js';
 import * as keys from './core/keys.js';
@@ -494,6 +494,13 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
        * antes e fechar depois abriria espaço para os dois discordarem. Painel aberto sobre painel
        * é caso normal, e fechar a pilha inteira num Esc só transformaria "voltar um passo" em
        * "perder o contexto todo".
+       */
+    } else if (closeFileReader()) {
+      /*
+       * O leitor central de arquivo. Ele não é painel da `surface`, é widget do palco — sem este
+       * degrau o Esc caía até o reset de rota lá embaixo, que DESMONTA o app e leva junto a
+       * busca e os resultados. Fechar o leitor tem de custar exatamente um passo, como qualquer
+       * outro painel.
        */
     } else if (answer.isInspecting()) {
       /*
