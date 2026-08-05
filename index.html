@@ -669,6 +669,16 @@
   .config-profile { display: grid; grid-template-columns: 132px 1fr; gap: 10px;
                     align-items: baseline; padding: 3px 0; }
   .config-profile .btn { justify-content: center; }
+  /*
+    Grupo de escolhas mutuamente exclusivas dentro de uma linha de configuração.
+
+    A linha PRECISA de coluna própria: `.config-profile` reserva 132px para um botão só, e quatro
+    tempos espremidos ali passavam por cima da nota ao lado. Largura pelo conteúdo, com teto — a
+    nota fica com o que sobrar.
+  */
+  .config-row-choices { grid-template-columns: minmax(0, max-content) 1fr; }
+  .config-choices { display: flex; gap: 4px; max-width: 300px; }
+  .config-choices .btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
   .config-profile-note { color: var(--ink-faint); font-size: 8px; letter-spacing: 0.14em; }
   .config-key { display: grid; grid-template-columns: 68px 1fr auto; gap: 10px;
                 align-items: baseline; padding: 2px 0; }
@@ -1070,6 +1080,12 @@
         <div class="tray-menu" data-tray-menu="system" hidden>
           <button type="button" class="btn" data-variant="outline" data-size="sm" data-perms-toggle data-on="false">PERMISSÕES</button>
           <button type="button" class="btn" data-variant="outline" data-size="sm" data-tune-toggle data-on="false">AFINAR</button>
+          <!--
+            FUNDO não abre painel: ele NAVEGA para a seção da página de configuração. Os outros
+            dois são painéis flutuantes porque se mexe neles olhando a cena; este mostra três
+            imagens e o crédito exigido pela licença, que não cabem num popover de 200px.
+          -->
+          <button type="button" class="btn" data-variant="outline" data-size="sm" data-backdrop-open>FUNDO</button>
         </div>
       </div>
     </div>

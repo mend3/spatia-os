@@ -59,6 +59,19 @@ export const DEFAULTS = Object.freeze({
    * Os defaults são os mesmos de `CAMERA.start`/`orbit` em `space/scene.js`. Divergir aqui
    * faria a primeira sessão nascer num enquadramento e a segunda em outro.
    */
+  /*
+   * FUNDO DO UNIVERSO — imagens reais do Webb, alternando.
+   *
+   * Desligado por padrão, e não por cautela de performance: o fundo muda o caráter da cena
+   * inteira, e uma escolha dessas não pode chegar já tomada na primeira abertura. Quem quiser
+   * liga em CONFIG › FUNDO.
+   */
+  'sky.backdrop': false,
+  // Segundos que cada imagem fica no ar. 90s é longo o bastante para não virar slideshow.
+  'sky.backdropSeconds': 90,
+  'sky.backdropFade': true,
+  'sky.backdropQuality': 'high', // 'high' (3200×1800) | 'low' (1280×720)
+
   'camera.azimuth': 0,
   'camera.polar': 1.33,
   'camera.distance': 54,

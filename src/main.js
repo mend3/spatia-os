@@ -265,6 +265,31 @@ async function main() {
    * referência direta passa a só funcionar montado no app que a tem. Pelo evento, a mesma
    * seção serve qualquer superfície futura que queira trocar de perfil.
    */
+  /*
+   * O fundo do universo é aplicado pelo mesmo caminho do perfil: a tela de configuração escreve
+   * em `prefs` e AVISA; quem sabe desenhar é a cena. Aplicado uma vez no boot, para que a
+   * escolha da sessão anterior já esteja no ar antes do primeiro quadro visível.
+   */
+  const aplicarFundo = () => scene.applyBackdrop({
+    enabled: prefs.get('sky.backdrop'),
+    seconds: prefs.get('sky.backdropSeconds'),
+    fade: prefs.get('sky.backdropFade'),
+    quality: prefs.get('sky.backdropQuality'),
+  });
+  aplicarFundo();
+  on('ui.apply-backdrop', aplicarFundo);
+
+  /*
+   * Atalho da systray para o fundo: navega para SISTEMA e já pede a seção FUNDO.
+   *
+   * A ordem importa. O pedido da seção vai ANTES da navegação porque o widget lê a seção
+   * pendente ao montar — invertido, ele montaria no topo e o pedido chegaria tarde.
+   */
+  document.querySelector('[data-backdrop-open]')?.addEventListener('click', () => {
+    emit({ t: 'ui.config-section', id: 'fundo' });
+    emit({ t: 'ui.open-app', id: 'system' });
+  });
+
   on('ui.apply-profile', ({ id }) => {
     const perfil = profiles.byId(id);
     if (!perfil) return;

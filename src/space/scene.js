@@ -27,6 +27,7 @@ import * as motion from '../core/motion.js';
 import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
 import { createBodies } from './bodies.js';
+import { createBackdrop } from './backdrop.js';
 
 const CAMERA = { fov: 46, near: 0.1, far: 900, start: new THREE.Vector3(0, 8, 54) };
 
@@ -100,8 +101,11 @@ export function createScene(canvas, { labelLayer } = {}) {
   const satellites = createSatellites();
   const wormholes = createWormholes();
   const bodies = createBodies(labelLayer || document.body);
+  const backdrop = createBackdrop();
 
   scene.add(
+    // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
+    backdrop.object,
     stars.object, blackHole.group, graph.group, particles.object,
     satellites.group, wormholes.group, bodies.group
   );
@@ -607,6 +611,8 @@ export function createScene(canvas, { labelLayer } = {}) {
       }
     }
 
+    backdrop.update(delta, camera.aspect, camera);
+
     glitch = smooth(glitch, 0, 3.2, delta);
     lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch });
     lensing.setTime(elapsed);
@@ -630,6 +636,10 @@ export function createScene(canvas, { labelLayer } = {}) {
     /** Janela temporal do céu, em espaço de recência — o mesmo eixo que já define o raio. */
     revealSky: (value) => graph.reveal(value),
     /** Anéis de Saturno nos arquivos alterados no disco. Recebe o `{caminho: estado}` cru. */
+    /** Fundo do universo: liga/desliga, tempo de rotação, transição e qualidade. */
+    applyBackdrop: (options) => backdrop.apply(options),
+    /** Qual imagem está no ar — a tela de configuração precisa dela para creditar. */
+    backdropPlate: () => backdrop.plate(),
     markDirty: (table) => graph.markDirty(table),
     /** Apaga os anéis sem afirmar árvore limpa — quando o disco deixa de ser verificável. */
     forgetDirty: () => graph.forgetDirty(),

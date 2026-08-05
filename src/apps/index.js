@@ -22,6 +22,7 @@ import * as api from '../core/api.js';
 import * as keys from '../core/keys.js';
 import * as prefs from '../core/prefs.js';
 import { PROFILES } from '../core/profiles.js';
+import { PLATES } from '../space/backdrop.js';
 import { DIRTY_LABELS } from '../space/rings.js';
 import { KIND_COLORS as SKY_COLORS } from '../space/graph.js';
 
@@ -261,6 +262,21 @@ function registerFilesWidgets() {
     },
   });
 
+  /*
+   * Seção que a página de configuração deve abrir — por evento, vindo da systray.
+   *
+   * ⚠️ Só a variável NÃO basta, e o teste pegou: se a rota já estivesse em SISTEMA, `navigate`
+   * não remonta o widget, o pedido nunca era consumido e o atalho da systray não fazia nada. Por
+   * isso há dois caminhos — a variável para quem ainda vai montar, e o `open` para quem já está
+   * montado. O widget registra o seu `open` ao montar e o solta ao sair.
+   */
+  let pendingSection = null;
+  let openSection = null;
+  on('ui.config-section', ({ id }) => {
+    pendingSection = id;
+    if (openSection) openSection(id);
+  });
+
   listWidget({
     id: 'sys-config',
     title: 'CONFIGURAÇÃO',
@@ -288,6 +304,8 @@ function registerFilesWidgets() {
       const abrir = (seletor) => () => document.querySelector(seletor)?.click();
       const SECTIONS = [
         { id: 'perfil', name: 'PERFIL', render: renderProfiles },
+        { id: 'fundo', name: 'FUNDO', render: renderBackdrop,
+          note: 'imagens reais do Webb por trás do sistema' },
         { id: 'atalhos', name: 'ATALHOS', render: renderShortcuts },
         { id: 'afinacao', name: 'AFINAÇÃO', open: abrir('[data-tune-toggle]'),
           note: 'a cena inteira — núcleo, céu, grafo, câmera, lente, áudio' },
@@ -297,7 +315,12 @@ function registerFilesWidgets() {
           note: 'motor, timbre e mistura da fala' },
       ];
 
-      let active = SECTIONS[0].id;
+      // Quem pediu uma seção específica ganha ela; o pedido é consumido para não repetir na
+      // próxima abertura, que teria de voltar ao topo.
+      let active = pendingSection && SECTIONS.some((s) => s.id === pendingSection)
+        ? pendingSection
+        : SECTIONS[0].id;
+      pendingSection = null;
 
       /**
        * Os três perfis, com o custo dito em português.
@@ -328,6 +351,94 @@ function registerFilesWidgets() {
             'o perfil reescreve os 22 parâmetros da afinação · ajustar um slider depois não muda o nome'
           )
         );
+        into.replaceChildren(...blocks);
+      }
+
+      /**
+       * FUNDO — rotação de imagens reais do Webb.
+       *
+       * Todos os controles escrevem em `prefs` e emitem UM evento; a cena escuta e aplica. A
+       * seção não conhece `scene`, pelo mesmo motivo que a de perfil não conhece: widget que
+       * alcança a cena por referência direta só funciona montado no app que a tem.
+       */
+      function renderBackdrop(into) {
+        const ligado = prefs.get('sky.backdrop');
+        const blocks = [el('div', 'controls-group', 'FUNDO DO UNIVERSO')];
+
+        const troca = (chave, valor) => {
+          prefs.set(chave, valor);
+          emit({ t: 'ui.apply-backdrop' });
+          setTimeout(() => renderBackdrop(into), 60);
+        };
+
+        const alterna = (rotulo, chave, nota) => {
+          const linha = el('div', 'config-profile');
+          const b = button({ variant: 'select', size: 'sm', on: prefs.get(chave) });
+          b.textContent = prefs.get(chave) ? 'LIGADO' : 'DESLIGADO';
+          b.addEventListener('click', () => troca(chave, !prefs.get(chave)));
+          linha.append(b, el('span', 'config-profile-note', `${rotulo} · ${nota}`));
+          return linha;
+        };
+
+        blocks.push(alterna('exibir', 'sky.backdrop', 'desligado, o céu volta ao fundo preto'));
+
+        if (ligado) {
+          blocks.push(
+            alterna('transição', 'sky.backdropFade', 'fusão cruzada de 4s; desligada, a troca é seca')
+          );
+
+          // Tempo de rotação: passos NOMEADOS, não um slider. A grandeza tem poucas respostas
+          // úteis, e um contínuo aqui convidaria a ajustar segundo a segundo algo que ninguém
+          // percebe em menos de meio minuto de diferença.
+          const tempos = [
+            [30, '30s'], [90, '1min30'], [300, '5min'], [900, '15min'],
+          ];
+          const linhaTempo = el('div', 'config-profile config-row-choices');
+          const grupoTempo = el('div', 'config-choices');
+          for (const [valor, rotulo] of tempos) {
+            const b = button({
+              variant: 'select', size: 'sm', on: prefs.get('sky.backdropSeconds') === valor,
+            });
+            b.textContent = rotulo;
+            b.addEventListener('click', () => troca('sky.backdropSeconds', valor));
+            grupoTempo.append(b);
+          }
+          linhaTempo.append(grupoTempo, el('span', 'config-profile-note', 'quanto cada imagem fica no ar'));
+          blocks.push(linhaTempo);
+
+          const linhaQ = el('div', 'config-profile config-row-choices');
+          const grupoQ = el('div', 'config-choices');
+          for (const [valor, rotulo] of [['high', 'ALTA'], ['low', 'BAIXA']]) {
+            const b = button({
+              variant: 'select', size: 'sm', on: prefs.get('sky.backdropQuality') === valor,
+            });
+            b.textContent = rotulo;
+            b.addEventListener('click', () => troca('sky.backdropQuality', valor));
+            grupoQ.append(b);
+          }
+          linhaQ.append(grupoQ, el('span', 'config-profile-note', 'alta 3200×1800 · baixa 1280×720'));
+          blocks.push(linhaQ);
+
+          /*
+           * O crédito é OBRIGAÇÃO de licença (CC BY 4.0), não cortesia — e é também informação:
+           * saber que aquilo é um berçário estelar real, e não textura, é parte do que a imagem
+           * comunica.
+           */
+          blocks.push(el('div', 'controls-group', 'AS TRÊS IMAGENS'));
+          for (const plate of PLATES) {
+            const linha = el('div', 'config-key');
+            linha.append(
+              el('span', 'config-key-label', plate.name),
+              el('span', 'config-profile-note', plate.note),
+              el('span', 'config-profile-note', plate.credit)
+            );
+            blocks.push(linha);
+          }
+          blocks.push(
+            el('div', 'widget-hint', 'ESA/Webb, NASA & CSA · CC BY 4.0 · os únicos binários do projeto')
+          );
+        }
+
         into.replaceChildren(...blocks);
       }
 
@@ -383,7 +494,16 @@ function registerFilesWidgets() {
 
       draw();
       view.set([page]);
-      return null;
+
+      openSection = (id) => {
+        if (!SECTIONS.some((entry) => entry.id === id)) return;
+        active = id;
+        pendingSection = null;
+        draw();
+      };
+      // Sem o `destroy`, uma segunda montagem deixaria a primeira respondendo ao evento e
+      // desenhando numa página que saiu do DOM.
+      return { destroy: () => { openSection = null; } };
     },
   });
 
