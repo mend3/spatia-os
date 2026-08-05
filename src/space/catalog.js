@@ -81,6 +81,7 @@ export const CELESTIAL = [
     forbids: {
       ring: 'estrela não tem anel planetário — e uma que explodiu, menos ainda',
       pulse: 'supernova aqui é ESTADO, não evento; piscar seria movimento sem nada por trás',
+      surface: 'o que resta de uma supernova é gás em expansão; não há crosta em que pousar',
     },
   },
 
@@ -114,6 +115,26 @@ export const CELESTIAL = [
       },
       span: 'min(reach, 2.4) raios do astro — o teto existe porque a câmera fica dentro da casca',
       spin: 'kepleriano, ω ∝ r^-1.5: a borda interna gira mais rápido que a externa',
+      /*
+       * SUPERFÍCIE PROCEDURAL — o nível de PERTO deste corpo, em `space/planet.js`.
+       *
+       * Ela mora aqui e não na estrela porque a estrela não tem superfície para ter: relevo,
+       * linha de costa e atmosfera afirmam crosta, e crosta é o que separa as duas classes. É a
+       * mesma disciplina que separou anel de envoltório — a feição pertence a UMA classe.
+       *
+       * As duas regras do catálogo governam o que se vê: `chunks` (a massa) decide relevo, mar e
+       * se o corpo retém atmosfera; `kind` (a composição) decide a paleta, derivada da mesma
+       * `KIND_COLORS` que pinta o ponto — um ponto verde não pode virar um mundo azul quando a
+       * câmera chega perto.
+       *
+       * ⚠️ Custo: 460 malhas com ruído por fragmento não cabem nos 0,45 ms medidos da cena. Ela
+       * existe por NÍVEL DE DETALHE, como a rocha do anel: nasce só acima de 90px de raio na
+       * tela, que é a marca em que a câmera está travada num astro.
+       *
+       * ⚠️ Estado real: desenhada na BANCADA (`sandbox.html`, espécime `planeta`). O céu ainda
+       * não a chama — falta `scene.js` instanciar o `createPlanet` no nó de `focusNode`.
+       */
+      surface: 'planeta procedural por semente do caminho; só acima de 90px de raio na tela',
     },
     forbids: {
       envelope: 'anel e envoltório à volta do mesmo núcleo é o empilhamento que criou o catálogo',
@@ -139,7 +160,15 @@ export const CELESTIAL = [
      */
     from: 'churn alto numa janela ANTIGA + recência baixa (segunda janela, ainda não coletada)',
     test: () => false,
-    features: { tail: 'cauda apontando para FORA do núcleo, comprimento pela recência perdida' },
+    features: {
+      tail: 'cauda apontando para FORA do núcleo, comprimento pela recência perdida',
+      /*
+       * A crosta refratária do documento é literalmente uma superfície: é ela que sela o corpo
+       * e encerra a atividade. O mesmo `space/planet.js` serve — a massa baixa já produz sozinha
+       * o corpo cristado e sem atmosfera, que é a aparência certa para um núcleo esgotado.
+       */
+      surface: 'a mesma de `planeta-anelado`; massa baixa dá o corpo irregular e sem ar',
+    },
     forbids: { ring: 'corpo pequeno pode ter anel, mas cauda e anel juntos não descrevem nada' },
   },
 
@@ -161,7 +190,10 @@ export const CELESTIAL = [
      */
     from: '`node.sections` (já vem no payload, sem consumidor)',
     test: () => false,
-    features: { orbit: 'raio pela esfera de Hill do pai; travada por maré, sem rotação própria' },
+    features: {
+      orbit: 'raio pela esfera de Hill do pai; travada por maré, sem rotação própria',
+      surface: 'a mesma de `planeta-anelado`, com `spin: 0` — lua é corpo rochoso como o pai',
+    },
     forbids: {
       spin: 'todas as 19 luas arredondadas do Sistema Solar estão travadas por maré',
       moon: 'nenhum satélite de satélite foi observado em lugar nenhum',
@@ -190,6 +222,7 @@ export const CELESTIAL = [
     forbids: {
       supernova: 'agregado não tem história própria, tem a dos filhos',
       recency: 'diretório não tem UMA data; atenuá-lo por data inventada afirmaria idade falsa',
+      surface: 'agregado não tem corpo; dar crosta a um diretório afirmaria um objeto que não há',
     },
   },
 
@@ -207,6 +240,17 @@ export const CELESTIAL = [
     },
     forbids: {
       ring: 'estrela tem DISCO DE DETRITOS, não anel: radiação e Poynting–Robertson varrem',
+      /*
+       * ⚠️ Este é o `forbids` que mais vai ser testado, porque a classe padrão é a que cobre
+       * quase todo o corpus — e a tentação de dar um planeta bonito a todo arquivo é grande.
+       *
+       * Estrela não tem crosta: tem fotosfera, que é gás opaco. Relevo, linha de costa e
+       * atmosfera afirmam corpo sólido, e afirmar isso de uma estrela é a MESMA classe de erro
+       * que pendurar anel nela — a que originou este arquivo. O nível de perto certo para uma
+       * estrela é granulação convectiva e escurecimento de limbo, que é outro shader e outra
+       * feição; enquanto ele não existir, a estrela continua sendo um ponto de perto também.
+       */
+      surface: 'estrela tem FOTOSFERA, não crosta: relevo e mar afirmariam corpo sólido',
     },
   },
 ];

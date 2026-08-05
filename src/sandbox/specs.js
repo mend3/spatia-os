@@ -14,6 +14,11 @@ import {
   createRings, DIRTY_COLORS, VISIBLE_CORE, LOD_FAR_PX, LOD_NEAR_PX,
 } from '../space/rings.js';
 import { RING_FAMILIES } from '../space/ring-profiles.js';
+import {
+  createPlanet, planetParams,
+  LOD_FAR_PX as PLANET_FAR_PX, LOD_NEAR_PX as PLANET_NEAR_PX,
+} from '../space/planet.js';
+import { KIND_COLORS } from '../space/graph.js';
 import { createBlackHole } from '../space/blackhole.js';
 import { createBodies } from '../space/bodies.js';
 import { createStars } from '../space/stars.js';
@@ -145,6 +150,85 @@ export const SPECS = [
           });
         },
         dispose: () => rings.dispose(),
+      };
+    },
+  },
+
+  {
+    id: 'planeta',
+    name: 'PLANETA PROCEDURAL',
+    /*
+     * O espécime que mais precisa da bancada de todos os que existem aqui.
+     *
+     * O planeta é o único objeto da cena cujo defeito típico é INVISÍVEL na cena: ele só nasce
+     * quando o astro passa de 90px de raio, e chegar lá exige travar a câmera num nó, que exige
+     * corpus indexado, servidor no ar e o nó certo. Aqui a régua RAIO varre a mesma faixa em um
+     * gesto, com o tempo parado.
+     *
+     * Os controles não substituem a derivação — eles MULTIPLICAM o que `planetParams` já
+     * decidiu a partir da semente. É a diferença entre revisar o objeto e revisar uma maquete
+     * dele: se a derivação quebrar, o painel quebra junto, que é o que se quer.
+     */
+    distance: 3.4,
+    controls: [
+      { key: 'semente', label: 'SEMENTE (caminho)', type: 'range', min: 0, max: 1, step: 0.001, value: 0.42 },
+      { key: 'tipo', label: 'TIPO (kind)', type: 'enum', options: Object.keys(KIND_COLORS), value: 'doc' },
+      { key: 'massa', label: 'MASSA (chunks)', type: 'range', min: 1, max: 240, step: 1, value: 40 },
+      { key: 'relevo', label: 'RELEVO ×', type: 'range', min: 0, max: 2.5, step: 0.01, value: 1 },
+      { key: 'mar', label: 'MAR ×', type: 'range', min: 0, max: 3, step: 0.01, value: 1 },
+      { key: 'atmosfera', label: 'ATMOSFERA ×', type: 'range', min: 0, max: 2, step: 0.01, value: 1 },
+      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1 },
+    ],
+    watch: [
+      'nenhuma costura de meridiano e nenhum aperto nos polos: o ruído é 3D, amostrado na esfera',
+      'o terminador vira ALARANJADO antes de apagar — se ele só escurece, a cor de crepúsculo não entrou',
+      'a coroa de atmosfera é um arco FINO fora da silhueta; cobrindo o disco, o BackSide caiu',
+      'MAR para cima: o litoral avança e o fundo fica PLANO — é o max(0, h−mar), não um segundo objeto',
+      'o brilho especular só existe na água; montanha brilhando é `uWet` fora de fase com a rampa',
+      'MASSA baixa dá corpo cristado e sem ar; alta dá liso, com mar e atmosfera — é a regra do catálogo',
+      'RAIO abaixo de 90px: some inteiro (na cena o ponto assume). Acima de 200px: as 8 oitavas',
+    ],
+    build(ctx) {
+      const planet = createPlanet();
+      return {
+        object: planet.object,
+        update(values, camera, clock) {
+          /*
+           * A semente entra pelo CAMINHO, não por um número solto — é o contrato real do módulo
+           * (`hash01(node.source)`), e testá-lo por outra porta deixaria de testar justamente a
+           * parte que garante que um arquivo não troca de planeta quando o corpus muda.
+           */
+          const base = planetParams({
+            source: `bancada/planeta-${values.semente.toFixed(3)}`,
+            kind: values.tipo,
+            chunks: Math.round(values.massa),
+          });
+          const params = {
+            ...base,
+            amplitude: base.amplitude * values.relevo,
+            sea: base.sea * values.mar,
+            atmosphere: Math.min(1, base.atmosphere * values.atmosfera),
+          };
+
+          planet.object.scale.setScalar(values.raio);
+          // Mesma conta do espécime do anel: um raio de mundo à distância da câmera, em pixels.
+          const px =
+            (values.raio * window.innerHeight) /
+            (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
+          const near = planet.update(params, camera, px, clock.elapsed);
+
+          ctx.report({
+            'massa': base.mass.toFixed(2),
+            'relevo': params.amplitude.toFixed(3),
+            'mar': params.sea.toFixed(3),
+            'cristas': base.ridged.toFixed(2),
+            'atmosfera': params.atmosphere.toFixed(2),
+            'pixels': px.toFixed(0),
+            'oitavas': (3 + near * 5).toFixed(1),
+            'nível': px < PLANET_FAR_PX ? 'AUSENTE' : px > PLANET_NEAR_PX ? 'CHEIO' : 'transição',
+          });
+        },
+        dispose: () => planet.dispose(),
       };
     },
   },

@@ -80,6 +80,27 @@ proposta completa, com regras físicas e o que foi descartado por ser decorativo
 O item de maior valor por linha: **cometa extinto** (churn alto numa janela antiga + recência
 baixa = ponto quente abandonado), que custa um `if` a mais na passada de `git log` que já existe.
 
+## 5b. Planeta procedural — falta ligar ao céu e medir
+
+`src/space/planet.js` existe e roda na bancada (espécime `PLANETA PROCEDURAL`). O catálogo já
+declara a feição `surface` em `planeta-anelado`, `lua` e `cometa-extinto`, e a PROÍBE em
+`estrela`, `supernova` e `galaxia` — estrela tem fotosfera, não crosta.
+
+Falta, nesta ordem:
+
+1. **Ligar ao `scene.js`.** Um `createPlanet()` só, reatribuído ao nó de `focusNode`, alimentado
+   pelo `starRadius(i).px` que `graph.js` já calcula para o anel. A luz tem de apontar para o
+   núcleo (`params.light`), como fazem os corpos de app.
+2. **Medir.** `window.espatial.renderCost()` com o planeta cheio no quadro. Hoje o cabeçalho do
+   módulo declara explicitamente que o número é ARITMÉTICA (~27 avaliações de ruído por pixel
+   coberto), não medida — não houve navegador na sessão que o escreveu.
+3. **Compilar o shader uma vez.** Nada do GLSL novo passou por um compilador; a bancada é onde
+   isso aparece. O ponto mais frágil é o `break` dentro do laço de oitavas em `planet-noise.js`,
+   com a saída segura anotada lá.
+4. Decidir o que acontece com o SPRITE do nó quando o planeta assume: hoje os dois desenhariam
+   no mesmo lugar, e o ponto é aditivo com `depthWrite: false` enquanto o planeta escreve
+   profundidade.
+
 ## 6. Mecanismos de sistema
 
 Dez estão especificados em [`OS-SCREENS.md`](OS-SCREENS.md) §2, com a ordem de construção em §4.

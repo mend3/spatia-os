@@ -208,8 +208,14 @@ function smoothstep(edge0, edge1, x) {
   return t * t * (3 - 2 * t);
 }
 
-/** Hash determinístico string → [0,1). Mesmo id, mesma órbita, em qualquer máquina. */
-function hash01(text, salt = 0) {
+/**
+ * Hash determinístico string → [0,1). Mesmo id, mesma órbita, em qualquer máquina.
+ *
+ * Exportado porque a semente de qualquer feição por nó tem de sair do MESMO lugar: o caminho do
+ * arquivo. Duas implementações de hash dariam a um mesmo arquivo uma órbita e um planeta que
+ * não conversam entre si, e ninguém notaria — os dois pareceriam certos isoladamente.
+ */
+export function hash01(text, salt = 0) {
   let value = 2166136261 ^ salt;
   for (let i = 0; i < text.length; i++) {
     value ^= text.charCodeAt(i);
