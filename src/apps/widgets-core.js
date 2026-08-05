@@ -76,7 +76,7 @@ export function registerCoreWidgets() {
 }
 
 /** Helper para os apps novos: lista simples com cabeçalho e linhas, no estilo hairline. */
-export function listWidget({ id, title, hint = '', slot, grow = 0, surface = false, render }) {
+export function listWidget({ id, title, hint = '', slot, grow = 0, surface = false, collapsed = false, render }) {
   return registerWidget({
     id,
     title,
@@ -84,6 +84,7 @@ export function listWidget({ id, title, hint = '', slot, grow = 0, surface = fal
     slot,
     grow,
     surface,
+    collapsed,
     mount(host, ctx) {
       const body = el('div', 'scroll');
       host.append(body);

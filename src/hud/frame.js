@@ -23,6 +23,7 @@ export function createFrame(root) {
   const stateDot = root.querySelector('[data-state-dot]');
   const services = root.querySelector('[data-services]');
   const headstat = root.querySelector('[data-headstat]');
+  const context = root.querySelector('[data-context]');
   const vitals = root.querySelector('[data-vitals]');
 
   const indicators = new Map();
@@ -31,10 +32,24 @@ export function createFrame(root) {
   // chamada. Declarado aqui porque o `setInterval` abaixo o lê.
   let lastHealth = null;
 
+  /*
+   * Os subsistemas são PONTOS, e o nome vem no hover.
+   *
+   * Eles são o batimento do sistema — a única coisa na tela que diz "isto está vivo agora", e
+   * por isso ficam no topo-centro, que é para onde o olho volta. Mas cinco rótulos em caixa
+   * alta ocupavam a faixa inteira com texto que não muda: CORE continua CORE. O que muda é a
+   * COR do ponto, e é só isso que precisa de pixel permanente.
+   *
+   * O rótulo não sumiu, mudou de gatilho: `title` para o mouse, `aria-label` para quem não
+   * usa mouse. Um quarto da tinta, a mesma informação — e a faixa liberada passa a mostrar o
+   * CONTEXTO, que é o que de fato muda a cada gesto.
+   */
   function service(id, label) {
     const node = el('span', 'svc');
+    node.title = label;
+    node.setAttribute('aria-label', label);
     const dot = el('i', 'dot');
-    node.append(dot, el('span', 'svc-label', label));
+    node.append(dot);
     services.append(node);
     indicators.set(id, { node, dot });
   }
@@ -157,6 +172,49 @@ export function createFrame(root) {
     }
     mark('stream', store.streaming ? 'busy' : 'on');
   }, REFRESH_MS);
+
+  /*
+   * O CONTEXTO se escreve sozinho, pelo barramento — não por quem o provoca.
+   *
+   * `ui.node-focus` já era emitido por `scene.focusNode` e não tinha nenhum assinante além do
+   * log; `ui.open-file` já é o caminho único do leitor central. Assinar os dois aqui é ligar
+   * informação que o sistema JÁ publica a um lugar onde ela é útil — nenhum emissor novo, e
+   * nenhuma chance de a faixa discordar do que está travado, porque ela lê o mesmo evento que
+   * trava.
+   *
+   * Só o último trecho do caminho: a faixa é do topo-centro e o caminho inteiro empurraria o
+   * relógio. O caminho completo está no `title`.
+   */
+  const shortTail = (path) => (path || '').split('/').slice(-2).join('/');
+
+  function showContext(rotulo, valor, completo) {
+    if (!context) return;
+    if (!valor) {
+      context.hidden = true;
+      context.replaceChildren();
+      return;
+    }
+    context.hidden = false;
+    context.title = completo || valor;
+    context.replaceChildren(el('i', null, rotulo), el('b', null, valor));
+  }
+
+  let travado = null;
+  let aberto = null;
+  const paintContext = () => {
+    if (travado) showContext('TRAVADO', shortTail(travado), travado);
+    else if (aberto) showContext('ABERTO', shortTail(aberto), aberto);
+    else showContext('', null);
+  };
+
+  on('ui.node-focus', ({ source }) => {
+    travado = source || null;
+    paintContext();
+  });
+  on('ui.open-file', ({ source }) => {
+    aberto = source || null;
+    paintContext();
+  });
 
   return {
     /** Estado real dos serviços, vindo de `/api/health`. */

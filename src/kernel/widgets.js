@@ -11,6 +11,44 @@
 import { getWidget } from './registry.js';
 import { el, set } from '../hud/dom.js';
 
+/*
+ * Quais seções estão recolhidas. Um `Set` no localStorage, não um campo por widget nas prefs:
+ * widget é registro aberto (qualquer app pode listar um novo) e uma chave por id em `DEFAULTS`
+ * exigiria editar as prefs a cada widget novo — a lista seria sempre a de ontem.
+ */
+const COLLAPSED_KEY = 'espatial.collapsed.v1';
+
+function readCollapsed() {
+  try {
+    const bruto = JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '{}');
+    // Aceita o formato antigo (lista pura) para não zerar a escolha de quem já tinha usado.
+    if (Array.isArray(bruto)) return { fechadas: new Set(bruto), abertas: new Set() };
+    return { fechadas: new Set(bruto.fechadas || []), abertas: new Set(bruto.abertas || []) };
+  } catch {
+    return new Set();
+  }
+}
+
+const guardado = readCollapsed();
+const collapsedState = guardado.fechadas;
+/*
+ * Quem foi ABERTO de propósito. Sem este segundo conjunto não dá para distinguir "nunca mexi"
+ * de "abri e quero assim": as duas seriam ausência no `collapsedState`, e uma seção que nasce
+ * recolhida voltaria a se fechar a cada reload por cima da escolha do operador.
+ */
+const expandedState = guardado.abertas;
+
+function persistCollapsed() {
+  try {
+    localStorage.setItem(
+      COLLAPSED_KEY,
+      JSON.stringify({ fechadas: [...collapsedState], abertas: [...expandedState] })
+    );
+  } catch {
+    // Modo privado: a sessão funciona, só não lembra. Mesma regra do `prefs`.
+  }
+}
+
 export function createWidgetHost(root) {
   const slots = {
     left: root.querySelector('[data-slot="left"]'),
@@ -37,10 +75,43 @@ export function createWidgetHost(root) {
 
     // `stage` é o centro da tela e não leva moldura: a resposta tem que nascer do espaço,
     // não de dentro de um quadro rotulado.
+    /*
+     * O rótulo é o botão de RECOLHER a seção.
+     *
+     * Cada trilho empilha quatro a seis seções e todas ficavam abertas o tempo todo. Não é
+     * quantidade de tinta que pesa (medido: 8,4% dos pixels), é que o operador não tinha como
+     * dizer o que lhe interessa AGORA — a hierarquia era imposta pelo layout, nunca por ele.
+     *
+     * O rótulo já ocupa a largura toda e já é a divisa visual da seção: virar o alvo do clique
+     * não custa pixel nenhum e não inventa affordance nova. `<button>` de verdade, não `div` com
+     * handler — teclado e leitor de tela vêm de graça, e o `#hud` é `pointer-events: none`, onde
+     * `button` é justamente um dos seletores que reativam o ponteiro.
+     *
+     * O estado é por widget e sobrevive ao reload: recolher uma seção é uma decisão sobre o
+     * espaço de trabalho, e refazê-la a cada abertura seria a interface esquecendo de propósito.
+     */
     if (contract.slot !== 'stage') {
-      const label = el('div', 'label');
+      const label = el('button', 'label');
+      label.type = 'button';
       label.append(el('span', 'widget-title', contract.title));
       label.append(el('i', 'widget-hint', contract.hint || ''));
+      const chave = `widget.collapsed.${contract.id}`;
+      const aplicar = (recolhido) => {
+        frame.dataset.collapsed = String(recolhido);
+        label.setAttribute('aria-expanded', String(!recolhido));
+        // `flex` some junto: uma seção recolhida que continua reivindicando espaço elástico
+        // deixaria um vão no trilho, que é o oposto de recolher.
+        frame.style.flex = recolhido ? '0 0 auto' : String(contract.grow || '');
+      };
+      const jaDecidiu = collapsedState.has(contract.id) || expandedState.has(contract.id);
+      aplicar(jaDecidiu ? collapsedState.has(contract.id) : Boolean(contract.collapsed));
+      label.addEventListener('click', () => {
+        const recolhido = frame.dataset.collapsed !== 'true';
+        if (recolhido) { collapsedState.add(contract.id); expandedState.delete(contract.id); }
+        else { collapsedState.delete(contract.id); expandedState.add(contract.id); }
+        persistCollapsed();
+        aplicar(recolhido);
+      });
       frame.append(label);
     }
 

@@ -293,6 +293,21 @@ async function main() {
    * A ordem importa. O pedido da seção vai ANTES da navegação porque o widget lê a seção
    * pendente ao montar — invertido, ele montaria no topo e o pedido chegaria tarde.
    */
+  /*
+   * A systray dobra/desdobra a JANELA DO TEMPO acionando o próprio rótulo da seção.
+   *
+   * Clicar no rótulo é o mecanismo que toda seção já tem; o botão daqui é só um segundo lugar
+   * de onde alcançá-lo. Duplicar a lógica de estado (guardar "aberto" aqui também) criaria dois
+   * donos do mesmo booleano, e eles divergem no primeiro esquecimento.
+   */
+  document.querySelector('[data-time-toggle]')?.addEventListener('click', () => {
+    const secao = [...document.querySelectorAll('.widget .label')]
+      .find((l) => l.querySelector('.widget-title')?.textContent.trim() === 'JANELA DO TEMPO');
+    secao?.click();
+    // Desdobrar e não conseguir ver seria pior que não ter o botão: rola até ela.
+    secao?.closest('.widget')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+
   document.querySelector('[data-backdrop-open]')?.addEventListener('click', () => {
     emit({ t: 'ui.config-section', id: 'fundo' });
     emit({ t: 'ui.open-app', id: 'system' });

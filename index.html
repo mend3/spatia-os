@@ -137,6 +137,29 @@
     gap: 8px;
   }
   .label i { font-style: normal; color: var(--ink-faint); }
+  /*
+    O rótulo virou `<button>`: zera o estilo de agente e devolve a aparência que ele já tinha.
+
+    ⚠️ `gap` e `nowrap` não são cosmética. Sem eles o título e a dica encostam e quebram em duas
+    linhas nos trilhos estreitos — "MEMÓRIA RECUPERADA VETORIAL" virava duas linhas e a seção
+    recolhida ficava mais alta que aberta, que é o oposto do que recolher promete.
+  */
+  .label { width: 100%; background: none; font: inherit; cursor: pointer; text-align: left;
+           border-left: 0; border-right: 0; border-top: 0;
+           gap: 10px; align-items: baseline; }
+  .label .widget-title { white-space: nowrap; }
+  /* A dica cede primeiro: ela é nível 3 e o título é a identidade da seção. */
+  .label i { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .label:hover .widget-title { color: var(--amber); }
+  /*
+    A seta é o ÚNICO ornamento novo, e ela existe porque um título clicável sem sinal nenhum
+    é um clique que ninguém descobre. Nível 4: presente, quase invisível.
+  */
+  .label::after { content: '▾'; color: var(--ink-faint); font-size: 8px; margin-left: 6px;
+                  transition: transform 180ms ease; }
+  .widget[data-collapsed="true"] > .label::after { transform: rotate(-90deg); }
+  .widget[data-collapsed="true"] > .widget-body { display: none; }
+  .widget[data-collapsed="true"] > .label { margin-bottom: 0; }
 
   /* ---------------- topo ---------------- */
 
@@ -162,6 +185,15 @@
     um serviço colado no rótulo do anterior.
   */
   .status-services { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+  .status-context {
+    display: flex; align-items: baseline; gap: 8px; min-width: 0;
+    color: var(--ink); font-size: 9px; letter-spacing: 0.14em;
+  }
+  .status-context[hidden] { display: none; }
+  .status-context i { font-style: normal; color: var(--amber-faint); font-size: 8px;
+                      letter-spacing: 0.24em; }
+  .status-context b { font-weight: 400; max-width: 34vw; overflow: hidden;
+                      text-overflow: ellipsis; white-space: nowrap; }
 
   .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-faint); display: inline-block; }
   .dot[data-status="on"], .dot[data-state="idle"] { background: var(--good); box-shadow: 0 0 7px var(--good); }
@@ -174,7 +206,9 @@
   @keyframes throb { 50% { opacity: 0.25; } }
 
   .svc { display: inline-flex; align-items: center; gap: 5px; }
-  .svc-label { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.2em; }
+  /* Os pontos ficam maiores agora que perderam o rótulo — alvo de hover precisa de área. */
+  .svc { display: flex; align-items: center; cursor: default; padding: 2px; }
+  .status-services { gap: 9px; }
 
   /* ---------------- systray ---------------- */
 
@@ -1130,6 +1164,18 @@
         <span data-state-label>INICIANDO</span>
       </span>
       <span class="status-services" data-services></span>
+      <!--
+        CONTEXTO ATUAL — o que está travado, o que está aberto.
+
+        É a informação que mais muda e que não existia em lugar nenhum da tela: o operador
+        travava a câmera num astro e a única confirmação era a própria cena ter se mexido. Ela
+        ocupa a faixa que os rótulos dos subsistemas liberaram, que é o mesmo espaço trocado
+        por informação de taxa de mudança muito maior.
+
+        Vazio por padrão, e vazio de propósito: sem contexto não há o que dizer, e preencher
+        com "nenhum astro selecionado" seria gastar a faixa para afirmar uma ausência.
+      -->
+      <span class="status-context" data-context hidden></span>
     </div>
 
     <!--
@@ -1204,6 +1250,16 @@
             imagens e o crédito exigido pela licença, que não cabem num popover de 200px.
           -->
           <button type="button" class="btn" data-variant="outline" data-size="sm" data-backdrop-open>FUNDO</button>
+          <!--
+            A JANELA DO TEMPO deixa de estar sempre visível. Ela não é monitoramento — é um
+            controle que se usa em rajadas, ao investigar um período, e ficava ocupando uma
+            faixa permanente do trilho para exibir uma data.
+
+            O botão reaproveita o recolher que TODA seção agora tem, em vez de inventar um
+            segundo mecanismo de mostrar/esconder: dois caminhos para o mesmo estado divergem
+            no primeiro que alguém esquecer de atualizar.
+          -->
+          <button type="button" class="btn" data-variant="outline" data-size="sm" data-time-toggle>JANELA DO TEMPO</button>
         </div>
       </div>
     </div>

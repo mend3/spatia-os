@@ -113,6 +113,7 @@ export function registerSkyTime() {
   listWidget({
     id: 'sky-time',
     title: 'JANELA DO TEMPO',
+    collapsed: true,
     hint: 'ÚLTIMO COMMIT',
     slot: 'strip',
     render(view) {
