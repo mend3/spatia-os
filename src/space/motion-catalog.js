@@ -113,7 +113,19 @@ export const MOTION = Object.freeze({
   keplerOrbit: Object.freeze({
     id: 'keplerOrbit',
     status: 'own',
-    law: 'omega proportional to r^-1.5, with r the orbital radius',
+    law: 'mean motion proportional to a^-1.5, with a the semi-major axis',
+    /*
+     * A LUA É O ÚNICO CORPO ELÍPTICO DA CENA, e a distinção pertence aqui.
+     *
+     * Arquivo, anel e o resto do céu correm em círculo (`e = 0`), e não por simplificação: o raio
+     * orbital ali É o eixo do tempo, então uma elipse atravessaria cascas de idade — a decisão
+     * está aberta em `modelo-de-renderizacao.md` §6. No sistema de luas o raio não é tempo, é
+     * distância ao próprio pai, então a elipse não colide com invariante nenhum.
+     *
+     * A excentricidade não é parâmetro: ela é o que a janela Roche→Hill deixa sobrar
+     * (`orbital-zones.js`). Por isso a constante desta entrada continua fora daqui — `own`, não
+     * `applied`.
+     */
     allowed: ['file', 'ring', 'moon'],
     forbids: Object.freeze({
       arm: 'braço com órbita kepleriana É o problema do enrolamento — foi assim que o campo de arestas morreu',

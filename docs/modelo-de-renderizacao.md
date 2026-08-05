@@ -326,7 +326,13 @@ Três saídas, e a escolha é de produto:
    corpo sobe e desce fora do plano e nunca troca de casca.
 
 A 3 é a que preserva o invariante sem abrir exceção. A 2 é a mais expressiva. **Nenhuma foi
-escolhida ainda.**
+escolhida ainda — para o céu.**
+
+⚠️ **A lua já é elíptica, e ela NÃO abre este conflito.** O trade-off acima existe porque, no céu, o
+raio orbital É o eixo do tempo, então uma elipse atravessa cascas de idade. No sistema de luas o
+raio não é tempo nenhum — é a distância ao próprio pai, dentro da janela Roche→Hill. A
+excentricidade ali não colide com invariante algum, e por isso ela pôde entrar antes desta decisão,
+sem prejulgá-la. Ver `orbital-zones.js`.
 
 ⚠️ **"Errante" não entra, e o motivo é uma garantia.** O README promete que *"o mesmo conhecimento
 cai sempre no mesmo lugar"*. Determinismo no tempo não basta: um corpo errante é sempre calculável e
@@ -433,7 +439,8 @@ contados, não enumerados; funções, classes e embeddings não são extraídos.
 2. ~~Solver de compatibilidade~~ — **feito** (`space/solver.js`), com as recusas na sonda.
 3. ~~Supernova sai de forma e vira estado~~ — **feito**; 27 corpos recuperaram superfície.
 4. **Morfologia de cometa e estação** — leva a cobertura de 57% para 86%.
-5. **Excentricidade**, junto com a decisão sobre a colisão com "raio = recência".
+5. **Excentricidade no CÉU**, junto com a decisão sobre a colisão com "raio = recência". (Na lua ela
+   já existe e não depende desta decisão — o raio de uma lua não é eixo de tempo.)
 6. **Repo × pasta** como galáxia × sistema estelar.
 7. **Trazer os movimentos `own` para o catálogo** — `keplerOrbit`, `boil`, `spin` e `pulse` são
    movimento real com a constante dentro do próprio módulo. Substituição direta, sem risco.
@@ -445,8 +452,8 @@ Nenhuma linha desta tabela mente sobre estar pronta.
 | Estágio | Hoje |
 |---|---|
 | Identidade | existe — `kind` do `graph.py`, cor por `KIND_COLORS` |
-| Morfologia | 2 de 6 para arquivo (fotosfera, planeta) + galáxia para hub, na cena viva |
-| Cosmologia | parcial — massa vira tamanho (`log2`) e concentração vira classe de galáxia; capacidades por limiar não existem |
+| Morfologia | 2 de 6 para arquivo (fotosfera, planeta) + galáxia para hub + lua, na cena viva |
+| Cosmologia | parcial — massa vira tamanho (`log2`) e concentração vira classe de galáxia. **A primeira capacidade por limiar existe**: lua, pela janela Roche→Hill (`orbital-zones.js`). Atmosfera e anel-por-massa continuam sem limiar |
 | Estado | parcial — `envelope` já passa pelo solver; `dirty`, `hub`, `isolado` e `aceso` ainda são aplicados direto |
 | Solver | existe — `space/solver.js`: superfície + um conflito, com motivo e sonda. Falta o resto dos candidatos |
-| Animação | existe como SSOT — `space/motion-catalog.js`, 1 de 6 entradas `applied`; sem excentricidade |
+| Animação | existe como SSOT — `space/motion-catalog.js`, 1 de 6 entradas `applied`. **Excentricidade existe para lua** (0,050–0,231, derivada da zona); o resto do céu continua circular |

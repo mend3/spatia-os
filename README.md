@@ -33,7 +33,8 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 
 | Real | Como |
 |---|---|
-| Os nós do céu | 397 arquivos agregados da coleção vetorial, com peso = nº de chunks |
+| Os nós do céu | 410 arquivos agregados da coleção vetorial, com peso = nº de chunks |
+| As luas | as seções de um arquivo, quando a massa dele as segura — 279 luas em 40 corpos, pela janela Roche→Hill (`src/space/orbital-zones.js`) |
 | A posição de cada nó | hash determinístico do id → órbita fixa. O mesmo conhecimento cai sempre no mesmo lugar |
 | A recuperação | busca híbrida densa+BM25 fundida por RRF, ~8ms |
 | As chamadas de ferramenta | `tool_use` reais do agente, com argumentos e duração medida |
