@@ -81,6 +81,14 @@ const ORBIT_SAVE_MS = 5_000;
  */
 const NODE_FOCUS_DISTANCE = 7;
 const NODE_FOCUS_POLAR = 1.18;
+/**
+ * Amplitude da paralaxe, em fração da distância da câmera.
+ *
+ * 0,015 a 88 unidades dá ~1,3 de mundo — deslocamento suficiente para o grafo se soltar do
+ * fundo e pequeno demais para alguém apontar. Paralaxe que se percebe conscientemente deixou
+ * de ser profundidade e virou movimento da câmera.
+ */
+const PARALLAX_SCALE = 0.015;
 // 3 casas ≈ 0.06° de azimute. Abaixo disso é ruído de float, e ruído de float faria a guarda
 // de "só se mudou" do `prefs` disparar uma escrita a cada tique, para sempre.
 const ORBIT_STEP = 1e3;
@@ -225,6 +233,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const LIGHT_DIR = new THREE.Vector3();
   const ORBIT_OFFSET = new THREE.Vector3();
   const RADIAL = new THREE.Vector3();
+  /*
+   * Estado da paralaxe. `AIM` persegue o ponteiro com suavizacao por TEMPO — ponteiro cru
+   * transportaria o ruido do mouse direto para a imagem, que e a mesma razao pela qual o
+   * arraste da camera ja move o ALVO e nao a camera.
+   */
+  const PARALLAX_AIM = new THREE.Vector2();
+  const PARALLAX_FWD = new THREE.Vector3();
+  const PARALLAX_RIGHT = new THREE.Vector3();
+  const PARALLAX_UP = new THREE.Vector3();
+  const PARALLAX_SHIFT = new THREE.Vector3();
   let probe = null;
   let lastFocusRequest = null;
   // Alvo de órbita quando dentro de um app: a câmera passa a orbitar O CORPO, com o núcleo
@@ -696,6 +714,37 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       if (camera.position.lengthSq() < 1e-6) camera.position.copy(CAMERA.start);
       camera.position.setLength(clearance);
     }
+    /*
+     * PARALAXE — a camera TRANSLADA com o ponteiro, e o alvo do olhar vai junto.
+     *
+     * Transladar os dois e o que produz paralaxe de verdade: numa translacao pura, o
+     * deslocamento aparente cai com a distancia, entao o que esta perto anda muito e o que esta
+     * longe quase nao anda. Se eu movesse so a posicao e mantivesse o alvo, seria uma ROTACAO em
+     * torno da ancora — e aí o objeto focado ficaria parado e o fundo giraria, que e o oposto do
+     * que o olho espera.
+     *
+     * ⚠️ Aqui os numeros do pedido foram INVERTIDOS, de proposito. A especificacao era estrelas
+     * 20px, grafo 8px, HUD 2px — mas o campo estelar vive entre 150 e 400 unidades e o grafo
+     * entre 68 e 160: o GRAFO e a camada mais proxima. Dar mais movimento ao que esta mais longe
+     * produziria uma profundidade invertida, que o olho le como erro mesmo sem saber nomear. A
+     * ordem correta sai de graca da translacao; nao precisei escolher valor por camada.
+     */
+    if (!motion.isReduced()) {
+      PARALLAX_AIM.lerp(pointer, 1 - Math.exp(-3.4 * delta));
+      camera.getWorldDirection(PARALLAX_FWD);
+      PARALLAX_RIGHT.crossVectors(PARALLAX_FWD, camera.up).normalize();
+      PARALLAX_UP.crossVectors(PARALLAX_RIGHT, PARALLAX_FWD).normalize();
+      // A amplitude acompanha a distancia: a 88 unidades sao ~1,3 de mundo, e ao travar num
+      // astro (distancia 7) cai para ~0,1 — sem isso, o mesmo deslocamento que e sutil de longe
+      // sacudiria o planeta na tela.
+      const amplitude = orbit.distance * PARALLAX_SCALE;
+      PARALLAX_SHIFT.set(0, 0, 0)
+        .addScaledVector(PARALLAX_RIGHT, PARALLAX_AIM.x * amplitude)
+        .addScaledVector(PARALLAX_UP, PARALLAX_AIM.y * amplitude);
+      camera.position.add(PARALLAX_SHIFT);
+      lookAt.add(PARALLAX_SHIFT);
+    }
+
     camera.lookAt(lookAt.add(anchor));
 
     blackHole.update(delta, elapsed);

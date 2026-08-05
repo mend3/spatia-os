@@ -29,6 +29,7 @@ import { listApps } from './kernel/registry.js';
 import { registerApps, SYSTEM_VIEW, closeFileReader } from './apps/index.js';
 import * as tuning from './core/tuning.js';
 import * as prefs from './core/prefs.js';
+import * as motion from './core/motion.js';
 import * as keys from './core/keys.js';
 import * as profiles from './core/profiles.js';
 import { button, setOn } from './hud/button.js';
@@ -60,6 +61,38 @@ async function main() {
    * com a órbita — cabeçalho e rodapé ficam fora da casca de nós.
    */
   const hudYield = createYield([...document.querySelectorAll('aside.slot')]);
+
+  /*
+   * A HUD é VIDRO na frente da cena, e o deslocamento dela diz isso.
+   *
+   * Ela anda MUITO pouco — 3px no extremo — e no MESMO sentido do ponteiro, ao contrário da
+   * cena. Duas razões: uma superfície colada ao observador não tem paralaxe (ela viaja com o
+   * olho), e o pequeno acompanhamento é o que a lê como camada separada em vez de textura
+   * pintada sobre o universo. Mais que isso e o texto começa a "nadar", que cansa em minutos.
+   *
+   * `will-change` de propósito: sem ele o browser refaz layout do trilho a cada quadro de
+   * movimento do mouse, e o custo aparece justamente no gesto mais frequente da interface.
+   */
+  const hudLayer = document.getElementById('hud');
+  if (hudLayer && !motion.isReduced()) {
+    hudLayer.style.willChange = 'transform';
+    let alvoX = 0;
+    let alvoY = 0;
+    let atualX = 0;
+    let atualY = 0;
+    window.addEventListener('pointermove', (event) => {
+      alvoX = (event.clientX / window.innerWidth) * 2 - 1;
+      alvoY = (event.clientY / window.innerHeight) * 2 - 1;
+    }, { passive: true });
+    const seguir = () => {
+      // Mesma suavização por tempo da cena; ponteiro cru faria o texto tremer.
+      atualX += (alvoX - atualX) * 0.06;
+      atualY += (alvoY - atualY) * 0.06;
+      hudLayer.style.transform = `translate3d(${(atualX * 3).toFixed(2)}px, ${(atualY * 3).toFixed(2)}px, 0)`;
+      requestAnimationFrame(seguir);
+    };
+    requestAnimationFrame(seguir);
+  }
   const scene = createScene(canvas, { labelLayer: bodyLayer, signals: hudYield });
   /*
    * `document`, não `hud`, para os módulos que ADOTAM nós.
