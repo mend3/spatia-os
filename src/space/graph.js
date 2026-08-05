@@ -86,15 +86,18 @@ const VERTEX = /* glsl */ `
   attribute float aIgnition;
   attribute float aRecency;
   attribute float aSupernova;
+  attribute float aSeed;
   attribute vec3 aColor;
   varying vec3 vColor;
   varying float vIgnition;
   varying float vReveal;
   varying float vSupernova;
+  varying float vSeed;
 
   void main(){
     vIgnition = aIgnition;
     vSupernova = aSupernova;
+    vSeed = aSeed;
     // 1 = dentro da janela, 0 = ainda no futuro em relação ao playhead.
     float within = 1.0 - smoothstep(0.0, uRevealBand, aRecency - uReveal);
     vReveal = mix(uRevealDim, 1.0, within);
@@ -122,9 +125,16 @@ const VERTEX = /* glsl */ `
  * coisa só e mais forte — não duas coisas.
  *
  * A divisão é por GEOMETRIA, não por cor: `aIgnition` acende e INFLA o núcleo (evento, passa),
- * `aSupernova` desenha um anel concêntrico à volta dele (estado durável do repositório). A
- * ignição nunca produz anel, então não há como confundir os dois — e a casca fica na cor do
- * próprio nó, porque a cor já carrega o TIPO de conhecimento e roubá-la custaria essa leitura.
+ * `aSupernova` desenha uma CASCA à volta dele (estado durável do repositório). A ignição nunca
+ * produz casca — e a casca fica na cor do próprio nó, porque a cor já carrega o TIPO de
+ * conhecimento e roubá-la custaria essa leitura.
+ *
+ * ⚠️ Esta separação já falhou uma vez, contra um terceiro sinal que não existia quando ela foi
+ * escrita. A casca era um ANEL CONCÊNTRICO LISO em 0,78 do sprite; o anel planetário (arquivo
+ * sujo no git) nasceu depois e ocupa de 0,60 a 1,44 — ou seja, a casca caía dentro do vão dele.
+ * O usuário olhou a cena e perguntou "o que é esse segundo anel?", que é a pergunta que prova a
+ * colisão. A casca então virou FILAMENTAR e ROMPIDA, e a distinção voltou a ser de forma: anel
+ * é liso, contínuo e elíptico; remanescente é irregular, quebrado em arcos e sempre circular.
  *
  * ⚠️ A casca cabe DENTRO do sprite que já existe (o núcleo apaga em d≈0.6; ela mora em 0.78).
  * Inflar `gl_PointSize` para abrir espaço teria um efeito colateral silencioso: o anel de
@@ -140,17 +150,44 @@ const FRAGMENT = /* glsl */ `
   varying float vIgnition;
   varying float vReveal;
   varying float vSupernova;
+  varying float vSeed;
 
   const float SHELL_RADIUS = 0.78;
   const float SHELL_WIDTH = 0.085;
+  const float TAU = 6.28318530718;
+  // Quanto o raio da casca ondula, e quanto ela se ROMPE em arcos.
+  const float LOBES = 0.17;
+  const float FILAMENT = 0.66;
+
+  /*
+   * A casca do remanescente: irregular e rompida, nao um circulo.
+   *
+   * Tres harmonicas BAIXAS no raio dao o contorno assimetrico (Cas A, Veu do Cisne, que sao
+   * assim porque a onda de choque atravessa um meio interestelar irregular). Ruido de verdade
+   * nao serve: a 20px ele vira um anel mais grosso e o efeito custa sem aparecer.
+   *
+   * Os cortes usam uma harmonica ALTA e sao o que resolve a colisao com o anel planetario, que
+   * ocupa exatamente esta faixa de raio. Casca fechada, por mais ondulada, o olho ainda le como
+   * anel; casca ROMPIDA em arcos, nao.
+   */
+  float remnant(vec2 pc, float seed){
+    float a = atan(pc.y, pc.x) + seed * TAU;
+    float warp = cos(3.0 * a) * 0.50 + cos(5.0 * a + 1.7) * 0.32 + cos(7.0 * a + 4.1) * 0.18;
+    float radius = SHELL_RADIUS * (1.0 + LOBES * warp);
+    float t = (length(pc) - radius) / SHELL_WIDTH;
+    float breaks = 0.5 + 0.5 * cos(9.0 * a + seed * 11.0);
+    return exp(-t * t) * mix(1.0, breaks * breaks, FILAMENT);
+  }
 
   void main(){
-    float d = length(gl_PointCoord - 0.5) * 2.0;
+    vec2 pc = (gl_PointCoord - 0.5) * 2.0;
+    float d = length(pc);
     float core = pow(1.0 - smoothstep(0.0, 1.0, d), 2.2);
     // Corona só em nó aceso: dá o "volta a brilhar" sem inflar o céu inteiro.
     float corona = (1.0 - smoothstep(0.0, 1.3, d)) * vIgnition * 0.55;
-    float t = (d - SHELL_RADIUS) / SHELL_WIDTH;
-    float shell = exp(-t * t) * vSupernova * 0.9;
+    // 1.5 compensa o que os cortes tiraram: a casca rompida perde area, e sem o ganho a
+    // supernova mais forte do corpus ficaria mais apagada do que era antes de virar filamento.
+    float shell = remnant(pc, vSeed) * vSupernova * 1.5;
     float intensity = (core + corona + shell) * vReveal;
     if (intensity < 0.004) discard;
     gl_FragColor = vec4(vColor * intensity, intensity);
@@ -300,6 +337,7 @@ export function createGraph() {
     sizes = new Float32Array(count);
     const recencies = new Float32Array(count);
     const supernovae = new Float32Array(count);
+    const seeds = new Float32Array(count);
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
 
@@ -316,6 +354,10 @@ export function createGraph() {
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
       supernovae[i] = node.type === 'file' ? node.supernova || 0 : 0;
+      // Semente da forma da casca. Sai do CAMINHO, não do índice: o índice muda quando o corpus
+      // ganha ou perde um arquivo, e a supernova de um arquivo trocaria de silhueta sem que
+      // nada tivesse acontecido com ele.
+      seeds[i] = hash01(node.source ?? String(i), 7);
       color.setHex(KIND_COLORS[node.kind] ?? KIND_COLORS.other);
       colors.set([color.r, color.g, color.b], i * 3);
       registerPath(node, i);
@@ -327,6 +369,7 @@ export function createGraph() {
     geometry.setAttribute('aIgnition', new THREE.BufferAttribute(ignition, 1));
     geometry.setAttribute('aRecency', new THREE.BufferAttribute(recencies, 1));
     geometry.setAttribute('aSupernova', new THREE.BufferAttribute(supernovae, 1));
+    geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
     geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
     points = new THREE.Points(geometry, material);
     points.frustumCulled = false;
