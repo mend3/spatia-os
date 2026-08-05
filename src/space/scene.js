@@ -1195,6 +1195,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         voltaEmSegundos: u.uOmegaP.value ? (Math.PI * 2) / u.uOmegaP.value : Infinity,
       };
     },
+    /**
+     * Luas em órbita e seções que não couberam — repassado de `graph.moonReport` para quem mostra.
+     * O corte é geométrico e legítimo, mas silencioso ele leria como "o documento não tem essa
+     * parte".
+     */
+    moonReport: () => graph.moonReport(),
+
     loadGraph: (payload) => {
       const count = graph.load(payload);
       hubs = buildHubs(payload);

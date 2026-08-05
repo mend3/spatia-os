@@ -180,8 +180,22 @@ Cai daí um resultado melhor que o pedido: na razão Hill/Roche o `m^(1/3)` **ca
 decide se um corpo segura lua não é a massa — é só `a`, o raio orbital, que nesta cena é a
 RECÊNCIA. Arquivo antigo segura suas seções em órbita; arquivo recente não. É a física certa
 (Mercúrio não tem lua por estar perto do Sol, não por ser leve) e é exatamente o que o
-`catalogo-celeste.md` previa. Medido: corte em `a = 44`, o meio da casca dos arquivos — **23 corpos,
-182 luas**.
+`catalogo-celeste.md` previa. Medido: corte em `a = 37,9` — **40 corpos, 279 luas**, 5 seções sem
+espaço.
+
+**A órbita é ELÍPTICA, e a excentricidade não é escolhida.** O periastro não pode entrar no Roche e
+o apoastro não pode sair do Hill, o que fixa `e = (outer−inner)/(outer+inner)` — a maior elipse que
+a zona comporta. Como `slack = a/a_corte`, sai a segunda leitura da idade: **a excentricidade é o
+gradiente do tempo**. Corpo recém-passado do limiar tem lua em órbita quase circular colada no
+Roche; o mais antigo do céu chega a `e = 0,23`. Medido: 0,050 a 0,231, mediana 0,078.
+
+**Luas não colidem, e isso é demonstrado — não estimado.** Todas as luas de um corpo correm na MESMA
+elipse, defasadas em anomalia média: mesmo período, separação constante para sempre (é a
+configuração de Jano e Epimeteu). Órbitas em raios diferentes teriam ω diferente e acabariam se
+alinhando, e a janela Roche→Hill não tem largura para separar faixas radiais — a conta dá menos de
+uma lua cabendo. Quantas cabem é geométrico: a separação mínima é no APOASTRO, e o ponto fixo leva
+em conta que cortar luas engorda as que sobram. Verificado simulando 7 períodos: a menor distância
+entre duas luas em todo o corpus é **1,537× a soma dos raios delas**.
 
 **Alcance do anel: MEDIDO E RECUSADO.** Seria a outra metade da frase, e não sobrevive à medida. O
 alcance em raios do corpo é `∝ m^(1/3)/R(m)`, e com a lei log de tamanho isso espalha só **1,54×**

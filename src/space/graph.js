@@ -247,6 +247,13 @@ export function createGraph() {
   // Quantas das entradas de `nodes` são luas. Elas ficam no fim do vetor, então isto também é a
   // fronteira entre "corpo do corpus" e "corpo derivado" — a sonda reporta os dois separados.
   let moonCount = 0;
+  /*
+   * Seções que NÃO couberam na órbita e não viraram lua.
+   *
+   * Existe pela mesma regra que faz `rings.set` devolver `dropped`: corte silencioso lê como "é só
+   * isso que existe". Quem chama reporta — ver `moonReport`.
+   */
+  let moonsDropped = 0;
   let index = new Map();
   let positions = null;
   let ignition = null;
@@ -406,9 +413,12 @@ export function createGraph() {
      */
     const centralMass = payload.stats?.chunks || nodes.reduce((sum, n) => sum + (n.chunks || 0), 0);
     const moons = [];
+    moonsDropped = 0;
     nodes.forEach((node, parentIndex) => {
       if (node.type !== 'file') return;
-      for (const moon of moonsOf(node, centralMass, hash01)) {
+      const held = moonsOf(node, centralMass, hash01);
+      moonsDropped += held.dropped;
+      for (const moon of held.moons) {
         moons.push({
           ...moon,
           type: 'moon',
@@ -580,9 +590,33 @@ export function createGraph() {
        */
       if (node.type === 'moon') {
         const parent = node.parentIndex * 3;
-        const angle = node.phase + elapsed * node.speed * tune.speed;
-        const x = Math.cos(angle) * node.radius;
-        const z = Math.sin(angle) * node.radius;
+        const e = node.eccentricity;
+        // Anomalia MÉDIA: cresce linear no tempo. É a única grandeza da elipse que faz isso.
+        const mean = node.meanAnomaly + elapsed * node.meanMotion * tune.speed;
+        /*
+         * EQUAÇÃO DO CENTRO — a elipse sem resolver Kepler por iteração.
+         *
+         * `M = E − e·sen E` é transcendental e o caminho normal é Newton. Aqui a série truncada
+         * em `e²` basta e é melhor: o erro é O(e³), e a excentricidade máxima que a zona permite
+         * é 0,23 (medido), então o desvio fica abaixo de 1,2% do semieixo — invisível num corpo de
+         * poucos pixels. E ela é FUNÇÃO FECHADA do relógio, que é a lei do `motion-catalog.js`:
+         * sem iteração não há estado acumulado, e a lua cai sempre no mesmo lugar no mesmo
+         * instante, em qualquer sessão e a qualquer taxa de quadros.
+         */
+        const trueAnomaly =
+          mean + 2 * e * Math.sin(mean) + 1.25 * e * e * Math.sin(2 * mean);
+        // Equação do cônico. É o que faz a lua acelerar no periastro — a segunda lei de Kepler
+        // aparece sozinha, sem ninguém animar velocidade.
+        const r = (node.semiMajor * (1 - e * e)) / (1 + e * Math.cos(trueAnomaly));
+        // Periastro girado: a elipse aponta para um lado próprio deste corpo.
+        const theta = trueAnomaly + node.periapsis;
+        const x = Math.cos(theta) * r;
+        const z = Math.sin(theta) * r;
+        /*
+         * Sem rotação própria: as 19 luas arredondadas do Sistema Solar estão travadas por maré, e
+         * `catalog.js` proíbe `spin` em `lua`. Aqui sai de graça — lua é ponto, e ponto não tem
+         * eixo. `bob` também não se aplica: ele é a oscilação da órbita em torno do NÚCLEO.
+         */
         positions[offset] = positions[parent] + x;
         positions[offset + 1] = positions[parent + 1] + z * Math.sin(node.inclination);
         positions[offset + 2] = positions[parent + 2] + z * Math.cos(node.inclination);
@@ -627,6 +661,7 @@ export function createGraph() {
   function dispose() {
     rings.set([]);
     moonCount = 0;
+    moonsDropped = 0;
     byPath = new Map();
     dirtyState = new Map();
     for (const object of [points]) {
@@ -642,6 +677,15 @@ export function createGraph() {
     group,
     load,
     count: () => nodes.length,
+
+    /**
+     * Quantas luas foram desenhadas e quantas seções não couberam.
+     *
+     * O corte é geométrico (ver `orbital-zones.moonsOf`), mas quem corta tem de dizer: uma seção
+     * que some sem aviso lê como "este documento não tem essa parte". Mesmo contrato do
+     * `rings.set`.
+     */
+    moonReport: () => ({ shown: moonCount, dropped: moonsDropped }),
 
     /** Acende os nós citados. `sources` são os mesmos ids que a busca devolve. */
     ignite(sources, amount = 1) {

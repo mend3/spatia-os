@@ -314,6 +314,14 @@ async function main() {
     nodeCount = scene.loadGraph(graph);
     frame.applyGraph(nodeCount);
     streams.note(`TOPOLOGIA CARREGADA · ${nodeCount} CORPOS`, 'good');
+    // Seção que não coube em órbita é informação perdida da tela: quem corta avisa.
+    const luas = scene.moonReport?.();
+    if (luas?.dropped) {
+      streams.note(
+        `${luas.shown} LUAS EM ÓRBITA · ${luas.dropped} SEÇÕES SEM ESPAÇO`,
+        'warn'
+      );
+    }
   } catch (error) {
     streams.note(`TOPOLOGIA INDISPONÍVEL: ${error.message}`, 'bad');
   }

@@ -71,20 +71,37 @@ const ROCHE_FLUID = 2.44;
  *
  *     a_corte = ROCHE_FLUID · k · (3·M_total)^(1/3)
  *
- * Com `k = 0,813` e o corpus medido em 2026-08-05 (M = 3644 chunks), `a_corte = 44,0` — o meio
- * exato da casca dos arquivos (`SHELLS.file = [26, 62]`). Ou seja: **a metade mais antiga do céu
- * segura luas, a metade mais nova não.** Cortar na mediana é o que faz a distinção informar; um
- * corte que deixasse todos ou nenhum dentro não diria nada.
+ * Com `k = 0,70` e o corpus medido em 2026-08-05 (M = 3644 chunks), `a_corte = 37,9`: **38% dos
+ * arquivos com seções suficientes seguram lua** — os mais antigos. O corte precisa continuar
+ * separando (se todos tivessem lua, "tem lua" viraria sinônimo de "tem seções" e não informaria
+ * nada), e é por isso que ele não desce mais.
  *
- * Confirmação de que o valor não é arbitrário em outra frente: a 43 chunks ele devolve raio
- * físico 2,85 contra 2,84 do raio desenhado. No meio da distribuição as duas réguas coincidem, e
- * elas só divergem nos extremos — que é exatamente o que uma compressão log deve fazer.
+ * ⚠️ **`k` foi 0,813 por algumas horas, e a razão de ter mudado importa.** Aquele valor punha o
+ * corte em 44,0 — o meio exato da casca — e dava a divisão mais limpa possível da população. Só
+ * que ele também deixava metade dos corpos passando RASPANDO pelo limiar, e um corpo que passa
+ * raspando não tem folga entre Roche e Hill: a excentricidade possível ali media 0,001 a 0,039,
+ * que é indistinguível de um círculo. A órbita elíptica existiria no código e não na tela.
+ *
+ * O que o valor compra, então, não é só quantos corpos têm lua — é **quanta elipse cabe**. E daí
+ * cai a leitura que paga a troca: como `e_max = (slack−1)/(slack+1)` e `slack = a/a_corte`, a
+ * **excentricidade é o gradiente da idade**. Arquivo recém-passado do limiar tem lua em órbita
+ * quase circular colada no Roche; o mais antigo do céu (a = 62) chega a `e = 0,23`. Medido com
+ * `k = 0,70`: `e` de 0,050 a 0,231, mediana 0,078.
  *
  * ⚠️ `a_corte` depende de `M_total`. Um corpus muito maior empurra o corte para fora e as luas
  * somem; é comportamento correto (mais massa central = Hill menor), mas quem dobrar o corpus tem
  * de conferir que ainda sobra alguém. `moonZone` devolve a folga para isso ser mensurável.
  */
-const DENSITY_K = 0.813;
+const DENSITY_K = 0.70;
+
+/**
+ * Folga mínima entre as superfícies de duas luas vizinhas, em raios de lua.
+ *
+ * 1,5 = meia lua de espaço vazio entre uma e outra. Não é margem de segurança numérica (a
+ * separação é exata, ver `moonsOf`): é legibilidade. Duas luas que se tangenciam lêem como um
+ * corpo alongado, não como duas.
+ */
+const SPACING_SAFETY = 1.5;
 
 /**
  * Razão de massas mínima entre pai e satélite para a leitura "lua" valer.
@@ -155,46 +172,101 @@ export function moonZone(mass, orbitalRadius, centralMass) {
 export function moonsOf(node, centralMass, hash) {
   const sections = node.sections || [];
   const mass = node.chunks || 0;
-  if (sections.length < MU_MIN || mass <= 0) return [];
+  if (sections.length < MU_MIN || mass <= 0) return { moons: [], dropped: 0 };
 
   const zone = moonZone(mass, node.radius, centralMass);
-  if (!zone.ok) return [];
+  if (!zone.ok) return { moons: [], dropped: 0 };
 
-  // A massa do documento se divide entre as seções. É o único modelo que o payload permite —
-  // `sections` são títulos, sem contagem própria de chunks.
-  const moonMass = mass / sections.length;
-  // Densidade comum entre pai e filha: a razão de raios é a raiz cúbica da razão de massas. Não é
-  // a lei log dos tamanhos desenhados — aplicá-la aqui daria luas do tamanho do pai, medido.
-  const moonRadius = physicalRadius(moonMass);
-  // `G·m` do PAI, herdado do núcleo pela fração de massa. É o que faz a lua interna girar mais
-  // rápido que a externa dentro do mesmo sistema, pela terceira lei de Kepler.
+  /*
+   * UMA ELIPSE POR CORPO, e todas as luas dele correm nela. É o que torna a ausência de colisão
+   * DEMONSTRÁVEL em vez de provável.
+   *
+   * A alternativa óbvia — uma órbita por lua, espalhadas em raio — não fecha aqui, e a conta diz
+   * por quê: luas em raios diferentes têm ω diferente (Kepler), então mais cedo ou mais tarde elas
+   * se alinham em fase, e evitar o encontro exige separar as FAIXAS radiais por 2 raios de lua. A
+   * janela entre Roche e Hill não tem esse espaço: com a largura medida, `N ≤ (W/2P)^(3/2)` dá
+   * menos de 1 — nem uma lua caberia.
+   *
+   * Co-orbital resolve por construção. Duas luas na MESMA elipse, com o mesmo período, mantêm a
+   * separação para sempre: elas percorrem a mesma curva defasadas no tempo, e nunca se alcançam.
+   * Não é truque — é a configuração de Jano e Epimeteu, e a dos troianos de Tétis.
+   *
+   * ⚠️ Por isso inclinação e argumento do periastro são do CORPO, não da lua. Hasheá-los por lua
+   * cruzaria as elipses e devolveria o problema que esta escolha resolve.
+   */
+  const semiMajor = (zone.inner + zone.outer) / 2;
+  /*
+   * A EXCENTRICIDADE NÃO É ESCOLHIDA — ela é o que sobra.
+   *
+   * O periastro não pode entrar no limite de Roche (a lua se despedaça) nem o apoastro sair da
+   * esfera de Hill (a lua escapa). Com o semieixo no meio da janela, isso fixa
+   * `e = (outer − inner)/(outer + inner)`: a maior elipse que a zona comporta, sem constante
+   * nenhuma. Corpo com pouca folga ganha órbita quase circular, e é a resposta correta — ele
+   * realmente não tem espaço para mais que isso.
+   */
+  const eccentricity = (zone.outer - zone.inner) / (zone.outer + zone.inner);
+  // `G·m` do PAI, herdado do núcleo pela fração de massa — mesma origem que a órbita do pai em
+  // torno do núcleo, para os dois movimentos falarem do mesmo sistema.
   const mu = MU_CORE * (mass / Math.max(centralMass, 1));
+  // Movimento médio: uma volta a cada `2π/n`. Constante na elipse — a lua acelera no periastro e
+  // desacelera no apoastro (segunda lei de Kepler), mas o período não muda.
+  const meanMotion = Math.sqrt(mu / semiMajor ** 3);
 
-  return sections.map((label, order) => {
+  /*
+   * QUANTAS LUAS CABEM — o clamp, e ele é geométrico, não um teto arbitrário.
+   *
+   * Luas igualmente espaçadas em anomalia média se aproximam mais perto do APOASTRO, onde a
+   * velocidade é mínima e o mesmo intervalo de tempo cobre menos arco. A separação lá vale
+   * `2π·a·√((1−e)/(1+e))/N`, e ela tem de passar de `2·r_lua·SPACING_SAFETY`.
+   *
+   * O ponto fixo existe porque `r_lua` DEPENDE de N: cortar luas engorda as que sobram
+   * (`massa/N`), o que reduz a capacidade de novo. Resolver por iteração descendente converge em
+   * poucos passos e nunca sobe — o contrário poderia oscilar para sempre.
+   */
+  const parentPhysical = physicalRadius(mass);
+  const apoapsisFactor = Math.sqrt((1 - eccentricity) / (1 + eccentricity));
+  let count = sections.length;
+  for (let guard = 0; guard < 8; guard++) {
+    const moonRadius = parentPhysical * Math.cbrt(1 / count);
+    const capacity =
+      (Math.PI * semiMajor * apoapsisFactor) / (moonRadius * SPACING_SAFETY);
+    if (count <= capacity) break;
+    const next = Math.max(1, Math.floor(capacity));
+    if (next >= count) break;
+    count = next;
+  }
+
+  // Densidade comum entre pai e filha: a razão de raios é a raiz cúbica da razão de massas. NÃO é
+  // a lei log dos tamanhos desenhados — aplicá-la aqui daria luas do tamanho do pai, medido.
+  const moonMass = mass / count;
+  const moonRadius = physicalRadius(moonMass);
+  // Pose do sistema, sorteada uma vez por CORPO: sem isso todo sistema de luas nasceria no mesmo
+  // plano e com o periastro apontando para o mesmo lado — o céu leria como carimbo.
+  const inclination = (hash(node.id, 12) - 0.5) * 0.9;
+  const periapsis = hash(node.id, 13) * Math.PI * 2;
+  const phase0 = hash(node.id, 11) * Math.PI * 2;
+
+  const moons = sections.slice(0, count).map((label, order) => ({
+    id: `${node.id}#${order}`,
+    label,
+    mass: moonMass,
+    drawRadius: moonRadius,
+    semiMajor,
+    eccentricity,
+    periapsis,
+    inclination,
+    meanMotion,
     /*
-     * ORDEM DA SEÇÃO → RAIO. A primeira seção orbita mais perto.
+     * ORDEM DA SEÇÃO → FASE, e o espaçamento é EXATAMENTE uniforme.
      *
-     * A faixa entre Roche e Hill é estreita (medido: 1,00–1,38 de razão, mediana 1,08), então o
-     * espalhamento radial é pequeno de propósito e quem separa as luas na tela é a FASE. Usar a
-     * ordem em vez de um hash é de graça e informa: o sistema de luas lê como a estrutura do
-     * documento, de cima para baixo, do centro para fora.
+     * Uniforme é o que a demonstração acima exige — um hash aqui agruparia luas por acaso e o
+     * clamp deixaria de garantir coisa alguma. E sai informação de graça: o sistema de luas lê
+     * como a estrutura do documento, na ordem, em volta do corpo.
      */
-    const t = sections.length > 1 ? order / (sections.length - 1) : 0;
-    const radius = zone.inner + (zone.outer - zone.inner) * t;
-    return {
-      id: `${node.id}#${order}`,
-      label,
-      mass: moonMass,
-      radius,
-      drawRadius: moonRadius,
-      // Kepler dentro do sistema do pai. Medido no corpus: ~50 s por volta nos corpos maiores —
-      // mais rápido que a órbita do pai em torno do núcleo, como um sistema de luas real.
-      speed: Math.sqrt(mu / radius ** 3),
-      phase: hash(`${node.id}#${order}`, 11) * Math.PI * 2,
-      // Inclinação própria, pequena: luas regulares são quase coplanares com o equador do pai.
-      inclination: (hash(`${node.id}#${order}`, 12) - 0.5) * 0.5,
-    };
-  });
+    meanAnomaly: phase0 + (Math.PI * 2 * order) / count,
+  }));
+
+  return { moons, dropped: sections.length - count };
 }
 
 export const ZONE_CONSTANTS = Object.freeze({ ROCHE_FLUID, DENSITY_K, MU_MIN, MU_CORE });
