@@ -36,6 +36,19 @@ export function createPermissions(root, { onChange } = {}) {
   const flagsBox = el('div', 'perms-flagsbox');
   flagsBox.append(el('div', 'controls-group', 'COMANDO RESULTANTE'), flags);
   panel.append(flagsBox);
+  /*
+   * `recovered` do servidor — a promessa que estava escrita e a tela não cumpria.
+   *
+   * `server/permissions.py` degrada para o modo `plan` quando a configuração está corrompida e
+   * marca `recovered: true` com o comentário "a UI mostra o aviso". Nenhuma linha de `src/` lia
+   * o campo: a config voltava para o modo mais restritivo e o painel ficava com cara de normal,
+   * então o operador só descobria pela mudança de comportamento do agente.
+   *
+   * Fica FORA do corpo rolável: degradação silenciosa de permissão não pode depender de rolar.
+   */
+  const recovered = el('div', 'perms-recovered');
+  recovered.hidden = true;
+  panel.append(recovered);
   panel.append(el('div', 'perms-hint', 'P FECHA · APLICA NA PRÓXIMA PERGUNTA'));
   root.append(panel);
 

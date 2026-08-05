@@ -88,6 +88,19 @@ const TILT = 1.1;
  * mesmo rodapé, o que por acaso é verdade (o sistema de Júpiter é mesmo mais largo).
  */
 const FOOTPRINT = 0.62;
+
+/**
+ * Que fração do raio do SPRITE é o disco visível da estrela.
+ *
+ * Este número era um contrato IMPLÍCITO entre `graph.js` (que devolve o raio do sprite) e este
+ * módulo (que ancora o anel nele) — e a bancada o expôs na primeira montagem: passando o raio
+ * VISÍVEL onde o código esperava o do sprite, o anel inteiro cabia dentro da estrela e não
+ * aparecia. Exportado para quem precisar converter entre os dois ter uma fonte só.
+ *
+ * De onde sai: o núcleo do ponto é `pow(1 - smoothstep(0,1,d), 2.2)` e já caiu a ~2% em d=0.6.
+ * O `LIMB` do shader (0.97) é esta constante dividida por `FOOTPRINT`.
+ */
+export const VISIBLE_CORE = 0.6;
 // Dispersão determinística da inclinação e do rolamento. Todos os anéis com o MESMO tombo lê
 // como carimbo; os planetas reais não combinaram inclinação entre si.
 const TILT_SPREAD = 0.30;
@@ -113,7 +126,10 @@ let maxRings = 64;
 // τ efetivo. Não é o do anel B real (1.5–2.5): ali a faixa some por completo, e uma estrela é
 // fonte pontual muito mais brilhante que um planeta iluminado. Este é o valor que deixa a
 // passagem legível sem apagar o astro — número de tela, não constante do modelo.
-const OPTICAL_DEPTH = 0.85;
+// τ do anel B, medido: 1.5–2.5. Fica em 2.0 — DENTRO da faixa real, e a bancada mostrou que
+// nesse patamar a faixa escura sobre o astro é visível. O valor anterior (0.85) foi um palpite
+// escolhido sem conseguir ver o efeito; este foi escolhido vendo.
+const OPTICAL_DEPTH = 2.0;
 
 /*
  * EXTINÇÃO — o anel na frente do astro ESCURECE, não soma luz.
@@ -398,7 +414,11 @@ export function createRings() {
      * aplica. Sem ela, arrastar o scrubber para um período antigo apagaria a estrela e
      * deixaria o anel aceso em volta do nada.
      */
-    follow(positions, camera, dimOf, radiusOf) {
+    /**
+     * @param {number} [tiltOverride]  tombo fixo, para a BANCADA varrer o ângulo. Na cena o
+     *   tombo é por nó (dispersão determinística) e este parâmetro não é passado.
+     */
+    follow(positions, camera, dimOf, radiusOf, tiltOverride) {
       for (const ring of active) {
         const offset = ring.index * 3;
         ring.mesh.position.set(positions[offset], positions[offset + 1], positions[offset + 2]);
@@ -407,16 +427,17 @@ export function createRings() {
         // a girar o anel dentro do próprio plano — onde ele é simétrico e nada mudaria.
         ring.mesh.quaternion.copy(camera.quaternion);
         ring.mesh.rotateZ(ring.roll);
-        ring.mesh.rotateX(ring.tilt);
+        const tilt = tiltOverride ?? ring.tilt;
+        ring.mesh.rotateX(tilt);
         // O achatamento na tela depende do tombo DESTE anel, que tem dispersão por nó.
-        ring.mesh.material.uniforms.uCosTilt.value = Math.cos(ring.tilt);
+        ring.mesh.material.uniforms.uCosTilt.value = Math.cos(tilt);
         // O passe de extinção acompanha posição, orientação e escala do anel — é o MESMO anel,
         // desenhado duas vezes com blendings opostos.
         const shade = ring.mesh.userData.shade;
         shade.position.copy(ring.mesh.position);
         shade.quaternion.copy(ring.mesh.quaternion);
         shade.scale.copy(ring.mesh.scale);
-        shade.material.uniforms.uCosTilt.value = Math.cos(ring.tilt);
+        shade.material.uniforms.uCosTilt.value = Math.cos(tilt);
         shade.material.uniforms.uOpacity.value = ring.mesh.material.uniforms.uOpacity.value;
         // Raio do sprite da estrela AGORA — já com ignição, spread, fov, resolução e o teto
         // de `gl_PointSize` — vezes o rodapé. É o que mantém o anel colado ao astro em
