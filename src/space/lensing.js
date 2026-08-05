@@ -56,7 +56,16 @@ const FRAGMENT = /* glsl */ `
     // de à metade: o efeito virava um borrão apertado colado no horizonte e sumia logo fora
     // dele. Perdia-se a assinatura de "o campo estelar inteiro está sutilmente torcido", que é
     // o que faz uma lente ler como lente e não como filtro local.
-    float deflection = uStrength * uRadius * uRadius / max(distance, uRadius * 0.35);
+    // ⚠️ A ESCALA tem que ser preservada ao trocar a lei, e eu não preservei na primeira
+    // tentativa: trocar /d² por /d mantendo uRadius*uRadius no numerador derrubou a
+    // deflexão ~20× perto do horizonte (uRadius≈0.033, então dividir por d≈0.05 em vez de por
+    // d²≈0.0025) e a lente sumiu da cena. Subir o default de lensStrength não resolveria: o
+    // valor fica salvo no localStorage de quem já usou, e a correção precisa valer para ele.
+    //
+    // uRadius/d é adimensional e vale EXATAMENTE uStrength em d = uRadius — o mesmo que
+    // a versão antiga entregava ali. O que muda é só a queda: a metade em 2R, onde antes era um
+    // quarto. É a correção da física sem mexer no que o operador já afinou.
+    float deflection = uStrength * uRadius / max(distance, uRadius * 0.35);
     deflection = min(deflection, 0.145);
     vec2 lensed = uv - direction * deflection / vec2(uAspect, 1.0);
 
@@ -67,9 +76,12 @@ const FRAGMENT = /* glsl */ `
     // ser desenhado sobre um horizonte de eventos.
     float shadow = smoothstep(uRadius * 0.99, uRadius * 1.09, distance);
 
-    // Anel de Einstein: realce estreito logo fora da esfera de fótons.
-    // O anel de fótons fica na BORDA da sombra, não 16% fora dela — e é uma feição estreita.
-    float ring = exp(-pow((distance - uRadius * 1.02) / (uRadius * 0.045), 2.0));
+    // Anel de fótons: estreito, e no limite EXTERNO da transição da sombra.
+    //
+    // Em 1.02 ele caía dentro da rampa do shadow (0.99→1.09) e era suprimido em ~78% —
+    // fisicamente defensável, visualmente o anel desaparecia. A borda da sombra, aqui, É essa
+    // rampa; o anel mora onde ela termina.
+    float ring = exp(-pow((distance - uRadius * 1.1) / (uRadius * 0.05), 2.0));
 
     float glitchOffset = uGlitch * (hash(vec2(floor(vUv.y * 90.0), floor(uTime * 14.0))) - 0.5) * 0.05;
     lensed.x += glitchOffset;
