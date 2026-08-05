@@ -182,11 +182,15 @@ export function createLinks() {
      *
      * @param {Array<[number, number]>|null} list  pares de ÍNDICES de nó
      * @param {number} [colorHex]  cor do vínculo; por padrão o âmbar de foco da interface
+     * @returns {number} quantos arcos foram ACEITOS — o teto corta o resto em silêncio, e quem
+     *   escreve a legenda precisa saber onde a lista dela para. Sem isto, a legenda nomearia
+     *   vínculos que a tela não desenhou no dia em que um nó passasse de `MAX_LINKS`.
      */
     show(list, colorHex) {
       pairs = (list || []).slice(0, MAX_LINKS);
       target = pairs.length ? 1 : 0;
       if (colorHex) material.uniforms.uColor.value.setHex(colorHex);
+      return pairs.length;
     },
 
     /**

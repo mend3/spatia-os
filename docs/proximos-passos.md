@@ -56,7 +56,7 @@ O que já foi ligado saiu da lista. Continua vindo no fio e morrendo:
 | `UpstreamError.status` | `net.py:22` | 401 de chave inválida e 503 de serviço fora viram o mesmo 502 |
 | `detail` do `phase:"result"` | `agent.py`, `brain.py` | o conteúdo devolvido por cada tool_result, até 220 chars, descartado em `streams.js` |
 | `tokens.in` / `cache_read` | `brain.py:264,266` | `answer.js` mostra só `out` e escreve "N tokens" |
-| `sections`, `depth`, `parent`, `indexed_at` | `graph.py` | ~23% do payload da topologia, sem consumidor |
+| `depth`, `parent` | `graph.py` | o que sobra do payload da topologia sem consumidor — `sections`, `indexed_at` e `changed_at` foram para o painel `context` em 2026-08-05 |
 
 ## 4. i18n
 
@@ -71,7 +71,7 @@ em largura. i18n aqui é redesenhar largura, não trocar string.
 Se um dia for feito, o que falta além do catálogo: datas (`toLocaleString('pt-BR')` espalhado) e
 as mensagens que o servidor manda prontas no stream de eventos.
 
-## 5. Taxonomia de corpos celestes
+## 5. ~~Taxonomia de corpos celestes~~
 
 O céu chama todo arquivo de "estrela", e o usuário notou o sintoma: **anel é de planeta**. A
 proposta completa, com regras físicas e o que foi descartado por ser decorativo, está em
@@ -80,7 +80,7 @@ proposta completa, com regras físicas e o que foi descartado por ser decorativo
 O item de maior valor por linha: **cometa extinto** (churn alto numa janela antiga + recência
 baixa = ponto quente abandonado), que custa um `if` a mais na passada de `git log` que já existe.
 
-## 5b. Planeta procedural — falta ligar ao céu e medir
+## 5b. ~~Planeta procedural — falta ligar ao céu e medir~~
 
 `src/space/planet.js` existe e roda na bancada (espécime `PLANETA PROCEDURAL`). O catálogo já
 declara a feição `surface` em `planeta-anelado`, `lua` e `cometa-extinto`, e a PROÍBE em

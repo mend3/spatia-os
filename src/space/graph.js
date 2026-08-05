@@ -776,6 +776,20 @@ export function createGraph() {
       return neighbours.get(i) || [];
     },
 
+    /**
+     * Os NÓS vizinhos deste, na mesma ordem em que `linksOf` devolve os pares.
+     *
+     * Existe para que a legenda do vínculo possa nomear o destino do arco sem que a HUD conheça
+     * o grafo — ela recebe nó pronto pelo barramento. A ordem ser a mesma não é detalhe: o teto
+     * de arcos corta o FIM da lista, e duas ordens diferentes fariam a legenda nomear justamente
+     * o vínculo que ficou de fora do desenho.
+     */
+    neighborsOf(source) {
+      const i = index.get(source);
+      if (i === undefined) return [];
+      return (neighbours.get(i) || []).map(([, other]) => nodes[other]).filter(Boolean);
+    },
+
     worldPositionOf(source) {
       const i = index.get(source);
       if (i === undefined || !positions) return null;

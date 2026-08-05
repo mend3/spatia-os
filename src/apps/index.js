@@ -14,6 +14,7 @@
 import { registerApp } from '../kernel/registry.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
+import { registerContextWidget } from './context.js';
 import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
@@ -31,6 +32,7 @@ const COLORS = { files: 0x7ee0c0, system: 0xffab54, web: 0xff9b4a, bridge: 0x5ce
 export function registerApps() {
   registerCoreWidgets();
   registerSkyTime();
+  registerContextWidget();
   registerFilesWidgets();
   registerSystemWidgets();
   registerWebWidgets();
@@ -77,7 +79,13 @@ export function registerApps() {
 
 /** Widgets da vista de sistema (a rota raiz). */
 export const SYSTEM_VIEW = [
-  'vitals', 'plan', 'timeline', 'answer', 'memory', 'tools', 'web-results',
+  'vitals', 'plan', 'timeline', 'answer',
+  /*
+   * O CONTEXTO abre o trilho da direita: é o widget de maior taxa de mudança da vista (troca a
+   * cada movimento do cursor sobre o céu), e a fenda `right` é justamente a do que está
+   * acontecendo AGORA. Abaixo dele fica o que só muda quando o núcleo responde.
+   */
+  'context', 'memory', 'tools', 'web-results',
   // A fenda `strip` é dos residentes, e o scrubber pertence a ela: ele controla o CÉU, que está
   // visível em toda rota, então tirá-lo da tela deixaria a janela temporal ativa e sem controle.
   'sky-time',

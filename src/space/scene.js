@@ -363,7 +363,15 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * deve centralizá-la pelo mesmo caminho, e não por uma segunda cópia desta linha dentro do
    * módulo de busca. A cena responde a "isto foi selecionado", venha de onde vier.
    */
-  on('ui.select', ({ node }) => focusNode(node?.source ?? null));
+  /*
+   * `id`, não só `source`: hub (repo, diretório) NÃO tem `source` — o campo só existe em
+   * arquivo. Lendo apenas `source`, clicar ou passar o cursor num hub resolvia para `null` e o
+   * gesto morria em silêncio: nenhum arco, nenhuma câmera, nenhum erro. O grafo é indexado por
+   * `id` dos dois lados (`index.get`), e em arquivo `id === source`, então o `??` não muda nada
+   * para eles.
+   */
+  const alvoDe = (node) => node?.source ?? node?.id ?? null;
+  on('ui.select', ({ node }) => focusNode(alvoDe(node)));
   /*
    * Focar SEM abrir inspetor. `ui.select` faz as duas coisas porque nasceu do clique no céu, mas
    * quem já vai abrir o leitor central (árvore, busca) precisa só da câmera — e emitir
@@ -382,10 +390,33 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   let hoveredNode = null;
   const paintLinks = () => {
     const alvo = hoveredNode || focusedNode;
-    links.show(alvo ? graph.linksOf(alvo) : null, alvo === focusedNode ? 0xffb35c : 0x7ee0c0);
+    const desenhados = links.show(
+      alvo ? graph.linksOf(alvo) : null,
+      alvo === focusedNode ? 0xffb35c : 0x7ee0c0
+    );
+    /*
+     * A LEGENDA sai da mesma chamada que desenha.
+     *
+     * O arco responde "existe relação" e não responde "com quem" — a essa distância os dois
+     * extremos são pixels iguais. Quem nomeia é um widget, e ele não conhece o grafo; então o
+     * evento leva o nó pronto, já CORTADO no número de arcos que o desenho aceitou.
+     *
+     * Deixar o widget recalcular a partir do `/api/graph` daria uma segunda lista, e no dia em
+     * que o teto de `MAX_LINKS` mordesse ela nomearia um vínculo que não está na tela — sem erro
+     * nenhum, só divergência. É a mesma regra das métricas deste projeto: o que se lê sai do
+     * mesmo lugar que o que se vê.
+     */
+    ui('links', {
+      subject: alvo ? graph.nodeAt(alvo) : null,
+      dirty: alvo ? graph.dirtyOf(alvo) : null,
+      // Qual gesto trouxe este sujeito. O cursor vence o foco enquanto existe (ver acima), e a
+      // legenda tem de dizer qual dos dois está falando: um é passageiro, o outro é a escolha.
+      origin: hoveredNode ? 'hover' : 'focus',
+      nodes: alvo ? graph.neighborsOf(alvo).slice(0, desenhados) : [],
+    });
   };
   on('ui.hover', ({ node }) => {
-    hoveredNode = node?.source ?? null;
+    hoveredNode = alvoDe(node);
     paintLinks();
   });
   on('ui.node-focus', () => paintLinks());
