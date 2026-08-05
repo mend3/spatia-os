@@ -50,7 +50,13 @@ const FRAGMENT = /* glsl */ `
     // Teto baixo de propósito. Sem ele a deflexão perto do horizonte chega a ~0.4 em uv, e
     // o fundo é arrastado em leques enormes: deixa de ler como lente e passa a ler como
     // artefato de shader.
-    float deflection = uStrength * uRadius * uRadius / max(distance * distance, 0.0016);
+    // Massa pontual desloca a imagem por θ_E²/θ — ∝ 1/θ, NÃO 1/θ².
+    //
+    // Com o quadrado, dobrar a distância ao horizonte derrubava a deflexão a um quarto em vez
+    // de à metade: o efeito virava um borrão apertado colado no horizonte e sumia logo fora
+    // dele. Perdia-se a assinatura de "o campo estelar inteiro está sutilmente torcido", que é
+    // o que faz uma lente ler como lente e não como filtro local.
+    float deflection = uStrength * uRadius * uRadius / max(distance, uRadius * 0.35);
     deflection = min(deflection, 0.145);
     vec2 lensed = uv - direction * deflection / vec2(uAspect, 1.0);
 
@@ -62,7 +68,8 @@ const FRAGMENT = /* glsl */ `
     float shadow = smoothstep(uRadius * 0.99, uRadius * 1.09, distance);
 
     // Anel de Einstein: realce estreito logo fora da esfera de fótons.
-    float ring = exp(-pow((distance - uRadius * 1.16) / (uRadius * 0.1), 2.0));
+    // O anel de fótons fica na BORDA da sombra, não 16% fora dela — e é uma feição estreita.
+    float ring = exp(-pow((distance - uRadius * 1.02) / (uRadius * 0.045), 2.0));
 
     float glitchOffset = uGlitch * (hash(vec2(floor(vUv.y * 90.0), floor(uTime * 14.0))) - 0.5) * 0.05;
     lensed.x += glitchOffset;

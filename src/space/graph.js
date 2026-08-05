@@ -399,11 +399,25 @@ export function createGraph() {
     for (const node of nodes) {
       const angle = node.phase + elapsed * node.speed * tune.speed;
       const bob = Math.sin(elapsed * 0.35 + node.wobble * 6.28) * node.radius * 0.045;
-      const planar = Math.cos(node.inclination);
       const offset = node.i * 3;
-      positions[offset] = Math.cos(angle) * node.radius * planar;
-      positions[offset + 1] = Math.sin(node.inclination) * node.radius + bob;
-      positions[offset + 2] = Math.sin(angle) * node.radius * planar;
+      /*
+       * Rotação REAL em torno de X — a versão anterior não era uma órbita inclinada.
+       *
+       * Era `y = sin(inclinação) · raio`, CONSTANTE no ângulo: cada nó percorria uma
+       * circunferência horizontal a altura fixa, paralela ao disco, sem nunca cruzar o plano. O
+       * céu inteiro se movia em lâminas empilhadas, e o cabeçalho deste arquivo prometia que o
+       * céu e o buraco negro obedecem à mesma física.
+       *
+       * Órbita inclinada de verdade cruza o plano de referência DUAS vezes por revolução — é a
+       * definição de nó ascendente e descendente. Aqui o círculo é traçado no plano e depois
+       * tombado: `y` passa a depender do ângulo, e o raio orbital deixa de encolher com a
+       * inclinação (antes, `cos(inclinação)` achatava a órbita além de levantá-la).
+       */
+      const x = Math.cos(angle) * node.radius;
+      const z = Math.sin(angle) * node.radius;
+      positions[offset] = x;
+      positions[offset + 1] = z * Math.sin(node.inclination) + bob;
+      positions[offset + 2] = z * Math.cos(node.inclination);
     }
     points.geometry.attributes.position.needsUpdate = true;
 

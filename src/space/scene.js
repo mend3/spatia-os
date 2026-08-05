@@ -560,6 +560,10 @@ export function createScene(canvas, { labelLayer } = {}) {
     camera.lookAt(lookAt.add(anchor));
 
     blackHole.update(delta, elapsed);
+    // Depois de a câmera ter sido posicionada neste quadro: o beaming é função de onde o
+    // observador está, e usar a posição do quadro anterior faria o crescente arrastar atrás da
+    // órbita da câmera.
+    blackHole.syncView(camera);
     stars.update(delta, elapsed);
     // `canvas.height` é o framebuffer (CSS × devicePixelRatio), que é a unidade de
     // `gl_PointSize` — é ele, e não o tamanho CSS, que dimensiona o anel junto com a estrela.

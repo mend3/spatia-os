@@ -56,3 +56,20 @@ export function shortPath(source, max = 42) {
 export function money(value) {
   return `$${(value || 0).toFixed(4)}`;
 }
+
+
+/**
+ * Plural sem `(s)` colado no fim.
+ *
+ * `${n} chunk(s)` e `${n} ARQUIVO(S)` são o único ponto do cliente que TRAVA uma tradução
+ * futura: plural não é sufixo em quase nenhuma língua, e um catálogo de strings não resolve
+ * uma frase montada por concatenação. Isto é o passo barato que não se desfaz — e, de quebra,
+ * o português fica melhor hoje: "1 chunk" em vez de "1 chunk(s)".
+ *
+ * @param {number} count
+ * @param {string} singular
+ * @param {string} [plural]  o default é `singular + 's'`, que cobre o caso regular
+ */
+export function plural(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural ?? `${singular}s`}`;
+}

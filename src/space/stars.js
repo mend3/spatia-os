@@ -92,7 +92,15 @@ export function createStars() {
     positions[i * 3 + 1] = u * radius;
     positions[i * 3 + 2] = Math.sin(angle) * planar * radius;
 
-    const tint = TINTS[Math.floor(Math.pow(Math.random(), 1.7) * TINTS.length)];
+    /*
+     * Expoente < 1 empurra para o FIM da lista (o frio), que é o que o comentário sempre pediu.
+     *
+     * Com 1.7 acontecia o contrário: `P(índice 0) = 0.2^(1/1.7) ≈ 0.40`, ou seja **40% do campo
+     * estelar era azul** — classe O/B, que na população real é ~0.7%. Mesmo o céu a olho nu, já
+     * enviesado por luminosidade, não passa de ~30% de azul-branco. Um céu 40% azul lê como
+     * protetor de tela, não como céu.
+     */
+    const tint = TINTS[Math.floor(Math.pow(Math.random(), 0.45) * TINTS.length)];
     tints.set(tint, i * 3);
     seeds[i] = Math.random();
     // Potência alta = poucas estrelas brilhantes, muitas fracas. É o que dá profundidade.

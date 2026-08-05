@@ -44,7 +44,7 @@ OUTCOMES = ("success", "error", "aborted")
 STAGES = ("retrieve", "websearch", "reason", "synthesize")
 # As famílias de cor do briefing. É o `kind` que a UI usa para pintar o wormhole.
 TOOL_KINDS = (
-    "filesystem", "shell", "browser", "database", "github", "mcp", "agent", "planner", "other",
+    "filesystem", "shell", "browser", "database", "github", "mcp", "agent", "planner", "llm", "other",
 )
 SERVICES = ("qdrant", "ollama", "claude", "tts", "brave", "serpapi", "searxng", "duckduckgo", "neo4j")
 UPSTREAM_REASONS = ("timeout", "unreachable", "http_client", "http_server", "parse", "other")

@@ -83,7 +83,10 @@ export function createFrame(root) {
 
   headCell('cost', 'CUSTO');
   headCell('window', 'JANELA');
-  headCell('corpus', 'CORPUS');
+  // CHUNKS, não CORPUS. As duas células diziam CORPUS e mostravam números DIFERENTES na mesma
+  // tela: aqui os chunks do Qdrant (3.554), no medidor lateral os nós do céu (459). Dois
+  // números com o mesmo rótulo ensinam o operador a não confiar em nenhum dos dois.
+  headCell('corpus', 'CHUNKS');
   headCell('index', 'ÍNDICE');
 
   function tone(node, value) {
@@ -163,7 +166,14 @@ export function createFrame(root) {
       mark('brain', health.claude_cli || health.brain === 'ollama' ? 'on' : 'off');
       mark('qdrant', health.qdrant?.online ? 'on' : 'off');
       mark('ollama', health.ollama?.online ? 'on' : 'off');
-      set(meters.get('corpus'), health.qdrant?.points?.toLocaleString('pt-BR') ?? '—');
+      /*
+       * O medidor CORPUS não recebe mais os chunks.
+       *
+       * Ele é declarado com a unidade `arq` (arquivos) e era escrito aqui com
+       * `qdrant.points` — chunks — e logo depois SOBRESCRITO por `applyGraph` com a contagem de
+       * nós. Na prática ficava certo por acidente, na ordem do boot; e ficava errado por alguns
+       * segundos, exibindo 3.554 sob o rótulo "arq". Quem tem chunk é a célula do cabeçalho.
+       */
     },
 
     applyGraph(count) {

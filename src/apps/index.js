@@ -14,7 +14,7 @@
 import { registerApp } from '../kernel/registry.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
-import { el, set, shortPath, money } from '../hud/dom.js';
+import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
 import { snapshot } from '../core/state.js';
@@ -434,7 +434,7 @@ function registerFilesWidgets() {
         const meta = el('div', 'hover-meta');
         const partes = [
           node.kind,
-          `${node.chunks} chunk(s)`,
+          plural(node.chunks, 'chunk'),
           node.type === 'file' ? null : 'agregado',
           // Sem o `??`, um estado novo no servidor (`conflicted`, p.ex.) pintaria o anel como
           // ALTERADO enquanto o texto CALA — céu e rótulo discordando em silêncio.

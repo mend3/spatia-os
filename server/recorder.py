@@ -174,7 +174,15 @@ def _observe_answer(run: Run, event: dict) -> None:
     if event.get("cost_usd"):
         metrics.agent_cost.inc(float(event["cost_usd"]), model=model)
     tokens = event.get("tokens") or {}
-    for name, key in (("input", "in"), ("output", "out"), ("cache_read", "cache_read")):
+    # ⚠️ `cache_creation` faltava aqui, e era a ÚNICA métrica de token que nunca subia — a
+    # mesma sobre a qual a tabela de custo de `permissions.py` argumenta. Declarada em
+    # `metrics.TOKEN_KINDS` e nunca amostrada: o painel mostrava zero e o zero parecia um fato.
+    for name, key in (
+        ("input", "in"),
+        ("output", "out"),
+        ("cache_read", "cache_read"),
+        ("cache_creation", "cache_creation"),
+    ):
         if tokens.get(key):
             metrics.agent_tokens.inc(float(tokens[key]), model=model, kind=name)
     if event.get("turns"):

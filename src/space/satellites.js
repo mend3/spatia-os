@@ -83,6 +83,11 @@ export const TOOL_COLORS = {
   agent: 0xc59bff,
   shell: 0xd8c9a8,
   planner: 0x8fa3bd,
+  // `llm` é o kind que `server/agent.py` emite para `ollama.generate`, e ele não existia aqui:
+  // a chamada ao modelo local caía em `other` e saía cinza, indistinguível de qualquer
+  // ferramenta desconhecida. `brain.py` afirma que "o cliente lê `kind`, nunca o nome da
+  // ferramenta" — e o kind escolhido não estava no vocabulário do cliente.
+  llm: 0xffa9d4,
   other: 0x9aa7b8,
 };
 
@@ -154,10 +159,21 @@ export function createSatellites() {
       for (const satellite of satellites) {
         satellite.angle += delta * (satellite.online ? 0.06 : 0.02);
         const radius = SATELLITE_ORBIT * (1 + Math.sin(elapsed * 0.2 + satellite.inclination) * 0.04);
+        /*
+         * Mesma correção do céu: rotação real em torno de X.
+         *
+         * O `y` era constante no ângulo (órbita horizontal que nunca cruza o plano) e ainda
+         * levava um `* 0.5` que a achatava numa elipse não-kepleriana. Pior: com
+         * `cos(inclinação)` nos outros dois eixos, o raio EFETIVO caía de 74 para ~54 em
+         * `i≈0.92` — os satélites "fora do sistema" orbitavam DENTRO da casca de arquivos
+         * (46–110), exatamente contra a hierarquia que `bodies.js` declara no cabeçalho.
+         */
+        const x = Math.cos(satellite.angle) * radius;
+        const z = Math.sin(satellite.angle) * radius;
         satellite.object.position.set(
-          Math.cos(satellite.angle) * radius * Math.cos(satellite.inclination),
-          Math.sin(satellite.inclination) * radius * 0.5,
-          Math.sin(satellite.angle) * radius * Math.cos(satellite.inclination)
+          x,
+          z * Math.sin(satellite.inclination),
+          z * Math.cos(satellite.inclination)
         );
         satellite.object.rotation.y += delta * 0.6;
         satellite.object.rotation.x += delta * 0.25;

@@ -37,7 +37,16 @@ export const REGIMES = {
 };
 
 export const HORIZON_RADIUS = 3.0;
-const DISK_INNER = HORIZON_RADIUS * 1.08;
+/*
+ * ⚠️ `HORIZON_RADIUS` é o raio da SOMBRA aparente, não o do horizonte geométrico.
+ *
+ * Para Schwarzschild a sombra tem raio √27/2 ≈ 2.6 R_s: luz com parâmetro de impacto abaixo
+ * disso é capturada. E a ISCO, em 3 R_s, tem imagem aparente em 3/√(1−1/3) = 3.67 R_s — logo a
+ * borda interna do disco aparece a **1.41× o raio da sombra**, não a 1.08. Pôr o disco em 1.08
+ * o colocava onde não há órbita nenhuma, e era daí que vinham os crescentes desenhando por cima
+ * do horizonte.
+ */
+const DISK_INNER = HORIZON_RADIUS * 1.41;
 const DISK_OUTER = HORIZON_RADIUS * 13.0;
 // Taxa de convergência do regime, em 1/s — NÃO fração por quadro. A transição entre
 // regimes cognitivos tem que levar o mesmo tempo a 30 ou a 144fps, e um quadro longo não
@@ -78,7 +87,7 @@ const DISK_VERTEX = /* glsl */ `
 
 const DISK_FRAGMENT = /* glsl */ `
   precision highp float;
-  uniform float uTime, uSpin, uIntensity, uTurbulence, uInner, uOuter, uErrorMix;
+  uniform float uTime, uSpin, uIntensity, uTurbulence, uInner, uOuter, uErrorMix, uViewAz;
   uniform vec3 uHot, uMid, uCool;
   varying vec3 vLocal;
   ${NOISE}
@@ -109,11 +118,52 @@ const DISK_FRAGMENT = /* glsl */ `
 
     // Duas bordas suaves: sem elas o anel tem contorno geométrico visível.
     float edge = smoothstep(0.0, 0.014, span) * (1.0 - smoothstep(0.2, 0.95, span));
-    float brightness = edge * striation * (0.5 + temperature * 2.6) * uIntensity * 1.7;
 
-    // Doppler: o lado que vem na direção da câmera brilha mais. Barato e muito eficaz.
-    float doppler = 0.72 + 0.55 * smoothstep(-1.0, 1.0, sin(flow));
-    brightness *= doppler;
+    /*
+     * Brilho de superfície de Shakura-Sunyaev: T ∝ r^-3/4, logo fluxo ∝ r^-3.
+     *
+     * A versão anterior era "0.5 + temperatura*2.6", e os dois termos erravam. O PISO de 0.5
+     * mantinha 16% do pico em todo o disco externo, produzindo um donut largo e uniforme —
+     * enquanto o disco real, e toda imagem dele (EHT, Luminet, Interstellar), e um anel interno
+     * estreito e muito brilhante mais uma nevoa externa fraca. E o pico chegava a ~4-5.5 em
+     * linear: com ACES e exposicao 1.05, ACES(4.2)=0.976 contra ACES(2.8)=0.945, entao uHot e
+     * uMid colapsavam AMBOS em branco quase puro e a rampa de temperatura — que e a fisica que
+     * o disco carrega — so sobrevivia na metade externa.
+     */
+    float flux = pow(max(radius / uInner, 1.0), -3.0);
+    /*
+     * A curva de EXIBIÇÃO, e ela não é física — é o que a tela comporta.
+     *
+     * O fluxo de Shakura-Sunyaev varre tres ordens de grandeza entre a borda interna e a
+     * externa (medido aqui: 1.0 no anel interno, 0.054 em span 0.2, 0.0017 em span 0.9). A
+     * imagem tem cerca de dois stops uteis antes de o ACES saturar, entao mostrar o fluxo cru
+     * apaga o disco inteiro fora do anel interno — foi o que aconteceu na primeira tentativa,
+     * e o buraco negro sumiu da cena.
+     *
+     * pow(flux, 0.4) preserva a ORDEM (interno sempre mais claro que externo) e comprime a
+     * faixa para caber. A afirmacao continua verdadeira — o gradiente e o de um disco de
+     * acrecao — mas o mapeamento e de tela, nao de fisica, e isto esta escrito aqui para
+     * ninguem ler o expoente como se fosse uma constante do modelo.
+     */
+    float brightness = edge * striation * pow(flux, 0.4) * uIntensity * 1.8;
+
+    /*
+     * Beaming relativístico — ESTÁTICO no referencial do observador.
+     *
+     * Era sin(flow), e flow contém uTime: o lobo brilhante CIRCULAVA o disco, e como
+     * keplerian depende do raio ele ainda cisalhava numa espiral. Isso é outro fenômeno (um
+     * ponto quente em órbita), não beaming. O beaming real não se move: o lado cuja velocidade
+     * aponta para a câmera é permanentemente mais claro, e é essa assimetria fixa que produz o
+     * crescente das imagens do EHT.
+     *
+     * uViewAz é o azimute da câmera no espaço local do disco, calculado uma vez por quadro na
+     * CPU. mu é a projeção de v̂·n̂, e o fator Doppler entra com o expoente 3+α (α≈0.5), que é
+     * o que dá o contraste observado de ~5:1 — contra os 1.76:1 da versão anterior.
+     */
+    float beta = 0.42 * sqrt(uInner / max(radius, uInner));
+    float mu = sin(uViewAz - theta);
+    float boost = 1.0 / (sqrt(max(1.0 - beta * beta, 0.05)) * max(1.0 - beta * mu, 0.05));
+    brightness *= pow(boost, 3.5);
 
     gl_FragColor = vec4(color * brightness, brightness);
   }
@@ -127,6 +177,7 @@ export function createBlackHole() {
     uSpin: { value: REGIMES.boot.spin },
     uIntensity: { value: REGIMES.boot.intensity },
     uTurbulence: { value: REGIMES.boot.turbulence },
+    uViewAz: { value: 0 },
     uInner: { value: DISK_INNER },
     uOuter: { value: DISK_OUTER },
     uErrorMix: { value: 0 },
@@ -170,6 +221,19 @@ export function createBlackHole() {
 
   return {
     group,
+    /**
+     * Onde a câmera está, no referencial do DISCO — é o que ancora o beaming.
+     *
+     * O crescente tem que ficar parado enquanto o disco gira, então ele não pode sair de um
+     * ângulo do disco: sai do ângulo do OBSERVADOR. `worldToLocal` faz a conversão respeitando
+     * qualquer rotação/escala que o grupo tenha, o que evita reimplementar aqui a orientação do
+     * anel — e evita que ela e esta conta divirjam quando uma das duas mudar.
+     */
+    syncView(camera) {
+      const local = disk.worldToLocal(camera.position.clone());
+      uniforms.uViewAz.value = Math.atan2(local.y, local.x);
+    },
+
     horizonRadius: HORIZON_RADIUS,
     diskOuter: DISK_OUTER,
 
@@ -203,7 +267,15 @@ export function createBlackHole() {
 
       horizon.scale.setScalar(breath);
       disk.scale.setScalar(1 + pulse * live.breath * tune.breath * 0.45);
-      group.rotation.y += delta * live.spin * tune.spin * 0.045;
+      /*
+       * A rotação de corpo rígido SAIU.
+       *
+       * Ela girava o grupo inteiro por cima do cisalhamento kepleriano que o shader já produz —
+       * duas rotações somadas, uma delas contradizendo a afirmação de rotação diferencial que o
+       * próprio shader faz três linhas acima. Com o beaming agora ancorado no azimute da
+       * CÂMERA, girar o grupo também moveria o crescente, que é justamente o que ele não pode
+       * fazer.
+       */
     },
 
 

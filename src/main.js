@@ -31,6 +31,7 @@ import * as prefs from './core/prefs.js';
 import * as keys from './core/keys.js';
 import * as profiles from './core/profiles.js';
 import { button, setOn } from './hud/button.js';
+import { plural } from './hud/dom.js';
 import * as surface from './hud/surface.js';
 
 const hud = document.getElementById('hud');
@@ -407,7 +408,7 @@ function watchDirty(scene, streams) {
 function dirtyNote(shown, dropped, total) {
   if (!total) return 'ÁRVORE LIMPA · NENHUM ANEL';
   const unindexed = total - shown - dropped;
-  const parts = [`TRABALHO LOCAL · ${total} ARQUIVO(S)`];
+  const parts = [`TRABALHO LOCAL · ${plural(total, 'ARQUIVO').toUpperCase()}`];
   if (shown !== total) parts.push(`${shown} NO CÉU`);
   if (dropped) parts.push(`${dropped} ALÉM DO TETO`);
   if (unindexed > 0) parts.push(`${unindexed} FORA DO ÍNDICE`);
