@@ -71,35 +71,25 @@ em largura. i18n aqui é redesenhar largura, não trocar string.
 Se um dia for feito, o que falta além do catálogo: datas (`toLocaleString('pt-BR')` espalhado) e
 as mensagens que o servidor manda prontas no stream de eventos.
 
-## 5. ~~Taxonomia de corpos celestes~~
+## 5. ~~Taxonomia de corpos celestes~~ — FEITO em 2026-08-05
 
-O céu chama todo arquivo de "estrela", e o usuário notou o sintoma: **anel é de planeta**. A
-proposta completa, com regras físicas e o que foi descartado por ser decorativo, está em
-[`catalogo-celeste.md`](catalogo-celeste.md). Nada implementado.
+Estão no céu: `planeta-anelado`, `cometa-extinto` (segunda janela de churn, 5 corpos hoje) e
+`galaxia` (71 hubs, forma por concentração de massa). `supernova` DEIXOU de ser classe e virou
+estado — como classe ela excluía as outras e tirava a superfície de 27 corpos.
 
-O item de maior valor por linha: **cometa extinto** (churn alto numa janela antiga + recência
-baixa = ponto quente abandonado), que custa um `if` a mais na passada de `git log` que já existe.
+O `status` de cada entrada em `src/space/catalog.js` é a fonte da verdade. Continua só declarado:
+`lua` (as `sections` já vêm no payload) e as zonas por razão de massa.
 
-## 5b. ~~Planeta procedural — falta ligar ao céu e medir~~
+## 5b. ~~Planeta procedural — falta ligar ao céu e medir~~ — FEITO em 2026-08-05
 
-`src/space/planet.js` existe e roda na bancada (espécime `PLANETA PROCEDURAL`). O catálogo já
-declara a feição `surface` em `planeta-anelado`, `lua` e `cometa-extinto`, e a PROÍBE em
-`estrela`, `supernova` e `galaxia` — estrela tem fotosfera, não crosta.
+Os quatro passos saíram: ligado ao `scene.js`, medido (`renderCost` com superfície cheia no
+quadro: cena 0,61 ms, pós 87,6%), o shader compila (conferido lendo o `LINK_STATUS` do three.js,
+não o silêncio do console), e o sprite cede pelo `haloOf` na mesma medida em que a superfície
+aparece.
 
-Falta, nesta ordem:
-
-1. **Ligar ao `scene.js`.** Um `createPlanet()` só, reatribuído ao nó de `focusNode`, alimentado
-   pelo `starRadius(i).px` que `graph.js` já calcula para o anel. A luz tem de apontar para o
-   núcleo (`params.light`), como fazem os corpos de app.
-2. **Medir.** `window.espatial.renderCost()` com o planeta cheio no quadro. Hoje o cabeçalho do
-   módulo declara explicitamente que o número é ARITMÉTICA (~27 avaliações de ruído por pixel
-   coberto), não medida — não houve navegador na sessão que o escreveu.
-3. **Compilar o shader uma vez.** Nada do GLSL novo passou por um compilador; a bancada é onde
-   isso aparece. O ponto mais frágil é o `break` dentro do laço de oitavas em `planet-noise.js`,
-   com a saída segura anotada lá.
-4. Decidir o que acontece com o SPRITE do nó quando o planeta assume: hoje os dois desenhariam
-   no mesmo lugar, e o ponto é aditivo com `depthWrite: false` enquanto o planeta escreve
-   profundidade.
+⚠️ O que fez a superfície aparecer não foi ligar — foi consertar o teto: o raio de MUNDO do corpo
+saía do `gl_PointSize` capado em 511, então o tamanho aparente ficava preso em 153,3 px e
+`LOD_NEAR_PX` (200) era inalcançável por aritmética. Ver `graph.js:starRadius`.
 
 ## 6. Mecanismos de sistema
 
