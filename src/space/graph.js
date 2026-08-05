@@ -334,16 +334,38 @@ export function createGraph() {
     const within = 1 - smoothstep(0, REVEAL_BAND, nodes[i].recency - window.current);
     const shrink = 0.62 + (1 - 0.62) * within;
     const tangent = Math.tan((camera.fov * Math.PI) / 360);
-    // A MESMA expressão do `gl_PointSize`, com o MESMO teto que a GPU aplica.
-    const point = Math.min(
-      material.uniforms.uSize.value * sizes[i] * pulse * shrink * (POINT_SCALE / distance),
-      POINT_SIZE_CAP
-    );
+    /*
+     * THE SPRITE'S SIZE AND THE BODY'S SIZE ARE NOT THE SAME NUMBER, and conflating them is what
+     * made the procedural surface unreachable.
+     *
+     * `POINT_SIZE_CAP` is a DRIVER limit on `gl_PointSize`: past 511px the GPU simply refuses to
+     * draw the sprite any larger. That ceiling is true about pixels and false about geometry — a
+     * body does not stop having size because the rasterizer stopped growing its point.
+     *
+     * Deriving `world` from the capped value imported that lie into the world: once the cap was
+     * hit, `world` became proportional to the camera distance, so the body shrank in world units
+     * at exactly the rate the camera approached. Apparent size then pinned at
+     * `CAP × VISIBLE_CORE / 2 = 511 × 0.6 / 2 = 153.3px`, forever, for every body — measured with
+     * `window.espatial.planet()` on three bodies spanning 1 to 103 chunks: all three reported
+     * px 153 and detail level 0.61, at any distance.
+     *
+     * `planet.js` reaches full detail at `LOD_NEAR_PX = 200`. Above 153.3. So no camera move could
+     * ever show a finished surface — the feature was not hidden, it was arithmetically impossible.
+     *
+     * The split below is the fix: the cap stays where it is true (the pixels the GPU will draw)
+     * and the geometry keeps the uncapped size (what the body actually measures). They agree
+     * everywhere except very close, which is exactly where the sprite hands the body over to the
+     * surface mesh and `haloOf` opens its core.
+     */
+    const pointWanted = material.uniforms.uSize.value * sizes[i] * pulse * shrink * (POINT_SCALE / distance);
+    const point = Math.min(pointWanted, POINT_SIZE_CAP);
     // De pixels de volta para unidades locais: um raio `R` a distância `z` ocupa
     // `R·H/(2·tan(fov/2)·z)` pixels. O `/spread` desfaz a escala que o grupo pai vai reaplicar.
     return {
-      // Unidades locais do grupo — é nisso que a malha do anel é escalada.
-      world: (point * tangent * distance) / (viewportHeight * spread),
+      // Unidades locais do grupo — é nisso que a malha do anel é escalada. Do tamanho SEM teto:
+      // ver o bloco acima. Com o teto aqui, o corpo encolhia no mundo na mesma taxa em que a
+      // câmera se aproximava, e o tamanho aparente ficava preso em 153,3px.
+      world: (pointWanted * tangent * distance) / (viewportHeight * spread),
       // E o tamanho APARENTE, em pixels. É ele que decide o nível de detalhe: distância de
       // mundo não serve, porque um astro grande e longe ocupa mais tela que um pequeno e
       // perto — e quem decide se vale carregar textura de rocha é a tela, não o mundo.

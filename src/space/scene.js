@@ -81,6 +81,53 @@ const ORBIT_SAVE_MS = 5_000;
  */
 const NODE_FOCUS_DISTANCE = 7;
 const NODE_FOCUS_POLAR = 1.18;
+
+/**
+ * ZOOM SCOPED TO THE FOCUSED BODY — and why a distance in world units could never work.
+ *
+ * Free flight is clamped to `ZOOM_RANGE`, which is right for a camera orbiting the whole sky.
+ * Locked onto a body it was wrong in a way that silently disabled a feature: the floor (12) sat
+ * FARTHER than the distance focus itself flies to (7), so the first notch of the wheel pushed the
+ * camera away from the very thing it had just locked onto.
+ *
+ * Measured on this machine before the change, with `window.espatial.planet()`:
+ *
+ * | body | distance | apparent radius | detail level |
+ * |---|---|---|---|
+ * | heaviest file, 103 chunks | 6.86 | 153px | 0.61 |
+ * | median file, 4 chunks | 6.86 | 92px | 0.00 |
+ *
+ * `planet.js` fades the surface in from `LOD_FAR_PX` (90) and reaches full detail at
+ * `LOD_NEAR_PX` (200). So the median body sat ON the threshold and showed nothing, the heaviest
+ * never got past 61% of the ramp — and one wheel notch dropped the median to ~88px, under the
+ * threshold entirely. The procedural surface was not hidden; it was unreachable.
+ *
+ * A fixed world distance cannot fix that, and this is the crux: apparent size is what decides
+ * detail, and it depends on the body's RADIUS, which varies with `log2(chunks)`. The same 7 units
+ * gave 92px to one body and 153px to another. So focus stops targeting a distance and starts
+ * targeting an apparent size, and the floor becomes a multiple of the body's own radius.
+ */
+/** Apparent radius, in CSS-independent device px, the camera aims for when focus lands. */
+const FOCUS_FIT_PX = 260;
+/**
+ * Closest approach, in multiples of the body's visible radius.
+ *
+ * The number clears the RING, not the core. `catalog.js` caps the drawn span at `min(reach, 2.4)`
+ * radii, and at 2.2 the camera ended up inside that shell — seen on screen: not a dramatic
+ * close-up, just the ring plane cutting the frame in half.
+ *
+ * 3.4 nominal, and the distance actually reached is ~2.96 radii (measured): the anchor eases
+ * toward a body that is orbiting, so it trails it slightly, and at close range that lag is a real
+ * fraction of the distance. Still outside the 2.4 shell, with margin for the lag.
+ *
+ * There the core projects around 590px of apparent radius (measured), roughly 3x `LOD_NEAR_PX` —
+ * full detail with room to spare. Framing the entire ring system instead would take ~5.7 radii,
+ * and that is the arrival view's job (`FOCUS_FIT_PX`), not the floor's: arriving shows the body,
+ * zooming in inspects it.
+ */
+const FOCUS_FLOOR_RADII = 3.4;
+/** Free-flight range, when nothing is locked. */
+const ZOOM_RANGE = { min: 12, max: 260 };
 /**
  * Amplitude da paralaxe, em fração da distância da câmera.
  *
@@ -249,6 +296,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * topologia, sem nada acusar.
    */
   let focusedNode = null;
+  /** Radius and projection constant of the focused body, refreshed by the frame loop. */
+  let focusGeometry = null;
+  /** A focus flight is waiting for the first resolved anchor to correct its distance. */
+  let fitPending = false;
   /** Parâmetros do planeta em foco. Recalculados só na TROCA de astro — são puros e congelados. */
   let planetParamsCache = null;
   const LIGHT_DIR = new THREE.Vector3();
@@ -519,11 +570,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       event.preventDefault();
       userControlled = true;
       orbitMoved = true;
-      orbit.targetDistance = THREE.MathUtils.clamp(
-        orbit.targetDistance * (1 + Math.sign(event.deltaY) * 0.08),
-        12,
-        260
-      );
+      orbit.targetDistance = clampDistance(orbit.targetDistance * (1 + Math.sign(event.deltaY) * 0.08));
     },
     { passive: false }
   );
@@ -598,13 +645,42 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // O operador escolheu para onde olhar: a deriva automática pararia de fazer sentido
     // arrastando o quadro para longe do que ele acabou de pedir.
     userControlled = Boolean(source);
+    /*
+     * `NODE_FOCUS_DISTANCE` is the FIRST GUESS, not the destination.
+     *
+     * The real distance depends on the body's radius, which is only known once the anchor resolves
+     * in the frame loop — and asking the graph for it here would mean a second projection formula
+     * living outside `planetAnchor`, free to drift from the one that actually sizes the body. So
+     * the flight starts toward the old constant and the next resolved frame corrects it to the
+     * distance that yields `FOCUS_FIT_PX`. The correction lands inside the camera's own easing,
+     * so it reads as one flight, not as two.
+     */
     orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
     orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
+    fitPending = Boolean(source);
+    if (!source) focusGeometry = null;
     if (motion.isReduced()) {
       orbit.distance = orbit.targetDistance;
       orbit.polar = orbit.targetPolar;
     }
     ui('node-focus', { source: source ?? null });
+  }
+
+  /**
+   * The zoom range in force right now.
+   *
+   * One function because there were two clamps before — the wheel's literals and the focus flight
+   * — and they disagreed: the floor was farther out than the place focus flew to. Two rules over
+   * one number is how the wheel ended up undoing the gesture that preceded it.
+   *
+   * `focusGeometry` is written by the frame loop from the SAME anchor that sizes and places the
+   * body, so the floor cannot drift from the geometry it is protecting.
+   */
+  function clampDistance(value) {
+    const floor = focusGeometry
+      ? Math.max(focusGeometry.radius * FOCUS_FLOOR_RADII, CAMERA.near * 4)
+      : ZOOM_RANGE.min;
+    return THREE.MathUtils.clamp(value, floor, ZOOM_RANGE.max);
   }
 
   function focusOn(points) {
@@ -857,6 +933,25 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const pouso = focusedNode
       ? graph.planetAnchor(focusedNode, camera, canvas.height, elapsed)
       : null;
+
+    /*
+     * The zoom floor and the fit are derived from the anchor, never from a second formula.
+     *
+     * `pouso.px * distance / radius` IS the projection constant (viewport height over twice the
+     * tangent of half the fov) — recovered from the anchor's own output instead of rewritten here.
+     * Rewriting it would be a copy free to disagree with what sizes the body, which is the class of
+     * bug that already put the link arcs in the wrong coordinate space.
+     */
+    if (pouso) {
+      const distancia = camera.position.distanceTo(pouso.position);
+      focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
+      if (fitPending && pouso.px > 0) {
+        orbit.targetDistance = clampDistance((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX);
+        fitPending = false;
+      }
+    } else if (!focusedNode) {
+      focusGeometry = null;
+    }
     /*
      * A sonda escreve SEMPRE, inclusive o caso negativo.
      *
