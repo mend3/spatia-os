@@ -506,6 +506,24 @@ export function createGraph() {
     },
 
     positionOf,
+
+    /**
+     * Onde aquele nó está AGORA, em coordenadas de mundo.
+     *
+     * ⚠️ `positionOf` devolve coordenada LOCAL deste grupo, e o grupo é escalado por
+     * `graphSpread` (0.3 a 2.5). Quem for apontar a câmera precisa da posição de mundo — usar a
+     * local faria a câmera mirar num ponto que não é o do astro, e o erro cresceria com o
+     * slider até o objeto sair do quadro.
+     *
+     * Devolve `null` quando o nó não está no céu: o corpus muda, e mirar num nó que já não
+     * existe deixaria a câmera presa apontando para o vazio.
+     */
+    worldPositionOf(source) {
+      const i = index.get(source);
+      if (i === undefined || !positions) return null;
+      return positionOf(i).multiplyScalar(group.scale.x || 1);
+    },
+
     nodeAt: (source) => nodes[index.get(source)] ?? null,
     labelCandidates: (camera) =>
       nodes.filter(

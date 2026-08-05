@@ -55,6 +55,12 @@ const MAX_PIXEL_RATIO = 2;
  * DEIXOU a câmera, e entre dois gestos não há nada de novo para gravar.
  */
 const ORBIT_SAVE_MS = 5_000;
+/*
+ * Enquadramento de um astro do céu. Mais perto que o de um corpo de app (30) porque um nó é um
+ * ponto, não uma malha: à distância do app ele seria um pixel no meio da tela.
+ */
+const NODE_FOCUS_DISTANCE = 16;
+const NODE_FOCUS_POLAR = 1.18;
 // 3 casas ≈ 0.06° de azimute. Abaixo disso é ruído de float, e ruído de float faria a guarda
 // de "só se mudou" do `prefs` disparar uma escrita a cada tique, para sempre.
 const ORBIT_STEP = 1e3;
@@ -159,6 +165,14 @@ export function createScene(canvas, { labelLayer } = {}) {
   let lastPick = 0;
   let hoveredBody = null;
   let focusedBody = null;
+  /*
+   * Astro do céu em foco — o `source` do nó, não um índice.
+   *
+   * Índice é posição num buffer que se refaz a cada `load`; `source` é a identidade do arquivo.
+   * Guardar o índice faria a câmera passar a seguir OUTRO astro depois de uma recarga da
+   * topologia, sem nada acusar.
+   */
+  let focusedNode = null;
   // Alvo de órbita quando dentro de um app: a câmera passa a orbitar O CORPO, com o núcleo
   // ao fundo. `anchor` interpola entre a origem (sistema) e a posição do corpo.
   const anchor = new THREE.Vector3();
@@ -268,6 +282,16 @@ export function createScene(canvas, { labelLayer } = {}) {
   });
 
   on('answer', () => blackHole.surge(1.4));
+
+  /*
+   * Selecionar um astro é olhar para ele.
+   *
+   * A câmera reage ao EVENTO, não ao clique no canvas. São a mesma coisa hoje (só o clique
+   * emite `ui.select`), e serão diferentes amanhã: um resultado de busca que aponta uma estrela
+   * deve centralizá-la pelo mesmo caminho, e não por uma segunda cópia desta linha dentro do
+   * módulo de busca. A cena responde a "isto foi selecionado", venha de onde vier.
+   */
+  on('ui.select', ({ node }) => focusNode(node?.source ?? null));
 
   on('ui.cinematic', ({ on: enabled }) => {
     cinematic = enabled;
@@ -410,6 +434,27 @@ export function createScene(canvas, { labelLayer } = {}) {
     }
   }
 
+  /**
+   * Trava a câmera num astro do céu — ela passa a orbitá-LO, com ele no centro.
+   *
+   * `null` solta e devolve o enquadramento de casa. Como no `focusBody`, o que se move é o
+   * ALVO: o loop persegue com suavização por tempo, então um segundo clique no meio do voo
+   * redireciona em vez de teleportar, e a chegada tem a mesma física do resto da cena.
+   */
+  function focusNode(source) {
+    focusedNode = source;
+    // O operador escolheu para onde olhar: a deriva automática pararia de fazer sentido
+    // arrastando o quadro para longe do que ele acabou de pedir.
+    userControlled = Boolean(source);
+    orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
+    orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
+    if (motion.isReduced()) {
+      orbit.distance = orbit.targetDistance;
+      orbit.polar = orbit.targetPolar;
+    }
+    ui('node-focus', { source: source ?? null });
+  }
+
   function focusOn(points) {
     if (!points.length) return;
     focusTarget.set(0, 0, 0);
@@ -487,7 +532,18 @@ export function createScene(canvas, { labelLayer } = {}) {
     orbit.distance = smooth(orbit.distance, orbit.targetDistance, RATE.zoom, delta);
 
     // Âncora da órbita: origem no sistema, posição do corpo dentro de um app.
-    const bodyAt = focusedBody ? bodies.positionOf(focusedBody) : null;
+    /*
+     * A âncora persegue o astro TODO QUADRO, não uma vez ao clicar.
+     *
+     * O nó está em órbita: fixar a âncora na posição do instante do clique deixaria o astro
+     * escapando do centro em segundos. É o mesmo mecanismo do corpo de app, e por isso ele
+     * está aqui e não num segundo caminho.
+     */
+    const nodeAt = focusedNode ? graph.worldPositionOf(focusedNode) : null;
+    // Astro que saiu do céu (recarga da topologia) solta o foco em vez de prender a câmera
+    // apontando para o vazio.
+    if (focusedNode && !nodeAt) focusedNode = null;
+    const bodyAt = nodeAt || (focusedBody ? bodies.positionOf(focusedBody) : null);
     anchorTarget.copy(bodyAt || ZERO);
     anchor.lerp(anchorTarget, 1 - Math.exp(-2.6 * delta));
 
@@ -597,6 +653,10 @@ export function createScene(canvas, { labelLayer } = {}) {
         applyPixelRatio();
       }
     },
+
+    /** Trava a câmera num astro do céu; `null` solta. */
+    focusNode,
+    focusedNode: () => focusedNode,
 
     /** Devolve o controle da câmera à deriva automática. */
     release() {

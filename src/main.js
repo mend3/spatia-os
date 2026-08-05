@@ -442,7 +442,19 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
        * "perder o contexto todo".
        */
     } else if (answer.isInspecting()) {
+      /*
+       * Fechar o inspetor SOLTA o astro junto — é um gesto só.
+       *
+       * Clicar numa estrela faz duas coisas ao mesmo tempo: trava a câmera nela e abre o
+       * conteúdo à direita. Desfazer só metade deixaria a câmera presa a um astro cujo painel
+       * já saiu da tela, e o operador sem caminho óbvio para se soltar (a deriva automática
+       * está desligada justamente porque ele escolheu para onde olhar).
+       */
       answer.close();
+      scene.focusNode(null);
+    } else if (scene.focusedNode()) {
+      // Inspetor já fechado por outro caminho (o × dele), câmera ainda presa: Esc solta.
+      scene.focusNode(null);
     } else if (api.isStreaming()) {
       api.abort();
       /*
