@@ -17,8 +17,15 @@
 import * as THREE from 'three';
 import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
-import { createRings } from './rings.js';
+import { createRings, VISIBLE_CORE } from './rings.js';
 import { classify } from './catalog.js';
+
+/*
+ * Extensão do sistema de anéis, em raios do disco visível — espelha o teto de `rings.js`. Aqui
+ * ela só dimensiona o furo que a HUD abre, então um espelho basta; ligar os dois módulos por
+ * import só para isto acoplaria a geometria do anel à régua da interface.
+ */
+const SPAN_HINT = 2.4;
 
 // Cor por natureza do conhecimento. A escala de "idade" do briefing (nova branca, antiga
 // azulada, muito usada amarela, esquecida vermelha) entra como *modulação* da ignição:
@@ -231,6 +238,8 @@ export function createGraph() {
   // source → estado local, para quem pergunta (o rótulo de hover). Separado do `rings`
   // porque texto e geometria têm ciclos de vida diferentes.
   let dirtyState = new Map();
+  // Índices dos nós que ganharam anel neste `markDirty` — a HUD cede em volta deles.
+  let ringed = [];
   const rings = createRings();
   group.add(rings.group);
   const tune = { speed: 1 };
@@ -539,6 +548,7 @@ export function createGraph() {
       const files = table || {};
       const entries = [];
       dirtyState = new Map();
+      ringed = [];
 
       for (const [path, state] of Object.entries(files)) {
         const i = byPath.get(path);
@@ -553,6 +563,7 @@ export function createGraph() {
          */
         if (classify(nodes[i], { dirty: state }).id !== 'planeta-anelado') continue;
         entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency });
+        ringed.push(i);
       }
 
       return { ...rings.set(entries), total: Object.keys(files).length };
@@ -567,6 +578,7 @@ export function createGraph() {
     /** Apaga os anéis sem afirmar árvore limpa — para quando o disco deixa de ser verificável. */
     forgetDirty() {
       dirtyState = new Map();
+      ringed = [];
       rings.set([]);
     },
 
@@ -633,6 +645,32 @@ export function createGraph() {
      * Devolve `null` quando o nó não está no céu: o corpus muda, e mirar num nó que já não
      * existe deixaria a câmera presa apontando para o vazio.
      */
+    /**
+     * Onde, NA TELA, estão os corpos que carregam sinal acionável — e com que raio.
+     *
+     * Existe para a HUD poder sair da frente deles. O raio é o do sistema de anéis, não o do
+     * astro: o que disputa contraste com o texto é o anel, que é bem maior que o núcleo.
+     *
+     * @returns {Array<{x: number, y: number, r: number}>} em pixels de CSS
+     */
+    signalPoints(camera, width, height, elapsed) {
+      const out = [];
+      if (!positions || !ringed.length || !camera) return out;
+      for (const i of ringed) {
+        const at = positionOf(i).multiplyScalar(group.scale.x || 1).project(camera);
+        // Atrás da câmera: `project` devolve coordenadas espelhadas e o furo apareceria do lado
+        // oposto da tela, seguindo um astro que ninguém está vendo.
+        if (at.z > 1) continue;
+        const size = starRadius(i, elapsed, height, camera);
+        out.push({
+          x: (at.x * 0.5 + 0.5) * width,
+          y: (-at.y * 0.5 + 0.5) * height,
+          r: size.px * VISIBLE_CORE * SPAN_HINT,
+        });
+      }
+      return out;
+    },
+
     worldPositionOf(source) {
       const i = index.get(source);
       if (i === undefined || !positions) return null;

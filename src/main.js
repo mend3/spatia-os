@@ -22,6 +22,7 @@ import { createPermissions } from './hud/permissions.js';
 import { createVoice } from './hud/voice.js';
 import { createSpeechPanel } from './hud/speech-panel.js';
 import { createSystray } from './hud/systray.js';
+import { createYield } from './hud/yield.js';
 import { createWidgetHost } from './kernel/widgets.js';
 import { createRouter, ROUTE_ROOT } from './kernel/router.js';
 import { listApps } from './kernel/registry.js';
@@ -54,7 +55,12 @@ async function main() {
   keys.install();
 
   const audio = createAudio();
-  const scene = createScene(canvas, { labelLayer: bodyLayer });
+  /*
+   * A HUD cede onde há sinal acionável. Os trilhos laterais são os únicos que disputam espaço
+   * com a órbita — cabeçalho e rodapé ficam fora da casca de nós.
+   */
+  const hudYield = createYield([...document.querySelectorAll('aside.slot')]);
+  const scene = createScene(canvas, { labelLayer: bodyLayer, signals: hudYield });
   /*
    * `document`, não `hud`, para os módulos que ADOTAM nós.
    *

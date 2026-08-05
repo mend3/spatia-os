@@ -67,7 +67,15 @@ const NODE_FOCUS_POLAR = 1.18;
 const ORBIT_STEP = 1e3;
 const ZERO = new THREE.Vector3();
 
-export function createScene(canvas, { labelLayer } = {}) {
+/**
+ * @param {object} [options]
+ * @param {Element} [options.labelLayer]
+ * @param {{update: Function}} [options.signals]  recebe, por quadro, onde na TELA estão os
+ *   corpos com sinal acionável. A cena não sabe o que o consumidor faz com isso — hoje é a HUD
+ *   abrindo furo para não competir com o anel, e o tipo do parâmetro é o que mantém isso
+ *   verdadeiro: um objeto com `update`, não "a HUD".
+ */
+export function createScene(canvas, { labelLayer, signals } = {}) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: false, // o bloom e o grão já suavizam; MSAA aqui só custaria fill rate
@@ -618,6 +626,14 @@ export function createScene(canvas, { labelLayer } = {}) {
     }
 
     backdrop.update(delta, camera.aspect, camera);
+
+    if (signals) {
+      const size = renderer.getSize(new THREE.Vector2());
+      // `getSize` devolve pixels de CSS (o `pixelRatio` é interno ao renderer), que é a mesma
+      // régua do `getBoundingClientRect` do lado da HUD. Misturar as duas daria furo deslocado
+      // pelo DPR — e só em monitor retina, que é a pior classe de bug para reproduzir.
+      signals.update(graph.signalPoints(camera, size.x, size.y, elapsed));
+    }
 
     glitch = smooth(glitch, 0, 3.2, delta);
     lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch });
