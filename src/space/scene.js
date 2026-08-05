@@ -30,6 +30,7 @@ import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams } from './planet.js';
 import { createLinks } from './links.js';
+import { createGalaxy, galaxyParams } from './galaxy.js';
 import { resolveBody, SURFACE } from './solver.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
 
@@ -193,6 +194,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * que alguém chega perto, e a rampa só é recozida quando a semente ou a paleta mudam.
    */
   const links = createLinks();
+  const galaxy = createGalaxy();
+  /*
+   * Os parâmetros de cada galáxia são ESTÁTICOS — dependem da massa dos filhos, que só muda
+   * quando a topologia recarrega. Calcular por quadro seria refazer 71 partições de arquivos a
+   * 60Hz para obter o mesmo resultado.
+   */
+  let hubs = [];
   const planet = createPlanet();
   const photosphere = createPhotosphere();
   let starParamsCache = null;
@@ -203,6 +211,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
     stars.object, blackHole.group, graph.group, planet.object, photosphere.object,
+    /*
+     * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
+     * as entradas vêm de `planetAnchor`, que já multiplicou posição e raio pela escala do grupo.
+     * Pendurar aqui embaixo aplicaria `graphSpread` (2,6 por padrão) uma segunda vez, pondo cada
+     * galáxia 2,6× longe demais e dois degraus de LOD abaixo. É o bug dos arcos com o sinal
+     * trocado, e ele já foi pago uma vez neste arquivo.
+     */
+    galaxy.object,
     particles.object,
     satellites.group, wormholes.group, bodies.group
   );
@@ -683,6 +699,28 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     return THREE.MathUtils.clamp(value, floor, ZOOM_RANGE.max);
   }
 
+  /**
+   * A galáxia de cada hub, montada uma vez por carga de topologia.
+   *
+   * Os filhos entram com MASSA (`chunks`), não só com caminho: é a concentração dessa massa que
+   * escolhe a classe de Hubble (`galaxy-classes.js`), e uma lista de caminhos daria a todo mundo
+   * a distribuição uniforme.
+   */
+  function buildHubs(payload) {
+    const nodes = payload?.nodes ?? [];
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    const kids = new Map();
+    for (const [child, parent] of payload?.edges ?? []) {
+      const node = byId.get(child);
+      if (node?.type !== 'file') continue;
+      if (!kids.has(parent)) kids.set(parent, []);
+      kids.get(parent).push({ source: node.source, chunks: node.chunks });
+    }
+    return nodes
+      .filter((node) => node.type === 'dir' || node.type === 'repo')
+      .map((node) => ({ id: node.id, params: galaxyParams(node, kids.get(node.id) ?? []) }));
+  }
+
   function focusOn(points) {
     if (!points.length) return;
     focusTarget.set(0, 0, 0);
@@ -1051,6 +1089,31 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       planetSource = null;
     }
 
+    /*
+     * TODAS as galáxias por quadro, num desenho só.
+     *
+     * Não é como o planeta e a fotosfera, que só existem para o corpo focado: são 71 hubs
+     * visíveis ao mesmo tempo, e desenhar só o focado deixaria 70 pastas como pontos cinzas —
+     * que é exatamente o defeito relatado. O módulo é instanciado justamente para isso.
+     *
+     * `canvas.height` (framebuffer), não `clientHeight`: a escada de LOD do módulo é escrita
+     * nessa unidade, e passar a altura CSS dividiria por dois todo número de pixel que o shader
+     * vê. Foi o defeito que a bancada escondeu por um DPR inteiro.
+     */
+    if (hubs.length) {
+      const lote = [];
+      for (const hub of hubs) {
+        const ancora = graph.planetAnchor(hub.id, camera, canvas.height, elapsed);
+        if (!ancora) continue;
+        lote.push({ params: hub.params, position: ancora.position, radius: ancora.radius });
+        // A sonda tem de dizer a verdade nos DOIS sentidos. Ela já sabia acusar "decidido e não
+        // desenhado" enquanto a galáxia era só bancada; deixar o carimbo para trás agora a faria
+        // negar uma imagem que está na tela, que é o mesmo defeito espelhado.
+        if (hub.id === focusedNode) probe.desenhado = true;
+      }
+      galaxy.update(lote, camera, canvas.height, elapsed);
+    }
+
     links.update(graph.positions(), delta, elapsed);
 
     backdrop.update(delta, camera.aspect, camera);
@@ -1082,7 +1145,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     focusBody,
     installApps: (apps) => bodies.install(apps),
     focusedBody: () => focusedBody,
-    loadGraph: (payload) => graph.load(payload),
+    loadGraph: (payload) => {
+      const count = graph.load(payload);
+      hubs = buildHubs(payload);
+      return count;
+    },
     /** Janela temporal do céu, em espaço de recência — o mesmo eixo que já define o raio. */
     revealSky: (value) => graph.reveal(value),
     /** Anéis de Saturno nos arquivos alterados no disco. Recebe o `{caminho: estado}` cru. */
