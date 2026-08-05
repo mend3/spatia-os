@@ -104,8 +104,8 @@ def _step_memory(question: str, collected: list[dict]) -> Iterator[dict]:
     métrica denunciou o erro, e a correção é emitir em tempo real.
     """
     yield {"t": "state", "state": "retrieving", "label": "RECUPERANDO MEMÓRIA"}
-    yield _tool_call("qdrant.query", f"híbrido denso+bm25 · limite {MEMORY_LIMIT}")
     clock = time.monotonic()
+    yield _tool_call("qdrant.query", clock, f"híbrido denso+bm25 · limite {MEMORY_LIMIT}")
     try:
         hits = qdrant.search(question, limit=MEMORY_LIMIT)
     except Exception as e:  # noqa: BLE001 — degradar, não abortar: o agente ainda responde
@@ -121,9 +121,9 @@ def _step_memory(question: str, collected: list[dict]) -> Iterator[dict]:
 def _step_web(question: str, collected: list[dict]) -> Iterator[dict]:
     yield {"t": "state", "state": "searching", "label": "VARRENDO A REDE"}
     for provider in websearch.online_providers():
-        yield _tool_call("web.search", f"{provider} · {question[:48]}")
-        yield {"t": "web", "phase": "start", "provider": provider}
         clock = time.monotonic()
+        yield _tool_call("web.search", clock, f"{provider} · {question[:48]}")
+        yield {"t": "web", "phase": "start", "provider": provider}
         try:
             results = websearch.search(provider, question)
         except Exception as e:  # noqa: BLE001 — um provedor caído não derruba a execução
@@ -178,8 +178,8 @@ def _brain_claude(question: str, memory_hits: list[dict], web_hits: list[dict], 
 
 def _brain_ollama(question: str, memory_hits: list[dict], web_hits: list[dict], started: float) -> Iterator[dict]:
     yield {"t": "state", "state": "answering", "label": "SINTETIZANDO"}
-    yield _tool_call("ollama.generate", config.get("OLLAMA_MODEL"))
     clock = time.monotonic()
+    yield _tool_call("ollama.generate", clock, config.get("OLLAMA_MODEL"))
     pieces: list[str] = []
     try:
         for chunk in llm.stream(question, memory_hits, web_hits):
@@ -202,14 +202,39 @@ def _brain_ollama(question: str, memory_hits: list[dict], web_hits: list[dict], 
     yield {"t": "state", "state": "idle", "label": "OCIOSO"}
 
 
-def _tool_call(tool: str, detail: str) -> dict:
-    return {"t": "tool", "phase": "call", "tool": tool, "kind": TOOL_KINDS.get(tool, "other"), "detail": detail}
+def _event_id(tool: str, clock: float) -> str:
+    """Id derivado de (ferramenta, instante de início).
+
+    ⚠️ Estes eventos saíam SEM `id`, e o efeito era duplo e silencioso. No cliente,
+    `hud/streams.js` só guarda a linha aberta quando há id (`if (event.id)`), então
+    `qdrant.query`, `web.search` e `ollama.generate` abriam uma linha com `···` e morriam
+    assim — sem `ok`, sem `ms` — e o ramo que escreve a duração virava código morto. Pior em
+    `core/state.js`: a correspondência é `entry.id === e.id`, e `undefined === undefined` é
+    verdadeiro, então com `BRAIN=ollama` o primeiro `result` que chegasse fechava TODAS as
+    ferramentas abertas de uma vez.
+
+    Derivar de (tool, clock) em vez de sortear mantém as duas pontas em acordo sem que o
+    chamador precise guardar o id numa variável — e o `clock` já existia nos dois lados.
+    """
+    return f"{tool}:{clock:.6f}"
+
+
+def _tool_call(tool: str, clock: float, detail: str) -> dict:
+    return {
+        "t": "tool",
+        "phase": "call",
+        "id": _event_id(tool, clock),
+        "tool": tool,
+        "kind": TOOL_KINDS.get(tool, "other"),
+        "detail": detail,
+    }
 
 
 def _tool_result(tool: str, clock: float, *, ok: bool = True, detail: str = "") -> dict:
     return {
         "t": "tool",
         "phase": "result",
+        "id": _event_id(tool, clock),
         "tool": tool,
         "kind": TOOL_KINDS.get(tool, "other"),
         "ok": ok,

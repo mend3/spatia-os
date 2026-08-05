@@ -308,18 +308,49 @@ function registerFilesWidgets() {
     slot: 'stage',
     surface: true,
     render(view) {
+      /*
+       * Lê o ARQUIVO NO DISCO, com o índice como reserva.
+       *
+       * A rota `/api/file` existia, com barreira de raízes em `server/files.py`, cliente em
+       * `core/api.js` — e ZERO chamadores. O leitor usava `/api/node`, que devolve os chunks
+       * INDEXADOS: a foto do último `reindex`. Com os anéis de Saturno na cena, isso virou
+       * contradição visível — o anel ao lado da estrela dizendo "este arquivo mudou" enquanto
+       * o painel mostrava o texto de antes da mudança.
+       *
+       * O índice continua servindo, e não como enfeite: ele é o que existe quando o arquivo
+       * saiu do disco (renomeado, removido, fora da raiz permitida). Nesse caso a tela DIZ que
+       * está mostrando o índice — mostrar conteúdo velho sem avisar é a mentira que esta
+       * correção existe para acabar.
+       */
       const handler = async ({ source }) => {
         view.empty('lendo…');
         try {
-          const payload = await api.node(source);
           const blocks = [el('div', 'fs-title', source)];
+          try {
+            const file = await api.fileBySource(source);
+            // `el(tag, classe, TEXTO)` — o terceiro argumento é texto, não nó. Passar o `<pre>`
+            // ali o transformava em "[object HTMLPreElement]" na tela.
+            const block = el('div', 'chunk');
+            block.append(el('pre', 'chunk-text', file.text));
+            blocks.push(block);
+            if (file.truncated) {
+              blocks.push(el('div', 'widget-hint', `truncado · ${file.bytes} bytes no disco`));
+            }
+            view.set(blocks);
+            return;
+          } catch (diskError) {
+            blocks.push(
+              el('div', 'widget-hint', `disco indisponível (${diskError.message}) · mostrando o índice`)
+            );
+          }
+          const payload = await api.node(source);
           for (const chunk of payload.chunks || []) {
             const block = el('div', 'chunk');
             if (chunk.section) block.append(el('div', 'chunk-section', `§ ${chunk.section}`));
             block.append(el('pre', 'chunk-text', chunk.text));
             blocks.push(block);
           }
-          if (blocks.length === 1) blocks.push(el('div', 'widget-empty', 'sem chunks indexados'));
+          if (blocks.length === 2) blocks.push(el('div', 'widget-empty', 'sem chunks indexados'));
           view.set(blocks);
         } catch (error) {
           view.empty(`falhou: ${error.message}`);

@@ -112,14 +112,20 @@ export function install() {
   window.addEventListener(
     'keydown',
     (event) => {
-      if (event.repeat && !event.allowRepeat) {
-        // Tecla mantida pressionada não deve reabrir painel a 30Hz. Quem precisa de repetição
-        // (segurar espaço para falar) escuta o próprio evento, não este barramento.
-      }
       const typing = isTyping(event.target) || isTyping();
       for (const spec of bindings) {
         if (!matches(spec, event)) continue;
         if (typing && !spec.whileTyping) continue;
+        /*
+         * Tecla mantida pressionada não reabre painel a 30Hz.
+         *
+         * Esta guarda existia com o CORPO VAZIO — um `if` com um comentário dentro e nada mais
+         * — e ainda lia `event.allowRepeat`, que não existe: a permissão é de quem registra o
+         * atalho, não do evento. Segurar `P`, `V` ou a crase alternava o painel na taxa de
+         * auto-repeat do sistema. Quem precisa de repetição (segurar espaço para falar) escuta
+         * o próprio evento, não este barramento.
+         */
+        if (event.repeat && !spec.allowRepeat) return;
         event.preventDefault();
         spec.handler(event);
         return;

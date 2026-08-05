@@ -246,7 +246,11 @@ class Handler(BaseHTTPRequestHandler):
             elif route == "/api/node":
                 self._json(self._node(query))
             elif route == "/api/file":
-                self._json(files.read(_first(query, "path")))
+                # `source` é a chave do céu (`devshell-one/docs/x.md`); `path` é caminho de
+                # disco. Duas perguntas diferentes na mesma rota, e o cliente do observatório
+                # só faz a primeira — o `path` fica para quem chamar a API na mão.
+                origin = _first(query, "source")
+                self._json(files.read_source(origin) if origin else files.read(_first(query, "path")))
             elif route == "/api/ask":
                 self._ask(query)
             else:

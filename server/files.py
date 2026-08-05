@@ -42,3 +42,24 @@ def read(candidate: str) -> dict:
         "truncated": len(text) > MAX_CHARS,
         "text": text[:MAX_CHARS],
     }
+
+
+def read_source(source: str) -> dict:
+    """Lê o arquivo por `source` — a chave que o céu usa, não um caminho de disco.
+
+    ⚠️ A convenção é a MESMA de `dirty.state_of` e a inversa de `registerPath` no cliente: o
+    primeiro segmento do `source` é o nome da raiz (`devshell-one/...`) e o resto é relativo ao
+    `AGENT_CWD`. Ela mora aqui, no servidor, de propósito — o cliente já precisa dela uma vez
+    para casar os anéis, e uma terceira cópia da regra seria a terceira chance de divergir.
+
+    `source` absoluto passa direto: são as memórias do agente, indexadas por caminho absoluto.
+    """
+    if not source:
+        raise Forbidden("source vazio")
+    if source.startswith("/"):
+        return read(source)
+    _, _, relative = source.partition("/")
+    if not relative:
+        raise FileNotFoundError(source)
+    root = config.get("AGENT_CWD")
+    return read(str(Path(root) / relative) if root else relative)

@@ -161,6 +161,7 @@ def translate(source: str, meta: dict, payload: dict, headers) -> Iterator[dict]
         "id": event_id,
         "tool": f"hook.{source}",
         "kind": meta["kind"],
+        "origin": "webhook",
         "detail": detail,
     }
     yield {
@@ -169,6 +170,13 @@ def translate(source: str, meta: dict, payload: dict, headers) -> Iterator[dict]
         "id": event_id,
         "tool": f"hook.{source}",
         "kind": meta["kind"],
+        # ⚠️ `origin` nos TRÊS eventos, não só no `call`.
+        #
+        # O widget ENTREGAS RECENTES redesenha em `origin == "webhook" and phase == "result"`
+        # — uma condição que era IMPOSSÍVEL de satisfazer, porque só o `call` carregava o
+        # campo. O widget nunca atualizou desde o primeiro desenho, e o comentário dele
+        # descrevia um comportamento que nunca existiu.
+        "origin": "webhook",
         "ok": ok,
         "detail": detail,
     }

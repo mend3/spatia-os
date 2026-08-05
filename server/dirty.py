@@ -131,18 +131,3 @@ def state_of(source: str) -> Optional[str]:
         return None
     relative = source.split("/", 1)[1] if "/" in source else source
     return table().get(relative)
-
-
-def annotate(nodes: list[dict]) -> None:
-    """Escreve `dirty` em cada nó de arquivo: None quando limpo."""
-    states = table()
-    if not states:
-        for node in nodes:
-            if node.get("type") == "file":
-                node["dirty"] = None
-        return
-
-    for node in nodes:
-        if node.get("type") != "file":
-            continue
-        node["dirty"] = state_of(node.get("source", ""))

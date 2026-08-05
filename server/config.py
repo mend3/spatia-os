@@ -94,6 +94,15 @@ def file_roots() -> list[Path]:
     máquina, porque a UI expõe o conteúdo lido para quem abrir a página.
     """
     roots = [ROOT]
+    # A raiz do AGENTE também, e a razão é que ela é o corpus.
+    #
+    # Sem ela o leitor de arquivo não alcançava NENHUM arquivo indexado — a rota tinha zero
+    # chamadores justamente por isso. E não é ampliação de superfície: `/api/node` já devolve o
+    # conteúdo desses mesmos arquivos, só que na versão de quando foram indexados. Negar o
+    # disco e servir o índice não protege nada; só faz a tela mostrar texto velho sem avisar.
+    agent_cwd = get("AGENT_CWD")
+    if agent_cwd:
+        roots.append(Path(agent_cwd).expanduser().resolve())
     for entry in get("FILE_ROOTS").split(":"):
         entry = entry.strip()
         if entry:

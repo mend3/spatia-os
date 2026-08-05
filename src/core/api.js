@@ -24,6 +24,8 @@ export const search = (query, limit = 8) =>
   json(`/api/search?q=${encodeURIComponent(query)}&n=${limit}`);
 export const node = (source) => json(`/api/node?source=${encodeURIComponent(source)}`);
 export const file = (path) => json(`/api/file?path=${encodeURIComponent(path)}`);
+/** O arquivo NO DISCO, pela mesma chave que o céu usa. A convenção de caminho é do servidor. */
+export const fileBySource = (source) => json(`/api/file?source=${encodeURIComponent(source)}`);
 export const dirty = () => json('/api/dirty');
 export const integrations = () => json('/api/integrations');
 export const mcp = () => json('/api/mcp');

@@ -384,9 +384,21 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
       answer.close();
     } else if (api.isStreaming()) {
       api.abort();
+      /*
+       * `ui.cancel` cala o TTS — e ninguém o emitia.
+       *
+       * `hud/voice.js` assina `on('ui.cancel', stop)` desde sempre, e nenhum ponto do sistema
+       * publicava o evento: abortar uma resposta parava o stream e deixava a voz lendo a
+       * resposta abandonada até a fila esvaziar. Assinante sem emissor é uma funcionalidade
+       * que existe no código e nunca acontece.
+       */
+      ui('cancel', {});
       emit({ t: 'state', state: 'idle', label: 'ABORTADO' });
       emit({ t: 'done' });
     } else if (answer.hasAnswer()) {
+      // Descartar a resposta também cala: ler em voz alta um texto que saiu da tela é o
+      // sistema falando sozinho sobre algo que o operador acabou de dispensar.
+      ui('cancel', {});
       answer.dismiss();
       terminal.focus();
     } else if (router.route() !== ROUTE_ROOT) {
