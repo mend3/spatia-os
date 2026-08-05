@@ -1,5 +1,10 @@
 # Revisão de próximos passos — 2026-08-04
 
+> **Atualizado em 2026-08-05 (2).** A supernova e os três bugs de servidor do anel foram
+> entregues. Duas correções ao que este documento afirmava: **`"mcp"` JÁ está no enum de rotas**
+> de `metrics.py` (a métrica não cai em `other` — o achado estava errado), e `labelCandidates`
+> aparece uma vez, que é a própria definição.
+>
 > **Atualizado em 2026-08-05.** Os seis bugs de correção da §5 e o `fps == 0` da §1 foram
 > consertados, e os perfis de qualidade da §1 foram implementados (`core/profiles.js` + a seção
 > PERFIL da página de configuração). O que sobrou aberto está marcado abaixo.
@@ -153,6 +158,11 @@ anel, e a nota culpa "FORA DO ÍNDICE" um arquivo indexado), submódulo aninhado
 4. **Fidelidade da cena** (`revisao-fidelidade-notas.md` §21-29) — beaming do disco (hoje é um
    hotspot orbitando, não um crescente), órbitas que de fato cruzem o plano, distribuição
    espectral invertida (40% do céu é azul, contra ~0.7% reais). Nenhum custa mais que ~0.1ms.
-5. **Os três bugs de servidor** que o anel expôs e continuam abertos: quoting do `git status`
-   (acento e rename nunca acendem anel), submódulo aninhado invisível, `AGENT_CWD` vazio
-   desligando a feature em silêncio.
+5. ~~Os três bugs de servidor que o anel expôs.~~ **Feitos** em 2026-08-05: `-z` no
+   `git status` (acento e rename agora casam), varredura recursiva de submódulos
+   (`core/oracle/shared/mcp` entrou — 5 raízes), e `root` na resposta para o cliente distinguir
+   "sem raiz configurada" de "árvore limpa".
+
+E a **supernova** saiu: churn de 30 dias na mesma passada de git da recência, normalizado pelo
+pico do corpus, desenhado como casca concêntrica para não disputar pixel com a ignição. 26 das
+388 estrelas cruzam o piso de 5 neste repositório.
