@@ -11,7 +11,6 @@ import * as state from './core/state.js';
 import * as session from './core/session.js';
 import * as api from './core/api.js';
 import { createScene } from './space/scene.js';
-import { DIRTY_LABELS } from './space/rings.js';
 import { createAudio } from './audio/engine.js';
 import { createFrame } from './hud/frame.js';
 import { createStreams } from './hud/streams.js';
@@ -37,7 +36,6 @@ import * as surface from './hud/surface.js';
 const hud = document.getElementById('hud');
 const canvas = document.getElementById('space');
 const bootRoot = document.getElementById('boot');
-const hover = document.querySelector('[data-hover]');
 const bodyLayer = document.getElementById('bodies');
 
 async function main() {
@@ -187,27 +185,18 @@ async function main() {
     if (key === null || key === 'ambient' || key === 'brightness') audio.tune(values);
   });
 
-  on('ui.hover', ({ node }) => {
-    if (!node) {
-      hover.classList.remove('on');
-      return;
-    }
-    hover.classList.add('on');
-    hover.querySelector('[data-hover-label]').textContent = node.label;
-    // O anel sem legenda é enfeite: quem passa o cursor precisa ler QUAL dos três estados é.
-    const dirty = node.type === 'file' ? scene.dirtyOf(node.source) : null;
-    hover.querySelector('[data-hover-meta]').textContent = [
-      node.kind,
-      `${node.chunks} chunk(s)`,
-      node.type === 'file' ? null : 'agregado',
-      // Sem `?? dirty.toUpperCase()`, um estado novo no servidor (`conflicted`, p.ex.) faria o
-      // anel ser pintado como ALTERADO enquanto o rótulo CALA — céu e texto discordando em
-      // silêncio, que é o modo de falha mais caro de diagnosticar.
-      dirty ? DIRTY_LABELS[dirty] ?? dirty.toUpperCase() : null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  });
+  /*
+   * O rótulo de hover não mora mais num balão flutuante NEM aqui.
+   *
+   * O balão nascia colado no rodapé, onde o dock do sistema passa por cima: o nome do arquivo
+   * aparecia ilegível justamente no gesto em que se procura qual arquivo é aquele. Em vez de
+   * caçar uma posição livre — que muda com o SO, com o tamanho da janela e com o que mais
+   * estiver aberto — o retorno passou para uma área que já existe, é estável, e está vazia
+   * exatamente enquanto ninguém abriu nada: o leitor central.
+   *
+   * Quem desenha é o widget `fs-content`, que assina o mesmo `ui.hover`. Este arquivo não
+   * precisa mais participar.
+   */
 
   installShortcuts(scene, audio, answer, terminal, router, streams, systray);
 

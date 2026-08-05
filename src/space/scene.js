@@ -342,7 +342,7 @@ export function createScene(canvas, { labelLayer } = {}) {
         hovered = null;
         hoveredBody = null;
         canvas.style.cursor = '';
-        ui('hover', { node: null });
+        ui('hover', { node: null, dirty: null });
       }
     },
     true
@@ -586,7 +586,18 @@ export function createScene(canvas, { labelLayer } = {}) {
       const picked = body ? null : graph.pick(raycaster);
       if (picked?.node?.id !== hovered?.node?.id) {
         hovered = picked;
-        ui('hover', { node: picked?.node ?? null });
+        /*
+         * O estado local vai JUNTO no evento, não anexado ao nó depois.
+         *
+         * Quem sabe se o arquivo está alterado é esta cena (`graph.dirtyOf`), e quem desenha o
+         * rótulo é um widget que não a conhece. A alternativa seria o `main` escrever o campo
+         * dentro do nó entre um assinante e outro — mutação de estado compartilhado dependendo
+         * da ORDEM de registro dos ouvintes, que é a forma mais silenciosa de quebrar isto.
+         */
+        ui('hover', {
+          node: picked?.node ?? null,
+          dirty: picked?.node ? graph.dirtyOf(picked.node.source) : null,
+        });
       }
     }
 

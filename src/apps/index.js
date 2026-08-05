@@ -22,6 +22,7 @@ import * as api from '../core/api.js';
 import * as keys from '../core/keys.js';
 import * as prefs from '../core/prefs.js';
 import { PROFILES } from '../core/profiles.js';
+import { DIRTY_LABELS } from '../space/rings.js';
 
 const COLORS = { files: 0x7ee0c0, system: 0xffab54, web: 0xff9b4a, bridge: 0x5ce1e6 };
 
@@ -357,7 +358,13 @@ function registerFilesWidgets() {
        * está mostrando o índice — mostrar conteúdo velho sem avisar é a mentira que esta
        * correção existe para acabar.
        */
+      const REPOUSO = 'escolha um arquivo na árvore · ou passe o cursor sobre um astro';
+      // `true` a partir do momento em que um arquivo foi aberto: daí em diante o hover do céu
+      // não pode mais escrever aqui.
+      let lendo = false;
+
       const handler = async ({ source }) => {
+        lendo = true;
         view.empty('lendo…');
         try {
           const blocks = [el('div', 'fs-title', source)];
@@ -404,8 +411,42 @@ function registerFilesWidgets() {
        * rolagem). Antes de assinar `ui.select` aqui de novo, remova o de lá.
        */
       const offOpen = on('ui.open-file', handler);
-      view.empty('escolha um arquivo na árvore');
-      return { destroy: () => offOpen() };
+
+      /*
+       * O leitor vazio é a superfície de HOVER do céu.
+       *
+       * O nome do astro sob o cursor vivia num balão colado no rodapé, onde o dock do sistema
+       * operacional passava por cima. Em vez de procurar uma posição livre na tela — que muda
+       * com o SO, com o tamanho da janela e com o que mais estiver aberto — o retorno veio para
+       * cá: uma área grande, estável, no centro, e que está vazia exatamente enquanto ninguém
+       * abriu nada.
+       *
+       * ⚠️ Só sobrescreve o VAZIO. Com um arquivo aberto, passar o cursor pelo céu apagaria a
+       * leitura em curso — o hover é um gesto de passagem e não pode desfazer uma escolha.
+       */
+      const offHover = on('ui.hover', ({ node, dirty }) => {
+        if (lendo) return;
+        if (!node) {
+          view.empty(REPOUSO);
+          return;
+        }
+        const cabecalho = el('div', 'fs-title', node.source || node.label);
+        const meta = el('div', 'hover-meta');
+        const partes = [
+          node.kind,
+          `${node.chunks} chunk(s)`,
+          node.type === 'file' ? null : 'agregado',
+          // Sem o `??`, um estado novo no servidor (`conflicted`, p.ex.) pintaria o anel como
+          // ALTERADO enquanto o texto CALA — céu e rótulo discordando em silêncio.
+          dirty ? DIRTY_LABELS[dirty] ?? dirty.toUpperCase() : null,
+        ].filter(Boolean);
+        meta.textContent = partes.join(' · ');
+        const dica = el('div', 'widget-hint', 'clique para travar a câmera neste astro');
+        view.set([cabecalho, meta, dica]);
+      });
+
+      view.empty(REPOUSO);
+      return { destroy: () => { offOpen(); offHover(); } };
     },
   });
 }
