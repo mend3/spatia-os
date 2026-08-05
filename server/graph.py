@@ -19,6 +19,8 @@ from . import config, metrics, qdrant, recency
 logger = logging.getLogger("espatial.graph")
 
 CACHE_PATH = config.ROOT / ".cache" / "graph.json"
+# Versão do FORMATO do nó. Ver o uso no fingerprint.
+SCHEMA_VERSION = 2
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -266,7 +268,11 @@ def load(force: bool = False) -> dict:
     reindexou, muda a contagem, o cache cai sozinho."""
     global _cached
     collection = qdrant.info()
-    fingerprint = f"{config.get('QDRANT_COLLECTION')}:{collection['points']}"
+    # ⚠️ `SCHEMA_VERSION` no fingerprint: campo NOVO em nó (`churn`, `supernova`) não muda o
+    # `points_count` do Qdrant, então o cache em disco continuaria válido e serviria nós sem o
+    # campo — a feature nasceria morta num clone que já tivesse `.cache/graph.json`, e o sintoma
+    # seria "não aparece nada" sem erro nenhum. Suba a versão ao acrescentar campo em nó.
+    fingerprint = f"{SCHEMA_VERSION}:{config.get('QDRANT_COLLECTION')}:{collection['points']}"
 
     with _lock:
         if not force and _cached and _cached.get("fingerprint") == fingerprint:

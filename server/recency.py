@@ -34,8 +34,20 @@ TIMEOUT_SECONDS = 90
 # TTL longo: a resposta muda com um commit novo, não com um refresh de UI.
 CACHE_TTL = 900
 
+"""Janela do churn, em dias.
+
+⚠️ Por TEMPO, não por contagem de commits.
+
+O pedido original era "os últimos 10 commits". Dez commits são um dia num dia agitado e um mês
+num calmo — a mesma feature mudaria de significado sozinha conforme o ritmo do repositório, e
+"este arquivo está quente" passaria a querer dizer coisas diferentes na segunda e na sexta. Uma
+janela de tempo fixa responde sempre a mesma pergunta: *quanto este arquivo foi mexido nas
+últimas N semanas?*
+"""
+CHURN_WINDOW_DAYS = 30
+
 _lock = threading.Lock()
-_cache: tuple[float, dict[str, int]] = (0.0, {})
+_cache: tuple[float, tuple[dict[str, int], dict[str, int]]] = (0.0, ({}, {}))
 
 
 def _workspace_root() -> Optional[Path]:
@@ -65,8 +77,17 @@ def _git_roots(root: Path) -> list[Path]:
     return roots
 
 
-def _last_commits(git_root: Path, prefix: str) -> dict[str, int]:
-    """path (relativo à raiz do workspace) → epoch do último commit que o tocou."""
+def _last_commits(git_root: Path, prefix: str, cutoff: int) -> tuple[dict[str, int], dict[str, int]]:
+    """Uma passada, dois resultados: última data por caminho, e churn na janela.
+
+    O churn sai de graça: o `git log --name-only` que data os arquivos já lista TODOS os
+    caminhos de TODOS os commits. Contar os que caem dentro da janela não custa uma segunda
+    consulta ao git — custa um `if` por linha.
+
+    ⚠️ Commit de MERGE não conta, e isso vem de graça: `git log --name-only` não lista arquivos
+    de merge (só com `-m`, que não usamos). Um merge que traz 200 arquivos não inflaria 200
+    supernovas.
+    """
     try:
         out = subprocess.run(
             ["git", "-C", str(git_root), "log", "--pretty=format:%ct", "--name-only", "--no-renames"],
@@ -77,6 +98,7 @@ def _last_commits(git_root: Path, prefix: str) -> dict[str, int]:
         return {}
 
     stamps: dict[str, int] = {}
+    churn: dict[str, int] = {}
     current = None
     for line in out.splitlines():
         if not line.strip():
@@ -88,34 +110,55 @@ def _last_commits(git_root: Path, prefix: str) -> dict[str, int]:
         elif current is not None:
             key = f"{prefix}{line}" if prefix else line
             stamps.setdefault(key, current)
-    return stamps
+            if current >= cutoff:
+                churn[key] = churn.get(key, 0) + 1
+    return stamps, churn
 
 
-def table() -> dict[str, int]:
-    """Mapa caminho→epoch, em cache."""
+def _tables() -> tuple[dict[str, int], dict[str, int]]:
+    """`(datas, churn)`, em cache. As duas saem da MESMA passada de `git log`."""
     global _cache
     with _lock:
         age, cached = _cache
-        if cached and time.monotonic() - age < CACHE_TTL:
+        if cached[0] and time.monotonic() - age < CACHE_TTL:
             return cached
 
         root = _workspace_root()
         if not root or not (root / ".git").exists():
-            _cache = (time.monotonic(), {})
-            return {}
+            _cache = (time.monotonic(), ({}, {}))
+            return _cache[1]
 
         started = time.monotonic()
+        cutoff = int(time.time()) - CHURN_WINDOW_DAYS * 86_400
         stamps: dict[str, int] = {}
+        churn: dict[str, int] = {}
         for git_root in _git_roots(root):
             prefix = "" if git_root == root else f"{git_root.relative_to(root)}/"
-            stamps.update(_last_commits(git_root, prefix))
+            dated, touched = _last_commits(git_root, prefix, cutoff)
+            stamps.update(dated)
+            for key, count in touched.items():
+                churn[key] = churn.get(key, 0) + count
 
         logger.info(
-            f"recência: {len(stamps)} caminhos datados por git em "
-            f"{(time.monotonic() - started) * 1000:.0f}ms"
+            f"recência: {len(stamps)} caminhos datados e {len(churn)} tocados nos últimos "
+            f"{CHURN_WINDOW_DAYS}d, em {(time.monotonic() - started) * 1000:.0f}ms"
         )
-        _cache = (time.monotonic(), stamps)
-        return stamps
+        _cache = (time.monotonic(), (stamps, churn))
+        return _cache[1]
+
+
+def table() -> dict[str, int]:
+    """Mapa caminho→epoch, em cache."""
+    return _tables()[0]
+
+
+def churn_of(source: str) -> int:
+    """Quantas vezes este arquivo foi tocado na janela. 0 quando o git não o conhece."""
+    _, churn = _tables()
+    if source.startswith("/"):
+        return 0
+    relative = source.split("/", 1)[1] if "/" in source else source
+    return churn.get(relative, 0)
 
 
 def changed_at(source: str) -> Optional[int]:
@@ -187,3 +230,58 @@ def annotate(nodes: list[dict]) -> None:
         # Sem data conhecida vai para o meio, não para a borda: pôr em 0 ou 1 afirmaria uma
         # idade que não se sabe.
         node.setdefault("recency", 0.5)
+
+    _annotate_supernova(nodes)
+
+
+# Quantas vezes um arquivo precisa ser tocado na janela para virar supernova. Pedido do usuário,
+# e o número é bom: abaixo disso é manutenção normal e o céu inteiro acenderia.
+SUPERNOVA_FLOOR = 5
+
+
+def _annotate_supernova(nodes: list[dict]) -> None:
+    """Escreve `churn` (contagem crua) e `supernova` (0…1) em cada arquivo.
+
+    ## A intensidade é RELATIVA ao pico deste corpus, não absoluta
+
+    Uma escala fixa ("20 toques = brilho máximo") erra nos dois sentidos: num repo calmo nada
+    chega perto e a feature não existe; numa semana de refactor tudo satura no topo e a escala
+    para de distinguir. Normalizar pelo maior churn observado faz a pergunta certa — *este
+    arquivo foi mexido mais do que os outros?* — e a resposta continua verdadeira em qualquer
+    ritmo de trabalho.
+
+    ## O piso é degrau, não rampa a partir do zero
+
+    Arquivo com 4 toques não vira uma supernova de 0.001: ele simplesmente não é uma. Uma rampa
+    desde zero acenderia o céu inteiro fraquinho e transformaria o sinal em ruído de fundo — o
+    oposto de "estes aqui estão quentes".
+
+    ⚠️ Lockfile e changelog são o risco conhecido deste sinal: mudam em todo commit sem que
+    ninguém tenha pensado neles. O lockfile já fica fora do céu (`isSkyNode` no cliente exclui
+    `kind == lock`); o changelog não, e a normalização pelo pico é o que impede que UM arquivo
+    assim empurre todos os outros para perto de zero.
+    """
+    counts = {}
+    for node in nodes:
+        if node.get("type") != "file":
+            continue
+        count = churn_of(node.get("source", ""))
+        node["churn"] = count
+        if count >= SUPERNOVA_FLOOR:
+            counts[node["id"]] = count
+
+    if not counts:
+        for node in nodes:
+            if node.get("type") == "file":
+                node["supernova"] = 0.0
+        return
+
+    peak = max(counts.values())
+    span = max(1, peak - SUPERNOVA_FLOOR)
+    for node in nodes:
+        if node.get("type") != "file":
+            continue
+        count = counts.get(node.get("id"))
+        # O piso já entra com intensidade visível (o `+ 1` no numerador): virar supernova é o
+        # evento, e um evento que nasce invisível não é um evento.
+        node["supernova"] = round(min(1.0, (count - SUPERNOVA_FLOOR + 1) / span), 4) if count else 0.0

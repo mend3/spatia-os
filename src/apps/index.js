@@ -439,6 +439,9 @@ function registerFilesWidgets() {
           // Sem o `??`, um estado novo no servidor (`conflicted`, p.ex.) pintaria o anel como
           // ALTERADO enquanto o texto CALA — céu e rótulo discordando em silêncio.
           dirty ? DIRTY_LABELS[dirty] ?? dirty.toUpperCase() : null,
+          // A casca de supernova sem legenda é enfeite: quem vê o anel precisa poder ler o
+          // número que o produziu, e em que janela ele foi contado.
+          node.supernova ? `SUPERNOVA · ${node.churn}× em 30d` : null,
         ].filter(Boolean);
         meta.textContent = partes.join(' · ');
         const dica = el('div', 'widget-hint', 'clique para travar a câmera neste astro');

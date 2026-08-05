@@ -83,13 +83,16 @@ const VERTEX = /* glsl */ `
   attribute float aSize;
   attribute float aIgnition;
   attribute float aRecency;
+  attribute float aSupernova;
   attribute vec3 aColor;
   varying vec3 vColor;
   varying float vIgnition;
   varying float vReveal;
+  varying float vSupernova;
 
   void main(){
     vIgnition = aIgnition;
+    vSupernova = aSupernova;
     // 1 = dentro da janela, 0 = ainda no futuro em relação ao playhead.
     float within = 1.0 - smoothstep(0.0, uRevealBand, aRecency - uReveal);
     vReveal = mix(uRevealDim, 1.0, within);
@@ -109,17 +112,44 @@ const VERTEX = /* glsl */ `
   }
 `;
 
+/*
+ * A SUPERNOVA é uma CASCA, e a forma é o que a distingue.
+ *
+ * "Muito reescrito nos últimos 30 dias" e "citado pela busca agora" são dois fatos diferentes
+ * sobre o mesmo arquivo, e disputam o mesmo pixel. Se os dois virassem brilho, o céu diria uma
+ * coisa só e mais forte — não duas coisas.
+ *
+ * A divisão é por GEOMETRIA, não por cor: `aIgnition` acende e INFLA o núcleo (evento, passa),
+ * `aSupernova` desenha um anel concêntrico à volta dele (estado durável do repositório). A
+ * ignição nunca produz anel, então não há como confundir os dois — e a casca fica na cor do
+ * próprio nó, porque a cor já carrega o TIPO de conhecimento e roubá-la custaria essa leitura.
+ *
+ * ⚠️ A casca cabe DENTRO do sprite que já existe (o núcleo apaga em d≈0.6; ela mora em 0.78).
+ * Inflar `gl_PointSize` para abrir espaço teria um efeito colateral silencioso: o anel de
+ * Saturno se ancora no tamanho do ponto (`starRadius`), então toda supernova ganharia também um
+ * anel planetário maior, misturando dois sinais que não têm relação.
+ *
+ * Estático de propósito: um anel que pulsa seria movimento sem evento por trás, e a cena já tem
+ * uma regra sobre isso (`prefers-reduced-motion`). A supernova é um estado, não um piscar.
+ */
 const FRAGMENT = /* glsl */ `
   precision highp float;
   varying vec3 vColor;
   varying float vIgnition;
   varying float vReveal;
+  varying float vSupernova;
+
+  const float SHELL_RADIUS = 0.78;
+  const float SHELL_WIDTH = 0.085;
+
   void main(){
     float d = length(gl_PointCoord - 0.5) * 2.0;
     float core = pow(1.0 - smoothstep(0.0, 1.0, d), 2.2);
     // Corona só em nó aceso: dá o "volta a brilhar" sem inflar o céu inteiro.
     float corona = (1.0 - smoothstep(0.0, 1.3, d)) * vIgnition * 0.55;
-    float intensity = (core + corona) * vReveal;
+    float t = (d - SHELL_RADIUS) / SHELL_WIDTH;
+    float shell = exp(-t * t) * vSupernova * 0.9;
+    float intensity = (core + corona + shell) * vReveal;
     if (intensity < 0.004) discard;
     gl_FragColor = vec4(vColor * intensity, intensity);
   }
@@ -260,6 +290,7 @@ export function createGraph() {
     ignition = new Float32Array(count);
     sizes = new Float32Array(count);
     const recencies = new Float32Array(count);
+    const supernovae = new Float32Array(count);
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
 
@@ -272,6 +303,10 @@ export function createGraph() {
       sizes[i] = node.type === 'file'
         ? 0.55 + Math.log2(1 + node.chunks) * 0.42
         : 1.5 + Math.log2(1 + node.chunks) * 0.3;
+      // `supernova` é 0…1 e vem do servidor (`recency._annotate_supernova`), normalizado pelo
+      // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
+      // própria, tem a dos filhos.
+      supernovae[i] = node.type === 'file' ? node.supernova || 0 : 0;
       color.setHex(KIND_COLORS[node.kind] ?? KIND_COLORS.other);
       colors.set([color.r, color.g, color.b], i * 3);
       registerPath(node, i);
@@ -282,6 +317,7 @@ export function createGraph() {
     geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
     geometry.setAttribute('aIgnition', new THREE.BufferAttribute(ignition, 1));
     geometry.setAttribute('aRecency', new THREE.BufferAttribute(recencies, 1));
+    geometry.setAttribute('aSupernova', new THREE.BufferAttribute(supernovae, 1));
     geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
     points = new THREE.Points(geometry, material);
     points.frustumCulled = false;
