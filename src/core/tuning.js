@@ -79,7 +79,12 @@ export const SPEC = [
   ['GRAFO', 'graphSpread', 'ESPAÇAMENTO DOS NÓS', 0.3, 3.5, 0.02, 2.6],
   ['GRAFO', 'graphSpeed', 'VELOCIDADE ORBITAL', 0, 4, 0.05, 0.2],
   ['GRAFO', 'nodeSize', 'TAMANHO DOS NÓS', 0.2, 3, 0.05, 1.1],
-  ['GRAFO', 'edgeOpacity', 'OPACIDADE DAS ARESTAS', 0, 1, 0.02, 0.2],
+  /*
+   * ⚠️ A aresta não é mais desenhada em repouso, então este parâmetro passou a controlar o
+   * VÍNCULO SOB DEMANDA (`space/links.js`): o arco que aparece ao passar o cursor num astro ou
+   * travar a câmera nele. Zero continua significando "não desenhe" — só o momento mudou.
+   */
+  ['GRAFO', 'edgeOpacity', 'FORÇA DO VÍNCULO', 0, 1, 0.02, 0.55],
 
   ['CÂMERA', 'cameraDrift', 'DERIVA DA CÂMERA', 0, 6, 0.05, 0.4],
   ['CÂMERA', 'cameraEase', 'SUAVIDADE DA CÂMERA', 2, 20, 0.5, 9],

@@ -29,6 +29,8 @@ import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js'
 import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams } from './planet.js';
+import { createLinks } from './links.js';
+import { classify, allows } from './catalog.js';
 
 /*
  * `start.z` acompanha `graphSpread`: a casca de nós foi de 46–110 para 68–160 unidades, e uma
@@ -134,6 +136,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * que mantém a promessa do módulo — geometria, materiais e rampa nascem no primeiro quadro em
    * que alguém chega perto, e a rampa só é recozida quando a semente ou a paleta mudam.
    */
+  const links = createLinks();
   const planet = createPlanet();
   let planetSource = null;
 
@@ -141,6 +144,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
     stars.object, blackHole.group, graph.group, planet.object, particles.object,
+    links.object,
     satellites.group, wormholes.group, bodies.group
   );
 
@@ -343,6 +347,25 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * `ui.select` ali abriria um segundo painel com o mesmo arquivo.
    */
   on('ui.focus-node', ({ source }) => focusNode(source ?? null));
+
+  /*
+   * O vínculo responde ao GESTO, e o cursor vence o foco enquanto existe.
+   *
+   * São duas perguntas diferentes com a mesma resposta visual: "o que é aquilo ali?" (cursor,
+   * passageiro) e "o que se liga ao que estou estudando?" (foco, durável). Se o foco vencesse,
+   * passar o cursor por outro astro não responderia nada — e o hover é o gesto mais barato que
+   * a interface tem.
+   */
+  let hoveredNode = null;
+  const paintLinks = () => {
+    const alvo = hoveredNode || focusedNode;
+    links.show(alvo ? graph.linksOf(alvo) : null, alvo === focusedNode ? 0xffb35c : 0x7ee0c0);
+  };
+  on('ui.hover', ({ node }) => {
+    hoveredNode = node?.source ?? null;
+    paintLinks();
+  });
+  on('ui.node-focus', () => paintLinks());
 
   on('ui.cinematic', ({ on: enabled }) => {
     cinematic = enabled;
@@ -737,7 +760,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     probe = { focado: focusedNode, ancorou: Boolean(pouso), px: pouso?.px ?? 0, level: 0, pedido: lastFocusRequest };
 
-    if (pouso) {
+    /*
+     * O CATÁLOGO decide se este corpo pode ter superfície — não este bloco.
+     *
+     * Ligar o planeta sem consultá-lo pôs crosta num DIRETÓRIO, que é exatamente o
+     * empilhamento que `catalog.js` existe para impedir: "agregado não tem corpo; dar crosta a
+     * um diretório afirmaria um objeto que não há". A classe padrão, ESTRELA, também proíbe —
+     * estrela tem fotosfera, não crosta — então a superfície é a exceção, e ela precisa de
+     * permissão explícita.
+     */
+    const classe = pouso ? classify(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) }) : null;
+    const podeTerSuperficie = classe ? allows(classe, 'surface') : false;
+
+    if (pouso && podeTerSuperficie) {
       if (focusedNode !== planetSource) {
         planetParamsCache = planetParams(pouso.node);
         planetSource = focusedNode;
@@ -770,6 +805,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       graph.haloOf(null, 0);
       planetSource = null;
     }
+
+    links.update(graph.positions(), delta, elapsed);
 
     backdrop.update(delta, camera.aspect, camera);
 

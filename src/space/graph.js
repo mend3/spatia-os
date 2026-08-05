@@ -248,9 +248,9 @@ export function createGraph() {
   let ignition = null;
   let sizes = null;
   let points = null;
-  let lines = null;
-  let linePositions = null;
   let edgePairs = [];
+  /** índice do nó → lista de pares [ele, vizinho]. Ver `linksOf`. */
+  let neighbours = new Map();
   // Caminho relativo à raiz do workspace → índice do nó. É a chave com que o `/api/dirty`
   // fala, e existe para que casar "arquivo sujo" com "estrela" não custe uma varredura.
   let byPath = new Map();
@@ -283,14 +283,6 @@ export function createGraph() {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-  });
-
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0x2d3648,
-    transparent: true,
-    opacity: 0.42,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
   });
 
   /**
@@ -416,12 +408,20 @@ export function createGraph() {
       .map(([child, parent]) => [index.get(child), index.get(parent)])
       .filter(([a, b]) => a !== undefined && b !== undefined);
 
-    linePositions = new Float32Array(edgePairs.length * 6);
-    const lineGeometry = new THREE.BufferGeometry();
-    lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
-    lines = new THREE.LineSegments(lineGeometry, lineMaterial);
-    lines.frustumCulled = false;
-    group.add(lines);
+    /*
+     * ADJACÊNCIA, não geometria. O grafo guarda QUEM se liga a quem; desenhar é de quem
+     * pergunta.
+     *
+     * Bidirecional de propósito: hoje os pares são filho→pai, mas as relações do Graphiti que
+     * vão entrar aqui incluem folha↔folha entre grupos distantes — e quem passa o cursor num
+     * nó quer ver o vínculo independentemente de qual ponta ele é.
+     */
+    neighbours = new Map();
+    const ligar = (a, b) => {
+      if (!neighbours.has(a)) neighbours.set(a, []);
+      neighbours.get(a).push([a, b]);
+    };
+    for (const [a, b] of edgePairs) { ligar(a, b); ligar(b, a); }
 
     advance(0);
     return count;
@@ -510,28 +510,29 @@ export function createGraph() {
     }
     points.geometry.attributes.position.needsUpdate = true;
 
-    for (let e = 0; e < edgePairs.length; e++) {
-      const [a, b] = edgePairs[e];
-      linePositions[e * 6] = positions[a * 3];
-      linePositions[e * 6 + 1] = positions[a * 3 + 1];
-      linePositions[e * 6 + 2] = positions[a * 3 + 2];
-      linePositions[e * 6 + 3] = positions[b * 3];
-      linePositions[e * 6 + 4] = positions[b * 3 + 1];
-      linePositions[e * 6 + 5] = positions[b * 3 + 2];
-    }
-    lines.geometry.attributes.position.needsUpdate = true;
+    /*
+     * A TEIA PERMANENTE SAIU DAQUI, e não por custo — por significado.
+     *
+     * Eram ~800 segmentos retos reposicionados todo quadro entre corpos com ω diferente
+     * (`speed ∝ r^-1.5`). Isso é o problema do enrolamento: braço espiral não pode ser
+     * estrutura material porque o material interno orbita mais rápido, e qualquer estrutura
+     * rígida se enrola em poucas rotações. As linhas cisalhavam a 60 Hz e o resultado era
+     * ruído, não topologia. Quem desenha vínculo agora é `space/links.js`, sob demanda e
+     * como arco recalculado — padrão, não estrutura.
+     */
   }
 
   function dispose() {
     rings.set([]);
     byPath = new Map();
     dirtyState = new Map();
-    for (const object of [points, lines]) {
+    for (const object of [points]) {
       if (!object) continue;
       group.remove(object);
       object.geometry.dispose();
     }
-    points = lines = null;
+    points = null;
+    neighbours = new Map();
   }
 
   return {
@@ -655,7 +656,6 @@ export function createGraph() {
       material.uniforms.uPulse.value = motion.isReduced() ? 0 : 1;
       group.scale.setScalar(values.graphSpread);
       material.uniforms.uSize.value = 4.6 * values.nodeSize;
-      lineMaterial.opacity = values.edgeOpacity;
       tune.speed = values.graphSpeed;
     },
 
@@ -755,6 +755,25 @@ export function createGraph() {
       haloIndex = alvo;
       haloAmount = amount;
       points.geometry.getAttribute('aHalo').needsUpdate = true;
+    },
+
+    /**
+     * Os vínculos deste astro, como pares de índices prontos para desenhar.
+     *
+     * @returns {Array<[number, number]>} vazio se o astro não existe ou não tem vínculo
+     */
+    /**
+     * O buffer VIVO de posições, para quem desenha por cima do céu.
+     *
+     * Devolve a referência, não uma cópia: quem recebe lê no mesmo quadro e copiar 468 vec3 por
+     * quadro seria pagar por uma garantia que ninguém precisa aqui. Contrato: só leitura.
+     */
+    positions: () => positions,
+
+    linksOf(source) {
+      const i = index.get(source);
+      if (i === undefined) return [];
+      return neighbours.get(i) || [];
     },
 
     worldPositionOf(source) {
