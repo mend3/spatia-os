@@ -83,7 +83,7 @@ comportamento por atalho** — não "abre popover E navega". Preservar o racioc�
 `hud/controls.js`: ⌘G alterna com `whileTyping` porque modificador não disputa caractere; a
 crase é alias **sem** `whileTyping` porque crase é caractere e se digita.
 
-## Fila pendente nesta linha de trabalho
+## Fila desta linha de trabalho — FECHADA em 2026-08-04
 
 1. ~~Anéis de Saturno em arquivos alterados.~~ **Feito** em 2026-08-04 — `space/rings.js` +
    `space/ring-profiles.js` (perfil radial real de Saturno/Urano/Júpiter, um por estado do
@@ -98,7 +98,12 @@ crase é alias **sem** `whileTyping` porque crase é caractere e se digita.
    colados no relógio, com popover ancorado. Os `data-*-toggle` continuam sendo os MESMOS
    elementos, só que dentro dos popovers — os cinco módulos que os procuram por `querySelector`
    no boot não precisaram de uma linha. Verificado com `elementFromPoint` **e** clique real.
-4. Página de configuração com menu lateral.
-5. SSOT de atalhos — ver [`atalhos-ssot-notas.md`](./atalhos-ssot-notas.md). Nota: `keys.hints()`
-   já existe e **não tem chamador nenhum**; a barra do rodapé em `index.html` é texto fixo. Essa
-   é a duplicação a matar.
+4. ~~Página de configuração com menu lateral.~~ **Feito** em 2026-08-04 — widget `sys-config`
+   no app `system`, sobre a mesma superfície do leitor de arquivo. Ela NÃO reconstrói os
+   controles: as seções de afinação/permissões/voz abrem os painéis que já existem, pelos mesmos
+   gatilhos que a systray usa.
+5. ~~SSOT de atalhos.~~ **Feito** em 2026-08-04 — ver [`atalhos-ssot-notas.md`](./atalhos-ssot-notas.md).
+
+O que vem depois desta fila está em [`proximos-passos.md`](./proximos-passos.md) (perfis de
+qualidade, i18n, integrações) e em [`revisao-fidelidade-notas.md`](./revisao-fidelidade-notas.md)
+(29 achados com arquivo:linha, seis deles bugs de correção ainda abertos).

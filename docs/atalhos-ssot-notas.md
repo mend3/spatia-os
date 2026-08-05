@@ -50,7 +50,30 @@ sabe onde o foco está. A regra é do sistema, não do painel.
   tecla ter mudado. `hints()` existe para isso; qualquer superfície nova (página de config,
   paleta de comandos) deve derivar dela.
 
-## Perguntas que a spec precisa responder
+## Como ficou (implementado em 2026-08-04)
+
+`core/keys.js` virou a fonte única. As respostas às perguntas abaixo, como foram decididas:
+
+- **Declaração:** continua `bind()` imperativo, e não um manifesto de dados. O manifesto seria
+  um segundo lugar para o atalho existir, e quem registra é quem sabe o que a ação faz — separar
+  os dois cria a chance de um sobreviver ao outro. O que mudou é que o `bind` agora entrega
+  DADO: `keys.list()` devolve tecla, ação, grupo e se vale digitando.
+- **A tecla saiu do rótulo.** Era `'⌘G AFINAR'`, com a tecla escrita na string; agora o `label` é
+  só a ação e a tecla é derivada do spec por `keys.render()`. Era exatamente aqui que a dica
+  apodrecia.
+- **Conflito falha alto.** Duas combinações iguais lançam no registro, com o nome de quem já
+  tinha a tecla — mesma disciplina do `kernel/registry.js` com id duplicado. Antes o segundo
+  simplesmente não disparava, em silêncio.
+- **Alias não polui a lista.** A crase é um segundo caminho para a afinação, não um segundo
+  comando: entra com `alias: true` e fica fora de `list()`.
+- **Descoberta:** a seção ATALHOS da página de configuração (`sys-config`) consome `keys.list()`
+  agrupado. Não há paleta de comandos — ela seria uma terceira superfície para o mesmo dado, e
+  o pedido de espaço do usuário é que a tela é para componentes.
+- **Escopo e remapeamento** ficaram de fora, deliberadamente: nenhum atalho hoje é de rota ou de
+  painel montado, e remapear é dado que ninguém pediu ainda. Quando chegar, `list()` já é a
+  forma que uma tela de remapeamento consumiria.
+
+## Perguntas originais que a spec precisava responder
 
 - Declaração: manifesto de dados (um arquivo/registro) vs `bind()` imperativo espalhado. O que
   torna "criar/linkar/manipular com o tempo" fácil de verdade?
