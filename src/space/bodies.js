@@ -141,12 +141,33 @@ export function createBodies(labelLayer) {
   }
 
   const projected = new THREE.Vector3();
+  const occluderEdge = new THREE.Vector3();
 
   return {
     group,
     install,
 
-    update(delta, elapsed, camera, activeId, hoverId) {
+    /**
+     * @param {{radius: number}} [occluder]  o buraco negro, para o rótulo não atravessá-lo
+     */
+    update(delta, elapsed, camera, activeId, hoverId, occluder) {
+      /*
+       * Raio APARENTE do buraco negro, em NDC — recalculado por quadro porque muda com a
+       * distância da câmera.
+       *
+       * Os corpos são malhas 3D e o teste de profundidade já esconde a geometria deles atrás da
+       * esfera do horizonte. O RÓTULO não: ele é DOM, vive num layer por cima do canvas, e
+       * nenhuma profundidade o alcança. O efeito na tela era um corpo passar por trás do buraco
+       * negro com o nome dele boiando sobre o vazio absoluto — a única coisa da cena capaz de
+       * atravessar um horizonte de eventos.
+       */
+      let occluderRadius = 0;
+      if (occluder) {
+        occluderEdge.set(occluder.radius, 0, 0).applyQuaternion(camera.quaternion).project(camera);
+        occluderRadius = Math.hypot(occluderEdge.x, occluderEdge.y);
+      }
+      const occluderDistance = camera.position.length();
+
       for (const body of bodies) {
         const angle = body.phase + elapsed * body.speed;
         const planar = Math.cos(body.inclination);
@@ -177,7 +198,13 @@ export function createBodies(labelLayer) {
         projected.copy(body.position).project(camera);
         const behind = projected.z > 1;
         const distance = camera.position.distanceTo(body.position);
-        const visible = !behind && distance < LABEL_FADE_DISTANCE;
+        // Atrás do horizonte: mais longe da câmera que o núcleo E projetado dentro do disco
+        // dele. As duas condições juntas — só a segunda esconderia também quem passa NA FRENTE.
+        const eclipsed =
+          occluderRadius > 0 &&
+          distance > occluderDistance &&
+          Math.hypot(projected.x, projected.y) < occluderRadius;
+        const visible = !behind && !eclipsed && distance < LABEL_FADE_DISTANCE;
         body.label.style.visibility = visible ? 'visible' : 'hidden';
         if (visible) {
           body.label.style.transform =

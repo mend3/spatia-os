@@ -572,7 +572,9 @@ export function createScene(canvas, { labelLayer } = {}) {
     satellites.update(delta, elapsed);
     satellites.faceCamera(camera);
     wormholes.update(delta, elapsed, camera);
-    bodies.update(delta, elapsed, camera, focusedBody, hoveredBody?.id ?? null);
+    bodies.update(delta, elapsed, camera, focusedBody, hoveredBody?.id ?? null, {
+      radius: blackHole.horizonRadius,
+    });
 
     // Picking limitado a ~16Hz e suspenso durante o arrasto: era ele que roubava o
     // orçamento de quadro justamente enquanto a câmera se movia. Arrastando, ninguém está

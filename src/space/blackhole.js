@@ -87,7 +87,7 @@ const DISK_VERTEX = /* glsl */ `
 
 const DISK_FRAGMENT = /* glsl */ `
   precision highp float;
-  uniform float uTime, uSpin, uIntensity, uTurbulence, uInner, uOuter, uErrorMix, uViewAz;
+  uniform float uTime, uSpin, uIntensity, uTurbulence, uInner, uOuter, uErrorMix, uViewAz, uViewInPlane;
   uniform vec3 uHot, uMid, uCool;
   varying vec3 vLocal;
   ${NOISE}
@@ -161,9 +161,38 @@ const DISK_FRAGMENT = /* glsl */ `
      * o que dá o contraste observado de ~5:1 — contra os 1.76:1 da versão anterior.
      */
     float beta = 0.42 * sqrt(uInner / max(radius, uInner));
-    float mu = sin(uViewAz - theta);
-    float boost = 1.0 / (sqrt(max(1.0 - beta * beta, 0.05)) * max(1.0 - beta * mu, 0.05));
-    brightness *= pow(boost, 3.5);
+    /*
+     * O beaming depende da INCLINAÇÃO de quem olha, e a versão anterior ignorava isso.
+     *
+     * mu projetava a velocidade orbital inteira na linha de visada, o que só vale visto DE
+     * PERFIL. De cima o movimento do disco é perpendicular ao olhar, a componente radial vai a
+     * zero e não existe assimetria alguma — o crescente das imagens do EHT e do Interstellar
+     * aparece porque as duas são vistas quase de perfil.
+     *
+     * Sem este fator, olhar o disco de cima produzia um lado permanentemente estourado e o
+     * outro apagado, sem causa física nenhuma: era só o bloom pegando um brilho que não devia
+     * estar ali.
+     */
+    float mu = sin(uViewAz - theta) * uViewInPlane;
+    /*
+     * Normalizado pelo termo TRANSVERSAL, e com o expoente na ponta conservadora.
+     *
+     * Duas correções sobre a primeira versão, e as duas por medição do resultado:
+     *
+     * 1. Sem tirar o fator de Lorentz, o beaming não redistribuía brilho — ele MULTIPLICAVA o
+     *    disco inteiro para cima (o lado que se aproxima ficava ~9.5x o brilho base). O que
+     *    aparecia na tela era um lado estourado no bloom, e não um crescente. Dividindo pelo
+     *    termo transversal, mu=0 vale 1: a média fica onde estava e a assimetria é de fato uma
+     *    redistribuição.
+     *
+     * 2. O expoente é 3+α, e α depende do espectro. Com α=0.5 o contraste dava ~23:1, bem
+     *    acima dos ~5-10:1 observados em M87 e em Sgr A. α=0 (espectro plano) é a ponta
+     *    conservadora da faixa plausível e cai dentro do observado — foi escolhido porque o
+     *    pico saturava, e isto está escrito para o número não ser lido como constante do
+     *    modelo.
+     */
+    float boost = 1.0 / max(1.0 - beta * mu, 0.05);
+    brightness *= pow(boost, 3.0);
 
     gl_FragColor = vec4(color * brightness, brightness);
   }
@@ -178,6 +207,7 @@ export function createBlackHole() {
     uIntensity: { value: REGIMES.boot.intensity },
     uTurbulence: { value: REGIMES.boot.turbulence },
     uViewAz: { value: 0 },
+    uViewInPlane: { value: 1 },
     uInner: { value: DISK_INNER },
     uOuter: { value: DISK_OUTER },
     uErrorMix: { value: 0 },
@@ -232,6 +262,10 @@ export function createBlackHole() {
     syncView(camera) {
       const local = disk.worldToLocal(camera.position.clone());
       uniforms.uViewAz.value = Math.atan2(local.y, local.x);
+      // 1 = câmera no plano do disco (perfil, beaming cheio); 0 = de cima (sem assimetria).
+      // O plano do disco é o XY local; Z é a normal.
+      const span = Math.hypot(local.x, local.y);
+      uniforms.uViewInPlane.value = span / Math.max(Math.hypot(span, local.z), 1e-4);
     },
 
     horizonRadius: HORIZON_RADIUS,
