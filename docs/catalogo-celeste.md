@@ -9,8 +9,9 @@ O documento existe porque a pesquisa é cara e o raciocínio se perde. O que for
 daqui e vira comentário no código.
 
 **Estado em 2026-08-05:** planeta anelado e supernova estão no céu; cometa extinto passou a
-classificar (segunda janela de churn), com superfície mas ainda sem cauda; lua e zonas por razão de
-massa continuam só aqui. O `status` de cada entrada em `src/space/catalog.js` é a fonte da verdade —
+classificar (segunda janela de churn), com superfície mas ainda sem cauda; **lua entrou** (23 corpos,
+182 luas — a regra e as medidas em `src/space/orbital-zones.js`); zonas por razão de massa continuam
+só aqui, mas `μ ≥ 5` já é usado como o corte que separa lua de sistema duplo. O `status` de cada entrada em `src/space/catalog.js` é a fonte da verdade —
 nenhuma mente sobre estar pronta.
 
 > **Este documento é a TAXONOMIA** — que corpo existe, de que fato ele nasce, que regra física o
@@ -140,9 +141,15 @@ E **`first_seen` foi descartado com medida**: vida mediana de 0 dias, 62% dos ar
    passada. Maior valor por linha do documento.
 2. **`git_root` como galáxia satélite** (submódulo). Barato, vem junto.
 3. **Zonas por razão de massa** — substitui as classes de corpo.
-4. **Luas dimensionadas pela esfera de Hill**, com o raio orbital na conta e sem rotação própria.
-   ⚠️ Exige medir `advance()` acima de 468 nós antes de começar — hoje ele cabe nos 0,45ms da
-   cena, mas ninguém mediu com 5 000.
+4. ~~**Luas dimensionadas pela esfera de Hill**~~ — FEITO em 2026-08-05. O gate foi cumprido antes:
+   `advance()` medido a **0,0098 ms/quadro com 468 nós, 0,109 ms com 5 000 e 0,78 ms com 20 000** —
+   cabe folgado, e o que custa continua sendo o pós-processamento (87–90% do quadro).
+
+   Duas coisas que a implementação descobriu e que valem para o resto do documento: a previsão de
+   que o `a` (recência) importaria mais que a massa está **certa e é mais forte que o previsto** — na
+   razão Hill/Roche o `m^(1/3)` cancela e só o `a` decide. E comparar Roche (raio do corpo) com Hill
+   (raio orbital) usando o raio DESENHADO não funciona: as duas réguas têm escalas diferentes nesta
+   cena, o que fechava a janela em silêncio. Detalhe em `modelo-de-renderizacao.md`.
 
 ## Fontes
 

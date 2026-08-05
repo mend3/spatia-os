@@ -194,23 +194,31 @@ export const CELESTIAL = [
     id: 'lua',
     name: 'LUA',
     priority: 15,
-    status: 'declared',
+    status: 'applied',
     /*
-     * `sections` chega no payload da topologia e é descartado hoje (~23% do payload sem
-     * consumidor). Cada seção seria uma lua do arquivo.
+     * Cada seção de um arquivo é uma lua dele — quando a massa do arquivo consegue segurá-la. A
+     * regra inteira está em `orbital-zones.js`, junto com a medida que escolheu cada constante;
+     * aqui fica só o que a classe é.
      *
-     * A regra correta é a ESFERA DE HILL, não o limite de Roche: `r_H = a(1−e)·∛(m/3M)`. O termo
-     * que importa é o `a` — a esfera de Hill de Netuno (115 milhões de km) é MAIOR que a de
+     * A fronteira é a ESFERA DE HILL por fora e o limite de ROCHE por dentro: `r_H = a(1−e)·∛(m/3M)`.
+     * O termo que importa é o `a` — a esfera de Hill de Netuno (115 milhões de km) é MAIOR que a de
      * Júpiter (50,6 milhões) apesar de muito menos massa, porque a dependência no raio orbital é
-     * linear e a da massa é raiz cúbica. Como raio já é recência nesta cena, um arquivo antigo
-     * seguraria suas seções em órbitas mais largas que um arquivo novo e pesado — sai de graça e
-     * é fisicamente correto.
+     * linear e a da massa é raiz cúbica. Como raio já é recência nesta cena, arquivo antigo segura
+     * suas seções em órbita e arquivo recente não.
+     *
+     * ⚠️ MEDIDO em 2026-08-05, e é mais forte que a previsão: na razão Hill/Roche o `m^(1/3)`
+     * CANCELA, então quem decide não é a massa — é só o `a`. O corte cai em `a = 44`, o meio exato
+     * da casca dos arquivos: a metade mais antiga do céu tem lua, a mais nova não. 23 corpos, 182
+     * luas neste corpus.
+     *
+     * A lua não vem do servidor: ela é sintetizada em `graph.js:load` a partir de `sections`, que
+     * já chegava no payload e era descartado (~23% dele sem consumidor).
      */
-    from: '`node.sections` (já vem no payload, sem consumidor)',
-    test: () => false,
+    from: '`node.sections`, filtrado pela janela Roche→Hill de `orbital-zones.js`',
+    test: (node) => node.type === 'moon',
     features: {
       orbit: 'raio pela esfera de Hill do pai; travada por maré, sem rotação própria',
-      surface: 'a mesma de `planeta-anelado`, com `spin: 0` — lua é corpo rochoso como o pai',
+      surface: 'nenhuma — a lua é ponto, e a 0,39–0,53 do raio do pai não há superfície a resolver',
     },
     forbids: {
       spin: 'todas as 19 luas arredondadas do Sistema Solar estão travadas por maré',

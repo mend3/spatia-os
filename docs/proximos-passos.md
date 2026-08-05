@@ -77,8 +77,14 @@ Estão no céu: `planeta-anelado`, `cometa-extinto` (segunda janela de churn, 5 
 `galaxia` (71 hubs, forma por concentração de massa). `supernova` DEIXOU de ser classe e virou
 estado — como classe ela excluía as outras e tirava a superfície de 27 corpos.
 
+**`lua` entrou em 2026-08-05**: as `sections` deixaram de ser payload sem consumidor e viram
+corpos — 23 arquivos seguram 182 luas, pela janela Roche→Hill de `src/space/orbital-zones.js`. Quem
+decide não é a massa e sim a RECÊNCIA (o `m^(1/3)` cancela na razão entre as duas fronteiras), então
+a metade mais antiga do céu tem lua e a mais nova não.
+
 O `status` de cada entrada em `src/space/catalog.js` é a fonte da verdade. Continua só declarado:
-`lua` (as `sections` já vêm no payload) e as zonas por razão de massa.
+as zonas por razão de massa — embora `μ ≥ 5`, a fronteira delas, já esteja em uso como o corte que
+separa lua de sistema duplo.
 
 ## 5b. ~~Planeta procedural — falta ligar ao céu e medir~~ — FEITO em 2026-08-05
 

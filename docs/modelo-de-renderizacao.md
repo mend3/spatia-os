@@ -157,21 +157,45 @@ Kepler, `ω² = GM/r³`, onde `M` é a massa **central**: um corpo pesado e um l
 orbitam no mesmo ritmo. Fazer a massa própria mudar a própria órbita seria a cena afirmando uma
 falsidade.
 
-⚠️ **UMA CONTRADIÇÃO ABERTA, e ela está entre este documento e o `motion-catalog.js`.** A linha
-abaixo diz que a massa governa a rotação do disco de um hub. O catálogo de movimento diz o oposto,
-na entrada `patternSpin`: a taxa é propriedade da ONDA, não da pasta, e toda galáxia compartilha.
+**A CONTRADIÇÃO FOI FECHADA em 2026-08-05, pela segunda saída.** Ela era entre este documento e o
+`motion-catalog.js`: aqui se dizia que a massa governa a rotação do disco de um hub, e lá, na
+entrada `patternSpin`, que a taxa é propriedade da ONDA e toda galáxia compartilha.
 
-As duas não podem valer, e a segunda tem o argumento mais forte — braço espiral é onda de densidade
-(Lin–Shu), e a velocidade do PADRÃO é da onda; massa governa a curva de rotação do MATERIAL, que
-não é o que a cena desenha. Duas saídas, e é decisão de produto: corrigir esta frase, ou dar à
-massa um papel dinâmico que exista de verdade — **alcance do anel** e **esfera de Hill das luas**,
-ambos declarados no `catalogo-celeste.md` e nenhum implementado. A segunda torna a frase verdadeira
-em vez de apagá-la.
+Quem tinha razão era o catálogo de movimento — braço espiral é onda de densidade (Lin–Shu), e a
+velocidade do PADRÃO é da onda; massa governa a curva de rotação do MATERIAL, que não é o que a
+cena desenha. Mas em vez de apagar a intenção, a massa ganhou o papel dinâmico que ela alegava ter:
+**a esfera de Hill das luas está implementada** (`orbital-zones.js`, `catalog.js:lua`). O alcance
+do anel NÃO — e não por falta de tempo, mas por medida; está logo abaixo.
+
+⚠️ **A armadilha que o trabalho descobriu, e ela vale para qualquer fronteira orbital futura.**
+Roche sai do RAIO DO CORPO; Hill sai do RAIO ORBITAL. O raio desenhado desta cena é log-comprimido
+de propósito, e o orbital não é — medido, `R/a ≈ 0,022…0,087` aqui contra `4,2e-5` da Terra: os
+corpos são ~1500× maiores que as próprias órbitas. Derivar uma fronteira de cada régua e comparar
+as duas não significa nada, e o sintoma foi silencioso: a janela entre elas vinha com no máximo 21%
+de largura, e com o fator de estabilidade progrado real (0,5 r_H) **0 de 136** arquivos seguravam
+lua. A correção é usar o raio FÍSICO implicado pela massa (`physicalRadius`) para mecânica, e
+reservar o log só para pixel.
+
+Cai daí um resultado melhor que o pedido: na razão Hill/Roche o `m^(1/3)` **cancela**, então quem
+decide se um corpo segura lua não é a massa — é só `a`, o raio orbital, que nesta cena é a
+RECÊNCIA. Arquivo antigo segura suas seções em órbita; arquivo recente não. É a física certa
+(Mercúrio não tem lua por estar perto do Sol, não por ser leve) e é exatamente o que o
+`catalogo-celeste.md` previa. Medido: corte em `a = 44`, o meio da casca dos arquivos — **23 corpos,
+182 luas**.
+
+**Alcance do anel: MEDIDO E RECUSADO.** Seria a outra metade da frase, e não sobrevive à medida. O
+alcance em raios do corpo é `∝ m^(1/3)/R(m)`, e com a lei log de tamanho isso espalha só **1,54×**
+no corpus inteiro — pior, entre q1 e q3 espalha **3%**. Normalizado no 2,44 clássico, o intervalo
+inteiro (2,42–3,72) cai ACIMA do `SPAN_CAP = 2,4` que já trunca todos os anéis hoje. Implementar
+seria trocar uma constante honesta por uma fórmula que devolve ~2,44 para tudo: variação existindo
+no código sem existir na tela, que é o que este documento recusa em outros lugares.
 
 Na prática, hoje:
 
-- **hub** (o único corpo com filhos) → massa governa o TAMANHO. A rotação do padrão é da onda, e
-  alcance do anel e esfera de Hill continuam declarados apenas;
+- **hub** (o único corpo com filhos) → massa governa o TAMANHO. A rotação do padrão é da onda, e o
+  alcance do anel continua sendo do perfil da família, com teto visual;
+- **arquivo com ≥5 seções e `a > 44`** → massa governa a esfera de Hill, e portanto quantas seções
+  ele segura como lua e a que raio. Aqui a massa age para baixo de verdade;
 - **folha** → mantém `ω ∝ r^-1.5`, raio = recência, massa central única (o núcleo);
 - **atração mútua** → **não**. Exige integração, integração exige estado, e estado faz a posição
   depender do histórico da sessão — some a garantia do README de que *"o mesmo conhecimento cai

@@ -19,6 +19,7 @@ import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
 import { classify } from './catalog.js';
+import { moonsOf } from './orbital-zones.js';
 
 /*
  * Extensão do sistema de anéis, em raios do disco visível — espelha o teto de `rings.js`. Aqui
@@ -243,6 +244,9 @@ const TEMP = new THREE.Vector3();
 export function createGraph() {
   const group = new THREE.Group();
   let nodes = [];
+  // Quantas das entradas de `nodes` são luas. Elas ficam no fim do vetor, então isto também é a
+  // fronteira entre "corpo do corpus" e "corpo derivado" — a sonda reporta os dois separados.
+  let moonCount = 0;
   let index = new Map();
   let positions = null;
   let ignition = null;
@@ -382,6 +386,45 @@ export function createGraph() {
   function load(payload) {
     dispose();
     nodes = (payload.nodes || []).filter(isSkyNode).map((node, i) => makeOrbit(node, i));
+
+    /*
+     * LUAS — as seções de um arquivo, quando a massa dele consegue segurá-las.
+     *
+     * Elas são sintetizadas AQUI e não vêm do servidor: `sections` já chega no payload (era ~23%
+     * dele sem consumidor) e a decisão de quem vira lua é geometria da cena, não fato do corpus.
+     * A regra inteira — limite de Roche por dentro, esfera de Hill por fora, razão de massas
+     * mínima — está em `orbital-zones.js`, com a medida que escolheu cada constante.
+     *
+     * Entram no MESMO buffer de pontos que as estrelas: uma chamada de desenho, o picking do
+     * three continua funcionando e a janela temporal as atinge junto com o pai. Medido antes de
+     * escrever (`advance()` a 5 000 nós custa 0,109 ms de CPU por quadro, contra os 0,45 ms de GPU
+     * da cena inteira) — as 182 luas deste corpus não chegam a aparecer no orçamento.
+     *
+     * ⚠️ Vão para o FIM do vetor de propósito: `advance()` posiciona a lua a partir da posição já
+     * escrita do pai, e o laço é uma passada só. Inserir lua antes do pai a deixaria um quadro
+     * atrasada — o mesmo defeito que a extinção do anel já pagou.
+     */
+    const centralMass = payload.stats?.chunks || nodes.reduce((sum, n) => sum + (n.chunks || 0), 0);
+    const moons = [];
+    nodes.forEach((node, parentIndex) => {
+      if (node.type !== 'file') return;
+      for (const moon of moonsOf(node, centralMass, hash01)) {
+        moons.push({
+          ...moon,
+          type: 'moon',
+          kind: node.kind,
+          chunks: moon.mass,
+          // A lua herda a recência do pai: ela não tem data própria, e atenuá-la por uma data
+          // inventada afirmaria idade que não existe — a mesma regra que já vale para diretório.
+          recency: node.recency,
+          parentIndex,
+          i: nodes.length + moons.length,
+        });
+      }
+    });
+    nodes = nodes.concat(moons);
+    moonCount = moons.length;
+
     index = new Map(nodes.map((node, i) => [node.id, i]));
 
     const count = nodes.length;
@@ -401,11 +444,18 @@ export function createGraph() {
       // Só ARQUIVO participa da janela temporal. Diretório e repo são agregados: não têm uma
       // data, têm as datas dos filhos. Atenuá-los por uma data inventada afirmaria idade que
       // não existe, então eles ficam sempre revelados (recência 0 = antes de qualquer corte).
-      recencies[i] = node.type === 'file' ? node.recency : 0;
+      // A lua acompanha o pai na janela: some junto com ele, e não sozinha nem depois.
+      recencies[i] = node.type === 'file' || node.type === 'moon' ? node.recency : 0;
       // Log no peso: um arquivo de 226 chunks não pode ser 226× maior que um de 1.
-      sizes[i] = node.type === 'file'
-        ? 0.55 + Math.log2(1 + node.chunks) * 0.42
-        : 1.5 + Math.log2(1 + node.chunks) * 0.3;
+      //
+      // A lua é a exceção, e por física: ela e o pai têm a mesma densidade, então a razão de
+      // raios é a raiz cúbica da razão de massas — `orbital-zones.js` já resolveu isso. Reaplicar
+      // a lei log aqui daria luas do tamanho do pai (medido: 0,46 a 1,00 do raio dele).
+      sizes[i] = node.type === 'moon'
+        ? node.drawRadius
+        : node.type === 'file'
+          ? 0.55 + Math.log2(1 + node.chunks) * 0.42
+          : 1.5 + Math.log2(1 + node.chunks) * 0.3;
       // `supernova` é 0…1 e vem do servidor (`recency._annotate_supernova`), normalizado pelo
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
@@ -514,9 +564,33 @@ export function createGraph() {
   function advance(elapsed) {
     if (!positions) return;
     for (const node of nodes) {
+      const offset = node.i * 3;
+
+      /*
+       * A LUA ORBITA O PAI, não o núcleo — e é o único corpo da cena assim.
+       *
+       * A posição do pai já está escrita: as luas vivem no fim do vetor (ver `load`). Somar o
+       * deslocamento à posição dele em vez de recalcular a órbita do pai é o que garante que as
+       * duas não possam divergir.
+       *
+       * Sem rotação própria: as 19 luas arredondadas do Sistema Solar estão travadas por maré, e
+       * `catalog.js` proíbe `spin` em `lua` por isso. Aqui sai de graça — a lua é ponto, e ponto
+       * não tem eixo. `bob` também não se aplica: ele é a oscilação vertical da órbita em torno do
+       * núcleo, e a lua não orbita o núcleo.
+       */
+      if (node.type === 'moon') {
+        const parent = node.parentIndex * 3;
+        const angle = node.phase + elapsed * node.speed * tune.speed;
+        const x = Math.cos(angle) * node.radius;
+        const z = Math.sin(angle) * node.radius;
+        positions[offset] = positions[parent] + x;
+        positions[offset + 1] = positions[parent + 1] + z * Math.sin(node.inclination);
+        positions[offset + 2] = positions[parent + 2] + z * Math.cos(node.inclination);
+        continue;
+      }
+
       const angle = node.phase + elapsed * node.speed * tune.speed;
       const bob = Math.sin(elapsed * 0.35 + node.wobble * 6.28) * node.radius * 0.045;
-      const offset = node.i * 3;
       /*
        * Rotação REAL em torno de X — a versão anterior não era uma órbita inclinada.
        *
@@ -552,6 +626,7 @@ export function createGraph() {
 
   function dispose() {
     rings.set([]);
+    moonCount = 0;
     byPath = new Map();
     dirtyState = new Map();
     for (const object of [points]) {
