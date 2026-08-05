@@ -350,6 +350,21 @@ function watchDirty(scene, streams) {
       if (!files || typeof files !== 'object' || Array.isArray(files)) {
         throw new Error('resposta sem tabela de arquivos');
       }
+      /*
+       * Sem raiz git configurada não é árvore limpa — é o servidor dizendo que não olhou.
+       *
+       * Com `AGENT_CWD` vazio (que é o que o `.env.example` traz) a rota devolvia `{}` e a tela
+       * anunciava ÁRVORE LIMPA em verde, indistinguível de um repositório sem alterações. Uma
+       * feature desligada tem que parecer desligada.
+       */
+      if (payload.root === null) {
+        scene.forgetDirty();
+        if (!failing) {
+          failing = true;
+          streams.note('SEM RAIZ GIT CONFIGURADA (AGENT_CWD) · ANÉIS DESLIGADOS', 'bad');
+        }
+        return;
+      }
       const { shown, dropped, total } = scene.markDirty(files);
       failing = false;
       if (shown === announced) return;

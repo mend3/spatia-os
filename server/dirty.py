@@ -38,56 +38,104 @@ _lock = threading.Lock()
 _cache: tuple[float, dict[str, str]] = (0.0, {})
 
 
-def _roots() -> list[Path]:
-    """A raiz do workspace e seus submódulos.
+# Profundidade máxima da varredura de submódulos. Não há repo real com aninhamento maior, e um
+# teto explícito impede que um `.gitmodules` circular trave o servidor.
+MAX_SUBMODULE_DEPTH = 4
 
-    Mesmo motivo do `recency.py`: `git status` no pai reporta o submódulo como UMA entrada
-    (`core/oracle`), nunca os arquivos dentro dele. Sem passar em cada submódulo, editar
-    `core/oracle/Makefile` não acenderia anel nenhum.
+
+def _submodules(base: Path, depth: int = 0) -> list[Path]:
+    """Os submódulos de `base`, RECURSIVAMENTE.
+
+    ⚠️ Só o primeiro nível não basta, e isto foi medido: `core/oracle` tem `.gitmodules` próprio
+    (`shared/mcp`), e há 7 arquivos indexados sob ele. Editar um deles não acendia anel nenhum —
+    o `git status` do workspace nem enxerga (está dentro de oracle) e o de oracle reporta
+    `shared/mcp` como gitlink, que não é caminho de arquivo. O resultado na tela era o pior
+    possível: sem anel, e a nota afirmando "FORA DO ÍNDICE" sobre um arquivo indexado.
     """
-    root = config.get("AGENT_CWD")
-    if not root:
+    if depth >= MAX_SUBMODULE_DEPTH:
         return []
-    base = Path(root).resolve()
-    if not (base / ".git").exists():
-        return []
-
-    roots = [base]
+    found: list[Path] = []
     try:
         out = subprocess.run(
             ["git", "-C", str(base), "config", "--file", ".gitmodules", "--get-regexp", r"\.path$"],
             capture_output=True, text=True, timeout=15,
         ).stdout
-        for line in out.splitlines():
-            parts = line.split()
-            if len(parts) == 2 and (base / parts[1]).is_dir():
-                roots.append(base / parts[1])
     except (OSError, subprocess.SubprocessError) as e:
-        logger.warning(f"não li .gitmodules: {e}")
-    return roots
+        logger.warning(f"não li .gitmodules em {base}: {e}")
+        return []
+
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        child = base / parts[1]
+        if not child.is_dir():
+            continue
+        found.append(child)
+        found.extend(_submodules(child, depth + 1))
+    return found
+
+
+def root() -> Optional[Path]:
+    """A raiz do workspace, ou `None` quando não há uma configurada.
+
+    ⚠️ `None` e "árvore limpa" são respostas DIFERENTES, e confundi-las desligava a feature em
+    silêncio: com `AGENT_CWD` vazio (que é o que o `.env.example` traz), `/api/dirty` respondia
+    `{}` para sempre — sem anel, sem nota, sem erro, e indistinguível de um repositório sem
+    nenhuma alteração. Quem chama precisa poder dizer qual dos dois é.
+    """
+    configured = config.get("AGENT_CWD")
+    if not configured:
+        return None
+    base = Path(configured).resolve()
+    return base if (base / ".git").exists() else None
+
+
+def _roots() -> list[Path]:
+    """A raiz do workspace e seus submódulos, em qualquer profundidade."""
+    base = root()
+    if not base:
+        return []
+    return [base, *_submodules(base)]
 
 
 def _status(git_root: Path, prefix: str) -> dict[str, str]:
-    """path (relativo à raiz do workspace) → 'modified' | 'staged' | 'untracked'."""
+    """path (relativo à raiz do workspace) → 'modified' | 'staged' | 'untracked'.
+
+    ⚠️ **`-z`, e não porcelain de linhas.** Sem ele o git aplica `core.quotePath` (ligado por
+    default) e devolve o caminho ESCAPADO: `coração.md` vira `cora\\303\\247\\303\\243o.md`, e
+    caminho com espaço vem entre aspas. Medido: num repo PT-BR nenhum arquivo com acento casava
+    com o nó do céu, e um `git mv "relatório final.md" "relatório.md"` produzia `"relatório.md`
+    com a aspa colada. O sintoma era o pior possível — sem anel, e a nota da tela afirmando
+    "FORA DO ÍNDICE" sobre um arquivo que está no índice.
+
+    Com `-z` não há escape nem aspas: os registros vêm separados por NUL, em UTF-8 cru. O preço
+    é que rename ocupa DOIS registros (novo, depois o antigo), então o laço consome o par.
+    """
     try:
         out = subprocess.run(
-            ["git", "-C", str(git_root), "status", "--porcelain", "--untracked-files=all"],
+            ["git", "-C", str(git_root), "status", "--porcelain", "-z", "--untracked-files=all"],
             capture_output=True, text=True, timeout=TIMEOUT_SECONDS,
         ).stdout
     except (OSError, subprocess.SubprocessError) as e:
         logger.warning(f"git status falhou em {git_root}: {e}")
         return {}
 
+    records = [record for record in out.split("\0") if record]
     states: dict[str, str] = {}
-    for line in out.splitlines():
-        if len(line) < 4:
+    i = 0
+    while i < len(records):
+        record = records[i]
+        i += 1
+        if len(record) < 4:
             continue
-        # Formato porcelain v1: dois caracteres de estado, espaço, caminho. A primeira coluna é
-        # o índice, a segunda a árvore de trabalho.
-        index, worktree, path = line[0], line[1], line[3:].strip().strip('"')
-        if " -> " in path:
-            # Rename: o que importa para o anel é o destino, que é o arquivo que existe agora.
-            path = path.split(" -> ", 1)[1]
+        # Dois caracteres de estado, espaço, caminho. Primeira coluna é o índice, segunda é a
+        # árvore de trabalho.
+        index, worktree, path = record[0], record[1], record[3:]
+        if index in ("R", "C") or worktree in ("R", "C"):
+            # Rename/cópia: o registro traz o caminho NOVO e o seguinte traz o antigo. O anel se
+            # importa com o arquivo que existe agora, então o antigo é consumido e descartado.
+            i += 1
         if index == "?" or worktree == "?":
             state = "untracked"
         elif index not in (" ", "?"):

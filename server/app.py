@@ -237,7 +237,11 @@ class Handler(BaseHTTPRequestHandler):
                 # Rota SEPARADA da topologia de propósito: o estado local muda a cada Ctrl+S,
                 # e a topologia é cacheada por fingerprint e gravada em disco. Juntar os dois
                 # forçaria ou anel velho, ou reconstruir 397 nós a cada 15 segundos.
-                self._json({"files": dirty.table()})
+                # `root` distingue "árvore limpa" de "sem raiz configurada". Sem ele, um
+                # `AGENT_CWD` vazio devolvia `{}` e o cliente anunciava ÁRVORE LIMPA em verde —
+                # afirmando sobre um disco que ninguém olhou.
+                root = dirty.root()
+                self._json({"files": dirty.table(), "root": str(root) if root else None})
             elif route == "/api/integrations":
                 self._json({
                     "webhooks": webhooks.availability(),
