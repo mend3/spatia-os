@@ -1,12 +1,23 @@
 # Catálogo celeste — proposta de taxonomia, 2026-08-05
 
-**Nada aqui está implementado.** É a proposta que saiu da pesquisa encomendada depois de o
-usuário notar, corretamente, que **anel é de planeta, não de estrela** — e que o problema é mais
-fundo que nomenclatura: hoje o céu chama todo arquivo indexado de "estrela", o que não deixa
-vocabulário para dizer que uma coisa é feita de outra, que uma orbita outra, ou que uma esfriou.
+É a proposta que saiu da pesquisa encomendada depois de o usuário notar, corretamente, que **anel é
+de planeta, não de estrela** — e que o problema é mais fundo que nomenclatura: o céu chamava todo
+arquivo indexado de "estrela", o que não deixava vocabulário para dizer que uma coisa é feita de
+outra, que uma orbita outra, ou que uma esfriou.
 
 O documento existe porque a pesquisa é cara e o raciocínio se perde. O que for implementado sai
 daqui e vira comentário no código.
+
+**Estado em 2026-08-05:** planeta anelado e supernova estão no céu; cometa extinto passou a
+classificar (segunda janela de churn), com superfície mas ainda sem cauda; lua e zonas por razão de
+massa continuam só aqui. O `status` de cada entrada em `src/space/catalog.js` é a fonte da verdade —
+nenhuma mente sobre estar pronta.
+
+> **Este documento é a TAXONOMIA** — que corpo existe, de que fato ele nasce, que regra física o
+> rege. Como isso vira pixel (forma, escala, modificadores, composição e animação) é o
+> [modelo de renderização](modelo-de-renderizacao.md), em seis estágios. A separação é recente e
+> deliberada: quando semântica, física e estado disputam a mesma dimensão visual, nenhuma das três
+> informa mais nada.
 
 ---
 
