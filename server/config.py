@@ -29,6 +29,11 @@ DEFAULTS = {
     # Cérebro: `claude` roda o CLI como subprocesso (ferramentas reais, custa da assinatura);
     # `ollama` responde local e de graça, mas sem ferramenta nenhuma.
     "BRAIN": "claude",
+    # Segmento-recipiente a podar do `source` do índice (ver `qdrant.strip_prefix`). Vazio =
+    # nada a podar, que é o caso de um índice cujo primeiro segmento já é o sistema. Vale um
+    # valor aqui quando o índice publica tudo dentro de um recipiente (ex.: `vault/`), porque
+    # esse segmento desloca a convenção "primeiro segmento é a raiz" de que o resto depende.
+    "CORPUS_PREFIX": "",
     # Onde o agente enxerga arquivos. O default é o próprio projeto — apontar para o
     # workspace de conhecimento é escolha explícita, porque o agente lê o que estiver lá.
     "AGENT_CWD": "",

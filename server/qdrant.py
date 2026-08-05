@@ -103,7 +103,8 @@ def chunks_of(source: str, limit: int = 40) -> list[dict]:
         "limit": limit,
         "with_payload": True,
         "with_vector": False,
-        "filter": {"must": [{"key": "metadata.source", "match": {"value": source}}]},
+        # O filtro casa com o que está GRAVADO, então o prefixo podado na entrada volta aqui.
+        "filter": {"must": [{"key": "metadata.source", "match": {"value": restore_prefix(source)}}]},
     }
     with _timed("chunks"):
         result = net.post_json(
@@ -130,6 +131,32 @@ def neighbors(point_id: str, limit: int = 8) -> list[dict]:
     return [_normalize(point) for point in response["result"]["points"]]
 
 
+def strip_prefix(source: str) -> str:
+    """Tira do `source` o segmento-recipiente que o índice acrescenta (`CORPUS_PREFIX`).
+
+    O indexador do workspace passou a publicar tudo dentro de um vault (`vault/workspace/...`,
+    `vault/wiki/...`), e esse primeiro segmento não distingue nada: ele é o recipiente, não um
+    sistema. Pior, ele desloca em UM a convenção "primeiro segmento é o nome da raiz" da qual
+    dependem `files.read_source`, `recency._git_key`, `dirty.state_of` e o `registerPath` do
+    cliente — quatro lugares que quebrariam igual, e em silêncio.
+
+    Por isso a poda mora aqui, na fronteira de entrada: quem consome o índice recebe o mesmo
+    formato de sempre. `restore_prefix` é a inversa, para quando o valor volta a ser filtro.
+    """
+    prefix = config.get("CORPUS_PREFIX")
+    if prefix and source.startswith(prefix):
+        return source[len(prefix):]
+    return source
+
+
+def restore_prefix(source: str) -> str:
+    """Devolve o `source` como o Qdrant o guarda — a chave do filtro, não a da cena."""
+    prefix = config.get("CORPUS_PREFIX")
+    if prefix and not source.startswith(prefix) and not source.startswith("/"):
+        return f"{prefix}{source}"
+    return source
+
+
 def _normalize(point: dict, *, with_text: bool = False) -> dict:
     payload = point.get("payload") or {}
     meta = payload.get("metadata") or {}
@@ -139,7 +166,7 @@ def _normalize(point: dict, *, with_text: bool = False) -> dict:
     hit = {
         "id": point.get("id"),
         "score": point.get("score"),
-        "source": meta.get("source", ""),
+        "source": strip_prefix(meta.get("source", "")),
         "path": meta.get("path", ""),
         "file": meta.get("file_name", ""),
         "section": meta.get("section", ""),

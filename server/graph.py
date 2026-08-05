@@ -20,7 +20,10 @@ logger = logging.getLogger("espatial.graph")
 
 CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # Versão do FORMATO do nó. Ver o uso no fingerprint.
-SCHEMA_VERSION = 3
+# 4: `source` chega podado do recipiente (`qdrant.strip_prefix`), então todo id de nó mudou
+#    sem que a contagem de pontos mudasse — o cache em disco continuaria válido servindo ids
+#    velhos, e a cena abriria com o leitor quebrado outra vez.
+SCHEMA_VERSION = 4
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -103,6 +106,7 @@ def build() -> dict:
             files[source]["sections"].append(section)
 
     nodes = list(files.values())
+    _warn_if_container_root(nodes)
     # Recência por git: é ela que vira o raio orbital no céu. `indexed_at` não serve (uma
     # reindexação dá a mesma data a todos os 397 arquivos) e mtime também não (reflete a hora
     # do clone). Ambos foram medidos — ver o docstring de `recency.py`.
@@ -126,6 +130,25 @@ def build() -> dict:
         f"{payload['stats']['chunks']} chunks, {len(hubs)} hubs"
     )
     return payload
+
+
+def _warn_if_container_root(nodes: list[dict]) -> None:
+    """Avisa quando TODO arquivo compartilha o primeiro segmento e ninguém o podou.
+
+    Esse é o formato de um índice publicado dentro de um recipiente. Ele não quebra o build —
+    quebra `files.read_source`, a recência por git e os anéis de `dirty`, todos em silêncio,
+    porque cada um assume que o primeiro segmento é o nome da raiz. Já aconteceu uma vez.
+    """
+    if config.get("CORPUS_PREFIX"):
+        return
+    roots = {node["source"].split("/")[0] for node in nodes if not node["source"].startswith("/")}
+    if len(roots) == 1 and len(nodes) > 1:
+        root = roots.pop()
+        logger.warning(
+            f"todos os {len(nodes)} arquivos começam com '{root}/': se ele for um recipiente "
+            f"e não um sistema, defina CORPUS_PREFIX={root}/ — senão leitor, recência e "
+            "anéis de alteração falham sem erro"
+        )
 
 
 def _tree_path(source: str) -> str:
@@ -272,7 +295,12 @@ def load(force: bool = False) -> dict:
     # `points_count` do Qdrant, então o cache em disco continuaria válido e serviria nós sem o
     # campo — a feature nasceria morta num clone que já tivesse `.cache/graph.json`, e o sintoma
     # seria "não aparece nada" sem erro nenhum. Suba a versão ao acrescentar campo em nó.
-    fingerprint = f"{SCHEMA_VERSION}:{config.get('QDRANT_COLLECTION')}:{collection['points']}"
+    # `CORPUS_PREFIX` entra no fingerprint porque mudá-lo reescreve TODO id de nó sem mover o
+    # `points_count` — o cache continuaria casando e serviria ids que o leitor não resolve.
+    fingerprint = (
+        f"{SCHEMA_VERSION}:{config.get('QDRANT_COLLECTION')}:{collection['points']}"
+        f":{config.get('CORPUS_PREFIX')}"
+    )
 
     with _lock:
         if not force and _cached and _cached.get("fingerprint") == fingerprint:
