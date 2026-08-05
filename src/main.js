@@ -9,6 +9,7 @@
 import { on, ui, emit } from './core/bus.js';
 import * as state from './core/state.js';
 import * as session from './core/session.js';
+import * as attention from './core/attention.js';
 import * as api from './core/api.js';
 import { createScene } from './space/scene.js';
 import { createAudio } from './audio/engine.js';
@@ -53,6 +54,11 @@ async function main() {
   // Depois do `state`: os dois assinam o mesmo barramento, e o contexto da sessão referencia
   // o regime cognitivo — instalar antes o faria observar um store que ainda não existe.
   session.install();
+  /*
+   * Before the scene exists, and that ordering is the whole point: `attention` is a pure observer
+   * of `ui.links`, and the emission it must not miss is the very first one the scene produces.
+   */
+  attention.install();
   keys.install();
 
   const audio = createAudio();

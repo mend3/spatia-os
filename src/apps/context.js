@@ -37,6 +37,7 @@
 import { listWidget } from './widgets-core.js';
 import { el, plural, shortPath } from '../hud/dom.js';
 import { on, emit } from '../core/bus.js';
+import * as attention from '../core/attention.js';
 import { button } from '../hud/button.js';
 import { classify } from '../space/catalog.js';
 import { DIRTY_LABELS } from '../space/rings.js';
@@ -65,14 +66,28 @@ export function registerContextWidget() {
     hint: 'SOB ATENÇÃO',
     slot: 'right',
     render(view) {
-      const off = on('ui.links', ({ subject, dirty, origin, nodes }) => {
+      const pintar = ({ subject, dirty, origin, links }) => {
         if (!subject) {
           view.empty(VAZIO);
           return;
         }
-        view.set(desenhar(subject, dirty, origin, nodes || []));
-      });
-      view.empty(VAZIO);
+        view.set(desenhar(subject, dirty, origin, links || []));
+      };
+
+      const off = on('ui.links', ({ subject, dirty, origin, nodes }) =>
+        pintar({ subject, dirty, origin, links: nodes })
+      );
+
+      /*
+       * Mount reads the STORE, not the last event — and this is the fix for a bug seen on screen.
+       *
+       * This widget is destroyed and rebuilt on every route change, and the notification that
+       * would fill it already fired: the operator locked a star, navigated (clicking a body in the
+       * sky navigates by itself, `kernel/router.js`), and the panel came back blank about a body
+       * that was still in focus. Painting from `attention.snapshot()` makes remounting recover the
+       * present instead of waiting for the operator to move the mouse again.
+       */
+      pintar(attention.snapshot());
       return { destroy: off };
     },
   });

@@ -15,6 +15,7 @@ import { registerApp } from '../kernel/registry.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
 import { registerContextWidget } from './context.js';
+import * as attention from '../core/attention.js';
 import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
@@ -46,7 +47,15 @@ export function registerApps() {
     orbit: { radius: 12.5, inclination: -0.24, phase: 0.4 },
     // A janela do tempo entra aqui também: este é o app sobre o corpus, e navegar o corpus por
     // data é a mesma operação que navegá-lo por pasta.
-    widgets: ['fs-tree', 'fs-shape', 'fs-locate', 'fs-content', 'sky-time', 'timeline'],
+    /*
+     * `context` entra em TODAS as listas, como `sky-time` e `timeline`.
+     *
+     * O céu está visível em toda rota, e o painel fala do céu — mas ele só existia na vista de
+     * sistema, e clicar num astro NAVEGA (o router leva para `files`). O gesto que trava a câmera
+     * era o mesmo que apagava o painel que ia descrever o astro travado. Widget de rota única para
+     * uma superfície que não é de rota nenhuma.
+     */
+    widgets: ['context', 'fs-tree', 'fs-shape', 'fs-locate', 'fs-content', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -55,7 +64,7 @@ export function registerApps() {
     tagline: 'saúde, custo, permissões, afinação',
     color: COLORS.system,
     orbit: { radius: 15.5, inclination: 0.36, phase: 2.1 },
-    widgets: ['sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'sky-time', 'timeline'],
+    widgets: ['context', 'sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -64,7 +73,7 @@ export function registerApps() {
     tagline: 'provedores, resultados, ingestão',
     color: COLORS.web,
     orbit: { radius: 18.5, inclination: -0.42, phase: 3.9 },
-    widgets: ['web-search', 'web-providers', 'web-results', 'answer', 'sky-time', 'timeline'],
+    widgets: ['context', 'web-search', 'web-providers', 'web-results', 'answer', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -73,7 +82,7 @@ export function registerApps() {
     tagline: 'integrações, webhooks, MCP',
     color: COLORS.bridge,
     orbit: { radius: 21, inclination: 0.18, phase: 5.4 },
-    widgets: ['br-webhooks', 'br-mcp', 'br-deliveries', 'sky-time', 'timeline'],
+    widgets: ['context', 'br-webhooks', 'br-mcp', 'br-deliveries', 'sky-time', 'timeline'],
   });
 }
 
@@ -674,7 +683,7 @@ function registerFilesWidgets() {
        * ⚠️ Só sobrescreve o VAZIO. Com um arquivo aberto, passar o cursor pelo céu apagaria a
        * leitura em curso — o hover é um gesto de passagem e não pode desfazer uma escolha.
        */
-      const offHover = on('ui.hover', ({ node, dirty }) => {
+      const legenda = (node, dirty) => {
         if (lendo) return;
         if (!node) {
           view.empty(REPOUSO);
@@ -696,9 +705,36 @@ function registerFilesWidgets() {
         meta.textContent = partes.join(' · ');
         const dica = el('div', 'widget-hint', 'clique para travar a câmera neste astro');
         view.set([cabecalho, meta, dica]);
-      });
+      };
 
-      view.empty(REPOUSO);
+      /*
+       * `ui.links`, não `ui.hover` cru — e a diferença é de VERDADE, não de gosto.
+       *
+       * Com o hover cru, tirar o cursor do astro mandava `node: null` e o leitor voltava a dizer
+       * "escolha um arquivo" com a câmera travada num astro. O `ui.links` já é a atenção
+       * RESOLVIDA: a cena decide ali que o cursor vence o foco enquanto existe e que o foco
+       * responde quando ele sai. Assinar o evento resolvido também tira daqui uma cópia dessa
+       * precedência — duas cópias divergem, e a divergência apareceria como o leitor e o painel
+       * da direita falando de astros diferentes.
+       */
+      const offHover = on('ui.links', ({ subject, dirty }) => legenda(subject, dirty));
+
+      /*
+       * O repouso agora PERGUNTA antes de afirmar.
+       *
+       * `view.empty(REPOUSO)` fixo dizia "escolha um arquivo · ou passe o cursor sobre um astro"
+       * com um astro já travado na câmera — porque travar o foco emite `ui.select`, que este
+       * leitor não escuta, e porque a navegação que o próprio clique dispara remonta o widget
+       * depois de o evento de hover ter passado. Duas causas, o mesmo sintoma: a tela negando um
+       * estado que o sistema tinha.
+       *
+       * O `attention` responde quem está sob atenção AGORA, e a legenda que já existia serve os
+       * dois casos — hover e foco — sem um segundo caminho de desenho.
+       */
+      const inicial = attention.snapshot();
+      if (inicial.subject) legenda(inicial.subject, inicial.dirty);
+      else view.empty(REPOUSO);
+
       return { destroy: () => { offOpen(); offHover(); readerClose = null; } };
     },
   });
