@@ -168,10 +168,25 @@ export function profileTexture(name) {
   // ressalva no topo do arquivo — a geometria é real, este brilho relativo não é.
   const peak = Math.max(...values, 1e-6);
 
+  /*
+   * Canal R: densidade. Canal G: a COLUNA de profundidade óptica acumulada do limbo até aquele
+   * raio — a integral da densidade.
+   *
+   * Ela mora aqui, e não em quem desenha, porque é derivada DIRETA do perfil: recalcular do
+   * outro lado abriria a chance de a integral e a densidade discordarem depois de uma edição
+   * nesta tabela. E o custo é zero — a soma acontece na mesma passada que já normaliza.
+   *
+   * Serve à auto-sombra radial: aqui o primário é uma ESTRELA no centro, então a luz sai dele
+   * NO plano do anel e o caminho da luz é o próprio raio. O que chega a um raio já atravessou
+   * tudo que está entre a estrela e ele — o anel A fica atrás da parede que é o anel B.
+   */
   const data = new Uint8Array(RESOLUTION * 4);
+  let accumulated = 0;
+  const column = values.map((value) => (accumulated += Math.min(1, value / peak)));
+  const total = Math.max(accumulated, 1e-6);
   values.forEach((value, i) => {
     const level = Math.round(Math.min(1, value / peak) * 255);
-    data.set([level, level, level, 255], i * 4);
+    data.set([level, Math.round((column[i] / total) * 255), level, 255], i * 4);
   });
 
   const texture = new THREE.DataTexture(data, RESOLUTION, 1, THREE.RGBAFormat);

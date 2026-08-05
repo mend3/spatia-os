@@ -38,6 +38,8 @@
  */
 import * as THREE from 'three';
 import { profileTexture } from './ring-profiles.js';
+import { rockTexture } from './ring-rock.js';
+import { GLSL_PSNOISE } from './ring-noise.js';
 
 /**
  * Uma cor por estado do `git status`. Âmbar, verde-água e violeta se separam bem entre si
@@ -75,19 +77,25 @@ const DIRTY_FAMILIES = {
 // anel em perspectiva, aberta o bastante para não virar um traço.
 const TILT = 1.1;
 /*
- * Quanto do sprite da estrela o SISTEMA DE ANÉIS INTEIRO ocupa — a borda externa fica aqui.
+ * Até quantos RAIOS DO ASTRO o sistema de anéis pode se estender na tela.
  *
- * Isto é decisão de tela, não de física, e o arquivo diz isso porque a versão anterior tentou
- * o contrário e falhou de forma medida: ancorando o perfil no LIMBO do planeta, Saturno
- * (`reach` 2.45) rende um sistema 4.9× mais largo que o astro — o que é verdade e é
- * inutilizável, porque no ajuste padrão a câmera fica dentro da casca de nós e os anéis passam
- * a se sobrepor cobrindo a tela. Fixando a borda EXTERNA no sprite, o rodapé fica limitado e
- * todas as proporções INTERNAS (B, Divisão de Cassini, ε, os gossamer) seguem reais — o que se
- * perde é só a comparação de tamanho entre um anel e outro planeta, que não é o que a cena
- * comunica. Famílias de `reach` maior ganham um planeta proporcionalmente menor dentro do
- * mesmo rodapé, o que por acaso é verdade (o sistema de Júpiter é mesmo mais largo).
+ * ⚠️ Esta constante já foi um "rodapé" — a fração do sprite que o anel inteiro ocupava (0,62),
+ * escolhida para conter um sistema que a `reach` real deixava 4,9× mais largo que o astro e que
+ * cobria a tela. **Ela produzia geometria impossível, e o defeito era visível:** o disco do
+ * astro tem raio `VISIBLE_CORE` (0,6) do sprite, então um quad de meia-extensão 0,62 do sprite
+ * punha a borda EXTERNA do anel a 1,03 raio do astro — o anel inteiro dentro do próprio planeta.
+ * O teste que esconde a metade distante atrás do astro então comia essa metade toda, e o que
+ * chegava à tela era **meio anel, cortado reto**.
+ *
+ * A correção não é remover o teste (ele está certo: metade do anel PASSA mesmo atrás do astro).
+ * É fazer o anel ser maior que o astro. O sistema agora se estende por `min(reach, SPAN_CAP)`
+ * raios do astro: real até o teto, e o teto existe pelo motivo medido de antes — no ajuste
+ * padrão a câmera fica dentro da casca de nós, e anéis largos demais se sobrepõem.
+ *
+ * 2,4 mantém Saturno (2,45) e Urano (2,20) praticamente inteiros e só comprime Júpiter (3,20),
+ * cujos gossamer são exatamente a parte tênue que menos se perde ao encolher.
  */
-const FOOTPRINT = 0.62;
+const SPAN_CAP = 2.4;
 
 /**
  * Que fração do raio do SPRITE é o disco visível da estrela.
@@ -98,12 +106,30 @@ const FOOTPRINT = 0.62;
  * aparecia. Exportado para quem precisar converter entre os dois ter uma fonte só.
  *
  * De onde sai: o núcleo do ponto é `pow(1 - smoothstep(0,1,d), 2.2)` e já caiu a ~2% em d=0.6.
- * O `LIMB` do shader (0.97) é esta constante dividida por `FOOTPRINT`.
+ * É também o que ancora o anel: a meia-extensão do quad é este raio vezes `span`, e o limbo
+ * no shader é `1/span`. Divergir esses dois números foi o que cortou o anel ao meio.
  */
 export const VISIBLE_CORE = 0.6;
 // Dispersão determinística da inclinação e do rolamento. Todos os anéis com o MESMO tombo lê
 // como carimbo; os planetas reais não combinaram inclinação entre si.
 const TILT_SPREAD = 0.30;
+/*
+ * Dispersão do ROLAMENTO — quanto o eixo maior da elipse pode sair da horizontal.
+ *
+ * Era `± π/2`, ou seja **±90°**: metade dos anéis nascia de pé, e um anel vertical não lê como
+ * anel — lê como defeito. Pior, ele fazia par com a oclusão da metade distante e o resultado era
+ * meio anel cortado por uma reta VERTICAL, que parecia clipping de câmera e não era.
+ *
+ * ±0,26 rad (~15°) dá o desalinhamento que impede o carimbo repetido sem tirar o objeto da
+ * horizontal. Continua determinístico por nó: o mesmo arquivo tem sempre a mesma pose.
+ */
+const ROLL_SPREAD = 0.52;
+/*
+ * Voltas por segundo da borda INTERNA (a externa sai daí pelo cisalhamento kepleriano do
+ * shader). 0,014 dá ~70s por volta no anel C e ~4min no A: movimento que se percebe olhando,
+ * mas que não compete com a órbita dos nós, que é o gesto principal da cena.
+ */
+const SPIN = 0.014;
 const OPACITY = 0.9;
 /*
  * Teto de anéis desenhados ao mesmo tempo. Um refactor grande suja centenas de arquivos, e aí
@@ -111,6 +137,22 @@ const OPACITY = 0.9;
  * e é responsável por dizê-lo — corte silencioso lê como "é só isso que mudou".
  */
 let maxRings = 64;
+
+/*
+ * Faixa de transição entre os dois níveis, em pixels de raio do sprite.
+ *
+ * 26px é a ordem de grandeza de um astro na vista padrão; 90px, a de quando a câmera está
+ * travada num deles. A faixa é LARGA de propósito — transição estreita vira degrau, e degrau é
+ * o que faz nível de detalhe parecer bug em vez de detalhe.
+ */
+export const LOD_FAR_PX = 26;
+export const LOD_NEAR_PX = 90;
+
+/** `smoothstep` do GLSL em JS — a transição é decidida na CPU, uma vez por anel. */
+function smoothstep(edge0, edge1, x) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
 
 /*
  * Ordem de desenho, e ela é OBRIGATÓRIA.
@@ -123,13 +165,19 @@ let maxRings = 64;
  * ordena por DISTÂNCIA — e aqui as três estão à mesma distância, então o resultado seria a
  * ordem de inserção, que não é contrato de nada.
  */
-// τ efetivo. Não é o do anel B real (1.5–2.5): ali a faixa some por completo, e uma estrela é
-// fonte pontual muito mais brilhante que um planeta iluminado. Este é o valor que deixa a
-// passagem legível sem apagar o astro — número de tela, não constante do modelo.
-// τ do anel B, medido: 1.5–2.5. Fica em 2.0 — DENTRO da faixa real, e a bancada mostrou que
-// nesse patamar a faixa escura sobre o astro é visível. O valor anterior (0.85) foi um palpite
-// escolhido sem conseguir ver o efeito; este foi escolhido vendo.
-const OPTICAL_DEPTH = 2.0;
+/*
+ * τ efetivo da passagem do anel na frente do astro.
+ *
+ * O anel B real mede 1,5–2,5, e por um tempo esta constante ficou em 2.0 justamente por estar
+ * DENTRO dessa faixa. Só que ela foi escolhida com a geometria errada — o sistema inteiro cabia
+ * em 1,03 raio do astro, então a área que a extinção pintava era uma lasca no limbo. Corrigida a
+ * extensão, a MESMA constante passou a cobrir quase todo o disco e apagou o astro.
+ *
+ * A lição é a de sempre: número calibrado a olho vale para a geometria em que foi calibrado.
+ * 1.2 bloqueia 70% no pico de densidade e quase nada na Divisão de Cassini e no anel C — a
+ * passagem continua legível como faixa escura, e o astro sobrevive a ela.
+ */
+const OPTICAL_DEPTH = 1.2;
 
 /*
  * EXTINÇÃO — o anel na frente do astro ESCURECE, não soma luz.
@@ -147,11 +195,12 @@ const EXTINCTION_FRAGMENT = /* glsl */ `
   uniform sampler2D uProfile;
   uniform float uOpacity;
   uniform float uCosTilt;
+  // Limbo do astro em unidades do quad: 1/span. Varia por família, então NÃO é constante.
+  uniform float uLimb;
   uniform vec2 uRadial;
   uniform float uDepth;
   varying vec2 vUv;
 
-  const float LIMB = 0.97;
 
   void main(){
     vec2 p = vUv * 2.0 - 1.0;
@@ -161,7 +210,7 @@ const EXTINCTION_FRAGMENT = /* glsl */ `
     if (r < 0.0) discard;
     if (p.y < 0.0) discard;
     float screenR = length(vec2(p.x, p.y * uCosTilt));
-    if (screenR > LIMB) discard;
+    if (screenR > uLimb) discard;
 
     float density = texture2D(uProfile, vec2(r, 0.5)).r;
     // Beer-Lambert: a fracao que ATRAVESSA e exp(-tau * densidade).
@@ -218,58 +267,147 @@ const VERTEX = /* glsl */ `
  */const FRAGMENT = /* glsl */ `
   precision highp float;
   uniform sampler2D uProfile;
+  uniform sampler2D uRock;
   uniform vec3 uColor;
   uniform float uOpacity;
   uniform float uForward;
-  uniform vec2 uRadial;
   uniform float uCosTilt;
+  // Limbo do astro em unidades do quad: 1/span. Varia por família, então NÃO é constante.
+  uniform float uLimb;
+  uniform float uNear;
+  uniform float uPhase;
+  uniform vec2 uRadial;
   varying vec2 vUv;
 
+  const float TAU = 6.28318530718;
+  const float RADIAL_PERIOD = 1024.0;
+  // Wakes: densidade, celulas em azimute, profundidade optica, forca da auto-sombra.
+  const float WAKE = 0.16;
+  const float CELLS = 96.0;
+  const float DEPTH = 2.6;
+  const float SHADE = 1.6;
+  const float GRAIN = 0.55;
+
+  ${GLSL_PSNOISE}
+
+  // Banda-limitacao (Quilez): a oitava que oscila mais de uma vez por pixel nao pode ser
+  // amostrada. Apaga-la custa um smoothstep; supersampla-la custaria N vezes o shader.
+  float fnoise(vec2 p, float cells, float w){
+    return psnoise(p, vec2(cells, RADIAL_PERIOD)) * smoothstep(1.0, 0.5, w);
+  }
+
+  // Fator INTEIRO em cada oitava: e o que preserva o periodo azimutal. O classico 2.01
+  // (usado contra repeticao) reabriria a costura em +-pi, bem no meio do anel.
+  float fbmWake(vec2 q, float cells, float w){
+    float t = 0.500 * fnoise(q,       cells,       w);
+    t +=      0.250 * fnoise(q * 2.0, cells * 2.0, w * 2.0);
+    t +=      0.125 * fnoise(q * 4.0, cells * 4.0, w * 4.0);
+    return t;
+  }
+
+  // Celula de wake: longa em azimute, fina em raio, CISALHADA — o cisalhamento e o angulo de
+  // pitch (20-30 graus da direcao orbital) e sai de graca; rotacionar custaria sen/cos.
+  vec2 wakeCoords(float ang, float rad){
+    vec2 q = vec2(ang / TAU * CELLS, rad * CELLS * 0.62);
+    q.x += q.y * 0.45;
+    return q;
+  }
+
+  // Assimetria quadrupolar do anel A: dois minimos, perto de 70 e 250 graus de longitude,
+  // onde os wakes se alinham com a linha de visada (Cassini/UVIS).
+  float wakeAsymmetry(float ang){
+    return 1.0 + WAKE * cos(2.0 * (ang - 1.22));
+  }
+
   /*
-   * Onde fica o LIMBO da estrela, em unidades do quad.
+   * CISALHAMENTO KEPLERIANO — omega proporcional a r^-1.5.
    *
-   * O disco visivel da estrela e ~0.6 do raio do sprite (o nucleo do ponto ja apagou ali), e o
-   * quad tem meia-extensao FOOTPRINT=0.62 do mesmo raio. Logo o limbo cai em 0.6/0.62 ≈ 0.97
-   * do quad. Os dois numeros vivem no JS deste modulo e em graph.js; se um mudar, este muda.
+   * O anel nao gira como um disco rigido: a borda interna completa uma volta em ~6h e a externa
+   * em ~14h. E o que impede a leitura de "textura colada num prato girando", e sai por um pow.
+   *
+   * O r e a coordenada do PERFIL (0 no limbo, 1 no alcance); a razao de raios reais e
+   * (1 + r*(span-1)), e o expoente -1.5 e a terceira lei de Kepler.
    */
-  const float LIMB = 0.97;
+  float shear(float r){
+    return pow(1.0 + r * (1.0 / uLimb - 1.0), -1.5);
+  }
+
+  float phaseTerm(float y){
+    float near = clamp(y, 0.0, 1.0);
+    float far = clamp(-y, 0.0, 1.0);
+    float ice = 0.72 + 0.28 * far;
+    float dust = 0.30 + 2.6 * pow(near, 3.0);
+    return mix(ice, dust, uForward);
+  }
 
   void main(){
     vec2 p = vUv * 2.0 - 1.0;
     float d = length(p);
     if (d > 1.0) discard;
-
-    // Raio do quad para raio do perfil: 0 no limbo do planeta, 1 no alcance da família.
     float r = d * uRadial.x + uRadial.y;
     if (r < 0.0) discard;
+    // Metade DISTANTE some atras do astro. p.y < 0 e a distante (rotateX positivo, camera
+    // olhando por -Z) — trocar o sinal esconderia a metade que passa NA FRENTE.
+    if (p.y < 0.0 && length(vec2(p.x, p.y * uCosTilt)) < uLimb) discard;
+
+    vec2 slab = texture2D(uProfile, vec2(r, 0.5)).rg;
+    float density = slab.r;
+    float ang = atan(p.y, p.x);
 
     /*
-     * OCLUSAO pelo limbo do astro.
+     * NIVEL DE PERTO — textura de rocha filtrada pelo hardware.
      *
-     * O quad esta em espaco de camera, entao o deslocamento na TELA de um ponto do anel e
-     * (p.x, p.y * cos(tombo)) — o eixo tombado encurta na projecao. A borda interna do perfil
-     * projetada cai bem dentro do disco da estrela, entao a metade DISTANTE do anel deve sumir
-     * atras dela e reaparecer do outro lado.
+     * uNear e uniforme, entao este ramo e COERENTE no draw call inteiro: a GPU nao paga
+     * divergencia, so o custo do lado escolhido. Fora da faixa de transicao, um dos dois
+     * simplesmente nao roda.
      *
-     * ⚠️ p.y < 0 e a metade DISTANTE (com rotateX positivo e a camera olhando por -Z, p.y > 0
-     * e a proxima) — a mesma convencao que o gradiente de fase logo abaixo usa. Trocar o sinal
-     * aqui esconderia justamente a metade que passa NA FRENTE.
-     *
-     * Ver o anel emergir por tras do corpo e a pista numero um de que aquilo e um objeto 3D em
-     * volta de uma esfera, e nao um decalque colado na tela.
+     * A costura do atan e resolvida com DUAS amostras defasadas de meia volta: a derivada de
+     * fract explode em ang=0 e o hardware escolheria o mip mais grosseiro numa linha de 1px.
      */
-    float screenR = length(vec2(p.x, p.y * uCosTilt));
-    if (p.y < 0.0 && screenR < LIMB) discard;
+    float rough = 1.0;
+    float sparkle = 0.0;
+    if (uNear > 0.001) {
+      float a = ang / TAU + uPhase * shear(r);
+      float v0 = fract(a);
+      float v1 = fract(a + 0.5);
+      float blend = smoothstep(0.0, 0.06, min(v0, 1.0 - v0));
+      vec4 g = mix(texture2D(uRock, vec2(r, v1)), texture2D(uRock, vec2(r, v0)), blend);
+      rough = mix(1.0, 2.0 * g.r * (0.6 + 0.8 * g.b), GRAIN);
+      // Pedregulho e brilho ADICIONADO onde ja ha material: uma pedra acesa fora do anel
+      // seria uma estrela solta, e o ceu ja esta cheio delas.
+      sparkle = g.g * 0.9 * density;
+    }
 
-    float density = texture2D(uProfile, vec2(r, 0.5)).r;
+    /*
+     * NIVEL DE LONGE — laje de profundidade optica finita.
+     *
+     * Transmissao saturada mais auto-sombra radial: o anel A nasce escuro PORQUE o anel B esta
+     * na frente da luz. E o que sobrevive quando o anel tem 20px — o olho le contraste entre
+     * faixas, nao textura.
+     *
+     * O -0.5 na sombra e normalizacao de EXPOSICAO, nao fisica: ancorado em zero, a sombra
+     * escureceria o anel inteiro em vez de criar contraste entre borda interna e externa.
+     */
+    float grainFar = 1.0;
+    if (uNear < 0.999) {
+      vec2 q = wakeCoords(ang + uPhase * shear(r) * TAU, r);
+      float w = max(fwidth(q.x), fwidth(q.y));
+      grainFar = max(1.0 + 0.5 * fbmWake(q, CELLS, w), 0.0);
+    }
 
-    float near = clamp(p.y, 0.0, 1.0);
-    float far = clamp(-p.y, 0.0, 1.0);
-    float ice = 0.72 + 0.28 * far;
-    float dust = 0.30 + 2.6 * pow(near, 3.0);
-    float phase = mix(ice, dust, uForward);
+    density *= mix(grainFar, rough, uNear) * wakeAsymmetry(ang);
+    float lit = exp(-SHADE * (slab.g - 0.5));
 
-    float intensity = density * phase * uOpacity;
+    /*
+     * CAMINHO OBLIQUO — o "tilt effect" medido em Saturno. De perfil a linha de visada
+     * atravessa muito mais laje, entao a profundidade optica efetiva e tau/mu: as faixas finas
+     * clareiam e as densas SATURAM. O perfil achata sozinho no tombo raso, e essa e a
+     * assinatura que separa uma laje de uma pintura.
+     */
+    float mu = max(uCosTilt, 0.05);
+    float seen = 1.0 - exp(-DEPTH * density / mu);
+
+    float intensity = (seen * lit + sparkle * uNear) * phaseTerm(p.y) * uOpacity;
     if (intensity < 0.004) discard;
     gl_FragColor = vec4(uColor * intensity, intensity);
   }
@@ -287,6 +425,12 @@ export function createRings() {
   // Uma textura de perfil por família, compartilhada por todos os anéis dela. Construídas sob
   // demanda: uma árvore sem `staged` nunca paga o perfil de Urano.
   const profiles = new Map();
+  /*
+   * A rocha é UMA textura, compartilhada por todos os anéis, e nasce só quando algum deles
+   * chega perto o bastante para usá-la. São 256 KB e ~40ms de construção: pagar isso no boot,
+   * numa cena em que talvez ninguém se aproxime de astro nenhum, seria custo por hipótese.
+   */
+  let rock = null;
   // Pool: os anéis são reatribuídos a cada leitura do `git status` (a cada 15s). Criar e
   // destruir malha e material nesse ritmo é lixo garantido para o coletor.
   const pool = [];
@@ -310,7 +454,11 @@ export function createRings() {
             uOpacity: { value: 0 },
             uForward: { value: 0 },
             uRadial: { value: new THREE.Vector2(1, 0) },
+            uNear: { value: 0 },
+            uRock: { value: null },
+            uPhase: { value: 0 },
             uCosTilt: { value: Math.cos(TILT) },
+            uLimb: { value: 1 / SPAN_CAP },
           },
           vertexShader: VERTEX,
           fragmentShader: FRAGMENT,
@@ -332,6 +480,7 @@ export function createRings() {
             uProfile: { value: null },
             uOpacity: { value: 0 },
             uCosTilt: { value: Math.cos(TILT) },
+            uLimb: { value: 1 / SPAN_CAP },
             uRadial: { value: new THREE.Vector2(1, 0) },
             uDepth: { value: OPTICAL_DEPTH },
           },
@@ -380,10 +529,13 @@ export function createRings() {
         mesh.userData.shade.material.uniforms.uProfile.value = profile.texture;
         mesh.material.uniforms.uProfile.value = profile.texture;
         mesh.material.uniforms.uForward.value = profile.forward;
-        // d_perfil = (d·reach − 1)/(reach − 1): descarta a região dentro do limbo.
-        const radial = [profile.reach / (profile.reach - 1), -1 / (profile.reach - 1)];
+        // d_perfil = (d·span − 1)/(span − 1): descarta a região dentro do limbo.
+        const span = Math.min(profile.reach, SPAN_CAP);
+        const radial = [span / (span - 1), -1 / (span - 1)];
         mesh.material.uniforms.uRadial.value.set(...radial);
         mesh.userData.shade.material.uniforms.uRadial.value.set(...radial);
+        mesh.material.uniforms.uLimb.value = 1 / span;
+        mesh.userData.shade.material.uniforms.uLimb.value = 1 / span;
         mesh.material.uniforms.uColor.value.setHex(
           DIRTY_COLORS[entry.state] ?? DIRTY_COLORS.modified
         );
@@ -392,11 +544,15 @@ export function createRings() {
           mesh,
           index: entry.index,
           recency: entry.recency,
-          // O quad tem meia-extensão 1 e o perfil vai do LIMBO ao `reach`. `uRadial` já cuida
-          // do remapeamento; aqui só sobra o rodapé de tela.
+          // Informativo: é a `reach` REAL da família, que a bancada mostra. A extensão que
+          // vai à tela é `span` — as duas divergem só quando o teto corta (Júpiter).
           reach: profile.reach,
+          // O sistema se estende por tantos raios do astro; o limbo cai em 1/span do quad, que
+          // é EXATAMENTE onde `uRadial` faz o perfil começar. Os dois têm de sair do mesmo
+          // número — foi a divergência entre eles que cortou o anel ao meio.
+          span: Math.min(profile.reach, SPAN_CAP),
           tilt: TILT + (jitter(entry.index, 1) - 0.5) * TILT_SPREAD,
-          roll: (jitter(entry.index, 2) - 0.5) * Math.PI,
+          roll: (jitter(entry.index, 2) - 0.5) * ROLL_SPREAD,
         });
       });
       for (let i = kept.length; i < pool.length; i++) {
@@ -415,10 +571,12 @@ export function createRings() {
      * deixaria o anel aceso em volta do nada.
      */
     /**
+     * @param {number} [elapsed]  relógio da cena, em segundos. É o que faz o anel GIRAR — sem
+     *   ele a rocha fica colada e o objeto lê como textura pintada num prato parado.
      * @param {number} [tiltOverride]  tombo fixo, para a BANCADA varrer o ângulo. Na cena o
      *   tombo é por nó (dispersão determinística) e este parâmetro não é passado.
      */
-    follow(positions, camera, dimOf, radiusOf, tiltOverride) {
+    follow(positions, camera, dimOf, radiusOf, elapsed = 0, tiltOverride) {
       for (const ring of active) {
         const offset = ring.index * 3;
         ring.mesh.position.set(positions[offset], positions[offset + 1], positions[offset + 2]);
@@ -434,16 +592,46 @@ export function createRings() {
         // O passe de extinção acompanha posição, orientação e escala do anel — é o MESMO anel,
         // desenhado duas vezes com blendings opostos.
         const shade = ring.mesh.userData.shade;
+        // Raio do sprite da estrela AGORA — já com ignição, spread, fov, resolução e o teto
+        // de gl_PointSize — vezes o rodapé. É o que mantém o anel colado ao astro em qualquer
+        // ajuste do painel e em qualquer monitor.
+        //
+        // ⚠️ ANTES do bloco da extinção: ela COPIA esta escala, e na ordem anterior copiava a
+        // do quadro PASSADO. Ficava um quadro atrás em toda mudança de tamanho — invisível com
+        // a cena parada, e um descolamento durante o pulso de ignição, que é justamente quando
+        // o anel mais muda de tamanho.
+        const size = radiusOf(ring.index);
+        ring.mesh.scale.setScalar(size.world * VISIBLE_CORE * ring.span);
+        ring.mesh.material.uniforms.uOpacity.value = OPACITY * dimOf(ring.recency);
+
+        /*
+         * NÍVEL DE DETALHE por tamanho na TELA, com transição contínua.
+         *
+         * De longe o anel é uma LAJE com perfil e auto-sombra radial — o que sobrevive a 20px
+         * é contraste entre faixas, não textura. De perto entra a ROCHA, textura polar filtrada
+         * pelo hardware, que é a única defesa correta contra minificação de ~40:1. É o que a
+         * indústria faz: acima de certa distância todo mundo volta para o anel 2D com perfil.
+         *
+         * A troca DURA é o defeito conhecido da técnica — o olho pega o instante em que o
+         * material muda. A faixa é larga e o shader mistura dentro dela: vê-se o detalhe
+         * ENTRAR, não trocar.
+         *
+         * O gatilho é PIXEL, não distância de mundo: um astro grande e longe ocupa mais tela
+         * que um pequeno e perto, e quem decide se vale carregar rocha é a tela.
+         */
+        const near = smoothstep(LOD_FAR_PX, LOD_NEAR_PX, size.px);
+        ring.mesh.material.uniforms.uNear.value = near;
+        // Fase da rotação. `ring.roll` entra como defasagem para que dois anéis vizinhos não
+        // girem em sincronia — o mesmo motivo da dispersão do tombo.
+        ring.mesh.material.uniforms.uPhase.value = elapsed * SPIN + ring.roll;
+        if (near > 0.001 && !rock) rock = rockTexture();
+        if (rock) ring.mesh.material.uniforms.uRock.value = rock;
+
         shade.position.copy(ring.mesh.position);
         shade.quaternion.copy(ring.mesh.quaternion);
         shade.scale.copy(ring.mesh.scale);
         shade.material.uniforms.uCosTilt.value = Math.cos(tilt);
         shade.material.uniforms.uOpacity.value = ring.mesh.material.uniforms.uOpacity.value;
-        // Raio do sprite da estrela AGORA — já com ignição, spread, fov, resolução e o teto
-        // de `gl_PointSize` — vezes o rodapé. É o que mantém o anel colado ao astro em
-        // qualquer ajuste do painel e em qualquer monitor.
-        ring.mesh.scale.setScalar(radiusOf(ring.index) * FOOTPRINT);
-        ring.mesh.material.uniforms.uOpacity.value = OPACITY * dimOf(ring.recency);
       }
     },
 

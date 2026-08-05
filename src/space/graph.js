@@ -279,7 +279,14 @@ export function createGraph() {
     );
     // De pixels de volta para unidades locais: um raio `R` a distância `z` ocupa
     // `R·H/(2·tan(fov/2)·z)` pixels. O `/spread` desfaz a escala que o grupo pai vai reaplicar.
-    return (point * tangent * distance) / (viewportHeight * spread);
+    return {
+      // Unidades locais do grupo — é nisso que a malha do anel é escalada.
+      world: (point * tangent * distance) / (viewportHeight * spread),
+      // E o tamanho APARENTE, em pixels. É ele que decide o nível de detalhe: distância de
+      // mundo não serve, porque um astro grande e longe ocupa mais tela que um pequeno e
+      // perto — e quem decide se vale carregar textura de rocha é a tela, não o mundo.
+      px: point * 0.5,
+    };
   }
 
   function load(payload) {
@@ -524,8 +531,12 @@ export function createGraph() {
       // Depois de `advance`, nunca antes: o anel lê a posição QUE ACABOU de ser escrita. Um
       // quadro de atraso aqui aparece como o anel arrastando atrás da estrela.
       if (camera && viewportHeight) {
-        rings.follow(positions, camera, dimOf, (i) =>
-          starRadius(i, elapsed, viewportHeight, camera)
+        rings.follow(
+          positions,
+          camera,
+          dimOf,
+          (i) => starRadius(i, elapsed, viewportHeight, camera),
+          elapsed
         );
       }
       // Decaimento: memória usada volta a brilhar e depois apaga de novo. Sem o decaimento

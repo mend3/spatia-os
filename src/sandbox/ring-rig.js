@@ -21,12 +21,14 @@ export const DIRTY_FAMILIES = {
 };
 
 /*
- * Espelhos de constantes PRIVADAS de `rings.js` (`FOOTPRINT`, `OPTICAL_DEPTH`, a ordem de
+ * Espelhos de constantes PRIVADAS de `rings.js` (`SPAN_CAP`, `OPTICAL_DEPTH`, a ordem de
  * desenho). Não são importáveis, e um valor diferente aqui trocaria o rodapé do anel — a
  * comparação com o material de produção passaria a medir escala, não material.
  */
-const FOOTPRINT = 0.62;
-export const OPTICAL_DEPTH = 2.0;
+// Extensão do sistema em raios do astro — espelha `SPAN_CAP` de `rings.js`.
+const SPAN_CAP = 2.4;
+const VISIBLE_CORE = 0.6;
+export const OPTICAL_DEPTH = 1.2;
 const ORDER_EXTINCTION = 1;
 export const ORDER_SCATTER = 2;
 const VERTEX = /* glsl */ `
@@ -254,7 +256,7 @@ export function ringRig({ fragment, uniforms = {}, makeProfile = profileTexture 
       group.quaternion.copy(camera.quaternion);
       group.rotateZ(roll);
       group.rotateX(tilt);
-      group.scale.setScalar(spriteRadius * FOOTPRINT);
+      group.scale.setScalar(spriteRadius * VISIBLE_CORE * SPAN_CAP);
       write('uCosTilt', (u) => { u.value = Math.cos(tilt); });
     },
 

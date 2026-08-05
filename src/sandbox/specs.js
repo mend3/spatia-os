@@ -10,7 +10,9 @@
  * primeira divergência é exatamente o momento em que ela seria útil.
  */
 import * as THREE from 'three';
-import { createRings, DIRTY_COLORS, VISIBLE_CORE } from '../space/rings.js';
+import {
+  createRings, DIRTY_COLORS, VISIBLE_CORE, LOD_FAR_PX, LOD_NEAR_PX,
+} from '../space/rings.js';
 import { RING_FAMILIES } from '../space/ring-profiles.js';
 import { createBlackHole } from '../space/blackhole.js';
 import { createBodies } from '../space/bodies.js';
@@ -71,14 +73,15 @@ export const SPECS = [
        * A estrela é um SPRITE SUAVE, não uma esfera dura — e isso a bancada me ensinou.
        *
        * A primeira versão usava uma esfera lisa, por parecer o controle mais limpo. Com ela o
-       * anel simplesmente sumia, e o motivo é geométrico: `FOOTPRINT` (0.62) e `VISIBLE_CORE`
-       * (0.6) são quase iguais, então a borda externa do anel encosta na borda da estrela. Na
-       * cena isso funciona porque a estrela é um ponto com queda suave e bloom — o anel cai no
-       * halo, não no disco chapado.
+       * anel sumia — e esta bancada acabou provando que o culpado não era a esfera: a borda
+       * externa do anel estava a 1,03 raio do astro, ou seja, o anel inteiro cabia dentro do
+       * próprio planeta. Na cena o defeito se escondia porque a estrela é um ponto com queda
+       * suave e bloom, e o anel caía no halo em vez de num disco chapado. Corrigida a extensão
+       * (`SPAN_CAP` em `rings.js`), os dois passaram a mostrar a mesma coisa.
        *
-       * Uma esfera dura tornaria a bancada mais "limpa" e menos VERDADEIRA: ela mostraria um
-       * defeito que a cena não tem. O sprite abaixo reproduz a mesma queda do fragmento de
-       * `graph.js` (`pow(1 - smoothstep(0,1,d), 2.2)`).
+       * O sprite abaixo reproduz a mesma queda do fragmento de `graph.js`
+       * (`pow(1 - smoothstep(0,1,d), 2.2)`), porque a bancada tem de mostrar o MESMO astro que
+       * a cena — inclusive quando o que ela revela é um defeito real.
        */
       const star = new THREE.Mesh(
         new THREE.PlaneGeometry(2, 2),
@@ -107,7 +110,7 @@ export const SPECS = [
       const positions = new Float32Array([0, 0, 0]);
       return {
         object: group,
-        update(values, camera) {
+        update(values, camera, clock) {
           star.visible = values.estrela;
           // O quad do sprite tem meia-extensão 1 e o disco visível é `VISIBLE_CORE` dele —
           // então a escala é o raio do SPRITE, e o que se vê tem o raio pedido.
@@ -122,11 +125,23 @@ export const SPECS = [
            * disco que se VÊ é `VISIBLE_CORE` disso. Passar o raio visível direto (foi o primeiro
            * erro desta bancada) faz o anel inteiro caber dentro da estrela e sumir.
            */
-          rings.follow(positions, camera, () => 1, () => values.raio / VISIBLE_CORE, values.tombo);
+          /*
+           * O contrato de `radiusOf` devolve `{world, px}`: mundo escala a malha, pixel decide
+           * o NÍVEL DE DETALHE. Aqui o px é derivado do raio pedido e da altura do canvas — na
+           * cena ele vem do `gl_PointSize` real.
+           */
+          const world = values.raio / VISIBLE_CORE;
+          const px = (world * window.innerHeight) / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
+          rings.follow(positions, camera, () => 1, () => ({ world, px }), clock.elapsed, values.tombo);
           ctx.report({
             'família': values.familia,
             'alcance': `${RING_FAMILIES[values.familia].reach.toFixed(2)} R`,
             'tombo': `${((values.tombo * 180) / Math.PI).toFixed(0)}°`,
+            // O nível de detalhe é o que a RÉGUA DE RAIO varre aqui: 0,2 cai na laje e 1,4 na
+            // rocha. Sem este número a revisão não sabe qual dos dois materiais está vendo — e
+            // o defeito clássico da técnica é justamente a diferença entre os dois.
+            'pixels': px.toFixed(0),
+            'nível': px < LOD_FAR_PX ? 'LAJE (longe)' : px > LOD_NEAR_PX ? 'ROCHA (perto)' : 'transição',
           });
         },
         dispose: () => rings.dispose(),
