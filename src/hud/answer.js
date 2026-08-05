@@ -183,9 +183,20 @@ export function createAnswer(root) {
     body.append(el('div', 'answer-error', `⚠ ${event.service}: ${event.message}`));
   });
 
-  on('ui.select', ({ node }) => {
-    if (node?.type === 'file') inspect(node.source);
-  });
+  /*
+   * O CLIQUE NO CÉU NÃO ABRE MAIS ESTE INSPETOR.
+   *
+   * Ele nasceu como "leitura rápida do que se clicou no céu" quando o trilho da direita estava
+   * livre. Hoje o painel CONTEXTO mora lá, e os dois se sobrepunham quase inteiros (medido:
+   * inspetor em x 1041–1461, contexto em 1158–1460) mostrando o MESMO nome de arquivo em dois
+   * títulos empilhados. O `apps/index.js` já apontava a troca: "antes de assinar `ui.select` aqui
+   * de novo, remova o de lá".
+   *
+   * A divisão que sobra tem dono claro e não se sobrepõe: identidade e metadado no trilho da
+   * direita, CONTEÚDO no palco central — que é grande, rola, e existe para isso. `inspect`
+   * continua vivo para o clique numa CITAÇÃO, que é outro gesto: ali o operador quer conferir a
+   * fonte sem sair da resposta.
+   */
 
   /**
    * Três formas de fechar o inspetor: o ×, `Esc` e clicar fora.

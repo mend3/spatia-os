@@ -15,7 +15,6 @@ import { registerApp } from '../kernel/registry.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
 import { registerContextWidget } from './context.js';
-import * as attention from '../core/attention.js';
 import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
@@ -124,6 +123,23 @@ let readerClose = null;
 export const closeFileReader = () => (readerClose ? readerClose() : false);
 
 function registerFilesWidgets() {
+  /*
+   * O último arquivo que o operador pediu no CÉU, e a porta para abri-lo se o leitor já estiver
+   * montado. Vivem no registro e não no widget porque o clique atravessa uma navegação — o
+   * evento chega antes de o leitor existir, e um assinante que nasce depois nunca o vê.
+   *
+   * `answer.js` escutava o mesmo `ui.select` para preencher o inspetor da direita; os dois juntos
+   * renderizavam o mesmo arquivo em painéis sobrepostos, com o mesmo título. Aquela assinatura
+   * saiu, e esta entra no lugar — a troca que o comentário de lá já pedia.
+   */
+  let pedidoDeLeitura = null;
+  let abrirAgora = null;
+  on('ui.select', ({ node }) => {
+    if (node?.type !== 'file') return;
+    pedidoDeLeitura = node.source;
+    abrirAgora?.(node.source);
+  });
+
   // `null` = ainda não sabemos a raiz. Ela vem do servidor (`files_root`), derivada do corpus
   // em vez de fixa no código: o corpus tem duas raízes (workspace e memórias do agente), e
   // abrir na raiz vazia mostraria duas pastas em vez do conteúdo.
@@ -670,6 +686,14 @@ function registerFilesWidgets() {
       };
 
       const offOpen = on('ui.open-file', handler);
+      /*
+       * A assinatura do clique no céu NÃO mora aqui dentro — mora no registro, acima.
+       *
+       * Clicar num astro navega para este app, e a navegação MONTA este widget: quando o `render`
+       * roda, o `ui.select` já passou. Assinar aqui deixaria o leitor vazio exatamente no gesto
+       * que deveria abri-lo — a mesma corrida que esvaziava o painel de contexto.
+       */
+      abrirAgora = (source) => handler({ source });
 
       /*
        * O leitor vazio é a superfície de HOVER do céu.
@@ -683,59 +707,43 @@ function registerFilesWidgets() {
        * ⚠️ Só sobrescreve o VAZIO. Com um arquivo aberto, passar o cursor pelo céu apagaria a
        * leitura em curso — o hover é um gesto de passagem e não pode desfazer uma escolha.
        */
-      const legenda = (node, dirty) => {
-        if (lendo) return;
-        if (!node) {
-          view.empty(REPOUSO);
-          return;
-        }
-        const cabecalho = el('div', 'fs-title', node.source || node.label);
-        const meta = el('div', 'hover-meta');
-        const partes = [
-          node.kind,
-          plural(node.chunks, 'chunk'),
-          node.type === 'file' ? null : 'agregado',
-          // Sem o `??`, um estado novo no servidor (`conflicted`, p.ex.) pintaria o anel como
-          // ALTERADO enquanto o texto CALA — céu e rótulo discordando em silêncio.
-          dirty ? DIRTY_LABELS[dirty] ?? dirty.toUpperCase() : null,
-          // A casca de supernova sem legenda é enfeite: quem vê o anel precisa poder ler o
-          // número que o produziu, e em que janela ele foi contado.
-          node.supernova ? `SUPERNOVA · ${node.churn}× em 30d` : null,
-        ].filter(Boolean);
-        meta.textContent = partes.join(' · ');
-        const dica = el('div', 'widget-hint', 'clique para travar a câmera neste astro');
-        view.set([cabecalho, meta, dica]);
+      /*
+       * O LEITOR NÃO LEGENDA MAIS O ASTRO SOB ATENÇÃO — e isso é remoção de duplicata, não de
+       * informação.
+       *
+       * O rótulo de hover veio parar aqui quando não havia outro lugar: o balão nascia colado no
+       * rodapé, onde o dock passava por cima. Hoje o painel CONTEXTO existe em TODA rota e diz
+       * mais — classe celeste, massa, último commit, seções e os vínculos nomeados. Com os dois
+       * na tela o mesmo caminho aparecia quatro vezes ao travar um astro (faixa do topo, este
+       * cartão, o painel da direita e o leitor), e o cartão ainda convidava a "clique para travar
+       * a câmera neste astro" com a câmera JÁ travada nele — a única linha nova que ele
+       * acrescentava estava errada.
+       *
+       * O palco central volta a ter uma função só: LER o arquivo. Vazio quando não há leitura.
+       */
+
+
+      /*
+       * O repouso é uma INSTRUÇÃO, e agora é só isso.
+       *
+       * Ele já foi uma mentira — dizia "escolha um arquivo" com um astro travado na câmera — e a
+       * correção da vez tinha sido restaurar aqui a legenda do corpo sob atenção. Com o painel
+       * CONTEXTO em toda rota essa restauração virou a própria duplicata: o palco central voltava
+       * a dizer o que o trilho da direita já dizia melhor. O leitor não afirma mais nada sobre o
+       * céu; ele espera um arquivo.
+       */
+      view.empty(REPOUSO);
+
+      /* O pedido pendente: o clique que aconteceu ANTES desta montagem. */
+      if (pedidoDeLeitura) handler({ source: pedidoDeLeitura });
+
+      return {
+        destroy: () => {
+          offOpen();
+          abrirAgora = null;
+          readerClose = null;
+        },
       };
-
-      /*
-       * `ui.links`, não `ui.hover` cru — e a diferença é de VERDADE, não de gosto.
-       *
-       * Com o hover cru, tirar o cursor do astro mandava `node: null` e o leitor voltava a dizer
-       * "escolha um arquivo" com a câmera travada num astro. O `ui.links` já é a atenção
-       * RESOLVIDA: a cena decide ali que o cursor vence o foco enquanto existe e que o foco
-       * responde quando ele sai. Assinar o evento resolvido também tira daqui uma cópia dessa
-       * precedência — duas cópias divergem, e a divergência apareceria como o leitor e o painel
-       * da direita falando de astros diferentes.
-       */
-      const offHover = on('ui.links', ({ subject, dirty }) => legenda(subject, dirty));
-
-      /*
-       * O repouso agora PERGUNTA antes de afirmar.
-       *
-       * `view.empty(REPOUSO)` fixo dizia "escolha um arquivo · ou passe o cursor sobre um astro"
-       * com um astro já travado na câmera — porque travar o foco emite `ui.select`, que este
-       * leitor não escuta, e porque a navegação que o próprio clique dispara remonta o widget
-       * depois de o evento de hover ter passado. Duas causas, o mesmo sintoma: a tela negando um
-       * estado que o sistema tinha.
-       *
-       * O `attention` responde quem está sob atenção AGORA, e a legenda que já existia serve os
-       * dois casos — hover e foco — sem um segundo caminho de desenho.
-       */
-      const inicial = attention.snapshot();
-      if (inicial.subject) legenda(inicial.subject, inicial.dirty);
-      else view.empty(REPOUSO);
-
-      return { destroy: () => { offOpen(); offHover(); readerClose = null; } };
     },
   });
 }

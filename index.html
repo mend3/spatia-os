@@ -848,7 +848,20 @@
 
   /* Dock: os apps como destinos, com o atalho numérico visível. */
   .dock { grid-column: 1 / -1; display: flex; gap: 6px; justify-content: center;
-          padding-top: 6px; }
+          padding-top: 6px; transition: opacity 260ms ease; }
+  /*
+    A DOCK SE SUSPENDE QUANDO ALGO ESTÁ EM CURSO.
+
+    Ela é o menu de DESTINOS, e destino só é uma pergunta em repouso. Com um astro travado, um
+    painel aberto ou um arquivo em leitura, a pergunta do operador deixou de ser "para onde eu
+    vou" e virou "o que é isto" — e a dock passa a competir por atenção com o objeto que ele
+    acabou de escolher, na faixa logo acima do prompt.
+
+    `visibility` junto de `opacity`, não `display: none`: a dock é `grid-column: 1 / -1` numa
+    grade, e removê-la do fluxo faria o prompt e o rodapé PULAREM meio passo a cada foco. O
+    espaço fica reservado; só a tinta sai.
+  */
+  body.at-work .dock { opacity: 0; visibility: hidden; }
   /*
     A dock é o primitivo `select` com acento por app — uma rota ativa entre N é exatamente um
     conjunto exclusivo. Só o que sobra aqui é o que é DA DOCK e não do botão: o ponto de cor e a

@@ -61,6 +61,28 @@ async function main() {
   attention.install();
   keys.install();
 
+  /*
+   * A DOCK SE SUSPENDE QUANDO ALGO ESTÁ EM CURSO.
+   *
+   * Ela responde "para onde eu vou", e essa pergunta só existe em repouso. Com um astro travado
+   * ou um painel aberto o operador já escolheu o objeto, e a dock passa a competir por atenção
+   * na faixa logo acima do prompt — que é onde ele está lendo.
+   *
+   * Os dois fatos vêm de onde já são verdade: `ui.node-focus` é o mesmo evento que trava a
+   * câmera, e a pilha de painéis vive no `session`. Nenhum estado novo, nada para dessincronizar.
+   * HOVER de propósito NÃO conta: passar o cursor é gesto de passagem, e a dock piscaria.
+   */
+  let astroTravado = false;
+  const suspendeDock = () => {
+    const ocupado = astroTravado || session.snapshot().panels.length > 0;
+    document.body.classList.toggle('at-work', ocupado);
+  };
+  on('ui.node-focus', ({ source }) => {
+    astroTravado = Boolean(source);
+    suspendeDock();
+  });
+  on('ui.session', suspendeDock);
+
   const audio = createAudio();
   /*
    * A HUD cede onde há sinal acionável. Os trilhos laterais são os únicos que disputam espaço
