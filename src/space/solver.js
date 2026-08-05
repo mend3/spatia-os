@@ -33,7 +33,18 @@
  * probe already writes even the negative case, because *"diagnóstico que só existe no caminho
  * feliz não é diagnóstico"*. Every rejection here travels with the sentence that caused it.
  */
-import { classify, allows } from './catalog.js';
+import { classify, allows, SUPERNOVA_FLOOR } from './catalog.js';
+
+/**
+ * STATE MODIFIERS — stage 4's candidates, resolved here.
+ *
+ * `envelope` is the first one to arrive by this road rather than by being a class, and it brings
+ * the conflict that created the catalog: a body cannot wear a ring AND a shell. Until now that
+ * rule was declared and never enforced — the ring comes from `classify`, the shell comes straight
+ * from the `aSupernova` attribute without consulting any class, so a file that is both dirty and
+ * hot drew both at once. Exactly the stacking `catalog.js` opens by describing.
+ */
+export const MODIFIER = Object.freeze({ ENVELOPE: 'envelope' });
 
 /**
  * The near-view skins. Exactly one per body, and that is structural rather than a rule to enforce:
@@ -68,9 +79,27 @@ export const SURFACE = Object.freeze({
 export function resolveBody(node, facts = {}) {
   const klass = classify(node, facts);
   const rejected = [];
+  const modifiers = [];
   const refuse = (feature, reason) => rejected.push(Object.freeze({ feature, reason }));
 
-  const done = (surface) => Object.freeze({ klass, surface, rejected: Object.freeze(rejected) });
+  /*
+   * The shell is a candidate, not a fact of the body. It loses to the ring, and the sentence is
+   * the catalog's own — the priority behind it is written there too: the open edit is actionable
+   * now and clears itself on commit, while the churn is still there tomorrow.
+   */
+  if (node?.type === 'file' && (node.supernova || 0) > SUPERNOVA_FLOOR) {
+    const ringed = klass.forbids?.envelope;
+    if (ringed) refuse(MODIFIER.ENVELOPE, ringed);
+    else modifiers.push(MODIFIER.ENVELOPE);
+  }
+
+  const done = (surface) =>
+    Object.freeze({
+      klass,
+      surface,
+      modifiers: Object.freeze(modifiers),
+      rejected: Object.freeze(rejected),
+    });
 
   if (node?.type && node.type !== 'file') {
     /*

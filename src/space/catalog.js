@@ -47,8 +47,11 @@
  * `docs/catalogo-celeste.md`. O que virar código sai de lá e vira comentário aqui.
  */
 
-/** Piso de churn para um arquivo virar supernova, na escala 0…1 normalizada pelo corpus. */
-const SUPERNOVA_FLOOR = 0.001;
+/**
+ * Piso de churn para um arquivo carregar a casca de supernova, na escala 0…1 normalizada pelo
+ * corpus. Exportado porque quem aplica o modificador agora é o `solver.js`, não uma classe daqui.
+ */
+export const SUPERNOVA_FLOOR = 0.001;
 /**
  * Toques na janela dormente (30–180d) para um arquivo contar como ponto quente ABANDONADO.
  *
@@ -58,39 +61,32 @@ const SUPERNOVA_FLOOR = 0.001;
 const DORMANT_FLOOR = 2;
 
 export const CELESTIAL = [
-  {
-    id: 'supernova',
-    name: 'SUPERNOVA',
-    priority: 25,
-    status: 'rendered',
-    /*
-     * Muito reescrito na janela recente. É estado DURÁVEL do repositório: diz "este arquivo é um
-     * ponto quente", não "algo aconteceu agora".
-     */
-    from: 'churn alto na janela recente (`node.supernova`, normalizado pelo pico do corpus)',
-    test: (node) => node.type === 'file' && (node.supernova || 0) > SUPERNOVA_FLOOR,
-    intensity: (node) => node.supernova || 0,
-    features: {
-      /*
-       * Envoltório DIFUSO, não casca dura.
-       *
-       * A primeira versão desenhou um anel concêntrico liso; a segunda, uma casca filamentar
-       * rompida em arcos. As duas falharam pelo mesmo motivo, e o motivo é de classe, não de
-       * shader: **qualquer coisa com borda definida à volta do núcleo lê como anel**, por mais
-       * irregular que seja o contorno. E anel já é outra classe.
-       *
-       * Remanescente de verdade é nebulosidade — brilho de baixa intensidade que preenche uma
-       * região e some sem borda. É o que a torna inconfundível com uma elipse nítida.
-       */
-      envelope: { inner: 0.34, outer: 1.0, gain: 0.55, lobes: 0.22 },
-      core: 'herda a cor do nó (a cor carrega o TIPO de conhecimento)',
-    },
-    forbids: {
-      ring: 'estrela não tem anel planetário — e uma que explodiu, menos ainda',
-      pulse: 'supernova aqui é ESTADO, não evento; piscar seria movimento sem nada por trás',
-      surface: 'o que resta de uma supernova é gás em expansão; não há crosta em que pousar',
-    },
-  },
+  /*
+   * SUPERNOVA SAIU DAQUI — virou ESTADO, e a mudança é a correção de uma contradição que a
+   * própria entrada declarava.
+   *
+   * Ela dizia, com todas as letras, ser "estado DURÁVEL do repositório: diz 'este arquivo é um
+   * ponto quente', não 'algo aconteceu agora'" — e mesmo assim era modelada como CLASSE. Como
+   * classe é exclusiva, ela excluía as outras: não declarava `photosphere` e proibia `surface`,
+   * então tirava do corpo as duas superfícies possíveis. Medido em 2026-08-05: 27 corpos, e
+   * chegar perto de qualquer um deles mostrava um sprite e mais nada.
+   *
+   * Churn alto não muda o que um arquivo É. Um `config` muito reescrito continua sendo um
+   * `config` — agora com uma casca em volta. Qualquer corpo pode explodir e continuar ele mesmo.
+   *
+   * O ENVOLTÓRIO NÃO SE PERDE: ele nunca foi desenhado por esta entrada. Sai do atributo
+   * `aSupernova` do shader de pontos (`graph.js:406`), alimentado direto por `node.supernova` sem
+   * consultar classe nenhuma. A entrada só suprimia o resto.
+   *
+   * Duas descobertas de desenho que ela carregava, preservadas porque custaram duas tentativas:
+   * o remanescente tem de ser NEBULOSIDADE difusa, sem borda definida — qualquer coisa com
+   * contorno nítido em volta do núcleo lê como anel, por mais irregular que seja, e anel é outra
+   * classe. E ele não pisca: aqui supernova é estado, não evento, e piscar seria movimento sem
+   * nada por trás. Os parâmetros medidos eram `{ inner: 0.34, outer: 1.0, gain: 0.55,
+   * lobes: 0.22 }`; o núcleo herda a cor do nó, porque a cor carrega o TIPO de conhecimento.
+   *
+   * Quem decide o que coexiste com a casca agora é o `solver.js`.
+   */
 
   {
     id: 'planeta-anelado',

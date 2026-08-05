@@ -246,6 +246,12 @@ export function createGraph() {
   let index = new Map();
   let positions = null;
   let ignition = null;
+  /*
+   * Intensidade da casca por nó. Hoisted para fora do `load` porque a RESOLUÇÃO de
+   * compatibilidade acontece depois — quando o estado do disco chega — e ela precisa reescrever
+   * este atributo. Ver `markDirty`.
+   */
+  let supernovae = null;
   let sizes = null;
   let points = null;
   let edgePairs = [];
@@ -383,7 +389,7 @@ export function createGraph() {
     ignition = new Float32Array(count);
     sizes = new Float32Array(count);
     const recencies = new Float32Array(count);
-    const supernovae = new Float32Array(count);
+    supernovae = new Float32Array(count);
     const seeds = new Float32Array(count);
     halo = new Float32Array(count);
     haloIndex = -1;
@@ -615,6 +621,29 @@ export function createGraph() {
         entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency });
         ringed.push(i);
       }
+
+      /*
+       * O ENVOLTÓRIO CEDE AO ANEL — e até aqui essa regra era só declarada.
+       *
+       * `catalog.js` proíbe `envelope` em `planeta-anelado` desde que existe ("anel e envoltório
+       * à volta do mesmo núcleo é o empilhamento que criou o catálogo"), mas nada aplicava: o
+       * anel nasce de `classify` e a casca vem direto deste atributo, sem consultar classe. Um
+       * arquivo sujo E muito reescrito — o caso mais comum, porque o que você edita hoje costuma
+       * ser o que mais editou no mês — desenhava os dois ao mesmo tempo.
+       *
+       * A resolução é reescrita a cada varredura do disco porque o fato que a decide é
+       * perecível: some no commit, e a casca volta sozinha.
+       */
+      const comAnel = new Set(ringed);
+      let mudouCasca = false;
+      for (let i = 0; i < nodes.length; i++) {
+        const alvo = comAnel.has(i) || nodes[i].type !== 'file' ? 0 : nodes[i].supernova || 0;
+        if (supernovae[i] !== alvo) {
+          supernovae[i] = alvo;
+          mudouCasca = true;
+        }
+      }
+      if (mudouCasca) points.geometry.getAttribute('aSupernova').needsUpdate = true;
 
       return { ...rings.set(entries), total: Object.keys(files).length };
     },
