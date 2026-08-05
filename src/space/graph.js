@@ -22,7 +22,10 @@ import { createRings } from './rings.js';
 // Cor por natureza do conhecimento. A escala de "idade" do briefing (nova branca, antiga
 // azulada, muito usada amarela, esquecida vermelha) entra como *modulação* da ignição:
 // aqui é o tipo, ali é o uso.
-const KIND_COLORS = {
+// Exportado porque o histograma "forma do corpus" pinta as barras com a MESMA cor que o céu
+// dá a cada tipo. Duas paletas para o mesmo dado fariam a barra e a estrela parecerem falar de
+// assuntos diferentes.
+export const KIND_COLORS = {
   memory: 0xffffff,
   decision: 0xffc169,
   doc: 0xa8d8ff,

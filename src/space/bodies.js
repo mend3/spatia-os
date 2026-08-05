@@ -53,6 +53,54 @@ const HALO_VERTEX = /* glsl */ `
   void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
 `;
 
+/*
+ * Sombreamento de FONTE ÚNICA — e o núcleo é a fonte.
+ *
+ * Era `MeshBasicMaterial`, que pinta todas as faces com a mesma cor, e a consequência não era
+ * estética: as rotações que este módulo aplica (`core.rotation.y += …`) ficavam **literalmente
+ * invisíveis**, porque a silhueta de um icosaedro girando é quase constante e não havia
+ * gradiente nenhum para revelar o giro.
+ *
+ * O comentário antigo justificava a escolha com "não há luz na cena". A conclusão certa era a
+ * oposta: já que o disco de acreção É a única fonte, use-a. O corpo passa a ter um lado voltado
+ * para o buraco negro, o que é informação — o operador vê a fonte da cena refletida nos
+ * objetos, e o giro volta a existir na imagem.
+ *
+ * O termo de borda (`rim`) é o que impede o lado escuro de virar um buraco: nenhum objeto num
+ * campo estelar fica completamente preto.
+ */
+const BODY_VERTEX = /* glsl */ `
+  varying vec3 vNormal;
+  varying vec3 vWorld;
+  void main(){
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vWorld = world.xyz;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+const BODY_FRAGMENT = /* glsl */ `
+  precision highp float;
+  uniform vec3 uColor;
+  uniform vec3 uWarm;
+  varying vec3 vNormal;
+  varying vec3 vWorld;
+  void main(){
+    vec3 normal = normalize(vNormal);
+    // A fonte esta na ORIGEM: e onde o disco de acrecao mora.
+    vec3 toCore = normalize(-vWorld);
+    float lambert = max(dot(normal, toCore), 0.0);
+    vec3 toEye = normalize(cameraPosition - vWorld);
+    float rim = pow(1.0 - max(dot(normal, toEye), 0.0), 3.0);
+    vec3 lit = uColor * (0.14 + 0.9 * lambert) + uWarm * rim * 0.3;
+    gl_FragColor = vec4(lit, 1.0);
+  }
+`;
+
+// A cor do que ilumina: o mesmo ambar quente do disco.
+const CORE_LIGHT = new THREE.Color(0xffb35c);
+
 export function createBodies(labelLayer) {
   const group = new THREE.Group();
   const bodies = [];
@@ -76,9 +124,14 @@ export function createBodies(labelLayer) {
       const object = new THREE.Group();
       const core = new THREE.Mesh(
         geometry,
-        // `MeshBasicMaterial` porque não há luz na cena: o núcleo é a única fonte, e é
-        // aditiva. Um material que reage a luz ficaria preto.
-        new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(0.55) })
+        new THREE.ShaderMaterial({
+          uniforms: {
+            uColor: { value: color.clone().multiplyScalar(0.62) },
+            uWarm: { value: CORE_LIGHT },
+          },
+          vertexShader: BODY_VERTEX,
+          fragmentShader: BODY_FRAGMENT,
+        })
       );
       const wire = new THREE.Mesh(
         geometry,

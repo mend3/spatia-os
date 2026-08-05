@@ -145,7 +145,17 @@ const VERTEX = /* glsl */ `
   uniform float uOpacity;
   uniform float uForward;
   uniform vec2 uRadial;
+  uniform float uCosTilt;
   varying vec2 vUv;
+
+  /*
+   * Onde fica o LIMBO da estrela, em unidades do quad.
+   *
+   * O disco visivel da estrela e ~0.6 do raio do sprite (o nucleo do ponto ja apagou ali), e o
+   * quad tem meia-extensao FOOTPRINT=0.62 do mesmo raio. Logo o limbo cai em 0.6/0.62 ≈ 0.97
+   * do quad. Os dois numeros vivem no JS deste modulo e em graph.js; se um mudar, este muda.
+   */
+  const float LIMB = 0.97;
 
   void main(){
     vec2 p = vUv * 2.0 - 1.0;
@@ -155,6 +165,25 @@ const VERTEX = /* glsl */ `
     // Raio do quad para raio do perfil: 0 no limbo do planeta, 1 no alcance da família.
     float r = d * uRadial.x + uRadial.y;
     if (r < 0.0) discard;
+
+    /*
+     * OCLUSAO pelo limbo do astro.
+     *
+     * O quad esta em espaco de camera, entao o deslocamento na TELA de um ponto do anel e
+     * (p.x, p.y * cos(tombo)) — o eixo tombado encurta na projecao. A borda interna do perfil
+     * projetada cai bem dentro do disco da estrela, entao a metade DISTANTE do anel deve sumir
+     * atras dela e reaparecer do outro lado.
+     *
+     * ⚠️ p.y < 0 e a metade DISTANTE (com rotateX positivo e a camera olhando por -Z, p.y > 0
+     * e a proxima) — a mesma convencao que o gradiente de fase logo abaixo usa. Trocar o sinal
+     * aqui esconderia justamente a metade que passa NA FRENTE.
+     *
+     * Ver o anel emergir por tras do corpo e a pista numero um de que aquilo e um objeto 3D em
+     * volta de uma esfera, e nao um decalque colado na tela.
+     */
+    float screenR = length(vec2(p.x, p.y * uCosTilt));
+    if (p.y < 0.0 && screenR < LIMB) discard;
+
     float density = texture2D(uProfile, vec2(r, 0.5)).r;
 
     float near = clamp(p.y, 0.0, 1.0);
@@ -204,6 +233,7 @@ export function createRings() {
             uOpacity: { value: 0 },
             uForward: { value: 0 },
             uRadial: { value: new THREE.Vector2(1, 0) },
+            uCosTilt: { value: Math.cos(TILT) },
           },
           vertexShader: VERTEX,
           fragmentShader: FRAGMENT,
@@ -285,6 +315,8 @@ export function createRings() {
         ring.mesh.quaternion.copy(camera.quaternion);
         ring.mesh.rotateZ(ring.roll);
         ring.mesh.rotateX(ring.tilt);
+        // O achatamento na tela depende do tombo DESTE anel, que tem dispersão por nó.
+        ring.mesh.material.uniforms.uCosTilt.value = Math.cos(ring.tilt);
         // Raio do sprite da estrela AGORA — já com ignição, spread, fov, resolução e o teto
         // de `gl_PointSize` — vezes o rodapé. É o que mantém o anel colado ao astro em
         // qualquer ajuste do painel e em qualquer monitor.

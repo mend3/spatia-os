@@ -23,6 +23,7 @@ import * as keys from '../core/keys.js';
 import * as prefs from '../core/prefs.js';
 import { PROFILES } from '../core/profiles.js';
 import { DIRTY_LABELS } from '../space/rings.js';
+import { KIND_COLORS as SKY_COLORS } from '../space/graph.js';
 
 const COLORS = { files: 0x7ee0c0, system: 0xffab54, web: 0xff9b4a, bridge: 0x5ce1e6 };
 
@@ -42,7 +43,7 @@ export function registerApps() {
     orbit: { radius: 12.5, inclination: -0.24, phase: 0.4 },
     // A janela do tempo entra aqui também: este é o app sobre o corpus, e navegar o corpus por
     // data é a mesma operação que navegá-lo por pasta.
-    widgets: ['fs-tree', 'fs-locate', 'fs-content', 'sky-time', 'timeline'],
+    widgets: ['fs-tree', 'fs-shape', 'fs-locate', 'fs-content', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -173,6 +174,54 @@ function registerFilesWidgets() {
       listeners.add(draw);
       draw();
       return { destroy: () => listeners.delete(draw) };
+    },
+  });
+
+  listWidget({
+    id: 'fs-shape',
+    title: 'FORMA DO CORPUS',
+    hint: 'por tipo',
+    slot: 'left',
+    /**
+     * Os dois histogramas que o servidor JÁ MANDA e ninguém desenhava.
+     *
+     * `/api/graph` devolve `stats.kinds` e `stats.repos` prontos (`server/graph.py`), e o
+     * payload inteiro trafegava com eles a cada carga da topologia sem nenhuma tela consumindo.
+     * Recontar no cliente seria pior que desperdício: seriam duas contagens do mesmo fato, com
+     * a chance de discordarem — que é exatamente o defeito que o `core/corpus.js` existe para
+     * ter matado uma vez (a cena desenhava 388 e o rótulo dizia 397).
+     *
+     * A barra é o próprio número: largura proporcional ao maior. Sem eixo, sem legenda — a
+     * pergunta é "de que este corpus é feito", e a resposta é a ordem de grandeza.
+     */
+    render(view) {
+      view.empty('carregando…');
+      api
+        .graph()
+        .then(({ stats }) => {
+          const kinds = Object.entries(stats?.kinds || {}).sort((a, b) => b[1] - a[1]);
+          if (!kinds.length) {
+            view.empty('sem estatística no payload');
+            return;
+          }
+          const peak = kinds[0][1];
+          const linhas = kinds.map(([kind, count]) => {
+            const linha = el('div', 'shape-row');
+            linha.append(el('span', 'shape-name', kind));
+            const trilho = el('div', 'shape-track');
+            const barra = el('i', 'shape-bar');
+            barra.style.width = `${Math.max(2, (count / peak) * 100)}%`;
+            // A cor é a MESMA que o céu usa para aquele tipo — o histograma e a cena falam do
+            // mesmo dado, e cor divergente faria parecerem dois assuntos.
+            barra.style.background = `#${(SKY_COLORS[kind] ?? SKY_COLORS.other).toString(16).padStart(6, '0')}`;
+            trilho.append(barra);
+            linha.append(trilho, el('span', 'shape-count', String(count)));
+            return linha;
+          });
+          view.set(linhas);
+        })
+        .catch((error) => view.empty(`indisponível: ${error.message}`));
+      return null;
     },
   });
 

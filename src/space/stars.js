@@ -13,8 +13,20 @@
 import * as THREE from 'three';
 
 const COUNT = 2600;
-const SHELL_MIN = 90;
-const SHELL_MAX = 340;
+/*
+ * A casca do fundo começa FORA da casca do grafo — e antes não começava.
+ *
+ * Medido: com os defaults, o fundo ocupava 68–258 (90–340 × `starSpread` 0.76) e o grafo
+ * ocupava 46–110 (26–62 × `graphSpread` 1.78). **62% da casca estelar caía dentro da faixa dos
+ * nós**, e nessa região não havia como distinguir conhecimento de fundo: os dois são sprites
+ * aditivos, de tamanho parecido e de paleta parecida (`KIND_COLORS.doc` é 0xa8d8ff e um dos
+ * tons de estrela é (0.78, 0.86, 1.0)). Distinguir os dois é a função da cena.
+ *
+ * 150 é o raio máximo do grafo (62 × 2.5, o topo do slider `graphSpread`) com folga — assim a
+ * separação se mantém mesmo com o espaçamento no máximo, e não só nos defaults.
+ */
+const SHELL_MIN = 150;
+const SHELL_MAX = 400;
 
 const VERTEX = /* glsl */ `
   uniform float uTime, uSize, uTwinkle, uBrightness, uScale;
