@@ -26,6 +26,7 @@ import { createStars } from '../space/stars.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from '../space/satellites.js';
 import { createParticles } from '../space/particles.js';
 import { RING_VARIANTS } from './ring-variants.js';
+import { GALAXY_VARIANTS } from './galaxy-variants.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -456,4 +457,11 @@ export const SPECS = [
   },
 
   ...RING_VARIANTS,
+  /*
+   * A galáxia entra como CANDIDATA, pelo mesmo motivo das variações do anel: ela é o corpo que
+   * deve substituir o sprite cinza dos hubs, e `space/scene.js` ainda não a liga a nada. Dois
+   * espécimes — um corpo com varredura de nível de detalhe, e a folha de contato das quatro
+   * classes lado a lado, que é a única que responde "dá para distinguir a 15px?".
+   */
+  ...GALAXY_VARIANTS,
 ];
