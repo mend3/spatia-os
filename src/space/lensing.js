@@ -66,7 +66,23 @@ const FRAGMENT = /* glsl */ `
     // a versão antiga entregava ali. O que muda é só a queda: a metade em 2R, onde antes era um
     // quarto. É a correção da física sem mexer no que o operador já afinou.
     float deflection = uStrength * uRadius / max(distance, uRadius * 0.35);
-    deflection = min(deflection, 0.145);
+    /*
+     * O teto ESCALA COM O OBJETO, e antes não escalava.
+     *
+     * Era 0.145 absoluto — 14,5% da altura da tela. Com o raio da sombra em ~0.033 UV, isso
+     * é um deslocamento máximo de 4,4 RAIOS DE SOMBRA: a distorção ficava maior que o objeto
+     * que a produz. Pior, sendo absoluto ele não encolhia quando a câmera se afastava, então
+     * quanto menor o buraco negro na tela, MAIOR o borrão em proporção a ele.
+     *
+     * Amarrado a uRadius, o desenho vira invariante de distância: o campo estelar torce até
+     * ~1.2 raio de sombra em volta dela, de perto e de longe.
+     *
+     * O teto continua existindo por outro motivo, que não mudou: deslocamento em espaço de
+     * TELA não sabe fazer lente forte (não produz imagem múltipla nem anel de Einstein de
+     * verdade). Passado certo ponto ele deixa de ler como lente e passa a ler como artefato,
+     * e o teto é o que impede a técnica de tentar o que ela não consegue.
+     */
+    deflection = min(deflection, uRadius * 1.2);
     vec2 lensed = uv - direction * deflection / vec2(uAspect, 1.0);
 
     // Sombra: dentro do horizonte não sai luz. A borda é suave por causa do anel.

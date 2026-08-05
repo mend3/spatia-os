@@ -16,6 +16,15 @@
 
 const STORAGE_KEY = 'espatial.tuning.v1';
 
+/**
+ * Os defaults que valiam antes da revisão de ambientação (2026-08-05).
+ *
+ * Existem só para a migração abaixo saber distinguir "nunca mexi neste slider" de "escolhi
+ * este valor". Quem afinou a cena à mão não pode ter o trabalho descartado por uma mudança de
+ * default; quem herdou o número anterior sem nunca tocar nele deve receber o novo.
+ */
+const LEGACY_DEFAULTS = Object.freeze({'starSize': 1.45, 'starBrightness': 0.8, 'starDrift': 3.75, 'cameraDrift': 1, 'fov': 80, 'lensStrength': 0.28, 'bloomStrength': 0.58, 'bloomThreshold': 0.72, 'aberration': 1, 'grain': 0.03, 'vignette': 1});
+
 export const SPEC = [
   // grupo, chave, rótulo, min, max, passo, default
   ['NÚCLEO', 'diskSpin', 'ROTAÇÃO DO DISCO', 0, 4, 0.05, 1],
@@ -24,25 +33,25 @@ export const SPEC = [
   ['NÚCLEO', 'breath', 'RESPIRAÇÃO', 0, 3, 0.05, 1],
 
   ['CÉU', 'starSpread', 'ESPAÇAMENTO DAS ESTRELAS', 0.4, 2.5, 0.02, 0.76],
-  ['CÉU', 'starSize', 'TAMANHO DAS ESTRELAS', 0.2, 3, 0.05, 1.45],
-  ['CÉU', 'starBrightness', 'BRILHO DAS ESTRELAS', 0, 2.5, 0.05, 0.8],
-  ['CÉU', 'starDrift', 'DERIVA DO CÉU', 0, 6, 0.05, 3.75],
+  ['CÉU', 'starSize', 'TAMANHO DAS ESTRELAS', 0.2, 3, 0.05, 1.0],
+  ['CÉU', 'starBrightness', 'BRILHO DAS ESTRELAS', 0, 2.5, 0.05, 0.55],
+  ['CÉU', 'starDrift', 'DERIVA DO CÉU', 0, 6, 0.05, 0.8],
 
   ['GRAFO', 'graphSpread', 'ESPAÇAMENTO DOS NÓS', 0.3, 2.5, 0.02, 1.78],
   ['GRAFO', 'graphSpeed', 'VELOCIDADE ORBITAL', 0, 4, 0.05, 0.2],
   ['GRAFO', 'nodeSize', 'TAMANHO DOS NÓS', 0.2, 3, 0.05, 1.1],
   ['GRAFO', 'edgeOpacity', 'OPACIDADE DAS ARESTAS', 0, 1, 0.02, 0.2],
 
-  ['CÂMERA', 'cameraDrift', 'DERIVA DA CÂMERA', 0, 6, 0.05, 1],
+  ['CÂMERA', 'cameraDrift', 'DERIVA DA CÂMERA', 0, 6, 0.05, 0.4],
   ['CÂMERA', 'cameraEase', 'SUAVIDADE DA CÂMERA', 2, 20, 0.5, 9],
-  ['CÂMERA', 'fov', 'CAMPO DE VISÃO', 28, 80, 1, 80],
+  ['CÂMERA', 'fov', 'CAMPO DE VISÃO', 28, 80, 1, 46],
 
-  ['LENTE', 'lensStrength', 'FORÇA DA LENTE', 0, 2.5, 0.02, 0.28],
-  ['LENTE', 'bloomStrength', 'BLOOM', 0, 2, 0.02, 0.58],
-  ['LENTE', 'bloomThreshold', 'LIMIAR DO BLOOM', 0, 1, 0.02, 0.72],
-  ['LENTE', 'aberration', 'ABERRAÇÃO CROMÁTICA', 0, 4, 0.05, 1],
-  ['LENTE', 'grain', 'GRÃO', 0, 0.12, 0.002, 0.03],
-  ['LENTE', 'vignette', 'VINHETA', 0, 2, 0.05, 1],
+  ['LENTE', 'lensStrength', 'FORÇA DA LENTE', 0, 2.5, 0.02, 0.18],
+  ['LENTE', 'bloomStrength', 'BLOOM', 0, 2, 0.02, 0.45],
+  ['LENTE', 'bloomThreshold', 'LIMIAR DO BLOOM', 0, 1, 0.02, 0.8],
+  ['LENTE', 'aberration', 'ABERRAÇÃO CROMÁTICA', 0, 4, 0.05, 0.4],
+  ['LENTE', 'grain', 'GRÃO', 0, 0.12, 0.002, 0.012],
+  ['LENTE', 'vignette', 'VINHETA', 0, 2, 0.05, 0.65],
 
   ['ÁUDIO', 'volume', 'VOLUME', 0, 1, 0.02, 0.42],
   // Conforto sonoro é gosto, não constante. Estes dois existem para você acertar o seu em vez
@@ -62,7 +71,21 @@ function load() {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     // Filtra chave desconhecida: um parâmetro removido do SPEC não deve ressuscitar do
     // storage de uma versão antiga e ficar sem controle na tela.
-    return Object.fromEntries(Object.entries(stored).filter(([key]) => key in DEFAULTS));
+    const known = Object.entries(stored).filter(([key]) => key in DEFAULTS);
+    /*
+     * Migração por VALOR, não por versão.
+     *
+     * Trocar um default não alcança quem já usou o painel: o valor antigo está no
+     * localStorage e vence. Resetar tudo alcançaria — e jogaria fora minutos de afinação
+     * manual, que é justamente o que este store existe para preservar.
+     *
+     * A regra que separa os dois casos: se o valor guardado é IDÊNTICO ao default anterior,
+     * ninguém escolheu aquilo — foi herdado. Esse recebe o novo. Qualquer outro valor é uma
+     * decisão e fica de pé.
+     */
+    return Object.fromEntries(
+      known.filter(([key, value]) => !(key in LEGACY_DEFAULTS) || value !== LEGACY_DEFAULTS[key])
+    );
   } catch {
     return {};
   }

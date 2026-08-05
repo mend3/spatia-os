@@ -281,7 +281,18 @@ async function main() {
 function installProfiles(scene, streams) {
   const escolhido = prefs.get('view.profile');
   const perfil = profiles.byId(escolhido) || profiles.byId(profiles.DEFAULT_PROFILE);
-  applyProfile(scene, perfil, { silent: true });
+  /*
+   * No boot aplica-se só a parte de CENA do perfil, nunca a afinação.
+   *
+   * `tuning.apply()` escreve os 22 parâmetros a partir dos DEFAULTS — que é o certo quando o
+   * operador ESCOLHE um perfil, e destrutivo quando acontece sozinho. Reaplicando no boot, cada
+   * reload apagava toda afinação manual e a devolvia ao default do perfil, em silêncio. O
+   * `tuning` existe justamente para que minutos de tentativa e erro sobrevivam a um reload.
+   *
+   * Os valores da afinação já estão no localStorage; o que NÃO está lá é resolução de desenho e
+   * teto de anéis, e é só isso que precisa ser reaplicado.
+   */
+  scene.applyProfile(perfil);
 
   // Quem já escolheu não é interrogado de novo a cada boot.
   if (escolhido) return;
@@ -302,13 +313,18 @@ function installProfiles(scene, streams) {
   }, PROFILE_PROBE_MS);
 }
 
-/** Aplica um perfil inteiro: os 22 parâmetros no store, e o resto na cena. */
-export function applyProfile(scene, perfil, { silent = false } = {}) {
+/**
+ * Aplica um perfil INTEIRO — os 22 parâmetros e a parte de cena.
+ *
+ * Só para escolha explícita do operador. O caminho do boot usa `scene.applyProfile` direto,
+ * porque reescrever a afinação sozinho apaga o que ele ajustou à mão (ver `installProfiles`).
+ */
+export function applyProfile(scene, perfil) {
   if (!perfil) return;
   tuning.apply(perfil.tuning);
   scene.applyProfile(perfil);
   prefs.set('view.profile', perfil.id);
-  if (!silent) ui('profile-changed', { id: perfil.id });
+  ui('profile-changed', { id: perfil.id });
 }
 
 // Tempo até a primeira medição valer. Antes disso a amostra inclui compilação de shader e a
