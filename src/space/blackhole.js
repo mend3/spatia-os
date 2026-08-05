@@ -319,6 +319,12 @@ export function createBlackHole() {
       tune.intensity = values.diskIntensity;
       tune.width = values.diskWidth;
       tune.breath = values.breath;
+      /*
+       * A escala vai no GRUPO. O crescente e a lente leem o raio do horizonte em espaço de
+       * MUNDO — escalar o grupo os leva junto, o que é o que se quer; escalar cada malha
+       * separadamente deixaria a lente calibrada para um raio que não existe mais.
+       */
+      group.scale.setScalar(values.coreScale ?? 1);
       // O disco é geometria fixa; a largura efetiva é o raio externo lido pelo shader, e a
       // borda de fade acompanha porque `span` é normalizado por uOuter.
       disk.scale.setScalar(1);

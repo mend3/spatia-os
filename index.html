@@ -29,19 +29,55 @@
     A paleta é âmbar quente sobre preto — a mesma do disco de acreção, para que a
     interface pareça iluminada pelo núcleo em vez de sobreposta a ele.
   */
+  /*
+    QUATRO NÍVEIS DE ATENÇÃO — e a régua não é opinião, é medida.
+
+    A tinta da HUD ocupa 8,4% dos pixels da tela (amostragem de 4px sobre as folhas visíveis do
+    `#hud`), com 30px de margem em todos os lados e 60% da largura central livre. Ou seja: a
+    sensação de tela cheia NÃO vinha de quantidade. Vinha de todo elemento ter o mesmo peso —
+    rótulo de seção, valor, unidade e ornamento disputando a mesma atenção, com uma rampa de
+    cinzas curta demais para separá-los.
+
+    Por isso a correção é rampa e atribuição, não corte. Esconder metade da informação em hover
+    devolveria ~4% de pixel e cobraria caro: dado que exige gesto para aparecer deixa de ser
+    monitorado, e num painel de missão o valor de "carga cognitiva" e "custo" é serem vistos SEM
+    pedir.
+
+    | Nível | Quem | Token |
+    |---|---|---|
+    | 1 | pergunta, resposta, valor em foco | `--ink` |
+    | 2 | corpus, timeline, memória — o dado | `--ink-dim` |
+    | 3 | rótulo de seção, unidade, estado auxiliar | `--ink-faint`, `--amber-faint` |
+    | 4 | linhas, grades, ornamento | `--line` |
+
+    ⚠️ O ÂMBAR DEIXOU DE SER COR DE RÓTULO. Ele é a cor mais alta da paleta e estava em todo
+    cabeçalho de seção, o que punha a mobília no nível 1 e o dado no 2 — hierarquia invertida.
+    Agora `--amber` cheio é reservado ao FOCO (cursor do prompt, item selecionado, playhead) e os
+    rótulos usam `--amber-faint`, que mantém a identidade sem competir com o que se lê.
+  */
   :root {
     --void: #04060a;
     --amber: #ffb35c;
     --amber-dim: #b8763a;
-    --ink: #e8dfd2;
-    --ink-dim: #7d8797;
+    /* Identidade do rótulo sem o peso dele: mesma matiz, um nível abaixo. */
+    --amber-faint: rgba(255, 179, 92, 0.44);
+    /* A rampa foi ABERTA: os três cinzas estavam próximos demais para significar coisas
+       diferentes. Contraste entre 1 e 2 subiu, e entre 2 e 3 também. */
+    --ink: #f4efe6;
+    --ink-dim: #9aa4b4;
     --ink-faint: #4a5261;
-    --line: rgba(255, 179, 92, 0.16);
+    --line: rgba(255, 179, 92, 0.075);
     --good: #6ee7a0;
     --bad: #ff6b52;
     --busy: #ffd257;
     --hud-font: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-    --gutter: clamp(14px, 2vw, 34px);
+    /*
+      RESPIRO. Era `clamp(14px, 2vw, 34px)` — 30px numa janela de 1512px, ou 2%. Com todo
+      elemento encostado no limite, a tela lê como MOLDURA: um quadro pesado em volta de um
+      centro vazio. A margem sobe para ~3,5% da largura, que é o que deixa o espaço fazer parte
+      da interface em vez de ser o que sobra dela.
+    */
+    --gutter: clamp(24px, 3.4vw, 72px);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -81,7 +117,9 @@
   h1, h2 { font-size: 11px; font-weight: 500; letter-spacing: 0.24em; }
 
   .label {
-    color: var(--amber-dim);
+    /* Nível 3: o rótulo é mobília — lido uma vez, depois é referência espacial. O dado abaixo
+       dele é que precisa do contraste. */
+    color: var(--amber-faint);
     font-size: 9px;
     letter-spacing: 0.3em;
     padding-bottom: 5px;
@@ -311,11 +349,36 @@
 
   /* ---------------- rodapé: terminal ---------------- */
 
-  footer { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+  /*
+    O rodapé inteiro acompanha a largura do prompt flutuante.
+
+    Só o `.prompt-line` tinha sido solto e centrado, e os irmãos dele — anexos e a dica de voz —
+    ficaram ancorados na borda esquerda, órfãos de um bloco que não estava mais lá. Um elemento
+    alinhado a uma referência que sumiu não lê como "à esquerda": lê como erro.
+  */
+  footer {
+    grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  footer > * { width: min(920px, 100%); }
 
   /* Três zonas: compositor (elástico), forma de onda, configuração. */
-  .prompt-line { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: var(--gutter);
-                 border-top: 1px solid var(--line); padding-top: 10px; }
+  /*
+    O prompt FLUTUA em vez de ser uma barra de terminal colada na largura toda.
+
+    A régua atravessada de ponta a ponta era metade do efeito de moldura: ela FECHAVA o quadro
+    por baixo. Solto e com teto de largura, ele vira um objeto sobre a cena — e como a cena
+    continua visível em volta, o prompt deixa de parecer o chão da tela.
+
+    `backdrop-filter` em vez de fundo opaco: o universo continua lá atrás, só desfocado o
+    bastante para o texto não brigar com uma nebulosa.
+  */
+  .prompt-line {
+    display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 18px;
+    width: min(920px, 100%); margin: 0 auto; padding: 9px 14px;
+    background: rgba(6, 9, 14, 0.52);
+    backdrop-filter: blur(14px) saturate(0.9);
+    border: 1px solid var(--line); border-radius: 3px;
+  }
 
   /*
     O compositor tem moldura própria — é o que declara "isto aqui é um campo, e estes botões
@@ -778,7 +841,7 @@
     inacertável com o mouse. A faixa é a área de acerto; a linha é só o que se vê.
   */
   .scrub-track {
-    position: relative; height: 20px; cursor: ew-resize; outline: none;
+    position: relative; height: 16px; cursor: ew-resize; outline: none;
     pointer-events: auto;
     /* touch-action: sem isso o arraste no trackpad/touch vira scroll da página no meio do gesto. */
     touch-action: none;
@@ -802,10 +865,16 @@
     content: attr(data-label); position: absolute; left: 2px; top: -1px;
     font-size: 6.5px; letter-spacing: 0.14em; color: var(--ink-faint); white-space: nowrap;
   }
-  .scrub-readout { display: flex; gap: 10px; align-items: baseline; padding-top: 2px; }
-  .scrub-date { color: var(--amber); font-size: 10px; letter-spacing: 0.16em; }
-  .scrub-count { color: var(--ink-dim); font-size: 8.5px; letter-spacing: 0.14em; }
-  .scrub-note { color: var(--ink-faint); font-size: 8px; letter-spacing: 0.14em; }
+  /*
+    A leitura da timeline ocupava uma linha própria abaixo da pista, e a barra inteira dava 12,2%
+    da altura da tela para transmitir uma data e uma contagem. Agora ela vive NA MESMA LINHA da
+    pista, à direita — mesma informação, um terço do espaço.
+  */
+  .scrub-readout { display: flex; gap: 9px; align-items: baseline; padding-top: 0; }
+  /* A data é o único nível 1 daqui: é ela que responde "que instante estou vendo". */
+  .scrub-date { color: var(--ink); font-size: 9.5px; letter-spacing: 0.14em; }
+  .scrub-count { color: var(--ink-faint); font-size: 8px; letter-spacing: 0.12em; }
+  .scrub-note { color: var(--ink-faint); font-size: 7.5px; letter-spacing: 0.12em; }
 
   .delivery { display: grid; grid-template-columns: auto auto 1fr auto; gap: 9px; align-items: baseline;
               padding: 3px 0; font-size: 9px; }

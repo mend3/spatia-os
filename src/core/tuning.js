@@ -30,6 +30,18 @@ export const SPEC = [
   ['NÚCLEO', 'diskSpin', 'ROTAÇÃO DO DISCO', 0, 4, 0.05, 1],
   ['NÚCLEO', 'diskIntensity', 'INTENSIDADE DO DISCO', 0.1, 3, 0.05, 1],
   ['NÚCLEO', 'diskWidth', 'LARGURA DO DISCO', 0.4, 2, 0.02, 1],
+  /*
+   * Escala do NÚCLEO INTEIRO — horizonte, anel de fóton, disco e crescente juntos.
+   *
+   * Medido: o buraco negro ocupava ~8% da tela num enquadramento em que a faixa central livre é
+   * 60% da largura. Um centro oco com as bordas escritas lê como MOLDURA — e o núcleo é
+   * literalmente o centro gravitacional do sistema, o lugar de onde toda interação nasce. 1.9
+   * leva para a faixa de 18–25% da altura da viewport, que é onde ele passa a se impor.
+   *
+   * Escala o GRUPO, não a largura do disco: `diskWidth` muda a proporção interna (quanto o disco
+   * se afasta do horizonte) e mexer nela para crescer distorceria o objeto em vez de aproximá-lo.
+   */
+  ['NÚCLEO', 'coreScale', 'TAMANHO DO NÚCLEO', 0.5, 4.5, 0.05, 3.1],
   ['NÚCLEO', 'breath', 'RESPIRAÇÃO', 0, 3, 0.05, 1],
 
   ['CÉU', 'starSpread', 'ESPAÇAMENTO DAS ESTRELAS', 0.4, 2.5, 0.02, 0.76],
