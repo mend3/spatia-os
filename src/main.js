@@ -289,6 +289,8 @@ async function main() {
     renderCost: (n) => scene.sampleRenderCost(n),
     /** Raio aparente, nível de detalhe e distância do planeta em foco — ou `null`. */
     planet: () => scene.planetProbe(),
+    /** Tempo, taxa e instâncias que o campo de galáxias está de fato recebendo. */
+    galaxy: () => scene.galaxyProbe(),
   });
 
   // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.

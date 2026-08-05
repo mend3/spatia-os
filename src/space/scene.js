@@ -31,6 +31,8 @@ import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams } from './planet.js';
 import { createLinks } from './links.js';
 import { createGalaxy, galaxyParams } from './galaxy.js';
+import { MOTION, rateOf } from './motion-catalog.js';
+import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
 
@@ -316,6 +318,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   let focusGeometry = null;
   /** A focus flight is waiting for the first resolved anchor to correct its distance. */
   let fitPending = false;
+  /** Última superfície decidida — o traço do solver só sai quando ela muda. */
+  let ultimaSuperficie = null;
   /** Parâmetros do planeta em foco. Recalculados só na TROCA de astro — são puros e congelados. */
   let planetParamsCache = null;
   const LIGHT_DIR = new THREE.Vector3();
@@ -1032,6 +1036,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     probe.classe = classe?.id ?? null;
     probe.tipo = decisao?.surface ?? SURFACE.NONE;
     probe.recusados = decisao?.rejected ?? [];
+    if (decisao && decisao.surface !== ultimaSuperficie) {
+      ultimaSuperficie = decisao.surface;
+      trace('solver', {
+        corpo: pouso?.node?.label,
+        classe: classe?.id,
+        superficie: decisao.surface,
+        modificadores: decisao.modifiers,
+        recusados: decisao.rejected.map((r) => r.feature),
+      });
+    }
     // `tipo` é o que o solver DECIDIU; `desenhado`, o que a tela fez. Enquanto a galáxia só
     // existir na bancada os dois divergem nos 71 hubs, e é assim que a pendência fica legível.
     probe.desenhado = false;
@@ -1111,7 +1125,25 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         // negar uma imagem que está na tela, que é o mesmo defeito espelhado.
         if (hub.id === focusedNode) probe.desenhado = true;
       }
-      galaxy.update(lote, camera, canvas.height, elapsed);
+      /*
+       * A TAXA VEM DO CATÁLOGO DE MOVIMENTO, e ela mudou porque foi medida.
+       *
+       * O padrão girava a 0,06 rad/s — 105 s por volta. Com 6 braços a figura se repete a cada
+       * 17,5 s, então o olho tinha pouquíssimo sinal: na vista do céu, onde o disco tem ~20 px,
+       * um ponto do braço andava 1,2 px/s. Não era "não gira", era abaixo do limiar.
+       *
+       * `reduced` do catálogo é `freeze` para padrão: quem pediu menos movimento não perde
+       * informação nenhuma aqui — a figura fica, só para de girar.
+       */
+      galaxy.tune({ omega: motion.isReduced() ? 0 : rateOf(MOTION.patternSpin) });
+      const acesas = galaxy.update(lote, camera, canvas.height, elapsed);
+      trace('galaxy', () => ({
+        instancias: lote.length,
+        acimaDoLimiarDeBraco: acesas,
+        omega: +rateOf(MOTION.patternSpin).toFixed(4),
+        voltaEmSegundos: MOTION.patternSpin.period,
+        girouAteAgora: `${((elapsed * rateOf(MOTION.patternSpin) * 180) / Math.PI).toFixed(0)}°`,
+      }));
     }
 
     links.update(graph.positions(), delta, elapsed);
@@ -1145,6 +1177,24 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     focusBody,
     installApps: (apps) => bodies.install(apps),
     focusedBody: () => focusedBody,
+    /**
+     * O que a galáxia está REALMENTE recebendo — tempo, taxa e quantas instâncias.
+     *
+     * Existe pelo mesmo motivo de `planetProbe`: "não está girando" tem várias causas e nenhuma
+     * delas aparece na tela. Ler o uniforme responde em um passo o que a aritmética só estima.
+     */
+    galaxyProbe: () => {
+      const mesh = galaxy.object.children[0];
+      const u = mesh?.material?.uniforms;
+      if (!u) return { montado: false };
+      return {
+        montado: true,
+        tempo: u.uTime.value,
+        omega: u.uOmegaP.value,
+        instancias: mesh.geometry?.instanceCount ?? 0,
+        voltaEmSegundos: u.uOmegaP.value ? (Math.PI * 2) / u.uOmegaP.value : Infinity,
+      };
+    },
     loadGraph: (payload) => {
       const count = graph.load(payload);
       hubs = buildHubs(payload);
