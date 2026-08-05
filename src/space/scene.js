@@ -28,8 +28,13 @@ import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
 import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
+import { createPlanet, planetParams } from './planet.js';
 
-const CAMERA = { fov: 46, near: 0.1, far: 900, start: new THREE.Vector3(0, 8, 54) };
+/*
+ * `start.z` acompanha `graphSpread`: a casca de nós foi de 46–110 para 68–160 unidades, e uma
+ * câmera parada em 54 ficaria DENTRO dela — olhando o grafo de dentro para fora.
+ */
+const CAMERA = { fov: 46, near: 0.1, far: 900, start: new THREE.Vector3(0, 12, 88) };
 
 /**
  * Suavização exponencial independente de frame rate.
@@ -60,7 +65,18 @@ const ORBIT_SAVE_MS = 5_000;
  * Enquadramento de um astro do céu. Mais perto que o de um corpo de app (30) porque um nó é um
  * ponto, não uma malha: à distância do app ele seria um pixel no meio da tela.
  */
-const NODE_FOCUS_DISTANCE = 16;
+/*
+ * Distância da câmera ao astro focado.
+ *
+ * Era 16, e nunca tinha sido conferida contra o tamanho do que se olha. Medido no maior arquivo
+ * do corpus (226 chunks): raio visível de 0,64 no mundo, o que a 16 unidades dá ~70px de raio
+ * aparente — abaixo do limiar de 90 em que a superfície procedural entra. O astro travava e
+ * continuava sendo um ponto.
+ *
+ * A 7, o mesmo astro passa de 160px e vira planeta. Corpos menores continuam pontos, e isso é o
+ * nível de detalhe funcionando: quem é pequeno de verdade não ganha crosta por ter sido clicado.
+ */
+const NODE_FOCUS_DISTANCE = 7;
 const NODE_FOCUS_POLAR = 1.18;
 // 3 casas ≈ 0.06° de azimute. Abaixo disso é ruído de float, e ruído de float faria a guarda
 // de "só se mudou" do `prefs` disparar uma escrita a cada tique, para sempre.
@@ -110,11 +126,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const wormholes = createWormholes();
   const bodies = createBodies(labelLayer || document.body);
   const backdrop = createBackdrop();
+  /*
+   * UM planeta, reaproveitado. Nunca 460.
+   *
+   * Só o astro em foco ganha superfície: o campo de pontos continua sendo o céu, e a esfera
+   * procedural é o que o zoom revela. Reaproveitar a instância em vez de criar uma por nó é o
+   * que mantém a promessa do módulo — geometria, materiais e rampa nascem no primeiro quadro em
+   * que alguém chega perto, e a rampa só é recozida quando a semente ou a paleta mudam.
+   */
+  const planet = createPlanet();
+  let planetSource = null;
 
   scene.add(
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
-    stars.object, blackHole.group, graph.group, particles.object,
+    stars.object, blackHole.group, graph.group, planet.object, particles.object,
     satellites.group, wormholes.group, bodies.group
   );
 
@@ -185,6 +211,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * topologia, sem nada acusar.
    */
   let focusedNode = null;
+  /** Parâmetros do planeta em foco. Recalculados só na TROCA de astro — são puros e congelados. */
+  let planetParamsCache = null;
+  const LIGHT_DIR = new THREE.Vector3();
+  const ORBIT_OFFSET = new THREE.Vector3();
+  const RADIAL = new THREE.Vector3();
+  let probe = null;
+  let lastFocusRequest = null;
   // Alvo de órbita quando dentro de um app: a câmera passa a orbitar O CORPO, com o núcleo
   // ao fundo. `anchor` interpola entre a origem (sistema) e a posição do corpo.
   const anchor = new THREE.Vector3();
@@ -461,6 +494,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   function focusNode(source) {
     focusedNode = source;
+    // Registra NO MOMENTO DO PEDIDO se o céu conhece este astro. Depois é tarde: o quadro solta
+    // o foco de quem não tem posição, e aí "focado: null" já não diz se o pedido era inválido.
+    lastFocusRequest = { source, conhecido: source ? Boolean(graph.nodeAt(source)) : null };
     // O operador escolheu para onde olhar: a deriva automática pararia de fazer sentido
     // arrastando o quadro para longe do que ele acabou de pedir.
     userControlled = Boolean(source);
@@ -575,6 +611,63 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       anchor.y + Math.cos(orbit.polar) * orbit.distance,
       anchor.z + Math.cos(orbit.azimuth) * Math.sin(orbit.polar) * orbit.distance
     );
+
+    /*
+     * A CÂMERA NÃO ENTRA NO NÚCLEO. Guarda geométrica, e ela conserta um defeito antigo.
+     *
+     * A posição da câmera é `âncora + direção × distância`. Ao focar um astro a âncora vira o
+     * astro, e a distância de foco é 16 — mas nada garante que o resultado fique FORA do buraco
+     * negro. Um arquivo pesado orbita a ~46 unidades do centro e o disco vai a 45: com a órbita
+     * apontando para o lado de dentro, a câmera parava em 30, dentro do disco, e a tela virava
+     * um borrão de estrias. Reproduzido três vezes seguidas ao focar o arquivo de 226 chunks.
+     *
+     * Não era escala do núcleo — eu cheguei a mexer nela duas vezes atrás do sintoma errado. É
+     * que `focusNode` escolhe uma distância ao ASTRO sem olhar onde isso põe a câmera em relação
+     * à ORIGEM, e nenhum valor de `coreScale` conserta isso: basta o astro estar perto o
+     * bastante do centro.
+     *
+     * O empurrão é radial e mantém a direção do olhar praticamente intacta, porque a âncora
+     * continua sendo o alvo do `lookAt`.
+     */
+    /*
+     * Ao focar um astro, a câmera fica do lado DE FORA dele — nunca entre ele e o núcleo.
+     *
+     * A guarda radial abaixo evita o desastre, mas empurrando a câmera para longe do próprio
+     * astro que se pediu para ver: o planeta procedural, que só aparece acima de 90px de raio
+     * aparente, nunca chegava lá. Aqui o que se corrige é a POSE, não a distância — se o
+     * deslocamento da órbita aponta para dentro, ele é refletido na direção radial. O ângulo de
+     * visada escolhido pelo operador é preservado em módulo; só o lado muda.
+     */
+    if (focusedNode && anchor.lengthSq() > 1e-6) {
+      const offset = ORBIT_OFFSET.copy(camera.position).sub(anchor);
+      const outward = RADIAL.copy(anchor).normalize();
+      const along = offset.dot(outward);
+      if (along < 0) {
+        offset.addScaledVector(outward, -2 * along);
+        camera.position.copy(anchor).add(offset);
+      }
+    }
+
+    /*
+     * A folga é do HORIZONTE, não da borda do disco — e a diferença decidia se o planeta podia
+     * existir.
+     *
+     * Medido: o disco vai a 45 unidades e a órbita de arquivo mais interna começa em 46. Uma
+     * folga baseada na borda do disco (48,6) põe os astros mais recentes DENTRO da zona
+     * proibida — a câmera nunca conseguia se aproximar deles, parava a 30,5 do alvo, e o astro
+     * ficava com 37px de raio aparente quando o planeta precisa de 90. Não é que o planeta
+     * estivesse quebrado: ele nunca era pedido.
+     *
+     * O que precisa mesmo de folga é a esfera OPACA. O disco é aditivo e fino; atravessar a
+     * borda dele custa umas estrias no quadro, não a cena. 3,5 raios de horizonte mantêm o
+     * enquadramento inteiro fora do buraco e devolvem toda a casca de nós para a câmera.
+     */
+    const clearance = blackHole.horizonRadius * (tune.coreScale ?? 1) * 3.5;
+    if (camera.position.lengthSq() < clearance * clearance) {
+      // Câmera exatamente no centro não tem direção; a de partida da cena serve de desempate.
+      if (camera.position.lengthSq() < 1e-6) camera.position.copy(CAMERA.start);
+      camera.position.setLength(clearance);
+    }
     camera.lookAt(lookAt.add(anchor));
 
     blackHole.update(delta, elapsed);
@@ -623,6 +716,59 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           dirty: picked?.node ? graph.dirtyOf(picked.node.source) : null,
         });
       }
+    }
+
+    /*
+     * O PLANETA do astro em foco.
+     *
+     * Depois de `graph.update`, nunca antes: a âncora lê a posição que acabou de ser escrita.
+     * É a mesma regra do anel, e pelo mesmo motivo — um quadro de atraso aqui aparece como a
+     * esfera arrastando atrás do próprio halo.
+     */
+    const pouso = focusedNode
+      ? graph.planetAnchor(focusedNode, camera, canvas.height, elapsed)
+      : null;
+    /*
+     * A sonda escreve SEMPRE, inclusive o caso negativo.
+     *
+     * Escrevendo só quando há planeta, "sonda ausente" confundia três causas diferentes: foco
+     * nulo, âncora não resolvida e nível de detalhe zero. Custou várias rodadas de depuração às
+     * cegas. Diagnóstico que só existe no caminho feliz não é diagnóstico.
+     */
+    probe = { focado: focusedNode, ancorou: Boolean(pouso), px: pouso?.px ?? 0, level: 0, pedido: lastFocusRequest };
+
+    if (pouso) {
+      if (focusedNode !== planetSource) {
+        planetParamsCache = planetParams(pouso.node);
+        planetSource = focusedNode;
+      }
+      planet.object.position.copy(pouso.position);
+      planet.object.scale.setScalar(pouso.radius);
+      /*
+       * A luz vem do NÚCLEO. É o único corpo emissivo da cena, então iluminar de qualquer outra
+       * direção poria o terminador em desacordo com o que se vê — e o terminador é justamente o
+       * que faz a esfera ler como esfera.
+       */
+      LIGHT_DIR.copy(pouso.position).negate().normalize();
+      const level = planet.update(
+        { ...planetParamsCache, light: [LIGHT_DIR.x, LIGHT_DIR.y, LIGHT_DIR.z] },
+        camera,
+        pouso.px,
+        elapsed
+      );
+      // O sprite cede NA MESMA MEDIDA em que a superfície aparece: sem isso a troca seria seca
+      // e o astro piscaria de ponto para planeta.
+      graph.haloOf(level > 0.002 ? focusedNode : null, level);
+      // Sonda de diagnóstico: o planeta é o único objeto cuja ausência não gera erro nenhum —
+      // ele simplesmente não desenha. Sem isto, "não apareceu" não distingue LOD baixo de
+      // âncora errada de shader mudo.
+      probe.level = level;
+      probe.raio = pouso.radius;
+      probe.dist = camera.position.distanceTo(pouso.position);
+    } else if (planetSource) {
+      planet.update({ ...planetParamsCache, light: [0, 0, 1] }, camera, 0, elapsed);
+      graph.haloOf(null, 0);
+      planetSource = null;
     }
 
     backdrop.update(delta, camera.aspect, camera);
@@ -772,6 +918,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     /** Trava a câmera num astro do céu; `null` solta. */
     focusNode,
     focusedNode: () => focusedNode,
+    /** Diagnóstico do planeta em foco — raio aparente, nível de detalhe e distância. */
+    planetProbe: () => probe,
 
     /** Devolve o controle da câmera à deriva automática. */
     release() {

@@ -110,6 +110,13 @@
   }
   #hud a, #hud button, #hud input, #hud .clickable { pointer-events: auto; }
 
+  /*
+    Sombra dura de 1px atrás de todo texto da HUD.
+    É o que sustenta a legibilidade sobre uma nebulosa clara SEM precisar de fundo — custa zero
+    layout e funciona igual em qualquer imagem que esteja rodando por trás.
+  */
+  #hud { text-shadow: 0 1px 3px rgba(4, 6, 10, 0.95), 0 0 8px rgba(4, 6, 10, 0.7); }
+
   /* Modo cinematográfico: TAB apaga tudo, sobra o núcleo, a voz e o texto. */
   body.cinematic #hud > *:not(.keep-cinematic) { opacity: 0; }
   body.cinematic #hud { gap: 0; }
@@ -234,9 +241,49 @@
 
   /* ---------------- colunas ---------------- */
 
-  aside { display: flex; flex-direction: column; gap: clamp(10px, 2vh, 24px); min-height: 0; overflow: hidden; }
+  /*
+    FUNDO nos trilhos — e ele NÃO é um painel.
+
+    Com o fundo do universo ligado, texto hairline sobre nebulosa vira ilegível: o contraste
+    depende do que passa por trás, que muda a cada rotação de imagem. Mas devolver um painel
+    opaco desfaria o respiro que acabou de entrar e traria de volta o efeito de moldura.
+
+    O meio-termo é um gradiente ANCORADO NA BORDA: forte onde ninguém olha a cena, nulo onde ela
+    começa. O olho lê como escurecimento do espaço, não como caixa — não há aresta em lugar
+    nenhum. Some junto com o resto no modo cinematográfico, porque lá a cena é o assunto.
+  */
+  aside {
+    display: flex; flex-direction: column; gap: clamp(10px, 2vh, 24px);
+    min-height: 0; overflow: hidden; position: relative;
+  }
+  aside::before {
+    content: ''; position: absolute; top: calc(var(--gutter) * -1); bottom: calc(var(--gutter) * -1);
+    width: calc(100% + var(--gutter) * 2); pointer-events: none; z-index: -1;
+  }
+  aside[data-slot="left"]::before {
+    left: calc(var(--gutter) * -1);
+    background: linear-gradient(90deg, rgba(4, 6, 10, 0.82) 0%, rgba(4, 6, 10, 0.62) 48%, transparent 100%);
+  }
+  aside[data-slot="right"]::before {
+    right: calc(var(--gutter) * -1);
+    background: linear-gradient(270deg, rgba(4, 6, 10, 0.82) 0%, rgba(4, 6, 10, 0.62) 48%, transparent 100%);
+  }
+  body.cinematic aside::before { opacity: 0; transition: opacity 900ms ease; }
   aside section { min-height: 0; display: flex; flex-direction: column; }
-  .scroll { overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
+  /*
+    ROLA. Era `overflow: hidden`, e o conteúdo simplesmente sumia cortado no meio de uma linha —
+    a árvore de arquivos parava em `.github` e o log de eventos cortava "TOPOLOGIA CARREGADA"
+    pela metade. Conteúdo cortado sem barra não lê como "tem mais abaixo": lê como bug.
+
+    Barra fina e sem fundo, para não devolver a moldura que acabou de sair.
+  */
+  .scroll {
+    overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 4px;
+    scrollbar-width: thin; scrollbar-color: var(--amber-dim) transparent;
+    /* O `#hud` é `pointer-events: none`; sem isto a roda do mouse ia para a câmera, não para a
+       lista — o mesmo defeito que a pista de scrub já teve. */
+    pointer-events: auto;
+  }
 
   .vital { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 6px; padding: 3px 0; }
   .vital-label { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.18em; }

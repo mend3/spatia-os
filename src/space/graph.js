@@ -95,17 +95,20 @@ const VERTEX = /* glsl */ `
   attribute float aRecency;
   attribute float aSupernova;
   attribute float aSeed;
+  attribute float aHalo;
   attribute vec3 aColor;
   varying vec3 vColor;
   varying float vIgnition;
   varying float vReveal;
   varying float vSupernova;
   varying float vSeed;
+  varying float vHalo;
 
   void main(){
     vIgnition = aIgnition;
     vSupernova = aSupernova;
     vSeed = aSeed;
+    vHalo = aHalo;
     // 1 = dentro da janela, 0 = ainda no futuro em relação ao playhead.
     float within = 1.0 - smoothstep(0.0, uRevealBand, aRecency - uReveal);
     vReveal = mix(uRevealDim, 1.0, within);
@@ -159,6 +162,7 @@ const FRAGMENT = /* glsl */ `
   varying float vReveal;
   varying float vSupernova;
   varying float vSeed;
+  varying float vHalo;
 
   const float TAU = 6.28318530718;
   // Envoltorio: onde comeca, ate onde vai, quanto rende e quanto o contorno ondula.
@@ -193,6 +197,15 @@ const FRAGMENT = /* glsl */ `
     vec2 pc = (gl_PointCoord - 0.5) * 2.0;
     float d = length(pc);
     float core = pow(1.0 - smoothstep(0.0, 1.0, d), 2.2);
+    /*
+     * O NUCLEO SE ABRE quando um planeta assume este astro.
+     *
+     * O disco visivel do sprite tem raio VISIBLE_CORE (0,6) e e exatamente onde a esfera do
+     * planeta e desenhada. Sem esvaziar o miolo, o ponto ADITIVO continuaria somando brilho por
+     * cima da superficie: o terminador — a parte mais legivel do planeta — sumiria num borrao.
+     * Esvaziado, sobra a coroa, que e o que uma atmosfera iluminada por tras faz de verdade.
+     */
+    core *= mix(1.0, smoothstep(0.0, 0.62, d), vHalo);
     // Corona só em nó aceso: dá o "volta a brilhar" sem inflar o céu inteiro.
     float corona = (1.0 - smoothstep(0.0, 1.3, d)) * vIgnition * 0.55;
     float shell = envelope(pc, vSeed) * vSupernova * ENV_GAIN;
@@ -246,6 +259,10 @@ export function createGraph() {
   let dirtyState = new Map();
   // Índices dos nós que ganharam anel neste `markDirty` — a HUD cede em volta deles.
   let ringed = [];
+  /** Por nó: quanto o sprite virou halo (0 = disco cheio, 1 = só a coroa). */
+  let halo = null;
+  let haloIndex = -1;
+  let haloAmount = 0;
   const rings = createRings();
   group.add(rings.group);
   const tune = { speed: 1 };
@@ -354,6 +371,9 @@ export function createGraph() {
     const recencies = new Float32Array(count);
     const supernovae = new Float32Array(count);
     const seeds = new Float32Array(count);
+    halo = new Float32Array(count);
+    haloIndex = -1;
+    haloAmount = 0;
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
 
@@ -386,6 +406,7 @@ export function createGraph() {
     geometry.setAttribute('aRecency', new THREE.BufferAttribute(recencies, 1));
     geometry.setAttribute('aSupernova', new THREE.BufferAttribute(supernovae, 1));
     geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+    geometry.setAttribute('aHalo', new THREE.BufferAttribute(halo, 1));
     geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
     points = new THREE.Points(geometry, material);
     points.frustumCulled = false;
@@ -675,6 +696,65 @@ export function createGraph() {
         });
       }
       return out;
+    },
+
+    /**
+     * Tudo que a cena precisa para pousar um PLANETA sobre um astro, num só lugar.
+     *
+     * Existe como método daqui, e não como três getters, porque os três números têm de vir do
+     * MESMO quadro e da MESMA conta que já escala a estrela: posição, raio do disco visível e
+     * tamanho aparente. Espalhados, bastaria um deles atrasar um quadro para o planeta descolar
+     * do halo — que é exatamente o defeito que a extinção do anel teve.
+     *
+     * @returns {{position: THREE.Vector3, radius: number, px: number, node: object}|null}
+     *   em unidades de MUNDO. `radius` é o disco VISÍVEL do astro, não o do sprite.
+     */
+    planetAnchor(source, camera, viewportHeight, elapsed) {
+      const i = index.get(source);
+      if (i === undefined || !positions || !camera || !viewportHeight) return null;
+      const size = starRadius(i, elapsed, viewportHeight, camera);
+      const escala = group.scale.x || 1;
+      const position = positionOf(i).multiplyScalar(escala);
+      const radius = size.world * VISIBLE_CORE * escala;
+      /*
+       * O tamanho aparente sai da GEOMETRIA, não do sprite — e a diferença foi medida.
+       *
+       * `starRadius().px` é metade do `gl_PointSize`, que satura no teto de 511 do driver e
+       * ainda oscila com o pulso da ignição. Na mesma pose ele deu 75 e 153, atravessando o
+       * limiar de 90 do planeta nos dois sentidos: a superfície piscava. Aqui é a projeção
+       * exata do raio no plano da tela — monótona na distância, imune ao teto e ao pulso.
+       */
+      const meiaAltura = Math.tan((camera.fov * Math.PI) / 360) * camera.position.distanceTo(position);
+      return {
+        position,
+        radius,
+        px: (radius * viewportHeight) / (2 * Math.max(meiaAltura, 1e-4)),
+        node: nodes[i],
+      };
+    },
+
+    /**
+     * O sprite deste astro vira HALO: o núcleo sólido se abre e sobra a coroa em volta.
+     *
+     * É o que impede o ponto aditivo e o planeta de desenharem a mesma coisa no mesmo lugar. O
+     * ponto não escreve profundidade e o planeta escreve, então sem isto o sprite ficaria
+     * somando brilho por cima da superfície e apagando o terminador — justo o que o planeta tem
+     * de mais legível.
+     *
+     * @param {string|null} source  o astro que virou planeta, ou `null` para devolver todos
+     * @param {number} amount       0…1, acompanha o nível de detalhe para a troca não ser seca
+     */
+    haloOf(source, amount = 1) {
+      if (!halo) return;
+      const alvo = source === null ? -1 : (index.get(source) ?? -1);
+      // Só escreve quando MUDA: `needsUpdate` num atributo de 468 floats por quadro é upload de
+      // buffer por quadro, e o valor é o mesmo em 99% deles.
+      if (alvo === haloIndex && Math.abs(amount - haloAmount) < 0.004) return;
+      if (haloIndex >= 0) halo[haloIndex] = 0;
+      if (alvo >= 0) halo[alvo] = amount;
+      haloIndex = alvo;
+      haloAmount = amount;
+      points.geometry.getAttribute('aHalo').needsUpdate = true;
     },
 
     worldPositionOf(source) {

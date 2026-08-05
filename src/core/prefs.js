@@ -73,8 +73,8 @@ export const DEFAULTS = Object.freeze({
   'sky.backdropQuality': 'high', // 'high' (3200×1800) | 'low' (1280×720)
 
   'camera.azimuth': 0,
-  'camera.polar': 1.33,
-  'camera.distance': 54,
+  'camera.polar': 1.36,
+  'camera.distance': 88,
 });
 
 const listeners = new Set();

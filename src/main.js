@@ -226,6 +226,8 @@ async function main() {
     state: () => state.snapshot(),
     /** Custo da cadeia de pós-processamento, medido na hora. Ver `scene.sampleRenderCost`. */
     renderCost: (n) => scene.sampleRenderCost(n),
+    /** Raio aparente, nível de detalhe e distância do planeta em foco — ou `null`. */
+    planet: () => scene.planetProbe(),
   });
 
   // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.

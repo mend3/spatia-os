@@ -33,15 +33,29 @@ export const SPEC = [
   /*
    * Escala do NÚCLEO INTEIRO — horizonte, anel de fóton, disco e crescente juntos.
    *
-   * Medido: o buraco negro ocupava ~8% da tela num enquadramento em que a faixa central livre é
-   * 60% da largura. Um centro oco com as bordas escritas lê como MOLDURA — e o núcleo é
-   * literalmente o centro gravitacional do sistema, o lugar de onde toda interação nasce. 1.9
-   * leva para a faixa de 18–25% da altura da viewport, que é onde ele passa a se impor.
+   * Existe porque o buraco negro ocupava ~8% da tela num enquadramento com 60% da largura
+   * central livre: um centro oco com as bordas escritas lê como MOLDURA, e o núcleo é
+   * literalmente o centro gravitacional do sistema.
    *
-   * Escala o GRUPO, não a largura do disco: `diskWidth` muda a proporção interna (quanto o disco
-   * se afasta do horizonte) e mexer nela para crescer distorceria o objeto em vez de aproximá-lo.
+   * ⚠️ TETO ESTRUTURAL, e ele é baixo. A conta, com os números do código:
+   *
+   *   borda do disco   = DISK_OUTER (39 = HORIZON_RADIUS 3.0 × 13) × coreScale
+   *   órbita mais perto = SHELLS.file[0] (26) × graphSpread (1.78) = 46
+   *
+   * O disco só não engole o arquivo mais próximo enquanto `coreScale < 26 × graphSpread / 39`,
+   * ou seja **1,19** no ajuste padrão. Testei 3.1 e 1.35 na tela: nos dois, focar um astro
+   * enchia a viewport de estrias porque a câmera passava a orbitar DENTRO do disco.
+   *
+   * Consequência que vale dizer: **o núcleo NÃO chega a 18–25% da altura por este parâmetro.**
+   * Não é limitação dele — é que a casca de nós vive entre 20 e 110 unidades de mundo, e um
+   * núcleo grande o bastante para se impor ocupa o mesmo espaço que o grafo. Chegar lá é
+   * REENQUADRAR (empurrar `graphSpread` e afastar a câmera na mesma proporção), o que muda a
+   * composição inteira — decisão de produto, não de escala de objeto.
+   *
+   * Escala o GRUPO, não `diskWidth`: aquela muda a proporção interna e distorceria o objeto em
+   * vez de aproximá-lo.
    */
-  ['NÚCLEO', 'coreScale', 'TAMANHO DO NÚCLEO', 0.5, 4.5, 0.05, 3.1],
+  ['NÚCLEO', 'coreScale', 'TAMANHO DO NÚCLEO', 0.5, 2.2, 0.05, 1.55],
   ['NÚCLEO', 'breath', 'RESPIRAÇÃO', 0, 3, 0.05, 1],
 
   ['CÉU', 'starSpread', 'ESPAÇAMENTO DAS ESTRELAS', 0.4, 2.5, 0.02, 0.76],
@@ -49,7 +63,20 @@ export const SPEC = [
   ['CÉU', 'starBrightness', 'BRILHO DAS ESTRELAS', 0, 2.5, 0.05, 0.55],
   ['CÉU', 'starDrift', 'DERIVA DO CÉU', 0, 6, 0.05, 0.8],
 
-  ['GRAFO', 'graphSpread', 'ESPAÇAMENTO DOS NÓS', 0.3, 2.5, 0.02, 1.78],
+  /*
+   * ⚠️ Este número decide se a câmera consegue chegar perto de um astro.
+   *
+   * A órbita de arquivo mais interna é `SHELLS.file[0]` (26) × este valor. Em 1.78 ela caía em
+   * 46 — e a borda do disco de acreção fica em 45. Ou seja: **não havia espaço livre entre o
+   * disco e o primeiro anel de arquivos**. Travar a câmera num arquivo recente punha ela dentro
+   * do disco, e a tela virava um borrão de estrias. Reproduzido cinco vezes, com três tentativas
+   * de consertar o sintoma errado (escala do núcleo, folga radial, distância de foco).
+   *
+   * 2.6 abre um vão de ~23 unidades entre o disco e a primeira órbita. É o que torna possível ao
+   * mesmo tempo aproximar a câmera de um astro e crescer o núcleo — os dois estavam presos pela
+   * mesma falta de espaço.
+   */
+  ['GRAFO', 'graphSpread', 'ESPAÇAMENTO DOS NÓS', 0.3, 3.5, 0.02, 2.6],
   ['GRAFO', 'graphSpeed', 'VELOCIDADE ORBITAL', 0, 4, 0.05, 0.2],
   ['GRAFO', 'nodeSize', 'TAMANHO DOS NÓS', 0.2, 3, 0.05, 1.1],
   ['GRAFO', 'edgeOpacity', 'OPACIDADE DAS ARESTAS', 0, 1, 0.02, 0.2],
