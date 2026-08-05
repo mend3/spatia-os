@@ -43,7 +43,6 @@ export const KIND_COLORS = {
 
 const SHELLS = { repo: [11, 17], dir: [19, 33], file: [26, 62] };
 const IGNITION_DECAY = 0.55;
-const MAX_LABEL_DISTANCE = 46;
 
 /*
  * Janela temporal (o scrubber do céu).
@@ -578,12 +577,6 @@ export function createGraph() {
     },
 
     nodeAt: (source) => nodes[index.get(source)] ?? null,
-    labelCandidates: (camera) =>
-      nodes.filter(
-        (node) =>
-          (node.type !== 'file' || ignition[node.i] > 0.25) &&
-          camera.position.distanceTo(positionOf(node.i)) < MAX_LABEL_DISTANCE * 3
-      ),
     kindColor: (kind) => KIND_COLORS[kind] ?? KIND_COLORS.other,
   };
 

@@ -322,7 +322,11 @@ class Handler(BaseHTTPRequestHandler):
             "online": voice["online"],
             "voice": voice["wire_voice"],
             "voices": voice["voices"],
-            "voice_ok": voice["voice_ok"] and voice["blend_ok"],
+            # ⚠️ Os dois viajam SEPARADOS. Fundidos num booleano, a tela dizia sempre
+            # "VERIFIQUE TTS_VOICE" — inclusive quando quem faltava era a voz de MISTURA,
+            # mandando o operador conferir a variável errada.
+            "voice_ok": voice["voice_ok"],
+            "blend_ok": voice["blend_ok"],
             "lang": voice["effective_lang"],
             "speed": voice["state"]["speed"],
             "format": voice["state"]["response_format"],

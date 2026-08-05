@@ -853,6 +853,11 @@
 
 
   .perms-body { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+  .perms-recovered {
+    color: var(--busy); font-size: 8px; letter-spacing: 0.14em; line-height: 1.5;
+    border-left: 2px solid var(--busy); padding: 4px 0 4px 8px; margin: 6px 0;
+  }
+  .perms-recovered[hidden] { display: none; }
   .perms-status { color: var(--ink-faint); font-size: 8px; letter-spacing: 0.16em; }
 
   .perm { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start;

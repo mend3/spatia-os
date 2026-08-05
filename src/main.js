@@ -78,7 +78,13 @@ async function main() {
   const answer = createAnswer(document);
   const terminal = createTerminal(hud, { audio });
   const controls = createControls(hud);
-  const perms = createPermissions(hud);
+  /*
+   * `onChange` estava vago, e por isso a rota `/api/mcp` não cumpria o motivo pelo qual ela
+   * existe separada — `server/app.py` diz, na própria rota, que o painel de MCP "precisa
+   * reconsultar sozinho quando a fonte muda". Mudar a fonte de settings e ver o inventário
+   * velho é a tela afirmando um estado que já não é o do servidor.
+   */
+  const perms = createPermissions(hud, { onChange: () => ui('permissions-changed', {}) });
   const speechPanel = createSpeechPanel(hud);
   const panels = { tuning: controls, permissions: perms, speech: speechPanel };
   /*

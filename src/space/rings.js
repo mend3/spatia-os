@@ -99,6 +99,67 @@ const OPACITY = 0.9;
  */
 let maxRings = 64;
 
+/*
+ * Ordem de desenho, e ela é OBRIGATÓRIA.
+ *
+ * São três coisas na mesma posição: a estrela (ponto aditivo), a extinção (multiplicativa) e a
+ * luz espalhada pelo anel (aditiva). A sequência tem que ser exatamente essa — a estrela
+ * desenha, o anel escurece o que ficou atrás dele, e só então a luz somada entra.
+ *
+ * Sem `renderOrder` explícito isso ficaria à mercê da ordenação de transparentes do three, que
+ * ordena por DISTÂNCIA — e aqui as três estão à mesma distância, então o resultado seria a
+ * ordem de inserção, que não é contrato de nada.
+ */
+// τ efetivo. Não é o do anel B real (1.5–2.5): ali a faixa some por completo, e uma estrela é
+// fonte pontual muito mais brilhante que um planeta iluminado. Este é o valor que deixa a
+// passagem legível sem apagar o astro — número de tela, não constante do modelo.
+const OPTICAL_DEPTH = 0.85;
+
+/*
+ * EXTINÇÃO — o anel na frente do astro ESCURECE, não soma luz.
+ *
+ * O anel B de Saturno tem profundidade óptica τ≈1.5–2.5: passando na frente do planeta ele
+ * aparece como uma faixa ESCURA. Com blending aditivo o desenho fazia o oposto — a metade
+ * próxima clareava exatamente o que devia tapar.
+ *
+ * Este passe desenha SÓ a metade próxima, e só onde ela cruza o disco da estrela: fora dali não
+ * há nada para escurecer. A metade distante nem chega aqui — ela já foi descartada pela oclusão
+ * do outro passe.
+ */
+const EXTINCTION_FRAGMENT = /* glsl */ `
+  precision highp float;
+  uniform sampler2D uProfile;
+  uniform float uOpacity;
+  uniform float uCosTilt;
+  uniform vec2 uRadial;
+  uniform float uDepth;
+  varying vec2 vUv;
+
+  const float LIMB = 0.97;
+
+  void main(){
+    vec2 p = vUv * 2.0 - 1.0;
+    float d = length(p);
+    if (d > 1.0) discard;
+    float r = d * uRadial.x + uRadial.y;
+    if (r < 0.0) discard;
+    if (p.y < 0.0) discard;
+    float screenR = length(vec2(p.x, p.y * uCosTilt));
+    if (screenR > LIMB) discard;
+
+    float density = texture2D(uProfile, vec2(r, 0.5)).r;
+    // Beer-Lambert: a fracao que ATRAVESSA e exp(-tau * densidade).
+    float transmitted = exp(-uDepth * density);
+    float blocked = (1.0 - transmitted) * uOpacity;
+    if (blocked < 0.004) discard;
+    // Com blendSrc=Zero e blendDst=OneMinusSrcColor, o destino e multiplicado por (1 - src).
+    gl_FragColor = vec4(vec3(blocked), 1.0);
+  }
+`;
+
+const ORDER_EXTINCTION = 1;
+const ORDER_SCATTER = 2;
+
 const VERTEX = /* glsl */ `
   varying vec2 vUv;
   void main(){
@@ -243,8 +304,36 @@ export function createRings() {
           side: THREE.DoubleSide,
         })
       );
+      mesh.renderOrder = ORDER_SCATTER;
       mesh.visible = false;
-      group.add(mesh);
+
+      // O passe de extinção compartilha geometria e uniformes de forma; o que muda é o
+      // blending e o fato de ele escurecer em vez de somar.
+      const shade = new THREE.Mesh(
+        geometry,
+        new THREE.ShaderMaterial({
+          uniforms: {
+            uProfile: { value: null },
+            uOpacity: { value: 0 },
+            uCosTilt: { value: Math.cos(TILT) },
+            uRadial: { value: new THREE.Vector2(1, 0) },
+            uDepth: { value: OPTICAL_DEPTH },
+          },
+          vertexShader: VERTEX,
+          fragmentShader: EXTINCTION_FRAGMENT,
+          transparent: true,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          blending: THREE.CustomBlending,
+          blendSrc: THREE.ZeroFactor,
+          blendDst: THREE.OneMinusSrcColorFactor,
+        })
+      );
+      shade.renderOrder = ORDER_EXTINCTION;
+      shade.visible = false;
+      mesh.userData.shade = shade;
+
+      group.add(mesh, shade);
       pool.push(mesh);
     }
   }
@@ -271,13 +360,14 @@ export function createRings() {
         const profile = profileFor(family);
 
         mesh.visible = true;
+        mesh.userData.shade.visible = true;
+        mesh.userData.shade.material.uniforms.uProfile.value = profile.texture;
         mesh.material.uniforms.uProfile.value = profile.texture;
         mesh.material.uniforms.uForward.value = profile.forward;
         // d_perfil = (d·reach − 1)/(reach − 1): descarta a região dentro do limbo.
-        mesh.material.uniforms.uRadial.value.set(
-          profile.reach / (profile.reach - 1),
-          -1 / (profile.reach - 1)
-        );
+        const radial = [profile.reach / (profile.reach - 1), -1 / (profile.reach - 1)];
+        mesh.material.uniforms.uRadial.value.set(...radial);
+        mesh.userData.shade.material.uniforms.uRadial.value.set(...radial);
         mesh.material.uniforms.uColor.value.setHex(
           DIRTY_COLORS[entry.state] ?? DIRTY_COLORS.modified
         );
@@ -293,7 +383,10 @@ export function createRings() {
           roll: (jitter(entry.index, 2) - 0.5) * Math.PI,
         });
       });
-      for (let i = kept.length; i < pool.length; i++) pool[i].visible = false;
+      for (let i = kept.length; i < pool.length; i++) {
+        pool[i].visible = false;
+        pool[i].userData.shade.visible = false;
+      }
 
       return { shown: kept.length, dropped: entries.length - kept.length };
     },
@@ -317,6 +410,14 @@ export function createRings() {
         ring.mesh.rotateX(ring.tilt);
         // O achatamento na tela depende do tombo DESTE anel, que tem dispersão por nó.
         ring.mesh.material.uniforms.uCosTilt.value = Math.cos(ring.tilt);
+        // O passe de extinção acompanha posição, orientação e escala do anel — é o MESMO anel,
+        // desenhado duas vezes com blendings opostos.
+        const shade = ring.mesh.userData.shade;
+        shade.position.copy(ring.mesh.position);
+        shade.quaternion.copy(ring.mesh.quaternion);
+        shade.scale.copy(ring.mesh.scale);
+        shade.material.uniforms.uCosTilt.value = Math.cos(ring.tilt);
+        shade.material.uniforms.uOpacity.value = ring.mesh.material.uniforms.uOpacity.value;
         // Raio do sprite da estrela AGORA — já com ignição, spread, fov, resolução e o teto
         // de `gl_PointSize` — vezes o rodapé. É o que mantém o anel colado ao astro em
         // qualquer ajuste do painel e em qualquer monitor.
@@ -335,8 +436,9 @@ export function createRings() {
     dispose() {
       active.length = 0;
       for (const mesh of pool) {
-        group.remove(mesh);
+        group.remove(mesh, mesh.userData.shade);
         mesh.material.dispose();
+        mesh.userData.shade.material.dispose();
       }
       pool.length = 0;
       for (const profile of profiles.values()) profile.texture.dispose();

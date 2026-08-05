@@ -242,8 +242,17 @@ export function createVoice(root, { onLevel } = {}) {
     /** O boot informa se o TTS do servidor existe, para o rótulo não mentir. */
     applyHealth(health) {
       engine = health?.tts?.online ? 'server' : 'browser';
-      if (health?.tts?.online && !health.tts.voice_ok) {
+      /*
+       * Cada variável é nomeada pelo seu próprio nome.
+       *
+       * O servidor mandava `voice_ok AND blend_ok` num booleano só, e a tela sempre acusava
+       * TTS_VOICE — mesmo quando a que faltava era a voz de mistura. Mandar conferir a
+       * variável errada é pior que não avisar: gasta o tempo de quem procura no lugar errado.
+       */
+      if (health?.tts?.online && health.tts.voice_ok === false) {
         setHint(`VOZ "${health.tts.voice}" NÃO EXISTE NO MOTOR — VERIFIQUE TTS_VOICE`);
+      } else if (health?.tts?.online && health.tts.blend_ok === false) {
+        setHint(`VOZ DE MISTURA "${health.tts.blend_voice}" NÃO EXISTE — VERIFIQUE TTS_BLEND_VOICE`);
       }
     },
   };

@@ -553,7 +553,24 @@ function registerSystemWidgets() {
           return view.empty(error.message);
         }
         const units = [
-          ['qdrant', 'MEMÓRIA VETORIAL', data.qdrant?.online, `${data.qdrant?.points ?? 0} chunks`],
+          /*
+           * `vectors` e `sparse` chegavam no payload e ninguém os desenhava — e são exatamente
+           * o dado que diagnostica o modo de falha que `server/config.py` descreve: "busca
+           * devolve vazio sem erro", que acontece quando a coleção não tem o vetor que o
+           * cliente pergunta. Com os nomes na tela, esse silêncio vira uma linha legível.
+           */
+          [
+            'qdrant',
+            'MEMÓRIA VETORIAL',
+            data.qdrant?.online,
+            [
+              plural(data.qdrant?.points ?? 0, 'chunk'),
+              (data.qdrant?.vectors || []).length ? (data.qdrant.vectors || []).join('+') : null,
+              (data.qdrant?.sparse || []).length ? (data.qdrant.sparse || []).join('+') : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          ],
           ['claude', 'AGENTE', data.claude_cli, data.brain],
           ['ollama', 'MODELO LOCAL', data.ollama?.online, `${data.ollama?.models?.length ?? 0} modelos`],
           ['tts', 'SÍNTESE DE VOZ', data.tts?.online, data.tts?.voice ?? '—'],
@@ -791,6 +808,19 @@ function registerBridgeWidgets() {
           for (const item of inventory.excluded) {
             blocks.push(el('div', 'unit-sub', `⚠ ${item.name} fora: ${item.reason}`));
           }
+          /*
+           * `partial` do servidor — a promessa que estava escrita e a tela não cumpria.
+           *
+           * `server/mcp_scopes.py` marca `partial: true` com o comentário "a tela precisa saber
+           * que esta lista não é o total, senão volta a omitir em silêncio". Nenhuma linha lia o
+           * campo: a lista aparecia com cara de completa. Uma lista que se apresenta como total
+           * sem ser é pior que uma lista curta com aviso.
+           */
+          if (inventory.partial) {
+            blocks.push(
+              el('div', 'unit-sub', '⚠ inventário PARCIAL — há fontes que este servidor não conseguiu ler')
+            );
+          }
         } else {
           blocks.push(el('div', 'unit-sub', 'inventário de escopos indisponível'));
         }
@@ -823,15 +853,23 @@ function registerBridgeWidgets() {
         view.set(blocks);
       }
 
-      api
-        .mcp()
-        .then((payload) => {
-          inventory = payload;
-          draw();
-        })
-        .catch(() => draw());
+      function refresh() {
+        api
+          .mcp()
+          .then((payload) => {
+            inventory = payload;
+            draw();
+          })
+          .catch(() => draw());
+      }
+
+      refresh();
       draw();
-      return { destroy: on('brain', draw) };
+      const offBrain = on('brain', draw);
+      // Fonte de settings trocada no painel de permissões: o inventário de escopos muda com
+      // ela, e reconsultar é o motivo declarado de esta rota existir separada da de permissões.
+      const offPerms = on('ui.permissions-changed', refresh);
+      return { destroy: () => { offBrain(); offPerms(); } };
     },
   });
 }

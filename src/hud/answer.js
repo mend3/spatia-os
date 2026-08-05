@@ -170,6 +170,12 @@ export function createAnswer(root) {
     if (event.turns) parts.push(`${event.turns} turno(s)`);
     if (event.cost_usd) parts.push(`$${event.cost_usd.toFixed(4)}`);
     if (event.tokens?.out) parts.push(`${event.tokens.out} tokens`);
+    /*
+     * `api_ms` viajava e era descartado. Ele e o tempo de PAREDE contam coisas diferentes: a
+     * diferença entre os dois é o que o processo local gastou (subir o CLI, ler settings,
+     * montar o prompt). Sem os dois, "demorou 9s" não distingue modelo lento de máquina lenta.
+     */
+    if (event.api_ms) parts.push(`${(event.api_ms / 1000).toFixed(1)}s no modelo`);
     set(meta, parts.join('  ·  '));
   });
 

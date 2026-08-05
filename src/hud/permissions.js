@@ -130,6 +130,15 @@ export function createPermissions(root, { onChange } = {}) {
     current = data;
     body.replaceChildren();
 
+    // O aviso fica FORA do corpo rolável: uma degradação silenciosa de permissão não pode
+    // depender de o operador rolar até ela.
+    const degraded = Boolean(data?.state?.recovered ?? data?.recovered);
+    recovered.hidden = !degraded;
+    if (degraded) {
+      recovered.textContent =
+        'CONFIGURAÇÃO ILEGÍVEL — RECUPERADA NO MODO MAIS RESTRITIVO · o primeiro ajuste abaixo a substitui';
+    }
+
     // ---- modo de permissão ----
     body.append(el('div', 'controls-group', 'MODO'));
     const modes = el('div', 'perm-modes');
