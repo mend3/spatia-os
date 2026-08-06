@@ -36,6 +36,7 @@ import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
 import { createRemnant } from './remnant.js';
+import { createMoonOrbits } from './moon-orbits.js';
 
 /*
  * `start.z` acompanha `graphSpread`: a casca de nós foi de 46–110 para 68–160 unidades, e uma
@@ -130,6 +131,15 @@ const FOCUS_FIT_PX = 260;
  * zooming in inspects it.
  */
 const FOCUS_FLOOR_RADII = 3.4;
+
+/**
+ * Folga do enquadramento de SISTEMA: a órbita externa não encosta na borda da tela.
+ *
+ * 1,12 deixa a elipse mais externa com ~12% de respiro. Exatamente 1,0 poria o apoastro tangente
+ * ao quadro, e a lua ali passaria metade da volta cortada pelo canto — que lê como defeito de
+ * desenho, não como órbita.
+ */
+const SYSTEM_FIT_MARGIN = 1.12;
 /** Free-flight range, when nothing is locked. */
 const ZOOM_RANGE = { min: 12, max: 260 };
 /**
@@ -207,6 +217,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const planet = createPlanet();
   const photosphere = createPhotosphere();
   const remnant = createRemnant();
+  const moonOrbits = createMoonOrbits();
+  let moonSource = null;
   let starParamsCache = null;
   let starSource = null;
   let planetSource = null;
@@ -214,7 +226,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   scene.add(
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
-    stars.object, blackHole.group, graph.group, planet.object, photosphere.object, remnant.object,
+    stars.object, blackHole.group, graph.group, planet.object, photosphere.object, remnant.object, moonOrbits.object,
     /*
      * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
      * as entradas vêm de `planetAnchor`, que já multiplicou posição e raio pela escala do grupo.
@@ -320,6 +332,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   let focusGeometry = null;
   /** A focus flight is waiting for the first resolved anchor to correct its distance. */
   let fitPending = false;
+  /** A guarda do núcleo mordeu neste quadro? Sonda: ela deforma o enquadramento em silêncio. */
+  let guardBit = false;
+  /** Borda externa do sistema de luas do astro em foco, em unidades locais. 0 = não tem luas. */
+  let moonOuter = 0;
   /** Última superfície decidida — o traço do solver só sai quando ela muda. */
   let ultimaSuperficie = null;
   /** Parâmetros do planeta em foco. Recalculados só na TROCA de astro — são puros e congelados. */
@@ -657,6 +673,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   function focusBody(id) {
     focusedBody = id;
+    /*
+     * ⚠️ ASTRO TRAVADO MANDA MAIS QUE A ROTA — e não mandava.
+     *
+     * `router.js` chama isto em TODA troca de rota, e daqui saía uma reescrita de distância e
+     * polar sem perguntar a ninguém. Com um astro travado, o operador via a câmera saltar para o
+     * enquadramento de app (distância 30) no meio de um gesto — inclusive por rota que ele não
+     * pediu, como a que o aviso de trabalho local abre sozinho. O sintoma que chega ao usuário é
+     * "não consigo dar zoom nem girar em volta do astro": os dois caminhos funcionavam, e o
+     * último a escrever ganhava.
+     *
+     * O foco em astro é o pedido mais ESPECÍFICO e é sempre explícito (clique ou tecla). A rota
+     * muda por muitos motivos que não são pedido de câmera. Quem soltar o astro recupera o
+     * enquadramento de app na próxima navegação.
+     */
+    if (focusedNode) return;
     userControlled = false;
     // 15 punha a câmera DENTRO do disco (raio externo 39): o disco enchia o quadro e lavava
     // a coluna de texto. 30 mantém o núcleo presente e grande, com o corpo do app ancorando
@@ -904,8 +935,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * borda dele custa umas estrias no quadro, não a cena. 3,5 raios de horizonte mantêm o
      * enquadramento inteiro fora do buraco e devolvem toda a casca de nós para a câmera.
      */
+    /*
+     * ⚠️ A guarda move a câmera em relação à ORIGEM, e com um astro travado isso deforma o
+     * enquadramento DELE — foi o que travou o zoom e o giro em foco.
+     *
+     * A casca de arquivo vai de 26 a 62 e a folga mede ~`horizonte × 3,5`: metade das poses em
+     * volta de um astro recente cai dentro da esfera proibida. Ali a câmera era empurrada para
+     * fora radialmente, o pedido do operador (roda ou arraste) virava um deslocamento que ele não
+     * fez, e o resultado lia como "a câmera não responde". `guarda` na sonda diz quando morde.
+     */
     const clearance = blackHole.horizonRadius * (tune.coreScale ?? 1) * 3.5;
-    if (camera.position.lengthSq() < clearance * clearance) {
+    guardBit = camera.position.lengthSq() < clearance * clearance;
+    if (guardBit) {
       // Câmera exatamente no centro não tem direção; a de partida da cena serve de desempate.
       if (camera.position.lengthSq() < 1e-6) camera.position.copy(CAMERA.start);
       camera.position.setLength(clearance);
@@ -1010,11 +1051,51 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * Rewriting it would be a copy free to disagree with what sizes the body, which is the class of
      * bug that already put the link arcs in the wrong coordinate space.
      */
+    /*
+     * O TRAÇO DAS ÓRBITAS — a ordenação radial das luas é informação de dois instantes.
+     *
+     * Com o piso de legibilidade a lua virou corpo, e o sistema continuou lendo como pontos
+     * espalhados: um ponto parado não diz em que raio ele orbita. Desenhar a elipse converte esse
+     * tempo em espaço. Só para o astro em foco — 106 sistemas traçados juntos seriam ruído, e a
+     * pergunta só existe quando alguém travou a câmera num corpo. Ver `space/moon-orbits.js`.
+     *
+     * Remonta no FOCO, não no quadro: `graph.moonsAt` varre o vetor inteiro.
+     */
+    if (focusedNode !== moonSource) {
+      // As luas existem no céu só enquanto o astro delas está em foco — mesma disciplina da
+      // superfície procedural. Ver `graph.setMoonFocus`.
+      graph.setMoonFocus(focusedNode);
+      const luas = focusedNode ? graph.moonsAt(focusedNode) : [];
+      moonOrbits.build(luas);
+      // Borda externa do sistema, em unidades LOCAIS — é o que o enquadramento de foco precisa
+      // enxergar quando o corpo tem luas. Ver `SYSTEM_FIT_MARGIN`.
+      moonOuter = luas.length ? luas[luas.length - 1].semiMajor : 0;
+      moonSource = focusedNode;
+    }
+    if (pouso) moonOrbits.show(pouso.position, graph.spread());
+    else moonOrbits.hide();
+
     if (pouso) {
       const distancia = camera.position.distanceTo(pouso.position);
       focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
       if (fitPending && pouso.px > 0) {
-        orbit.targetDistance = clampDistance((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX);
+        /*
+         * QUEM TEM LUAS POUSA NO SISTEMA, não na superfície.
+         *
+         * `FOCUS_FIT_PX` enche a tela com o corpo, que é o certo para ver a fotosfera ou a crosta.
+         * Só que a lua orbita a ~7,4 raios do corpo: nesse enquadramento o sistema inteiro está
+         * fora da tela, e travar num corpo com luas mostrava justamente a única coisa que não
+         * mudou nele. A superfície continua a um gesto de roda daqui — o piso de zoom
+         * (`FOCUS_FLOOR_RADII`, 3,4 raios) fica bem abaixo da distância que ela pede.
+         *
+         * 40 dos 473 corpos têm sistema; para os outros nada muda.
+         */
+        const paraOSistema = moonOuter > 0
+          ? ((moonOuter * graph.spread()) / Math.tan((camera.fov * Math.PI) / 360)) * SYSTEM_FIT_MARGIN
+          : 0;
+        orbit.targetDistance = clampDistance(
+          paraOSistema || (focusGeometry.k * pouso.radius) / FOCUS_FIT_PX
+        );
         fitPending = false;
       }
     } else if (!focusedNode) {
@@ -1027,7 +1108,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * nulo, âncora não resolvida e nível de detalhe zero. Custou várias rodadas de depuração às
      * cegas. Diagnóstico que só existe no caminho feliz não é diagnóstico.
      */
-    probe = { focado: focusedNode, ancorou: Boolean(pouso), px: pouso?.px ?? 0, level: 0, pedido: lastFocusRequest };
+    probe = {
+      focado: focusedNode, ancorou: Boolean(pouso), px: pouso?.px ?? 0, level: 0,
+      pedido: lastFocusRequest,
+      guarda: guardBit,
+      raioDaCamera: +camera.position.length().toFixed(2),
+      alvo: pouso ? +pouso.position.length().toFixed(2) : null,
+    };
 
     /*
      * O CATÁLOGO decide se este corpo pode ter superfície — não este bloco.

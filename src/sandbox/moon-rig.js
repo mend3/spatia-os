@@ -31,8 +31,9 @@
  * pontas do slider antes de escolher.
  */
 import * as THREE from 'three';
-import { createPointMaterial, hash01, KIND_COLORS } from '../space/graph.js';
+import { createPointMaterial, hash01, KIND_COLORS, moonOffset, moonSpriteSize } from '../space/graph.js';
 import { moonsOf, physicalRadius } from '../space/orbital-zones.js';
+import { createMoonOrbits } from '../space/moon-orbits.js';
 
 /**
  * `gl_PointSize` por unidade da razão `raio da lua / órbita externa`, no enquadramento canônico.
@@ -42,7 +43,17 @@ import { moonsOf, physicalRadius } from '../space/orbital-zones.js';
  * sobra uma constante. `4,6` é o `uSize` do material e `300` é o `POINT_SCALE` do shader; o
  * `tan(fov/2)` vem do `fov` da bancada, então ele entra na hora.
  */
-const PONTO_POR_RAZAO = (fov) => 4.6 * 300 * Math.tan((fov * Math.PI) / 360);
+const PONTO_POR_RAZAO = (fov) => (4.6 * 300 * Math.tan((fov * Math.PI) / 360)) / GRAPH_SPREAD;
+
+/**
+ * ⚠️ `graphSpread` da cena — sem ele esta bancada MENTE, e mentiu.
+ *
+ * A órbita é esticada por `graphSpread` no mundo; o sprite não é esticado por nada. Medindo sem
+ * esse fator, a bancada anunciou 5,42 px CSS por lua onde a cena entregava 1,63 — e foi com o
+ * número dela que o piso de legibilidade foi escolhido. É a terceira vez que a régua de pixel
+ * morde este projeto, e a única defesa é o fator estar aqui, nomeado.
+ */
+const GRAPH_SPREAD = 2.6;
 
 /**
  * `gl_PointSize` é pixel do FRAMEBUFFER; o olho mede em pixel CSS. Em DPR 2 é o dobro.
@@ -85,9 +96,11 @@ export const MOON_SPEC = {
     { key: 'massa', label: 'MASSA DO PAI (chunks)', type: 'range', min: 5, max: 120, step: 1, value: 11 },
     { key: 'enquadrar', label: 'ENQUADRAR O SISTEMA', type: 'bool', value: true },
     { key: 'orbitar', label: 'DEIXAR ORBITAR', type: 'bool', value: false },
+    { key: 'orbitas', label: 'TRAÇAR AS ÓRBITAS', type: 'bool', value: true },
     { key: 'pai', label: 'DESENHAR O PAI', type: 'bool', value: true },
   ],
   watch: [
+    'sem TRAÇAR AS ÓRBITAS o sistema vira pontos soltos: é a comparação que motivou o traço',
     'PISO em 0 é o modelo ANTERIOR (lua de 1,42 px) — o controle, para comparar com o 4,5 da cena',
     'a pergunta não é "a lua existe": é se as BANDAS se separam, e se elas leem como sistema',
     'suba o PISO e conte o que se perde: o número de luas cai para comprar tamanho, não há terceira saída',
@@ -97,6 +110,12 @@ export const MOON_SPEC = {
 
   build(ctx) {
     const group = new THREE.Group();
+    const orbitas = createMoonOrbits();
+    group.add(orbitas.object);
+    const ORIGEM = new THREE.Vector3();
+    const AT = [0, 0, 0];
+    // Remonta o traço só quando a GEOMETRIA do sistema muda — não a cada quadro de slider.
+    let assinatura = null;
     const material = createPointMaterial();
     // Capacidade fixa no máximo do slider (+1 do pai): realocar buffer por quadro de slider
     // faria o espécime medir o alocador junto com o modelo.
@@ -145,21 +164,28 @@ export const MOON_SPEC = {
         }
         for (const lua of moons) {
           /*
-           * A MESMA elipse do `graph.js:advance` — anomalia média, raio pelo foco, inclinação que
-           * NÃO altera a distância ao pai. É essa última propriedade que faz a banda disjunta
-           * provar a não-colisão, então ela precisa estar aqui inteira ou a bancada mostraria uma
-           * separação que a cena não tem.
+           * A elipse vem de `graph.moonOffset` — a MESMA função que posiciona a lua na cena, e a
+           * mesma que o traço da órbita amostra. Uma bancada que reescrevesse a cônica mostraria
+           * uma separação de bandas que a cena não tem, e seria descoberta como erro justamente
+           * quando alguém confiasse nela para decidir.
            */
-          const anomalia = lua.meanAnomaly + t * lua.meanMotion;
           const e = lua.eccentricity;
-          const theta = anomalia + 2 * e * Math.sin(anomalia);
-          const r = lua.semiMajor * (1 - e * e) / (1 + e * Math.cos(theta - lua.periapsis));
-          posicoes.set(
-            [r * Math.cos(theta), r * Math.sin(theta) * Math.sin(lua.inclination), r * Math.sin(theta) * Math.cos(lua.inclination)],
-            n * 3
-          );
-          tamanhos[n] = lua.drawRadius;
+          const media = lua.meanAnomaly + t * lua.meanMotion;
+          const verdadeira = media + 2 * e * Math.sin(media) + 1.25 * e * e * Math.sin(2 * media);
+          moonOffset(lua, verdadeira, AT);
+          posicoes.set([AT[0] * GRAPH_SPREAD, AT[1] * GRAPH_SPREAD, AT[2] * GRAPH_SPREAD], n * 3);
+          tamanhos[n] = moonSpriteSize(lua, { chunks: pai.chunks });
           n += 1;
+        }
+        // O TRAÇO é o que faz a ordenação radial existir numa imagem parada — ver `moon-orbits.js`.
+        if (values.orbitas) {
+          if (assinatura !== `${values.piso}|${values.idade}|${values.secoes}|${values.massa}`) {
+            assinatura = `${values.piso}|${values.idade}|${values.secoes}|${values.massa}`;
+            orbitas.build(moons);
+          }
+          orbitas.show(ORIGEM, GRAPH_SPREAD);
+        } else {
+          orbitas.hide();
         }
         for (let i = n; i < MAX; i += 1) escondidos[i] = 1;
         for (let i = 0; i < n; i += 1) escondidos[i] = 0;
@@ -177,10 +203,10 @@ export const MOON_SPEC = {
          * pergunta que este espécime existe para responder deixaria de ter resposta estável.
          */
         if (values.enquadrar) {
-          camera.position.setLength(externa / Math.tan((camera.fov * Math.PI) / 360));
+          camera.position.setLength((externa * GRAPH_SPREAD) / Math.tan((camera.fov * Math.PI) / 360));
         }
 
-        const raioLua = moons.length ? moons[0].drawRadius : 0;
+        const raioLua = moons.length ? moonSpriteSize(moons[0], { chunks: pai.chunks }) : 0;
         const dpr = DPR();
         const pxNoEnquadramento = (K * (raioLua / externa)) / dpr;
         const banda = moons.length > 1 ? moons[1].semiMajor - moons[0].semiMajor : 0;
@@ -196,6 +222,7 @@ export const MOON_SPEC = {
         });
       },
       dispose() {
+        orbitas.dispose();
         geometry.dispose();
         material.dispose();
       },

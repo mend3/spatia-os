@@ -743,9 +743,26 @@ function registerFilesWidgets() {
         lendo = false;
         // Volta ao REPOUSO, que é também a superfície de hover do céu — fechar o leitor
         // devolve a área para quem estava usando antes, em vez de deixar um vazio mudo.
-        view.empty(REPOUSO);
+        view.empty(repousoAtual());
         return true;
       };
+
+      /*
+       * O REPOUSO não pode contradizer a HUD.
+       *
+       * Com um astro travado, o cabeçalho dizia "TRAVADO browser/README.md" e esta área continuava
+       * pedindo "passe o cursor sobre um astro" — a interface convidando para um gesto já feito, e
+       * duas afirmações sobre o mesmo estado. Travar não abre o leitor de propósito
+       * (`ui.focus-node` existe justamente para mover só a câmera), mas o repouso tem de saber
+       * qual é o próximo passo em vez de repetir o anterior.
+       */
+      let travado = null;
+      const repousoAtual = () =>
+        travado ? `${travado} · travado no céu — clique de novo para abrir` : REPOUSO;
+      const offFoco = on('ui.node-focus', ({ source }) => {
+        travado = source ?? null;
+        if (!lendo) view.empty(repousoAtual());
+      });
 
       const offOpen = on('ui.open-file', handler);
       /*
@@ -802,6 +819,7 @@ function registerFilesWidgets() {
       return {
         destroy: () => {
           offOpen();
+          offFoco();
           abrirAgora = null;
           readerClose = null;
         },

@@ -19,7 +19,7 @@ import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
 import { classify } from './catalog.js';
-import { moonsOf } from './orbital-zones.js';
+import { moonsOf, physicalRadius } from './orbital-zones.js';
 import { MOTION, meanMotion, rateOf } from './motion-catalog.js';
 import { glslFloat } from './glsl.js';
 
@@ -311,6 +311,77 @@ const TEMP = new THREE.Vector3();
  */
 export const starSeed = (node) => hash01(node.source ?? String(node.i ?? 0), 7);
 
+/**
+ * GANHO DE DESENHO DA LUA — a única compressão declarada do sistema de luas.
+ *
+ * ## As duas réguas, e por que uma delas não cabia na outra
+ *
+ * `drawRadius` sai de `orbital-zones.js` na régua da MECÂNICA (a mesma de Roche, Hill e
+ * `semiMajor`) e era escrito direto em `aSize`, que é a régua do SPRITE. Elas não são
+ * conversíveis por constante: o sprite tem tamanho fixo em pixels a distância unitária, e o mundo
+ * é esticado por `graphSpread`. Medido na cena, a lua saía com **1,63 px CSS** no enquadramento
+ * que mostra o sistema — 18× menor que a própria banda paga. É a mesma armadilha que o cabeçalho
+ * do `orbital-zones.js` abre avisando, aplicada ao tamanho da lua em vez da órbita dela.
+ *
+ * A conversão certa é por RAZÃO, ancorada no pai: `drawRadius / physicalRadius(massa do pai)` é a
+ * proporção lua/pai na régua da mecânica, e multiplicá-la pelo sprite do pai a traz para a régua
+ * do sprite sem inventar fator de vista nenhum.
+ *
+ * ## O ganho, e por que ele é honesto
+ *
+ * Só a conversão dá 2,2 px CSS, ainda ilegível: no enquadramento do sistema o PRÓPRIO PAI mede
+ * 11,6 px, e 4,4% de 11,6 é meio pixel. Mostrar sistema fiel e lua como corpo no mesmo quadro é
+ * geometricamente impossível — a razão órbita/lua é ~410.
+ *
+ * `2,1` põe a lua em ~4,5 px CSS ali, que foi o piso escolhido na bancada. É exagero, e entra na
+ * mesma lista das outras compressões declaradas desta cena: a escala log dos tamanhos e a esfera
+ * de Hill cheia (sem o fator 0,5 de satélite progrado). ⚠️ Ele NÃO mexe na contagem nem na prova
+ * de não-colisão — as duas continuam decididas na régua da mecânica, onde a banda existe.
+ */
+const MOON_DRAW_GAIN = 2.1;
+
+/** Sprite da lua, na régua do pai. Ver `MOON_DRAW_GAIN` para as duas réguas envolvidas. */
+export function moonSpriteSize(moon, parent) {
+  const parentSprite = 0.55 + Math.log2(1 + (parent?.chunks || 1)) * 0.42;
+  const parentPhysical = physicalRadius(parent?.chunks || 1);
+  if (parentPhysical <= 0) return moon.drawRadius;
+  return parentSprite * (moon.drawRadius / parentPhysical) * MOON_DRAW_GAIN;
+}
+
+/** Rascunho do deslocamento da lua. Módulo-escopo para o laço de `advance` não alocar por corpo. */
+const MOON_AT = [0, 0, 0];
+
+/**
+ * Onde a lua está em relação ao pai, para uma anomalia VERDADEIRA — em unidades locais do grafo.
+ *
+ * Exportada porque dois desenhos precisam da mesma elipse: a posição da lua (`advance`, uma
+ * anomalia por quadro) e o TRAÇO da órbita (`moon-orbits.js`, a volta inteira amostrada). Escrever
+ * a cônica duas vezes daria uma lua correndo fora do próprio caminho — e o erro só apareceria como
+ * "o ponto não encosta na linha", que é fácil de culpar no traço e difícil de culpar na conta.
+ *
+ * ⚠️ Escreve em `out` em vez de devolver objeto: `advance` chama isto uma vez por lua por quadro.
+ *
+ * @param {{semiMajor: number, eccentricity: number, periapsis: number, inclination: number}} node
+ * @param {number} trueAnomaly  ângulo a partir do periastro, em radianos
+ * @param {number[]} out        vetor de 3 posições, sobrescrito
+ */
+export function moonOffset(node, trueAnomaly, out) {
+  const e = node.eccentricity;
+  // Equação do cônico. É o que faz a lua acelerar no periastro — a segunda lei de Kepler aparece
+  // sozinha, sem ninguém animar velocidade.
+  const r = (node.semiMajor * (1 - e * e)) / (1 + e * Math.cos(trueAnomaly));
+  // Periastro girado: a elipse aponta para um lado próprio deste corpo.
+  const theta = trueAnomaly + node.periapsis;
+  const x = Math.cos(theta) * r;
+  const z = Math.sin(theta) * r;
+  out[0] = x;
+  // A inclinação NÃO altera a distância ao pai — é essa propriedade que faz a banda radial
+  // disjunta provar a não-colisão. Ver o cabeçalho de `orbital-zones.js`.
+  out[1] = z * Math.sin(node.inclination);
+  out[2] = z * Math.cos(node.inclination);
+  return out;
+}
+
 export function createPointMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -377,6 +448,8 @@ export function createGraph() {
   let dirtyState = new Map();
   // Índices dos nós que ganharam anel neste `markDirty` — a HUD cede em volta deles.
   let ringed = [];
+  /** Índice do astro cujas luas estão acesas. −1 = nenhum. Ver `isDormantMoon`. */
+  let moonParent = -1;
   /** Por nó: quanto o sprite virou halo (0 = disco cheio, 1 = só a coroa). */
   let halo = null;
   let haloIndex = -1;
@@ -572,7 +645,7 @@ export function createGraph() {
       // raios é a raiz cúbica da razão de massas — `orbital-zones.js` já resolveu isso. Reaplicar
       // a lei log aqui daria luas do tamanho do pai (medido: 0,46 a 1,00 do raio dele).
       sizes[i] = node.type === 'moon'
-        ? node.drawRadius
+        ? moonSpriteSize(node, nodes[node.parentIndex])
         : node.type === 'file'
           ? 0.55 + Math.log2(1 + node.chunks) * 0.42
           : 1.5 + Math.log2(1 + node.chunks) * 0.3;
@@ -717,6 +790,9 @@ export function createGraph() {
        * núcleo, e a lua não orbita o núcleo.
        */
       if (node.type === 'moon') {
+        // Lua apagada não precisa de posição: ninguém a desenha e o raycast já pula escondido.
+        // É onde a economia do foco realmente aparece — 106 elipses a menos por quadro.
+        if (hidden && hidden[node.i]) continue;
         const parent = node.parentIndex * 3;
         const e = node.eccentricity;
         // Anomalia MÉDIA: cresce linear no tempo. É a única grandeza da elipse que faz isso.
@@ -733,21 +809,15 @@ export function createGraph() {
          */
         const trueAnomaly =
           mean + 2 * e * Math.sin(mean) + 1.25 * e * e * Math.sin(2 * mean);
-        // Equação do cônico. É o que faz a lua acelerar no periastro — a segunda lei de Kepler
-        // aparece sozinha, sem ninguém animar velocidade.
-        const r = (node.semiMajor * (1 - e * e)) / (1 + e * Math.cos(trueAnomaly));
-        // Periastro girado: a elipse aponta para um lado próprio deste corpo.
-        const theta = trueAnomaly + node.periapsis;
-        const x = Math.cos(theta) * r;
-        const z = Math.sin(theta) * r;
+        moonOffset(node, trueAnomaly, MOON_AT);
         /*
          * Sem rotação própria: as 19 luas arredondadas do Sistema Solar estão travadas por maré, e
          * `catalog.js` proíbe `spin` em `lua`. Aqui sai de graça — lua é ponto, e ponto não tem
          * eixo. `bob` também não se aplica: ele é a oscilação da órbita em torno do NÚCLEO.
          */
-        positions[offset] = positions[parent] + x;
-        positions[offset + 1] = positions[parent + 1] + z * Math.sin(node.inclination);
-        positions[offset + 2] = positions[parent + 2] + z * Math.cos(node.inclination);
+        positions[offset] = positions[parent] + MOON_AT[0];
+        positions[offset + 1] = positions[parent + 1] + MOON_AT[1];
+        positions[offset + 2] = positions[parent + 2] + MOON_AT[2];
         continue;
       }
 
@@ -799,9 +869,23 @@ export function createGraph() {
     (node.type === 'file' || node.type === 'moon') &&
     !visibleKinds.has(node.kind || 'other');
 
+  /**
+   * A LUA SÓ EXISTE SOB FOCO — mesma regra da superfície procedural, e pela mesma razão.
+   *
+   * De longe a lua é sub-pixel: 106 delas espalhadas pelo céu não formam sistema nenhum, formam
+   * poeira indistinguível do campo estelar — e ainda entram no `advance()`, no picking e no
+   * buffer de todo quadro para não comunicar nada. A fotosfera, o planeta, o remanescente e o
+   * traço de órbita já seguem esta disciplina: o detalhe nasce quando alguém pede aquele corpo.
+   *
+   * Zero significa "nenhum foco", e não o índice 0 — `moonParent` guarda −1 nesse caso.
+   */
+  const isDormantMoon = (node) => node.type === 'moon' && node.parentIndex !== moonParent;
+
   function applyKindFilter() {
     if (!hidden || !points) return;
-    for (let i = 0; i < nodes.length; i++) hidden[i] = isFiltered(nodes[i]) ? 1 : 0;
+    for (let i = 0; i < nodes.length; i++) {
+      hidden[i] = isFiltered(nodes[i]) || isDormantMoon(nodes[i]) ? 1 : 0;
+    }
     points.geometry.getAttribute('aHidden').needsUpdate = true;
     /*
      * O anel é reconstruído AQUI, e não deixado para a próxima varredura do disco.
@@ -1162,6 +1246,34 @@ export function createGraph() {
     },
 
     nodeAt: (source) => nodes[index.get(source)] ?? null,
+
+    /**
+     * As luas deste astro, na ordem das bandas (a mais interna primeiro).
+     *
+     * Varre o vetor inteiro, então NÃO chame por quadro — quem consome guarda por `source`, como o
+     * `starParamsCache` já faz. Uma lista por foco custa uma varredura a cada travada de câmera.
+     */
+    moonsAt(source) {
+      const i = index.get(source);
+      if (i === undefined || !nodes.length) return [];
+      return nodes.filter((node) => node.type === 'moon' && node.parentIndex === i);
+    },
+
+    /** Escala do grupo do grafo — quem desenha em MUNDO sobre coordenadas locais precisa dela. */
+    spread: () => group.scale.x || 1,
+
+    /**
+     * Acende as luas DESTE astro e apaga todas as outras. `null` apaga todas.
+     *
+     * Escreve só quando muda: o atributo `aHidden` tem um float por corpo e reenviá-lo por quadro
+     * seria upload de buffer por quadro para o mesmo valor — a mesma disciplina do `haloOf`.
+     */
+    setMoonFocus(source) {
+      const alvo = source === null || source === undefined ? -1 : (index.get(source) ?? -1);
+      if (alvo === moonParent) return;
+      moonParent = alvo;
+      applyKindFilter();
+    },
     kindColor: (kind) => KIND_COLORS[kind] ?? KIND_COLORS.other,
   };
 
