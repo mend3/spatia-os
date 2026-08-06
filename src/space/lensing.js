@@ -146,15 +146,16 @@ const FRAGMENT = /* glsl */ `
     float ndcZ = bruto * 2.0 - 1.0;
     float profundidade = (2.0 * uNear * uFar) / (uFar + uNear - ndcZ * (uFar - uNear));
     /*
-     * ⚠️ uHasDepth e um INTERRUPTOR, e ele existe porque a textura ainda nao esta ligada na cena.
+     * ⚠️ uHasDepth continua existindo mesmo com a profundidade JA LIGADA, e nao e sobra.
      *
-     * Com ele em 0 o fator vale 1 e o passe se comporta como se tudo estivesse atras da massa —
-     * que e o comportamento de antes, e o que mantem a cena funcionando enquanto o fio de
-     * profundidade nao fecha. Sem o interruptor, um sampler nao ligado devolve preto, a
-     * profundidade linearizada colapsa perto de uNear e a lente sumiria INTEIRA em silencio.
+     * setDepth o poe em 1; sem textura ele fica em 0 e o fator vale 1, que reproduz o
+     * comportamento antigo (tudo tratado como se estivesse atras da massa). Ele existe porque um
+     * sampler NAO LIGADO devolve preto: a profundidade linearizada colapsaria perto de uNear, o
+     * fator iria a zero e a lente sumiria INTEIRA — em silencio, sem erro nenhum, exatamente o
+     * modo de falha mais caro desta base.
      *
-     * E a licao que este arquivo ja pagou de outra forma: um guard novo com o consumo velho e um
-     * guard que nao existe.
+     * Enquanto a montagem da cena puder mudar (e ela mudou tres vezes hoje), o interruptor e o que
+     * separa "a lente esta desligada" de "a lente quebrou".
      */
     float atrasDaMassa = mix(1.0, smoothstep(
       uBhDist - uDiskOuter * 1.25,
@@ -182,6 +183,28 @@ const FRAGMENT = /* glsl */ `
      */
     vec4 clipe = uViewProj * vec4(dirFinal, 0.0);
     vec2 fundoUv = clipe.w > 0.0001 ? (clipe.xy / clipe.w) * 0.5 + 0.5 : uv;
+
+    /*
+     * ⚠️ FORA DO QUADRO NAO HA INFORMACAO — e ignorar isso produzia a COSTURA que atravessava a
+     * tela inteira.
+     *
+     * A deflexao forte manda fundoUv para fora de [0,1], e a textura da cena e ClampToEdge: um
+     * texel da borda passa a ser esticado por centenas de pixels. O sintoma sao faixas de cor
+     * chapada com fronteiras perfeitamente retas — que foi o que o usuario fotografou e eu
+     * diagnostiquei errado duas vezes (culpei o disco, depois a espessura dele; nenhum dos dois
+     * podia encher o quadro, porque o disco termina em 43 unidades).
+     *
+     * A luz daquela direcao existe de verdade; o que nao existe e um pixel dela, porque a cena so
+     * foi renderizada dentro do quadro. Entao a deflexao e desfeita conforme a amostra sai da tela:
+     * perto da borda ela volta ao pixel nao defletido em vez de repetir o texel da borda.
+     *
+     * ⚠️ E LIMITE DE TECNICA, nao de fisica, e fica declarado como tal: reamostrar a imagem so sabe
+     * mostrar o que ja esta nela. Mostrar o que esta fora exigiria renderizar um cubemap por
+     * quadro. A margem de 0,04 e a menor que esconde a transicao sem comer lente util.
+     */
+    vec2 foraDoQuadro = max(vec2(0.0) - fundoUv, fundoUv - vec2(1.0));
+    float excesso = max(max(foraDoQuadro.x, foraDoQuadro.y), 0.0);
+    fundoUv = mix(fundoUv, uv, smoothstep(0.0, 0.04, excesso));
     // Direcao radial na tela, para a aberracao acompanhar a torcao em vez de apontar sempre igual.
     vec2 desvio = fundoUv - uv;
     vec2 radial = length(desvio) > 0.0001 ? normalize(desvio) : vec2(1.0, 0.0);

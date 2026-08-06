@@ -368,6 +368,22 @@ export const GLSL_GEODESIC = /* glsl */ `
        * O DISCO E UM PLANO, entao o raio o cruza quando y TROCA DE SINAL. E dessa linha que saem
        * todas as imagens de ordem superior: um raio que da a volta cruza o plano de novo, e de
        * novo, e cada cruzamento e uma imagem do disco somada por cima.
+       *
+       * ⚠️ AQUI HOUVE UMA LAJE COM ESPESSURA, e ela foi REVERTIDA. O raciocinio e a licao:
+       *
+       * Eu troquei este teste por acumulacao de emissao ao longo de uma laje gaussiana, para
+       * consertar uma COSTURA HORIZONTAL que atravessava a tela. O diagnostico estava errado — a
+       * costura era amostragem fora do buffer de cor (ver o clamp de fundoUv em lensing.js), e
+       * a laje nao mudou nada nela. O que ela mudou foi o CUSTO, em dois lugares:
+       *
+       *   1. uma amostra de emissao POR PASSO dentro da laje, em vez de uma por cruzamento;
+       *   2. refino do passo dentro dela — que COME O ORCAMENTO. Com 64 passos no total e uma
+       *      travessia gastando dez, o raio esgota antes de alcancar o horizonte, e a sombra e a
+       *      lente degradam. O usuario relatou queda de fps E de qualidade grafica.
+       *
+       * Um disco de espessura zero continua sendo fisicamente errado, e o disco de geometria
+       * empilhava cinco fatias por isso. Mas a espessura tem de voltar por conta propria, com o
+       * orcamento contado ANTES, e nao de carona num conserto que nao consertou.
        */
       if (anterior.y * p.y < 0.0) {
         float t = -anterior.y / (p.y - anterior.y);

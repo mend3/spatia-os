@@ -336,27 +336,41 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * para a profundidade.
    */
   const composer = new EffectComposer(renderer);
-  const lensing = createLensingPass();
+
   /*
-   * ⚠️ A PROFUNDIDADE AINDA NÃO ESTÁ LIGADA, e não é por não ser necessária — é porque as duas
-   * formas de ligá-la que tentei apagaram a cena, e cena preta é pior que lente incompleta.
+   * A PROFUNDIDADE DA CENA, e ela mora em UM alvo só — o `renderTarget2`.
    *
-   * O passe JÁ sabe usá-la (`lensing.setDepth`, e o `atrasDaMassa` do shader): falta só entregar a
-   * textura. As duas tentativas e por que cada uma falhou:
+   * ⚠️ Duas tentativas anteriores apagaram a cena, e as duas pelo MESMO motivo, que só apareceu
+   * lendo o `EffectComposer` e o `RenderPass` vendorizados em vez de deduzir:
    *
-   * 1. `new EffectComposer(renderer, alvoProprio)` — passar o alvo troca a semântica das dimensões
-   *    do composer (sem alvo ele lê CSS e multiplica pelo ratio; com alvo ele adota framebuffer já
-   *    multiplicado), e o `setSize` seguinte reaplica o ratio. Régua trocada, a sexta desta base.
-   * 2. Anexar `depthTexture` aos alvos DEPOIS de construir — os alvos já foram alocados, então o
-   *    three não refaz o framebuffer e o resultado saiu preto.
+   * | quem | `needsSwap` | lê de | escreve em |
+   * |---|---|---|---|
+   * | `RenderPass` | **false** | — | `readBuffer` = **renderTarget2** |
+   * | `ShaderPass` (a lente) | true | `readBuffer` = rt2 | `writeBuffer` = **renderTarget1** |
    *
-   * O caminho que resta é criar o alvo com a profundidade JUNTO, antes de qualquer alocação, e
-   * corrigir `_width/_height` do composer na mão logo depois. É pequeno, mas exige uma passada com
-   * o olho na cena, e não com ela quebrada.
+   * Nas duas tentativas eu anexei a MESMA `DepthTexture` aos dois alvos (na primeira sem querer:
+   * `renderTarget2 = renderTarget1.clone()` e o `copy` leva `depthTexture` por REFERÊNCIA). Com
+   * isso a lente amostrava uma textura que estava, ao mesmo tempo, anexada como profundidade do
+   * alvo em que ela própria escrevia — **feedback loop**. WebGL trata como indefinido, e o que
+   * chegou à tela foi preto. Não era o construtor nem o momento do anexo; era o alvo errado.
    *
-   * Sem isto a lente deflete tudo por igual: corpo ATRÁS contorna a sombra (que é o que estava
-   * quebrado e agora funciona), e corpo NA FRENTE também é dobrado, que é o defeito espelhado.
+   * Anexando só ao `renderTarget2`, a cena grava profundidade lá, a lente lê de lá e escreve no
+   * `renderTarget1`. Nenhuma textura é entrada e saída ao mesmo tempo.
+   *
+   * ⚠️ **ISTO DEPENDE DA PARIDADE DE SWAPS.** A cadeia tem dois passes que trocam (a lente e o
+   * `OutputPass`), então o par volta ao estado inicial a cada quadro e o `RenderPass` cai SEMPRE no
+   * `renderTarget2`. Acrescentar ou remover um passe que troca inverte isso, a profundidade passa a
+   * ser gravada no rt1 e a lente lê um buffer vazio — **em silêncio**, sem erro nenhum. Se a lente
+   * um dia parar de distinguir frente de trás, é aqui que se olha primeiro.
    */
+  const profundidadeDaCena = new THREE.DepthTexture(
+    composer.renderTarget2.width,
+    composer.renderTarget2.height
+  );
+  composer.renderTarget2.depthTexture = profundidadeDaCena;
+
+  const lensing = createLensingPass();
+  lensing.setDepth(profundidadeDaCena, CAMERA.near, CAMERA.far);
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.58, 0.32, 0.72);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(lensing.pass);
@@ -747,11 +761,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     renderer.setSize(width, height, false);
     composer.setSize(width, height);
     /*
-     * ⚠️ Quando a profundidade for ligada, ela tem de ser redimensionada AQUI, na mão:
-     * `WebGLRenderTarget.setSize` redimensiona as texturas de COR e a de profundidade fica para
-     * trás. Sem isso a lente leria profundidade deslocada depois de mexer na janela — defeito que
-     * só aparece no redimensionamento, que é a pior classe para reproduzir.
+     * ⚠️ A textura de profundidade é redimensionada AQUI, na mão, e isso foi conferido na fonte.
+     *
+     * `WebGLRenderTarget.setSize` percorre `this.textures` — que são as de COR. A de profundidade é
+     * anexada por fora e não está nessa lista, então ela mantém as dimensões de boot. O `setSize`
+     * chama `dispose()`, e o renderer solta os recursos de GL da profundidade junto; na próxima
+     * subida ele os recria a partir de `image.width/height`, que é justamente o que fica velho.
+     *
+     * Sem estas três linhas a lente leria a profundidade num quadriculado deslocado depois de
+     * qualquer mudança de tamanho de janela — defeito que só aparece ao redimensionar, que é a
+     * pior classe para reproduzir.
      */
+    profundidadeDaCena.image.width = composer.renderTarget2.width;
+    profundidadeDaCena.image.height = composer.renderTarget2.height;
+    profundidadeDaCena.needsUpdate = true;
     bloom.resolution.set(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
