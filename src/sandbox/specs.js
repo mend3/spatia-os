@@ -28,6 +28,7 @@ import { createParticles } from '../space/particles.js';
 import { RING_VARIANTS } from './ring-variants.js';
 import { GALAXY_VARIANTS } from './galaxy-variants.js';
 import { MOON_SPEC } from './moon-rig.js';
+import { QUASAR_SPEC } from './quasar-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -469,6 +470,7 @@ export const SPECS = [
    * classes lado a lado, que é a única que responde "dá para distinguir a 15px?".
    */
   ...GALAXY_VARIANTS,
+  QUASAR_SPEC,
   /*
    * O sistema de luas entra como DECISÃO EM ABERTO, e não como candidata.
    *
