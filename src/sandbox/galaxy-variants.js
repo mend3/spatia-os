@@ -114,6 +114,13 @@ const SINGLE = {
     { key: 'armAmp', label: 'ARM CONTRAST ×', type: 'range', min: 0, max: 2.5, step: 0.01, value: 1 },
     { key: 'dust', label: 'DUST ×', type: 'range', min: 0, max: 2.5, step: 0.01, value: 1 },
     { key: 'armsOnly', label: 'ARM FIELD ONLY', type: 'bool', value: false },
+    /*
+     * O modo MUNDO é o que a cena usa na galáxia EM FOCO, e ele precisa de espécime pelo motivo
+     * que o anel deixou registrado (`835e749`, `specs.js`): a bancada só sabia desenhar o
+     * billboard, e o billboard não muda de pose por mais que se orbite — o caminho onde o defeito
+     * mora não era desenhável aqui, então ele não tinha como ser reprovado.
+     */
+    { key: 'mundo', label: 'GALÁXIA DE MUNDO (foco)', type: 'bool', value: false },
     { key: 'reshuffle', label: 'RESHUFFLE PARTITION', type: 'action' },
   ],
   watch: [
@@ -138,6 +145,11 @@ const SINGLE = {
     'KIND dir ↔ repo: gray ↔ amber changes, morphology does NOT. The class must never ride on the kind colour.',
     'the `integrated` readout must stay within ~1% of `base` across all four classes, both KINDs and the whole LOD range (dust reddens it a few % at T2, by design).',
     'reload with the same SEED: bit-identical. Every random here is hash01(path, salt); one Math.random anywhere and the same folder gets a different galaxy every session.',
+    'com GALÁXIA DE MUNDO desligada, ORBITE com o mouse: a elipse tem de manter EXATAMENTE a mesma forma. É billboard, e fora do foco isso está certo — de longe o corpo é sinal e um disco de perfil apagaria a contagem de braços.',
+    '⚠️ ligue GALÁXIA DE MUNDO e ORBITE, mexendo SÓ na câmera: o disco tem de ABRIR até circular e FECHAR até virar uma faixa fina, e o readout `pose` tem de andar junto. Se a imagem não muda, a pose de mundo não está chegando ao atributo; se ela muda de forma mas o peso não, a profundidade óptica voltou a ficar pinada — foi assim que o anel falhou em silêncio.',
+    'de perfil (pose cos ~0) a faixa tem de SATURAR e ficar densa, não sumir nem apagar: é tau/cos(i) com o piso de espessura do disco (ASPECT_FOLHA, 0,05). Um disco que desaparece de perfil está afirmando espessura zero.',
+    'orbite ATÉ PASSAR PARA O OUTRO LADO do disco (pose cos troca de sinal): a espiral tem de aparecer enrolando para o LADO CONTRÁRIO. Mesma quiralidade dos dois lados significa que o espelho da face não chegou — o objeto estaria mentindo sobre qual lado você está vendo.',
+    'com GALÁXIA DE MUNDO ligada, orbite devagar e olhe a BARRA: ela tem de ficar parada no mundo, virando com o disco. Se ela girar dentro do disco enquanto você anda em volta, a fase não está sendo descontada da base do plano e o objeto rodopia por você estar se movendo.',
   ],
   build(ctx) {
     const galaxy = createGalaxy(8);
@@ -178,7 +190,9 @@ const SINGLE = {
         entry.radius = values.radius;
         const height = bufferHeight();
         galaxy.tune({ dust: values.dust, omega: OMEGA_P * values.spin });
-        galaxy.update(batch, camera, height, clock.elapsed);
+        // `focusedIndex` 0 = este espécime é o corpo "em foco": vira disco de MUNDO e passa a
+        // responder à órbita. -1 mantém o billboard, que é o que o céu desenha fora do foco.
+        galaxy.update(batch, camera, height, clock.elapsed, values.mundo ? 0 : -1);
 
         // The SAME function the module used to pick the tier — not a second copy of the
         // projection, which is how two numbers that must agree stop agreeing.
@@ -189,8 +203,18 @@ const SINGLE = {
           camera.fov
         );
 
+        /*
+         * A POSE lida do módulo, não recalculada aqui. Uma segunda cópia da trigonometria seria a
+         * primeira coisa a divergir, e justamente quando a leitura fosse útil — o argumento que
+         * `d73328f` fez ao tirar `viewFeatures` de dentro de `quasarParams`.
+         */
+        const pose = galaxy.pose();
+
         ctx.report({
           files,
+          orientação: pose
+            ? `MUNDO · cos ${pose.cosView.toFixed(3)} · achata ${Math.abs(pose.cosInc).toFixed(3)} · face ${pose.cosInc < 0 ? 'de trás' : 'de frente'}`
+            : `billboard (tela) · cos ${base.cosInc.toFixed(3)} fixo`,
           // Asked vs REALISED. They differ whenever the ask is below the `1/files` floor, and
           // printing only one of the two would hide the clamp behind a slider that lies.
           conc: `${values.conc.toFixed(2)} → ${Number.isFinite(base.concentration) ? base.concentration.toFixed(2) : '—'}`,

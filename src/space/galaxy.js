@@ -43,11 +43,15 @@
  *   nobody can make at 15 px, and with a screen-space ellipse the projected ellipticity is
  *   degenerate with inclination — asserting "E4" would assert an intrinsic shape this render
  *   cannot tell from a tilt.
- * - **Edge-on views and the dust-lane silhouette** (NGC 891, the Sombrero). The most
- *   recognisable galaxy image there is, given up on purpose: the ellipse is the number one
- *   readability cue, and a world-oriented disc goes edge-on for half the camera orbit — the
- *   argument `rings.js:28-31` already made. A galaxy that goes edge-on is a galaxy whose arm
- *   count, i.e. the group count, vanishes exactly when the operator rotates the scene.
+ * - ~~**Edge-on views and the dust-lane silhouette**~~ — REVISADO em 2026-08-06 pela REGRA DA
+ *   INSPEÇÃO. O argumento original era: a elipse é a primeira pista de leitura e um disco de
+ *   mundo fica de perfil em metade da órbita, apagando a contagem de braços — que é a contagem
+ *   de grupos, a única informação que este objeto carrega (o argumento de `rings.js:28-31`).
+ *   Ele continua VALENDO FORA DO FOCO, e por isso o céu continua billboard. Mas ele não vale
+ *   no objeto EM FOCO: ali o operador não está lendo um sinal, está contemplando uma forma, e
+ *   um corpo que apresenta a mesma imagem de qualquer ângulo não está sendo observado. Em foco
+ *   o disco vira MUNDO, e de perfil ele mostra exatamente a silhueta que esta lista abria mão
+ *   de mostrar — ver "A ORIENTAÇÃO TEM DOIS REGIMES", no cabeçalho do fragmento.
  * - **de Vaucouleurs r^(1/4).** One `pow(x, 0.25)` per fragment for a profile difference that
  *   is invisible below 60 px. The projected Plummer used instead is EXACT for its own model;
  *   being honest about which model you drew beats being approximate about a more famous one.
@@ -263,6 +267,19 @@ const SALT_INC = 59;
 const SALT_ROLL = 67;
 const SALT_PHASE = 71;
 const SALT_SPIN = 83;
+/*
+ * O eixo de MUNDO do disco. Dois salts porque a direção é sorteada na ESFERA e não no círculo:
+ * `z` uniforme em [-1,1] mais azimute uniforme é a única combinação isotrópica — dois ângulos
+ * uniformes empilhariam discos nos polos. É a mesma amostragem de `quasar.js:299-301`, e tem de
+ * ser: os dois objetos moram no MESMO nó.
+ *
+ * ⚠️ E por morarem no mesmo nó, os salts do quasar são proibidos aqui: ele usa 89, 97, 101 e
+ * 106 (`SALT_AXIS + 17`). Reusar um daria à galáxia e ao quasar do mesmo hub duas feições saídas
+ * do mesmo número — o eixo do disco alinhado ao eixo do jato por acidente de hash, que leria
+ * como física e não é. 103 e 109 são livres.
+ */
+const SALT_AXIS_Z = 103;
+const SALT_AXIS_AZ = 109;
 
 /*
  * The warm/cool axis, chosen LUMINANCE-NEUTRAL under Rec.709 so that the bulge/disc split
@@ -294,6 +311,10 @@ const MEAN_P10 = 0.176197;
 const CELLS = 12;
 
 const TAU = Math.PI * 2;
+
+/** Referências para construir a base do plano do disco. Ver `e1` em `galaxyParams`. */
+const UP_REF = Object.freeze(new THREE.Vector3(0, 0, 1));
+const SIDE_REF = Object.freeze(new THREE.Vector3(1, 0, 0));
 
 /*
  * Attribute layout. 22 static floats and 7 per-frame floats per instance (`aCenter` 3 +
@@ -382,13 +403,37 @@ const VERTEX = /* glsl */ `
 `;
 
 /*
- * ## The disc plane is a 2D ellipse in SCREEN space, not a tilted plane in world space
+ * ## A ORIENTAÇÃO TEM DOIS REGIMES — e o shader é o MESMO nos dois
  *
- * This is `rings.js`'s `uCosTilt` idiom (`rings.js:212, 591`) one dimension up, and it inherits
- * its rationale verbatim (`rings.js:28-31`): a world-oriented disc goes edge-on for half of the
- * camera's orbit, disappearing exactly when the operator rotates the scene. For a ring that
- * costs a silhouette; for a galaxy it costs the ARM COUNT, which is the group count, which is
- * the only information this object carries.
+ * > **Em foco vira MUNDO; fora de foco continua billboard.** (A REGRA DA INSPEÇÃO.)
+ *
+ * FORA DO FOCO o plano do disco é uma elipse de TELA: `roll` e `cosInc` são hasheados por
+ * caminho, a figura é camera-independente por construção, e o motivo é o de `rings.js:28-31` —
+ * de longe o corpo é sinal, e um disco de mundo de perfil sumiria, apagando a contagem de
+ * braços, que é a contagem de grupos.
+ *
+ * EM FOCO os mesmos dois números passam a ser RESOLVIDOS CONTRA A CÂMERA a cada quadro, a
+ * partir de uma direção de mundo (`axisWorld`), por `poseDe()`. É a mecânica de `quasar.js`
+ * (`d73328f`), e ela é a única compatível com esta arquitetura: um desenho instanciado não pode
+ * ter uma quaternion por objeto (ver o cabeçalho do módulo), então quem gira não é a malha — é
+ * a POSE que a malha desenha. O quad continua billboard, o que também é o que garante que a
+ * elipse de mundo nunca é cortada por ele: a região desenhada é uma elipse de semieixos
+ * `QUAD_SPAN` e `QUAD_SPAN*cosInc`, sempre dentro da caixa do quad, em qualquer pose.
+ *
+ * O que o shader recebe é a projeção ORTOGRÁFICA do disco de mundo — rotação mais achatamento
+ * num eixo, que é exatamente o que `rotate()` + `q.y /= cosInc` sabem fazer, e é EXATO para
+ * esse modelo. A perspectiva acrescenta um cisalhamento de segunda ordem no ângulo fora de
+ * eixo; é a mesma aproximação que o quasar aceitou, no mesmo objeto.
+ *
+ * ⚠️ **E a pergunta que a lei manda fazer: o ÂNGULO chegou ao shader?** Aqui `cosInc` tem DOIS
+ * leitores — o achatamento de tela (`q.y /= cosInc`) e o `cos(i)` FÍSICO da profundidade óptica
+ * (`colunaDisco`). Foi por um símbolo com dois donos que o anel falhou em silêncio
+ * (`835e749`). Neste módulo os dois donos querem o MESMO número e podem compartilhá-lo, e a
+ * razão é estrutural, não sorte: quem achata é o próprio shader, com o ângulo real, em vez de a
+ * projeção achatar por fora. No anel a malha já era de mundo, então o achatamento de tela tinha
+ * de valer 1 enquanto a física queria `cos(i)`; aqui não existe esse 1. **Se alguém um dia
+ * fizer a malha da galáxia virar geometria de mundo, este parágrafo passa a estar errado e os
+ * dois têm de se separar em `uCosTilt`/`uCosView`, como no anel.**
  *
  * ## Knots and arms are ONE function, not two objects
  *
@@ -469,12 +514,28 @@ const FRAGMENT = /* glsl */ `
   }
 
   void main(){
-    float cosInc = vPose.x;
-    // Screen-space ellipse: roll, then squash y. Camera-independent by construction.
+    /*
+     * vPose.x e o cosseno ASSINADO entre a normal do disco e a direcao da camera, e o sinal nao
+     * e um segundo dono do simbolo: e a decomposicao natural de um cosseno. O MODULO diz quanto
+     * a elipse achata; o SINAL diz qual das duas faces do disco esta virada para o olho.
+     *
+     * Sem o sinal, orbitar por baixo do disco desenharia a mesma imagem de cima — e a espiral
+     * apareceria enrolando para o mesmo lado dos dois lados, que e uma afirmacao falsa sobre a
+     * quiralidade do objeto. Uma reflexao nao se conserta com fase nenhuma; ela precisa deste
+     * multiplicador. Fora do foco o valor e sempre positivo (o hash de classe), entao esta linha
+     * nao existe para as outras instancias.
+     */
+    float cosInc = abs(vPose.x);
+    float face = vPose.x < 0.0 ? -1.0 : 1.0;
+    // Rotaciona e achata em y. Fora do foco os dois numeros sao hash (elipse de TELA,
+    // camera-independente); em foco os dois saem da camera (projecao de um disco de MUNDO).
     vec2 q = rotate(vP, cos(vPose.y), sin(vPose.y));
     q.y /= cosInc;
     float r = length(q);
     if (r > ${QUAD_SPAN.toFixed(3)}) discard;
+    // Espelha o PADRAO, nunca o raio: r ja foi lido e e invariante. Daqui para baixo q e a
+    // coordenada do disco vista pela face que esta na frente.
+    q.y *= face;
 
     // The pattern phase doubles as the bar angle: when there is a bar the arms launch from its
     // ends, so the two are the SAME number and coupling them is the physics, not a shortcut.
@@ -630,6 +691,13 @@ const FRAGMENT = /* glsl */ `
      * cada uma das 213 galaxias por 0,5 e o ceu inteiro escureceria de uma vez. Dividindo pelo
      * valor de frente, a pose que ja foi aprovada continua identica e o que ENTRA e so o ganho de
      * densidade ao inclinar — que era o pedido.
+     *
+     * ⚠️ E ATE 2026-08-06 ESTA LEI ERA LETRA MORTA NA GALAXIA. cosInc era hash de classe, fixo
+     * por no: a coluna era um numero constante por objeto, e orbitar nao mudava peso nenhum.
+     * O ganho existia entre DUAS galaxias, nunca entre duas poses da MESMA. Em foco cosInc
+     * passou a sair da camera por quadro, e e aqui que orbitar revela volume: de frente o disco
+     * fica translucido, de perfil a coluna satura (a razao entre os extremos e 1,986, aritmetica
+     * sobre saidaDaLaje com o piso de 0,05) e a espiral vira a barra densa de NGC 891.
      */
     float colunaDisco = saidaDaLaje(0.7, cosInc, ${glslFloat(ASPECT_FOLHA)})
                       / saidaDaLaje(0.7, 1.0, ${glslFloat(ASPECT_FOLHA)});
@@ -792,6 +860,36 @@ export function galaxyParams(node = {}, children = [], overrideClassId = null) {
   const barFrac = klass.barLen > 0 ? BAR_FRAC : 0;
   const k = klass.split;
 
+  /*
+   * O EIXO DE MUNDO do disco, e a base FIXA do plano dele.
+   *
+   * `cosInc`/`roll` abaixo descrevem a elipse na TELA e não sabem dizer para onde o disco aponta
+   * no universo — é justamente o que falta para a câmera ter o que revelar. `axisWorld` é essa
+   * direção, sorteada na esfera (ver os salts).
+   *
+   * `e1`/`e2` são uma base ortonormal do plano do disco, fixa no mundo, com `e1 × e2 = axisWorld`.
+   * Ela existe para ancorar a FASE: o shader mede o ângulo interno a partir de um eixo que gira
+   * junto com a câmera, então sem uma referência de mundo a barra e os braços girariam quando o
+   * operador orbita — o objeto pareceria rodopiar por ele estar andando em volta. `poseDe()`
+   * desconta o ângulo entre as duas.
+   *
+   * O ramo do `e1` escolhe o eixo do mundo MENOS alinhado à normal; com o outro, `cross` devolve
+   * um vetor nulo sempre que o disco cai naquele polo e a base sairia indefinida.
+   */
+  const zAxis = hash01(path, SALT_AXIS_Z) * 2 - 1;
+  const azAxis = hash01(path, SALT_AXIS_AZ) * TAU;
+  const rAxis = Math.sqrt(Math.max(0, 1 - zAxis * zAxis));
+  const axisWorld = new THREE.Vector3(
+    rAxis * Math.cos(azAxis),
+    rAxis * Math.sin(azAxis),
+    zAxis
+  );
+  const e1 = new THREE.Vector3()
+    .copy(axisWorld)
+    .cross(Math.abs(axisWorld.z) < 0.9 ? UP_REF : SIDE_REF)
+    .normalize();
+  const e2 = new THREE.Vector3().copy(axisWorld).cross(e1);
+
   const base = new THREE.Color(KIND_COLORS[node.kind] ?? KIND_COLORS.dir);
   const warm = new THREE.Color();
   const cool = new THREE.Color();
@@ -825,9 +923,19 @@ export function galaxyParams(node = {}, children = [], overrideClassId = null) {
     turns: geometry.turns,
     barLen: klass.barLen,
     bulgeFraction: bt,
-    // Inclination is a class cue here, not physics — see galaxy-classes.js.
+    /*
+     * A POSE DE TELA — e ela vale FORA DO FOCO, que são 212 das 213 instâncias.
+     *
+     * Inclination is a class cue here, not physics — see galaxy-classes.js. Em foco os dois são
+     * substituídos pela pose resolvida contra a câmera (`poseDe`), e aí deixam de ser parâmetro
+     * do objeto para virar RELAÇÃO — a mesma troca que o quasar sofreu em `d73328f`.
+     */
     cosInc: klass.cosIncBase + klass.cosIncSpread * hash01(path, SALT_INC),
     roll: hash01(path, SALT_ROLL) * TAU,
+    /** A pose de MUNDO: para onde o disco aponta, e a base fixa do plano dele. */
+    axisWorld,
+    e1,
+    e2,
     // One angle, two jobs: the bar's major axis and the phase the arms launch from.
     phase: hash01(path, SALT_PHASE) * TAU,
     spin: hash01(path, SALT_SPIN) < 0.5 ? -1 : 1,
@@ -950,18 +1058,96 @@ export function createGalaxy(capacity = 96) {
     if (array[at] !== before) dirty = true;
   }
 
-  function writeStatic(i, p) {
+  /*
+   * A POSE DE MUNDO, resolvida contra a CÂMERA — é ela que faz o disco virar quando a câmera vira.
+   *
+   * Devolve os MESMOS três números que a pose de tela ocupa (`cosInc`, `roll`, `phase`), porque o
+   * shader não precisa de um segundo caminho: ele já sabe desenhar rotação + achatamento, e a
+   * projeção ortográfica de um disco de mundo é exatamente isso. O que muda é de onde os números
+   * vêm.
+   *
+   * A construção, e cada linha responde a uma pergunta:
+   *
+   *   `N`  a normal, virada PARA A CÂMERA (`s = sign(cosView)`). Com a normal do lado do olho, o
+   *        triedro (U, V, N) fica destro com N apontando para fora da tela, e aí a projeção é
+   *        rotação + achatamento SEM espelho — que é a única forma que o shader sabe desenhar.
+   *        O espelho que sobra (ver a outra face) vai no sinal de `cosInc`, não aqui.
+   *   `U`  no plano do disco E perpendicular à linha de visada, então projeta com comprimento
+   *        cheio: é o eixo MAIOR da elipse, e o `roll` é o ângulo dele na tela.
+   *   `V`  = N × U, o eixo menor: projeta com comprimento |cosView|, que é o achatamento.
+   *   `α`  o ângulo de U dentro do plano, medido a partir de `e1`. É o que se desconta da fase
+   *        para a barra e os braços ficarem parados no MUNDO enquanto a base gira com a câmera.
+   *
+   * ⚠️ Degenerescência: de frente (N quase na linha de visada) `N × W` some e U fica indefinido.
+   * O ramo cai em `e1`, que ali é perpendicular à visada de qualquer jeito — e a troca não dá
+   * salto na imagem porque `roll` e `α` saem do MESMO U: o que um gira, o outro desconta.
+   *
+   * ⚠️ A base da tela vem da QUATERNION, não de `matrixWorld`: a bancada chama `lookAt` e depois
+   * `update`, e a matriz de mundo só é refeita no render — lida aqui ela poria a pose um quadro
+   * atrás da câmera (o argumento que `galaxy-variants.js:284-291` já faz para a fileira).
+   */
+  const N = new THREE.Vector3();
+  const W = new THREE.Vector3();
+  const U = new THREE.Vector3();
+  const V = new THREE.Vector3();
+  const DIREITA = new THREE.Vector3();
+  const CIMA = new THREE.Vector3();
+
+  function poseDe(p, camera, position) {
+    if (!camera || !p.axisWorld) return null;
+    W.copy(camera.position).sub(position);
+    if (W.lengthSq() < 1e-12) return null;
+    W.normalize();
+    const cosView = p.axisWorld.dot(W);
+    N.copy(p.axisWorld).multiplyScalar(cosView < 0 ? -1 : 1);
+    U.copy(N).cross(W);
+    const sinView = U.length();
+    if (sinView > 1e-4) U.multiplyScalar(1 / sinView);
+    else U.copy(p.e1);
+    V.copy(N).cross(U);
+    DIREITA.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    CIMA.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    /*
+     * ⚠️ O PISO É A RAZÃO DE ASPECTO DO DISCO, não medo de divisão por zero.
+     *
+     * `q.y /= cosInc` com `cosInc` indo a zero manda todo fragmento para fora do raio e a galáxia
+     * DESAPARECE ao passar pelo plano. Um disco de verdade tem espessura: de perfil ele mostra a
+     * espessura, não o nada. E o número não é escolhido — é `ASPECT_FOLHA`, o mesmo `h/r` que
+     * `optical-depth.js` já usa para esta peça (ele nomeia "disco de galáxia" na definição), e o
+     * mesmo que `saidaDaLaje` aplica por dentro. Um piso só, um significado só.
+     */
+    const magnitude = Math.max(ASPECT_FOLHA, Math.abs(cosView));
+    return {
+      // O MÓDULO achata; o SINAL diz qual face está na frente. Ver o fragmento.
+      cosInc: cosView < 0 ? -magnitude : magnitude,
+      roll: Math.atan2(U.dot(CIMA), U.dot(DIREITA)),
+      phase: p.phase - Math.atan2(U.dot(p.e2), U.dot(p.e1)),
+      cosView,
+    };
+  }
+
+  /** A pose de mundo do último quadro, para a sonda. `null` = ninguém em foco. */
+  let lastPose = null;
+
+  function writeStatic(i, p, pose) {
     const shape = buffers.get('aShape');
     put(shape, i * 4, p.arms);
     put(shape, i * 4 + 1, p.invTanPitch);
     put(shape, i * 4 + 2, p.rIn);
     put(shape, i * 4 + 3, p.barLen);
 
-    const pose = buffers.get('aPose');
-    put(pose, i * 4, p.cosInc);
-    put(pose, i * 4 + 1, p.roll);
-    put(pose, i * 4 + 2, p.phase);
-    put(pose, i * 4 + 3, p.spin);
+    /*
+     * ⚠️ `aPose` é o único atributo "estático" que pode mudar por quadro, e só na instância em
+     * foco. É a máquina do `put`/`dirty` fazendo exatamente o trabalho para o qual foi escrita —
+     * a escrita na CPU é de graça, o upload é que não é, e aqui ele custa os 6,2 kB dos estáticos
+     * uma vez por quadro enquanto houver um corpo travado. Ele já paga isso quando o corpus muda.
+     */
+    const posed = pose ?? p;
+    const poseBuffer = buffers.get('aPose');
+    put(poseBuffer, i * 4, posed.cosInc);
+    put(poseBuffer, i * 4 + 1, posed.roll);
+    put(poseBuffer, i * 4 + 2, posed.phase);
+    put(poseBuffer, i * 4 + 3, p.spin);
 
     const gain = buffers.get('aGain');
     put(gain, i * 4, p.bulgeLight);
@@ -1031,13 +1217,20 @@ export function createGalaxy(capacity = 96) {
      *   devicePixelRatio) — the unit `scene.js:884-886` feeds `graph.update`, and the unit the
      *   whole LOD ladder below is written in. Passing the CSS height halves every pixel number.
      * @param {number} elapsed         scene clock, seconds
+     * @param {number} [focusedIndex]  índice em `entries` do corpo EM FOCO, ou -1.
+     *
+     *   A REGRA DA INSPEÇÃO em uma linha: essa instância — e só ela — passa a desenhar um disco
+     *   de MUNDO, que responde à órbita. As outras continuam billboard, porque de longe o corpo é
+     *   sinal e um disco de perfil apagaria a contagem de braços. Chamar sem o argumento mantém o
+     *   comportamento anterior inteiro, que é o que a bancada usa para exibir o outro regime.
      * @returns {number} how many galaxies are at or above the arm threshold
      */
-    update(entries, camera, viewportHeight, elapsed = 0) {
+    update(entries, camera, viewportHeight, elapsed = 0, focusedIndex = -1) {
       const count = entries?.length ?? 0;
       if (count === 0) {
         group.visible = false;
         if (geometry) geometry.instanceCount = 0;
+        lastPose = null;
         return 0;
       }
       if (!mesh || slots < count) build(Math.max(capacity, count));
@@ -1045,6 +1238,7 @@ export function createGalaxy(capacity = 96) {
 
       dirty = false;
       let resolved = 0;
+      lastPose = null;
 
       for (let i = 0; i < count; i++) {
         const entry = entries[i];
@@ -1070,7 +1264,10 @@ export function createGalaxy(capacity = 96) {
         view[i * 4 + 3] = THREE.MathUtils.smoothstep(px, LOD_TEX_PX, LOD_FULL_PX);
         if (px >= LOD_ARM_PX) resolved += 1;
 
-        writeStatic(i, entry.params);
+        // A pose de MUNDO custa uma dúzia de operações de vetor e só existe para UM corpo — o
+        // laço das outras 212 continua exatamente o que era.
+        if (i === focusedIndex) lastPose = poseDe(entry.params, camera, entry.position);
+        writeStatic(i, entry.params, i === focusedIndex ? lastPose : null);
       }
 
       geometry.instanceCount = count;
@@ -1086,6 +1283,15 @@ export function createGalaxy(capacity = 96) {
     },
 
     count: () => (geometry ? geometry.instanceCount : 0),
+
+    /**
+     * A pose de MUNDO do corpo em foco neste quadro, ou `null` se ninguém está travado.
+     *
+     * Existe pelo mesmo motivo de `galaxyProbe`: "girar não revela nada" tem várias causas e
+     * nenhuma aparece na tela. Com isto, orbitar e ver `cosVista` andar prova que o ângulo chegou
+     * — e ver `cosVista` parado prova que não, sem depender do olho para distinguir os dois.
+     */
+    pose: () => (lastPose ? { ...lastPose } : null),
 
     dispose,
   };

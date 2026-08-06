@@ -1505,9 +1505,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * lista sai curta sozinha: 7 de 72 hubs no corpus medido (9,7%, a fração observada).
        */
       const nucleos = [];
+      /*
+       * QUAL DELAS ESTÁ EM FOCO — a REGRA DA INSPEÇÃO em um índice.
+       *
+       * A galáxia travada passa a desenhar um disco de MUNDO, que responde à órbita; as outras
+       * continuam billboard, porque longe o corpo é sinal e um disco de perfil apagaria a
+       * contagem de braços (`galaxy.js`, "A ORIENTAÇÃO TEM DOIS REGIMES"). É a posição no `lote`,
+       * não no `hubs`: só quem tem âncora resolvida entra na lista, então os dois índices
+       * divergem no primeiro hub sem posição — e essa divergência poria o disco de mundo em
+       * outra galáxia, calada.
+       */
+      let focadaNoLote = -1;
       for (const hub of hubs) {
         const ancora = graph.planetAnchor(hub.id, camera, canvas.height, elapsed);
         if (!ancora) continue;
+        if (hub.id === focusedNode) focadaNoLote = lote.length;
         lote.push({ params: hub.params, position: ancora.position, radius: ancora.radius });
         const nucleo = quasarParams(hub.params);
         if (nucleo) {
@@ -1529,7 +1541,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * informação nenhuma aqui — a figura fica, só para de girar.
        */
       galaxy.tune({ omega: motion.isReduced() ? 0 : rateOf(MOTION.patternSpin) });
-      const acesas = galaxy.update(lote, camera, canvas.height, elapsed);
+      const acesas = galaxy.update(lote, camera, canvas.height, elapsed, focadaNoLote);
       /*
        * A MESMA projeção e a MESMA escada da galáxia, injetadas — não recalculadas aqui.
        *
@@ -1562,6 +1574,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       });
       trace('galaxy', () => ({
         instancias: lote.length,
+        emFoco: focadaNoLote,
         acimaDoLimiarDeBraco: acesas,
         quasares: nucleos.length,
         quasaresAcesos: nucleosAcesos,
@@ -1617,12 +1630,24 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       const mesh = galaxy.object.children[0];
       const u = mesh?.material?.uniforms;
       if (!u) return { montado: false };
+      /*
+       * A POSE DE MUNDO entra na sonda porque "girar não revela nada" tem duas causas que a tela
+       * não separa: o corpo pode não estar em modo mundo, ou estar e o ângulo não chegar ao
+       * shader — que foi como o anel falhou em silêncio (`835e749`). Orbitar e ver `cosVista`
+       * andar prova que chegou; vê-lo parado com `modo: 'mundo'` nomeia o defeito exato.
+       */
+      const pose = galaxy.pose();
       return {
         montado: true,
         tempo: u.uTime.value,
         omega: u.uOmegaP.value,
         instancias: mesh.geometry?.instanceCount ?? 0,
         voltaEmSegundos: u.uOmegaP.value ? (Math.PI * 2) / u.uOmegaP.value : Infinity,
+        modo: pose ? 'mundo' : 'billboard',
+        cosVista: pose ? +pose.cosView.toFixed(4) : null,
+        // O que o shader recebeu, já com o piso de espessura e o sinal da face.
+        achatamento: pose ? +pose.cosInc.toFixed(4) : null,
+        rolagem: pose ? +pose.roll.toFixed(4) : null,
       };
     },
     /**
