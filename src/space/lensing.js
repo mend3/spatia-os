@@ -82,15 +82,44 @@ const FRAGMENT = /* glsl */ `
      * verdade). Passado certo ponto ele deixa de ler como lente e passa a ler como artefato,
      * e o teto é o que impede a técnica de tentar o que ela não consegue.
      */
-    deflection = min(deflection, uRadius * 1.2);
+    /*
+     * O TETO SUBIU de 1,2 para 2,0 raios de sombra, e o motivo e a queixa de que "o fundo nao
+     * reage". A 1,2 a deflexao saturava logo fora da sombra e o campo estelar mal se movia: o
+     * efeito lia como mascara preta com um borrao colado, nao como espaco curvo. O teto continua
+     * existindo pela razao que nao mudou — deslocamento em espaco de TELA nao sabe fazer lente
+     * forte, nao produz imagem multipla nem anel de Einstein de verdade — mas 1,2 estava
+     * cortando bem antes desse limite.
+     */
+    deflection = min(deflection, uRadius * 2.0);
     vec2 lensed = uv - direction * deflection / vec2(uAspect, 1.0);
 
-    // Sombra: dentro do horizonte não sai luz. A borda é suave por causa do anel.
-    // Fecha exatamente no raio aparente da esfera, com borda curta. A versão anterior
-    // começava em 0.86·R e terminava em 1.02·R: sobrava uma coroa onde a esfera aparecia sem
-    // ser apagada, e o disco lensado desenhava crescentes por cima do horizonte. Nada pode
-    // ser desenhado sobre um horizonte de eventos.
-    float shadow = smoothstep(uRadius * 0.99, uRadius * 1.09, distance);
+    /*
+     * SOMBRA GRADUAL — e a rampa curta era o que fazia o objeto ler como BOLA PRETA.
+     *
+     * Era smoothstep(0,99R → 1,09R): 10% do raio, uma borda de tesoura. O cerebro le isso como
+     * superficie solida, e a queixa foi literal — "parece uma esfera preta gigante". Um buraco
+     * negro nao tem superficie: o que se ve e a SOMBRA, e a fronteira dela e o lugar mais
+     * dificil de localizar da imagem.
+     *
+     * A fisica: a fracao de raios capturados nao salta de 0 a 1 num raio. Ela cresce
+     * continuamente conforme o parametro de impacto se aproxima do critico, e mesmo fora da
+     * sombra uma parte da luz ainda cai. Sao dois termos:
+     *
+     *   nucleo  — a rampa principal, agora com 44% do raio (0,58 a 1,02) em vez de 10%;
+     *   residuo — absorcao PARCIAL indo ate 1,9 raios, que e o que faz o escuro "vazar" para
+     *             fora da sombra em vez de terminar numa circunferencia.
+     *
+     * ⚠️ O residuo foi 0,68 ate 2,4R na primeira tentativa e escurecia a CENA, nao so a borda:
+     * a 2,4R ele cobre um pedaco grande da tela e a borda interna do disco (que comeca em 1,41R)
+     * perdia ate 32% do brilho. Escurecer o disco perto da sombra e desejado — e o "o horizonte
+     * engole a luz gradualmente" —, escurecer o ceu inteiro nao e. 0,80 ate 1,9R mantem o
+     * vazamento e devolve o disco.
+     *
+     * O anel de fotons continua fora dos dois, em 1,1R, onde a rampa principal ja fechou.
+     */
+    float nucleo = smoothstep(uRadius * 0.58, uRadius * 1.02, distance);
+    float residuo = mix(0.80, 1.0, smoothstep(uRadius * 1.02, uRadius * 1.9, distance));
+    float shadow = nucleo * residuo;
 
     // Anel de fótons: estreito, e no limite EXTERNO da transição da sombra.
     //

@@ -314,8 +314,21 @@ export function createBlackHole() {
     uCool: { value: new THREE.Color(0x521705) },
   };
 
+  /*
+   * ⚠️ A ESFERA É MENOR QUE A SOMBRA, e antes era do tamanho exato dela.
+   *
+   * A silhueta de uma malha opaca é um círculo perfeito, e nenhuma rampa no pós-processamento
+   * conserta isso: o recorte duro que fazia o objeto ler como "bola preta" vinha da GEOMETRIA,
+   * não do shader da sombra. Desenhada a 78% do raio da sombra, a borda dela cai fundo dentro da
+   * região que o passe de lente já levou a zero — o que chega à tela é só a rampa longa, que é o
+   * que uma sombra gravitacional é.
+   *
+   * Ela continua existindo, e opaca, por um motivo que não mudou: é ela que oclui a metade de
+   * trás do disco. Sem malha nenhuma o disco inteiro apareceria e a sombra viraria um filtro
+   * escuro por cima dele.
+   */
   const horizon = new THREE.Mesh(
-    new THREE.SphereGeometry(HORIZON_RADIUS, 64, 48),
+    new THREE.SphereGeometry(HORIZON_RADIUS * 0.78, 64, 48),
     new THREE.MeshBasicMaterial({ color: 0x000000 })
   );
   group.add(horizon);
