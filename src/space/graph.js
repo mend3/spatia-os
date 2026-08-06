@@ -594,6 +594,25 @@ export function createGraph() {
      * escrita do pai, e o laço é uma passada só. Inserir lua antes do pai a deixaria um quadro
      * atrasada — o mesmo defeito que a extinção do anel já pagou.
      */
+    /*
+     * RANK DE MASSA — o mesmo idioma que a recência já usa, e pelo mesmo motivo.
+     *
+     * `chunks` cru é fortemente enviesado: mediana 4 e máximo 226, então uma escala log dele põe
+     * quase todo o céu no mesmo ponto. Foi o que aconteceu com a temperatura da fotosfera — 136
+     * corpos, mediana de temperatura 0,22, e a variedade que a temperatura deveria dar ficando
+     * espremida num canto da faixa.
+     *
+     * `recency` resolve isso no servidor sendo POSIÇÃO NO RANKING e não data. Aqui é a mesma
+     * coisa para massa: o rank distribui os corpos uniformemente pelo eixo, que é o que faz a
+     * variedade aparecer. A massa absoluta continua governando o TAMANHO do sprite, onde a
+     * escala log é a certa — são duas perguntas diferentes sobre o mesmo número.
+     */
+    const arquivos = nodes.filter((node) => node.type === 'file');
+    const ordenados = [...arquivos].sort((a, b) => (a.chunks || 0) - (b.chunks || 0));
+    const posicao = new Map();
+    ordenados.forEach((node, i) => posicao.set(node.id, ordenados.length > 1 ? i / (ordenados.length - 1) : 0.5));
+    for (const node of arquivos) node.massRank = posicao.get(node.id) ?? 0.5;
+
     const centralMass = payload.stats?.chunks || nodes.reduce((sum, n) => sum + (n.chunks || 0), 0);
     const moons = [];
     moonsDropped = 0;

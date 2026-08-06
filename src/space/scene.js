@@ -37,6 +37,10 @@ import { resolveBody, SURFACE } from './solver.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
+import { createStation, stationParams } from './station.js';
+import { createComet, cometParams } from './comet.js';
+import { createPulsar, pulsarParams } from './pulsar.js';
+import { createNebula, nebulaParams } from './nebula.js';
 
 /*
  * `start.z` acompanha `graphSpread`: a casca de nós foi de 46–110 para 68–160 unidades, e uma
@@ -140,6 +144,16 @@ const FOCUS_FLOOR_RADII = 3.4;
  * desenho, não como órbita.
  */
 const SYSTEM_FIT_MARGIN = 1.12;
+
+/**
+ * Quanto cada pele ocupa ALÉM do raio do corpo, em raios — o fator que o foco usa para recuar.
+ *
+ * Fotosfera e planeta são o corpo e valem 1 por omissão. As outras não: a nebulosa é a nuvem, não
+ * o arquivo, e o cometa é a cauda tanto quanto o núcleo. O cometa recua 3 e não 9 (o comprimento
+ * máximo do rastro) de propósito — a ponta da cauda é a parte que já esgarçou, e enquadrá-la
+ * inteira encolheria a cabeça, que é onde está a leitura.
+ */
+const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 2.2, station: 1.15 });
 /** Free-flight range, when nothing is locked. */
 const ZOOM_RANGE = { min: 12, max: 260 };
 /**
@@ -218,6 +232,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const photosphere = createPhotosphere();
   const remnant = createRemnant();
   const moonOrbits = createMoonOrbits();
+  /*
+   * As quatro peles que faltavam — cobertura de 59% para 100% dos arquivos.
+   *
+   * Uma instância de cada por cena, como a fotosfera e o planeta: só o astro em foco desenha
+   * superfície, então quatro objetos cobrem os 167 corpos que antes chegavam ao zoom e não tinham
+   * nada. Elas se distinguem por CONSTRUÇÃO e não por cor — aresta reta, cauda direcional, feixe
+   * varrendo, filamento sem borda — porque a queixa que as motivou foi de FORMA repetida.
+   */
+  const station = createStation();
+  const comet = createComet();
+  const pulsar = createPulsar();
+  const nebula = createNebula();
+  let morphSource = null;
+  let morphParams = null;
   let moonSource = null;
   let starParamsCache = null;
   let starSource = null;
@@ -227,6 +255,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
     stars.object, blackHole.group, graph.group, planet.object, photosphere.object, remnant.object, moonOrbits.object,
+    station.object, comet.object, pulsar.object, nebula.object,
     /*
      * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
      * as entradas vêm de `planetAnchor`, que já multiplicou posição e raio pela escala do grupo.
@@ -1075,6 +1104,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     if (pouso) moonOrbits.show(pouso.position, graph.spread());
     else moonOrbits.hide();
 
+    const decisao = pouso
+      ? resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) })
+      : null;
     if (pouso) {
       const distancia = camera.position.distanceTo(pouso.position);
       focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
@@ -1093,8 +1125,17 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         const paraOSistema = moonOuter > 0
           ? ((moonOuter * graph.spread()) / Math.tan((camera.fov * Math.PI) / 360)) * SYSTEM_FIT_MARGIN
           : 0;
+        /*
+         * A PELE pode ser maior que o corpo, e o enquadramento tem de saber disso.
+         *
+         * `FOCUS_FIT_PX` enche a tela com o corpo — certo para a fotosfera e o planeta, que TÊM o
+         * raio do corpo. A nebulosa tem 4,2 raios e o cometa arrasta a cauda por 9: enquadrados
+         * pelo corpo, os dois transbordam e o operador vê filamento e partícula sem ver o objeto.
+         * `SKIN_EXTENT` é o multiplicador de distância de cada pele.
+         */
+        const extensao = SKIN_EXTENT[decisao?.surface] ?? 1;
         orbit.targetDistance = clampDistance(
-          paraOSistema || (focusGeometry.k * pouso.radius) / FOCUS_FIT_PX
+          paraOSistema || ((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX) * extensao
         );
         fitPending = false;
       }
@@ -1134,9 +1175,6 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * sobreporem crescia com o número delas. Agora existe UM lugar que responde "o que este
      * corpo desenha de perto", e ele responde também o que RECUSOU e por quê.
      */
-    const decisao = pouso
-      ? resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) })
-      : null;
     const classe = decisao?.klass ?? null;
     /*
      * A sonda carrega a decisão INTEIRA, e `recusados` é a metade que não existia.
@@ -1179,6 +1217,59 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     } else if (starSource) {
       photosphere.update(starParamsCache, camera, 0, elapsed);
       starSource = null;
+    }
+
+    /*
+     * AS QUATRO PELES NOVAS — estação, cometa, pulsar e nebulosa.
+     *
+     * Um bloco só porque o contrato delas é o mesmo: parâmetros puros derivados do nó, cacheados
+     * por `source`, e um `update` que devolve o nível de detalhe. O que muda entre elas é o que
+     * cada uma precisa saber — a estação não precisa da câmera (ela é geometria), o cometa precisa
+     * da POSIÇÃO (a cauda aponta para longe do núcleo) e o pulsar precisa do relógio.
+     *
+     * O sprite cede pelo `haloOf` na mesma medida, como já fazia para a fotosfera e o planeta: sem
+     * isso o ponto aditivo somaria brilho por cima da peça e apagaria o contorno, que é justamente
+     * o que distingue estas quatro.
+     */
+    const MORFOLOGICAS = [SURFACE.STATION, SURFACE.COMET, SURFACE.PULSAR, SURFACE.NEBULA];
+    if (pouso && MORFOLOGICAS.includes(decisao.surface)) {
+      const cor = graph.kindColor(pouso.node.kind);
+      if (focusedNode !== morphSource) {
+        morphSource = focusedNode;
+        morphParams = {
+          [SURFACE.STATION]: () => stationParams(pouso.node, cor),
+          [SURFACE.COMET]: () => cometParams(pouso.node, cor),
+          [SURFACE.PULSAR]: () => pulsarParams(pouso.node, cor),
+          [SURFACE.NEBULA]: () => nebulaParams(pouso.node, cor),
+        }[decisao.surface]();
+      }
+      for (const pele of [station.object, comet.object, pulsar.object, nebula.object]) {
+        pele.position.copy(pouso.position);
+        pele.scale.setScalar(pouso.radius);
+      }
+      let level = 0;
+      if (decisao.surface === SURFACE.STATION) level = station.update(morphParams, pouso.px, elapsed);
+      else station.object.visible = false;
+      if (decisao.surface === SURFACE.COMET) {
+        level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed);
+      } else comet.object.visible = false;
+      if (decisao.surface === SURFACE.PULSAR) {
+        level = pulsar.update(morphParams, pouso.px, elapsed, motion.isReduced());
+      } else pulsar.object.visible = false;
+      if (decisao.surface === SURFACE.NEBULA) {
+        level = nebula.update(morphParams, camera, pouso.px, elapsed, motion.isReduced());
+      } else nebula.object.visible = false;
+
+      graph.haloOf(level > 0.002 ? focusedNode : null, level);
+      probe.level = level;
+      probe.raio = pouso.radius;
+      probe.dist = camera.position.distanceTo(pouso.position);
+      probe.desenhado = level > 0.002;
+    } else if (morphSource) {
+      for (const pele of [station, comet, pulsar, nebula]) pele.object.visible = false;
+      graph.haloOf(null, 0);
+      morphSource = null;
+      morphParams = null;
     }
 
     if (pouso && decisao.surface === SURFACE.PLANET) {

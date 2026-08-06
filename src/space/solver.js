@@ -33,7 +33,7 @@
  * probe already writes even the negative case, because *"diagnóstico que só existe no caminho
  * feliz não é diagnóstico"*. Every rejection here travels with the sentence that caused it.
  */
-import { classify, allows, SUPERNOVA_FLOOR } from './catalog.js';
+import { classify, allows, SUPERNOVA_FLOOR, morphologyOf } from './catalog.js';
 
 /**
  * STATE MODIFIERS — stage 4's candidates, resolved here.
@@ -55,6 +55,29 @@ export const SURFACE = Object.freeze({
   PHOTOSPHERE: 'photosphere',
   PLANET: 'planet',
   GALAXY: 'galaxy',
+  COMET: 'comet',
+  STATION: 'station',
+  PULSAR: 'pulsar',
+  NEBULA: 'nebula',
+});
+
+/**
+ * De MORFOLOGIA declarada para a pele que a cena desenha.
+ *
+ * O `modelo-de-renderizacao.md` separa o estágio 2 (morfologia, vem do `kind`, nunca muda) do
+ * estágio 4 (estado, vem dos fatos, muda a qualquer momento). Até aqui só o estágio 4 chegava ao
+ * desenho: `kind` governava a COR e mais nada, e por isso quase todo o céu caía na classe padrão
+ * ESTRELA e desenhava a MESMA fotosfera — o defeito que o usuário reportou como "muitas estrelas
+ * com as mesmas formas". Esta tabela é o estágio 2 virando imagem.
+ */
+const SURFACE_BY_MORPHOLOGY = Object.freeze({
+  fotosfera: SURFACE.PHOTOSPHERE,
+  planeta: SURFACE.PLANET,
+  cometa: SURFACE.COMET,
+  estação: SURFACE.STATION,
+  pulsar: SURFACE.PULSAR,
+  nebulosa: SURFACE.NEBULA,
+  estrela: SURFACE.PHOTOSPHERE,
 });
 
 /**
@@ -117,7 +140,17 @@ export function resolveBody(node, facts = {}) {
   refuse('surface', klass.forbids?.surface ?? `a classe ${klass.id} não permite superfície`);
 
   if (klass.features?.photosphere) {
-    return done(SURFACE.PHOTOSPHERE);
+    /*
+     * A CLASSE diz que há corpo gasoso; a MORFOLOGIA diz qual corpo é.
+     *
+     * Antes esta linha devolvia fotosfera para todo mundo, e como a classe padrão do céu é
+     * ESTRELA isso significava ~400 dos 410 arquivos desenhando exatamente a mesma superfície.
+     * A morfologia já estava declarada no `catalog.js` desde o histograma do corpus — só não
+     * tinha caminho até o desenho. `estrela` continua sendo o padrão da tabela, então tipo
+     * desconhecido não perde corpo.
+     */
+    const morfologia = morphologyOf(node?.kind);
+    return done(SURFACE_BY_MORPHOLOGY[morfologia.body] ?? SURFACE.PHOTOSPHERE);
   }
   refuse(
     'photosphere',

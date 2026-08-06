@@ -239,6 +239,38 @@ export const MOTION = Object.freeze({
   }),
 
   /**
+   * The slow churn of a nebula: gas that moves without the cloud going anywhere.
+   */
+  nebulaDrift: Object.freeze({
+    id: 'nebulaDrift',
+    status: 'applied',
+    law: 'noise field advected along two axes plus a breathing cavity; no net transport',
+    /*
+     * Duas taxas e um período, e cada um responde por uma coisa diferente.
+     *
+     * A primeira versão da nebulosa entrou com o tempo multiplicado por 0,015 numa oitava só — o
+     * usuário olhou e disse, com razão, que o efeito era bom e ESTÁTICO. Nessa taxa a estrutura
+     * leva mais de um minuto para mudar o suficiente para alguém notar, e nebulosa parada lê como
+     * textura colada, que é o defeito que o `boil` da fotosfera já tinha resolvido do outro lado.
+     *
+     * ⚠️ Aqui há uma licença, e ela é a mesma da esfera de Hill cheia: uma nebulosa real tem
+     * anos-luz de extensão e não muda de forma em escala humana. O que se compra com a licença é a
+     * leitura de GÁS — sem movimento nenhum, filamento parado é desenho. `drift` é o deslocamento
+     * lento da estrutura grande, `churn` é a oitava fina se refazendo dentro dela (a mesma ordem
+     * que o `boil` usa, e pelo mesmo motivo), e `breath` é o pulso lento da cavidade, que é o vento
+     * das fontes empurrando a bolha.
+     */
+    rates: Object.freeze({ drift: 0.055, churn: 0.13 }),
+    period: 26,
+    amplitude: 0.09,
+    allowed: ['nebula'],
+    forbids: Object.freeze({
+      planet: 'crosta não flui — nuvem que se move sobre relevo afirma dois corpos no mesmo lugar',
+    }),
+    reduced: 'freeze',
+  }),
+
+  /**
    * A body turning on its own axis.
    */
   spin: Object.freeze({

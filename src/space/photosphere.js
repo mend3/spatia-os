@@ -47,12 +47,41 @@ const BOIL = MOTION.boil.rates;
 export const LOD_FAR_PX = 90;
 export const LOD_NEAR_PX = 200;
 
-/** Coeficiente de escurecimento de limbo. 0,6 é o valor solar no visível. */
+/*
+ * ## As três referências SOLARES — e por que elas deixaram de ser constantes
+ *
+ * Eram fixas, e com elas os 136 corpos com fotosfera tinham o MESMO tamanho de grânulo, o mesmo
+ * escurecimento de limbo e o mesmo contraste de mancha: mudava só o deslocamento do ruído e a
+ * quantidade de manchas. O resultado é o que se vê no céu — muitas estrelas com a mesma cara, e
+ * a variação lendo como uma textura repetida em vez de corpos diferentes.
+ *
+ * Estrelas reais diferem por TEMPERATURA, e ela move as três de uma vez. Os valores abaixo
+ * continuam sendo os do Sol; agora são o PONTO MÉDIO de uma faixa, não o céu inteiro.
+ */
+
+/** Escurecimento de limbo do Sol no visível. Faixa real: ~0,3 (quente) a ~0,9 (frio). */
 const LIMB_U = 0.6;
-/** Quantos grânulos cabem na volta. O Sol tem ~2 milhões; aqui é o que sobrevive a 200px. */
+/** Quantos grânulos cabem na volta, no corpo mediano. O Sol tem ~2 milhões; aqui, o que sobrevive a 200px. */
 const CELLS = 26.0;
-/** Fração do brilho que resta na umbra de uma mancha: (3800/5772)^4, Stefan-Boltzmann. */
+/** Fração do brilho que resta na umbra: `(3800/5772)^4`, Stefan-Boltzmann, para o Sol. */
 const UMBRA = 0.19;
+
+/**
+ * `chunks` que saturam a escala de massa. 226 é o maior arquivo do corpus medido em 2026-08-05.
+ *
+ * Log, não linear: um arquivo de 226 chunks não é 226 vezes mais quente que um de 1 — a mesma
+ * compressão que o raio do sprite já usa, e pelo mesmo motivo.
+ */
+const MASS_LOG_FULL = Math.log2(1 + 226);
+
+/**
+ * `churn` que satura a escala de atividade. 27 é o máximo do corpus (mediana 1).
+ *
+ * ⚠️ Depende do corpus: um repo com muito mais reescrita empurra todo mundo para baixo na escala
+ * e o céu perde manchas sem nada ter acontecido com cada arquivo. Se isso aparecer, o valor tem
+ * de virar percentil e não máximo.
+ */
+const CHURN_FULL = 27;
 
 const VERTEX = /* glsl */ `
   varying vec3 vObject;
@@ -71,11 +100,12 @@ const FRAGMENT = /* glsl */ `
   uniform float uSpots;
   uniform float uSeed;
   uniform float uDetail;
+  // As tres que a TEMPERATURA move. Eram constantes, e por isso todo corpo com fotosfera tinha
+  // a mesma cara: mesmo grao, mesmo volume, mesmo contraste de mancha. Ver photosphereParams.
+  uniform float uLimb;
+  uniform float uCells;
+  uniform float uUmbra;
   varying vec3 vObject;
-
-  const float LIMB_U = ${glslFloat(LIMB_U)};
-  const float CELLS = ${glslFloat(CELLS)};
-  const float UMBRA = ${glslFloat(UMBRA)};
 
   // Taxas de fervura, do motion-catalog.js. A ORDEM entre elas e a fisica: supergranulacao
   // grande e lenta, granulacao pequena e rapida vivendo dentro dela. (Sem backtick aqui: ele
@@ -96,11 +126,11 @@ const FRAGMENT = /* glsl */ `
    * rapida), que e a estrutura real: as celulas pequenas vivem dentro das grandes.
    */
   float granulation(vec3 p){
-    float slow = simplex3(p * CELLS * 0.22 + vec3(0.0, uTime * BOIL_SLOW, uSeed));
-    float fast = simplex3(p * CELLS + vec3(uSeed, uTime * BOIL_FAST, 0.0));
+    float slow = simplex3(p * uCells * 0.22 + vec3(0.0, uTime * BOIL_SLOW, uSeed));
+    float fast = simplex3(p * uCells + vec3(uSeed, uTime * BOIL_FAST, 0.0));
     // A oitava fina entra por rampa com o nivel de detalhe: a 90px ela oscila mais de uma vez
     // por pixel e so produz cintilacao.
-    float fine = simplex3(p * CELLS * 2.6 + vec3(0.0, uTime * BOIL_FINE, uSeed)) * uDetail;
+    float fine = simplex3(p * uCells * 2.6 + vec3(0.0, uTime * BOIL_FINE, uSeed)) * uDetail;
     return slow * 0.42 + fast * 0.44 + fine * 0.14;
   }
 
@@ -130,7 +160,7 @@ const FRAGMENT = /* glsl */ `
      * centro do disco a linha de visada penetra mais fundo, onde e mais quente; na borda, a
      * mesma profundidade optica e atingida mais alto e mais frio.
      */
-    float limb = 1.0 - LIMB_U * (1.0 - mu);
+    float limb = 1.0 - uLimb * (1.0 - mu);
 
     /*
      * FACULAS: as paredes quentes dos granulos, visiveis de VIES. Por isso crescem com (1-mu),
@@ -141,7 +171,7 @@ const FRAGMENT = /* glsl */ `
 
     float brightness = limb * (0.74 + cells * 0.52) + faculae * 0.8;
     // A mancha multiplica o que sobrou: ela nao APAGA emissao, ela emite menos.
-    brightness *= mix(1.0, UMBRA, spot) * mix(1.0, 0.62, penumbra - spot);
+    brightness *= mix(1.0, uUmbra, spot) * mix(1.0, 0.62, penumbra - spot);
 
     /*
      * Cor por TEMPERATURA, e o padrao e QUENTE.
@@ -193,6 +223,35 @@ export function photosphereParams(node, hash01, kindColor) {
   const hsl = { h: 0, s: 0, l: 0 };
   base.getHSL(hsl);
 
+  const chunks = Number.isFinite(node.chunks) ? node.chunks : 1;
+
+  /*
+   * TEMPERATURA — o eixo que faltava, e o que faz duas estrelas serem duas estrelas.
+   *
+   * Sem ele o céu tinha 136 corpos com o mesmo grão, o mesmo volume e o mesmo contraste de
+   * mancha; o hash mexia no deslocamento do ruído, que o olho lê como a MESMA textura em outra
+   * posição — não como outro corpo. Estrela real difere por temperatura, e ela move quatro
+   * coisas de uma vez: cor, tamanho do grânulo, escurecimento de limbo e contraste da mancha.
+   *
+   * O que a define aqui é a MASSA, e isso não é analogia solta: a relação massa-luminosidade da
+   * sequência principal (`L ∝ M^3.5`) é justamente "mais massa, mais quente". Na cena, massa é
+   * `chunks` — então um arquivo de configuração grande lê como estrela branco-azulada e um de
+   * uma linha como anã laranja. A informação já estava no corpo; ela só não estava na superfície.
+   *
+   * ⚠️ Entra pelo RANK (`node.massRank`, escrito em `graph.js:load`), não pelo log da massa. Com o
+   * log, a mediana de temperatura do corpus dava 0,22: `chunks` tem mediana 4 e máximo 226, então
+   * quase todo o céu caía no mesmo canto frio da faixa e a variedade não aparecia. O rank
+   * distribui uniformemente — é o mesmo motivo pelo qual `recency` é posição no ranking e não
+   * data. O log continua certo para o TAMANHO do sprite; são duas perguntas sobre o mesmo número.
+   *
+   * O hash entra como DESVIO pequeno (±12%), não como fonte: sem ele, dois arquivos de mesmo
+   * tamanho seriam gêmeos exatos; com ele mandando, a temperatura deixaria de informar.
+   */
+  const massa = Number.isFinite(node.massRank)
+    ? node.massRank
+    : THREE.MathUtils.clamp(Math.log2(1 + chunks) / MASS_LOG_FULL, 0, 1);
+  const temp = THREE.MathUtils.clamp(massa * 0.88 + (seed - 0.5) * 0.24, 0, 1);
+
   /*
    * A cor do nó vira o par frio/quente de um corpo negro, não uma paleta arbitrária.
    *
@@ -200,19 +259,63 @@ export function photosphereParams(node, hash01, kindColor) {
    * um traço da cor. `cool` puxa para laranja-vermelho, que é para onde a lei de Wien leva
    * qualquer coisa que esfria. Assim o TIPO do conhecimento continua legível (a matiz) sem que
    * a estrela vire um disco chapado da cor do tipo.
+   *
+   * A TEMPERATURA desloca a matiz ao longo do lugar de Planck: quente puxa para o azul (0,58) e
+   * frio para o laranja (0,07). O tipo continua governando o traço de cor; a temperatura governa
+   * de que lado do branco ele cai — que é o que separa um corpo do outro à primeira vista.
    */
-  const hot = new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, 0.34), 0.94);
-  const cool = new THREE.Color().setHSL(Math.min(hsl.h, 0.09) || 0.06, 0.72, 0.42);
+  const matizQuente = THREE.MathUtils.lerp(hsl.h, 0.58, temp * 0.55);
+  const hot = new THREE.Color().setHSL(
+    matizQuente,
+    Math.min(hsl.s, 0.34) * (0.6 + temp * 0.7),
+    THREE.MathUtils.lerp(0.88, 0.97, temp)
+  );
+  const cool = new THREE.Color().setHSL(
+    THREE.MathUtils.lerp(0.045, 0.11, temp),
+    0.72,
+    THREE.MathUtils.lerp(0.34, 0.5, temp)
+  );
 
   /*
-   * Mais massa, mais manchas. Não é lei física — é leitura: arquivo grande e muito estruturado
-   * ganha mais "acidente" na superfície, e o corpus tem chunks de 1 a 226. É palpite calibrado
-   * por legibilidade, e este comentário existe para que ninguém o cite como física.
+   * Grânulo: quantos cabem na volta. Estrela FRIA tem grânulo GRANDE.
+   *
+   * A célula de convecção escala com a altura de escala de pressão, que cresce quando a
+   * temperatura efetiva cai e a gravidade superficial diminui — por isso uma supergigante
+   * vermelha tem poucas células enormes e uma anã quente tem um grão fino. 26 é a referência
+   * solar e fica no meio da faixa.
    */
-  const chunks = Number.isFinite(node.chunks) ? node.chunks : 1;
-  const spots = THREE.MathUtils.clamp(Math.log2(1 + chunks) / 8, 0, 1) * (0.35 + seed * 0.85);
+  const cells = THREE.MathUtils.lerp(CELLS * 0.42, CELLS * 1.85, temp);
 
-  return Object.freeze({ seed: seed * 10, hot, cool, spots });
+  /*
+   * Escurecimento de limbo: forte no frio, fraco no quente.
+   *
+   * Faixa medida em estrelas reais no visível: `u` vai de ~0,3 nas quentes a ~0,9 nas frias. É a
+   * variação mais visível das três — ela muda o quanto o corpo lê como esfera contra disco.
+   */
+  const limb = THREE.MathUtils.lerp(0.86, 0.34, temp);
+
+  /*
+   * Contraste da umbra: `(T_mancha/T_fotosfera)^4`, com a mancha ~1.800 K abaixo.
+   *
+   * Em estrela quente essa diferença é uma fração menor da temperatura, então a mancha é MENOS
+   * escura em termos relativos — o contraste de mancha é uma assinatura de estrela fria.
+   */
+  const tFot = THREE.MathUtils.lerp(3800, 9000, temp);
+  const umbra = THREE.MathUtils.clamp(((tFot - 1800) / tFot) ** 4, 0.05, 0.72);
+
+  /*
+   * MANCHAS por ATIVIDADE, não por tamanho — e `churn` é a atividade que este corpus mede.
+   *
+   * Antes saía da massa ("mais massa, mais manchas"), que o próprio comentário admitia ser
+   * palpite de legibilidade e não física. Estrela manchada é estrela ATIVA, e o análogo aqui é o
+   * arquivo reescrito muitas vezes: `churn` vai de 0 a 27 no corpus, mediana 1. Agora a mancha
+   * informa alguma coisa em vez de repetir o tamanho, que o raio do sprite já diz.
+   */
+  const churn = Number.isFinite(node.churn) ? node.churn : 0;
+  const atividade = THREE.MathUtils.clamp(Math.log2(1 + churn) / Math.log2(1 + CHURN_FULL), 0, 1);
+  const spots = atividade * (0.45 + seed * 0.6);
+
+  return Object.freeze({ seed: seed * 10, hot, cool, spots, cells, limb, umbra, temp });
 }
 
 export function createPhotosphere() {
@@ -232,6 +335,9 @@ export function createPhotosphere() {
         uTime: { value: 0 },
         uSpots: { value: 0 },
         uSeed: { value: 0 },
+        uLimb: { value: 0.6 },
+        uCells: { value: 26.0 },
+        uUmbra: { value: 0.19 },
         uDetail: { value: 0 },
       },
       vertexShader: VERTEX,
@@ -272,6 +378,10 @@ export function createPhotosphere() {
       u.uCool.value.copy(params.cool);
       u.uSpots.value = params.spots;
       u.uSeed.value = params.seed;
+      // As três que a temperatura move — sem elas o corpo volta a ser o Sol de todo mundo.
+      u.uLimb.value = params.limb ?? 0.6;
+      u.uCells.value = params.cells ?? 26;
+      u.uUmbra.value = params.umbra ?? 0.19;
       /*
        * `boil` declara `reduced: 'freeze'` no catálogo, e agora obedece.
        *
