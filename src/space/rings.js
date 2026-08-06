@@ -304,6 +304,15 @@ const VERTEX = /* glsl */ `
   const float DEPTH = 2.6;
   const float SHADE = 1.6;
   const float GRAIN = 0.55;
+  /*
+   * CISALHAMENTO CONGELADO, em VOLTAS entre o limbo e o alcance.
+   *
+   * Este numero e FORMA, nao taxa: ele nao multiplica o relogio, entao a frequencia radial que
+   * ele cria e a mesma no primeiro quadro e uma hora depois. 0,9 volta e a torcao que a versao
+   * antiga tinha por volta de t=60s — o ultimo instante em que a bancada ainda mostrava
+   * pedregulho redondo. Acima de ~2 voltas eles comecam a esticar e virar fio.
+   */
+  const float SHEAR_TURNS = 0.9;
 
   ${GLSL_PSNOISE}
   ${GLSL_OPTICAL_DEPTH}
@@ -338,13 +347,28 @@ const VERTEX = /* glsl */ `
   }
 
   /*
-   * CISALHAMENTO KEPLERIANO — omega proporcional a r^-1.5.
+   * CISALHAMENTO KEPLERIANO — omega proporcional a r^-1.5, e ele mora na FORMA.
    *
-   * O anel nao gira como um disco rigido: a borda interna completa uma volta em ~6h e a externa
-   * em ~14h. E o que impede a leitura de "textura colada num prato girando", e sai por um pow.
+   * Um anel real nao gira como disco rigido: a borda interna completa uma volta em ~6h e a
+   * externa em ~14h. Quem desenha isso aqui e uma espiral FIXA — a torcao ja esta na textura, e o
+   * padrao inteiro roda como bloco por cima dela. O olho le rotacao diferencial do mesmo jeito,
+   * porque o que ele reconhece e a forma torcida, nao a velocidade de cada raio. E e o que impede
+   * a leitura de "textura colada num prato girando".
    *
    * O r e a coordenada do PERFIL (0 no limbo, 1 no alcance); a razao de raios reais e
    * (1 + r*(span-1)), e o expoente -1.5 e a terceira lei de Kepler.
+   *
+   * ⚠️ NUNCA MULTIPLIQUE ISTO PELO RELOGIO — foi exatamente assim que o defeito nasceu.
+   *
+   * A versao antiga escrevia uPhase * shear(r), com uPhase = elapsed * SPIN: a rotacao
+   * diferencial saindo do tempo. Isso ENROLA SEM FIM — a diferenca de fase entre raios vizinhos
+   * cresce linear com o relogio e o pedregulho vai sendo esticado ate virar fio. Medido na
+   * bancada, no espécime ANEL PLANETARIO: aos 60s ainda havia pedregulho redondo, aos 300s eles
+   * ja eram linhas concentricas finas e aos 600s nao sobrava textura nenhuma. Nao satura em lugar
+   * nenhum; so piora. Quinta ocorrencia desta lei nesta base, e a primeira fora das peles.
+   *
+   * A saida e a mesma da galaxia (patternSpin) e do disco do quasar: curvatura CONGELADA em
+   * SHEAR_TURNS, e o relogio entrando como uma taxa UNICA (uPhase) que roda o padrao inteiro.
    */
   float shear(float r){
     return pow(1.0 + r * (1.0 / uLimb - 1.0), -1.5);
@@ -373,6 +397,15 @@ const VERTEX = /* glsl */ `
     float ang = atan(p.y, p.x);
 
     /*
+     * A TORCAO, em voltas — a espiral congelada mais a fase rigida do relogio.
+     *
+     * Uma conta so, e de proposito: os dois niveis de detalhe liam shear(r) por conta propria e
+     * podiam discordar sobre onde a textura esta. E a mesma classe de defeito que as duas reguas
+     * de pixel deste arquivo ja custaram, e um pow a menos no ramo de transicao.
+     */
+    float twist = SHEAR_TURNS * shear(r) + uPhase;
+
+    /*
      * NIVEL DE PERTO — textura de rocha filtrada pelo hardware.
      *
      * uNear e uniforme, entao este ramo e COERENTE no draw call inteiro: a GPU nao paga
@@ -385,7 +418,7 @@ const VERTEX = /* glsl */ `
     float rough = 1.0;
     float sparkle = 0.0;
     if (uNear > 0.001) {
-      float a = ang / TAU + uPhase * shear(r);
+      float a = ang / TAU + twist;
       float v0 = fract(a);
       float v1 = fract(a + 0.5);
       float blend = smoothstep(0.0, 0.06, min(v0, 1.0 - v0));
@@ -408,7 +441,7 @@ const VERTEX = /* glsl */ `
      */
     float grainFar = 1.0;
     if (uNear < 0.999) {
-      vec2 q = wakeCoords(ang + uPhase * shear(r) * TAU, r);
+      vec2 q = wakeCoords(ang + twist * TAU, r);
       float w = max(fwidth(q.x), fwidth(q.y));
       grainFar = max(1.0 + 0.5 * fbmWake(q, CELLS, w), 0.0);
     }
@@ -691,6 +724,9 @@ export function createRings() {
         ring.mesh.material.uniforms.uNear.value = near;
         // Fase da rotação. `ring.roll` entra como defasagem para que dois anéis vizinhos não
         // girem em sincronia — o mesmo motivo da dispersão do tombo.
+        // ⚠️ TAXA ÚNICA, e tem de continuar sendo. O cisalhamento kepleriano mora CONGELADO no
+        // shader (`SHEAR_TURNS`); multiplicar esta fase por qualquer função do raio — que é o que
+        // o shader fazia até 2026-08-06 — enrola o padrão sem limite. Ver a nota em `shear()`.
         ring.mesh.material.uniforms.uPhase.value = elapsed * SPIN + ring.roll;
         if (near > 0.001 && !rock) rock = rockTexture();
         if (rock) ring.mesh.material.uniforms.uRock.value = rock;
