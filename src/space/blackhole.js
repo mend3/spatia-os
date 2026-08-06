@@ -47,7 +47,28 @@ export const HORIZON_RADIUS = 3.0;
  * do horizonte.
  */
 const DISK_INNER = HORIZON_RADIUS * 1.41;
-const DISK_OUTER = HORIZON_RADIUS * 13.0;
+/*
+ * ⚠️ ERA 13,0, e o disco lia como um borrão marrom largo em vez do aro concentrado da referência.
+ *
+ * A borda interna continua onde estava porque ela tem âncora física (a imagem aparente da ISCO, ver
+ * o comentário de `HORIZON_RADIUS`). A EXTERNA não tinha âncora nenhuma — e medida contra as
+ * referências que o usuário mandou, ela estava quase o dobro do que deveria:
+ *
+ * | | borda interna | borda externa |
+ * |---|---|---|
+ * | referência (`dgreenheck`) | 5,1 R_s | 18,1 R_s |
+ * | aqui, antes | 3,7 R_s | **33,8 R_s** |
+ * | aqui, agora | 3,7 R_s (ISCO) | 18,2 R_s |
+ *
+ * 7,0 põe a extensão em 18,2 R_s, que é a da referência, sem mexer na borda interna. O brilho passa
+ * a se concentrar onde o fluxo de Shakura-Sunyaev realmente está em vez de esparramar por três
+ * oitavas de raio quase apagadas.
+ *
+ * Reduzir esta constante AFROUXA a restrição de layout que `tuning.js` documenta (o disco só engole
+ * o arquivo mais próximo se `coreScale` passar de `26 · graphSpread / DISK_OUTER`): com 7,0 o teto
+ * sobe, então nenhum ajuste de `coreScale` existente fica inválido.
+ */
+const DISK_OUTER = HORIZON_RADIUS * 7.0;
 // Taxa de convergência do regime, em 1/s — NÃO fração por quadro. A transição entre
 // regimes cognitivos tem que levar o mesmo tempo a 30 ou a 144fps, e um quadro longo não
 // pode virar um salto de intensidade no disco.
@@ -329,11 +350,31 @@ export function createBlackHole() {
    * trás do disco. Sem malha nenhuma o disco inteiro apareceria e a sombra viraria um filtro
    * escuro por cima dele.
    */
-  const horizon = new THREE.Mesh(
-    new THREE.SphereGeometry(HORIZON_RADIUS * 0.78, 64, 48),
-    new THREE.MeshBasicMaterial({ color: 0x000000 })
-  );
-  group.add(horizon);
+  /*
+   * ⚠️ A ESFERA DO HORIZONTE FOI DELETADA, e ela era a causa raiz de "o objeto passa atrás do
+   * buraco negro e some em vez de ser deformado".
+   *
+   * Ela era `MeshBasicMaterial` opaca dentro do grupo, então escrevia PROFUNDIDADE durante o
+   * `RenderPass`. Um corpo atrás dela era descartado pelo z-buffer ali mesmo — antes de existir
+   * pixel nenhum para o passe de lente reamostrar. Não havia o que deformar: a lente recebia um
+   * buraco preto onde deveria haver a imagem do corpo, e a única coisa que ela podia fazer com
+   * preto era deslocá-lo.
+   *
+   * É a inversão que o usuário nomeou: **a oclusão acontecia ANTES da deformação óptica.** Na
+   * física é o contrário — a luz do corpo chega ao observador, ela só faz um caminho torto. O
+   * corpo não é "desenhado atrás"; a trajetória é que muda.
+   *
+   * E ela não foi rebaixada a "só profundidade", que era a saída intuitiva: com o traçado de
+   * geodésicas ela não tem mais função nenhuma.
+   *
+   * | o que ela fazia | quem faz agora |
+   * |---|---|
+   * | a silhueta da sombra | o teste analítico de captura, `b < √27/2 · R_s` — e circular exato |
+   * | ocluir a metade de trás do disco | a acumulação front-to-back dentro da própria marcha |
+   * | ocluir corpos atrás | o alfa de captura do traçado, que sabe distinguir atrás de na frente |
+   *
+   * Mantê-la "para o depth" reintroduziria exatamente a oclusão que apaga a informação.
+   */
 
   const diskMaterial = new THREE.ShaderMaterial({
     uniforms,
@@ -508,7 +549,7 @@ export function createBlackHole() {
       uniforms.uTurbulence.value = live.turbulence;
       uniforms.uOuter.value = DISK_OUTER * tune.width;
 
-      horizon.scale.setScalar(breath);
+      // A respiração agora vive só no disco e na lente: a esfera que ela também escalava saiu.
       for (const fatia of slices) fatia.scale.setScalar(1 + pulse * live.breath * tune.breath * 0.45);
       /*
        * A rotação de corpo rígido SAIU.

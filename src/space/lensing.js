@@ -1,25 +1,89 @@
 /**
- * Lente gravitacional + acabamento de câmera, num único passe de tela.
+ * O buraco negro visto por um observador — e o acabamento de câmera, no mesmo passe.
  *
- * Lente de verdade integra geodésicas por pixel. Aqui a deflexão é analítica: a imagem é
- * reamostrada com deslocamento radial ∝ 1/d² em torno da posição do horizonte na tela. O
- * resultado tem a propriedade que importa — as estrelas atrás do núcleo *escorregam* em
- * volta dele quando a câmera se move, e o anel de Einstein aparece onde deve.
+ * ⚠️ **A frase que este cabeçalho trazia era "a deflexão é analítica: a imagem é reamostrada com
+ * deslocamento radial ∝ 1/d²". Isso descrevia o módulo antigo e não descreve mais este.** Vale
+ * registrar porque a versão anterior guardou uma afirmação falsa por três iterações, e o custo foi
+ * caçar no shader do disco um defeito que morava na arquitetura.
  *
- * Os demais efeitos do briefing entram aqui porque são todos reamostragem da mesma textura,
- * e fazer um passe por efeito custaria uma cópia de framebuffer cada: aberração cromática
- * (três amostras deslocadas), distorção de barril, vinheta, grão e scanline.
+ * ## O princípio, e ele governa o arquivo inteiro
  *
- * Escolha explícita: **não** há depth of field. DoF honesto exige o depth buffer e um passe
- * separado; o desfoque radial de borda daqui dá a mesma sensação de lente por muito menos.
+ * > Um buraco negro não é um objeto que faz efeitos. Ele altera a geometria do espaço-tempo, e
+ * > todo o resto é consequência dessa única propriedade.
+ *
+ * Não há aqui um efeito de sombra, um de lente, um de anel e um de disco. Há **uma** função —
+ * `tracarGeodesica`, em `blackhole-geodesic.js` — e cada feição é uma leitura dela:
+ *
+ * | o que se vê | a pergunta que o raio respondeu |
+ * |---|---|
+ * | a sombra | fui capturado? (`b < √27/2·R_s`, exato e circular) |
+ * | a lente | com que direção eu cheguei? |
+ * | o anel de fótons | quantas voltas eu dei antes de escapar? |
+ * | o disco | onde cruzei o plano equatorial? |
+ * | o beaming | o gás naquele ponto vinha na minha direção? |
+ * | o arco por cima da sombra | cruzei o plano ATRÁS da massa |
+ *
+ * Nenhuma dessas linhas é desenhada. Todas acontecem.
+ *
+ * ## O que a lente precisa saber, e o que faltava
+ *
+ * Reamostrar a imagem pela direção de chegada exige distinguir de que LADO da massa está a
+ * superfície que pintou cada pixel — a cor sozinha não diz. Por isso o passe recebe também a
+ * PROFUNDIDADE da cena (`setDepth`): luz de quem está na frente segue reta e não pode ser tocada;
+ * luz de quem está atrás curva, e é ela que contorna a sombra em vez de sumir nela.
+ *
+ * Os efeitos de câmera continuam aqui pelo motivo de sempre — são todos reamostragem da mesma
+ * textura, e um passe por efeito custaria uma cópia de framebuffer cada: aberração cromática,
+ * distorção de barril, vinheta, grão e scanline.
+ *
+ * Escolha explícita: **não** há depth of field. Agora que existe depth ele seria possível, mas
+ * continua sendo um passe separado e um orçamento que o raymarch já consome.
  */
 import * as THREE from 'three';
 import { ShaderPass } from '../../vendor/jsm/postprocessing/ShaderPass.js';
-import { GLSL_GEODESIC } from './blackhole-geodesic.js';
+import { GLSL_GEODESIC, GEODESIC_STEPS } from './blackhole-geodesic.js';
+
+/**
+ * A escada de detalhe do buraco negro, em pixels de raio da SOMBRA.
+ *
+ * ⚠️ Os números são os mesmos de `rings.js` (26/90) e `planet.js` (90/200), e o reúso é deliberado:
+ * `galaxy.js` avisa que uma quarta escada de pixel descorrelacionada nesta cena é uma armadilha de
+ * manutenção, e a pergunta aqui é a mesma que lá — *há estrutura dentro deste disco que valha
+ * resolver?*
+ *
+ * MEDIDO nesta cena, com `fov` 80 e framebuffer de 1416 de altura: a sombra vai de **20 px** no
+ * fundo do zoom (dist 260) a **432 px** no topo (dist 12). A escada cobre a faixa inteira, com o
+ * degrau baixo caindo justamente na vista do céu, que é onde o buraco negro é um detalhe entre 579
+ * corpos.
+ */
+const LOD_FAR_PX = 26;
+const LOD_NEAR_PX = 200;
+/**
+ * Orçamento de passos no degrau mais baixo.
+ *
+ * ⚠️ Não é zero, e não pode ser: a LENTE tem de sobreviver a qualquer distância. 18 passos ainda
+ * atravessam a esfera de influência e produzem sombra e deflexão — o que se perde é a resolução do
+ * anel de fótons, que a 20 px não teria onde aparecer de qualquer forma.
+ */
+const MIN_STEPS = 18;
 
 const FRAGMENT = /* glsl */ `
   precision highp float;
   uniform sampler2D tDiffuse;
+  /*
+   * A PROFUNDIDADE DA CENA, e sem ela a lente nao e uma lente.
+   *
+   * Um fóton que chega de um corpo NA FRENTE da massa nunca passou perto dela: a geodesica dele e
+   * reta e a imagem nao pode ser tocada. Um que chega de um corpo ATRAS passou, e a dele curva.
+   * A cor sozinha nao distingue os dois casos — as duas superficies pintam o mesmo pixel.
+   *
+   * uNear/uFar linearizam o buffer nao-linear; uBhDist e a distancia da camera ao centro da
+   * massa, que e a fronteira que separa "antes" de "depois".
+   */
+  uniform sampler2D tDepth;
+  uniform float uNear, uFar;
+  uniform float uBhDist;
+  uniform float uHasDepth;
   uniform float uStrength;   // força da lente, como MULTIPLICADOR do traçado
   uniform float uAspect;
   uniform float uTime;
@@ -67,9 +131,45 @@ const FRAGMENT = /* glsl */ `
      * entre "sem lente" e "lente inteira" em vez de escalar uma deflexao inventada — o painel de
      * afinacao de quem ja usou continua com significado.
      */
+    /*
+     * DE QUE LADO DA MASSA ESTA A SUPERFICIE QUE PINTOU ESTE PIXEL.
+     *
+     * O buffer de profundidade e nao-linear; linearizar devolve a distancia real ao longo do
+     * eixo da camera. Onde nada foi desenhado o valor satura em 1 e a distancia vai para uFar,
+     * que e o comportamento certo: o ceu vazio esta atras de tudo.
+     *
+     * A fronteira nao e uma linha dura. Ela e uma RAMPA de meia esfera de influencia, porque a
+     * curvatura tambem nao tem fronteira — ela cai continuamente, e um corte abrupto aqui poria
+     * uma costura visivel no ar onde a fisica nao tem nenhuma.
+     */
+    float bruto = texture2D(tDepth, uv).x;
+    float ndcZ = bruto * 2.0 - 1.0;
+    float profundidade = (2.0 * uNear * uFar) / (uFar + uNear - ndcZ * (uFar - uNear));
+    /*
+     * ⚠️ uHasDepth e um INTERRUPTOR, e ele existe porque a textura ainda nao esta ligada na cena.
+     *
+     * Com ele em 0 o fator vale 1 e o passe se comporta como se tudo estivesse atras da massa —
+     * que e o comportamento de antes, e o que mantem a cena funcionando enquanto o fio de
+     * profundidade nao fecha. Sem o interruptor, um sampler nao ligado devolve preto, a
+     * profundidade linearizada colapsa perto de uNear e a lente sumiria INTEIRA em silencio.
+     *
+     * E a licao que este arquivo ja pagou de outra forma: um guard novo com o consumo velho e um
+     * guard que nao existe.
+     */
+    float atrasDaMassa = mix(1.0, smoothstep(
+      uBhDist - uDiskOuter * 1.25,
+      uBhDist + uDiskOuter * 0.25,
+      profundidade
+    ), uHasDepth);
+
     vec3 dirFinal = dir;
     vec4 tracado = tracarGeodesica(uCamPos, dir, dirFinal);
-    dirFinal = normalize(mix(dir, dirFinal, clamp(uStrength, 0.0, 1.0)));
+    /*
+     * uStrength e um BOTAO, nao fisica — ele sobrevive por compatibilidade com quem ja afinou o
+     * painel. atrasDaMassa e que e fisica: a luz de quem esta na frente segue reta, e por isso a
+     * deflexao dela e zerada em vez de atenuada.
+     */
+    dirFinal = normalize(mix(dir, dirFinal, clamp(uStrength, 0.0, 1.0) * atrasDaMassa));
 
     /*
      * ONDE O FUNDO E LIDO. A direcao de saida e reprojetada para a tela, entao as estrelas, as
@@ -106,8 +206,27 @@ const FRAGMENT = /* glsl */ `
      * pixel. A borda mais dificil de localizar da imagem — que e o que um horizonte de eventos tem
      * — sai da fisica em vez de ser aproximada por uma curva.
      */
-    color = mix(color, tracado.rgb, tracado.a);
-    color += tracado.rgb * (1.0 - tracado.a);
+    /*
+     * O HORIZONTE BLOQUEIA, O DISCO SOMA — e a primeira versao misturava os dois num mix so.
+     *
+     * tracado.a e 1 apenas quando o raio caiu no buraco, entao o fundo e apagado exatamente na
+     * sombra e em lugar nenhum mais. O disco entra ADITIVO, como todo emissor desta cena, e por
+     * isso as estrelas, as galaxias e os 579 corpos continuam visiveis atraves dele — inclusive
+     * DEFORMADOS, que era o que sumia quando o disco substituia o fundo.
+     */
+    /*
+     * A SOMBRA SO APAGA O QUE ESTA ATRAS DA MASSA.
+     *
+     * Ela nao e uma mascara pintada no centro da tela: e o conjunto dos raios capturados, e um
+     * raio so pode capturar luz que viria DE TRAS. Uma superficie na frente continua visivel
+     * exatamente onde estava — e por isso que atrasDaMassa multiplica aqui tambem, e nao so na
+     * deflexao. Sem isso um corpo passando na frente seria recortado por um buraco preto, que e a
+     * mesma inversao de outra forma.
+     *
+     * O DISCO SOMA, porque ele emite. Todo emissor desta cena e aditivo pelo mesmo motivo.
+     */
+    color *= 1.0 - tracado.a * atrasDaMassa;
+    color += tracado.rgb;
 
     float vignette = mix(1.0, smoothstep(1.25, 0.35, length(vUv - 0.5) * 1.6), uVignette);
     color *= vignette;
@@ -149,6 +268,16 @@ export function createLensingPass() {
       uHot: { value: new THREE.Color(0xffdba8) },
       uMid: { value: new THREE.Color(0xff8f3c) },
       uCool: { value: new THREE.Color(0x521705) },
+      // A escada de detalhe. Ver `syncLod` e o cabeçalho de `blackhole-geodesic.js`.
+      uSteps: { value: GEODESIC_STEPS },
+      uStepScale: { value: 0.12 },
+      uDiskDetail: { value: 1 },
+      // A profundidade da cena. Ligada uma vez por `setDepth`, ver a nota no shader.
+      tDepth: { value: null },
+      uNear: { value: 0.1 },
+      uFar: { value: 900 },
+      uBhDist: { value: 1 },
+      uHasDepth: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -195,6 +324,7 @@ export function createLensingPass() {
        * 2,05× menor que o objeto na tela, desenhando o anel de fótons dentro do preto.
        */
       const bh = blackHole.geometry();
+      const distancia = Math.max(camera.position.distanceTo(bh.center), 1e-4);
       uniforms.uBhPos.value.copy(bh.center);
       uniforms.uRs.value = bh.rs;
       uniforms.uDiskInner.value = bh.inner;
@@ -207,8 +337,57 @@ export function createLensingPass() {
       uniforms.uMid.value.copy(bh.mid);
       uniforms.uCool.value.copy(bh.cool);
 
+      /*
+       * A ESCADA. O raio aparente da sombra é a mesma projeção geométrica que o resto da cena usa
+       * (`galaxy.diskPx`, `planet`), nunca `gl_PointSize` — o valor do sprite satura no teto do
+       * driver e oscila, e `graph.js` registra que foi assim que a superfície do planeta piscou.
+       *
+       * `size` vem de `renderer.getSize`, que é CSS; a escada foi medida em pixels de FRAMEBUFFER,
+       * então o `devicePixelRatio` entra aqui. Foi essa exata troca de régua que escondeu um DPR
+       * inteiro da bancada do anel.
+       */
+      const alturaFb = size.height * (window.devicePixelRatio || 1);
+      const meiaAltura = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * distancia;
+      const px = (this.shadowRadiusOf(bh) * (alturaFb / 2)) / Math.max(meiaAltura, 1e-4);
+      const detalhe = THREE.MathUtils.smoothstep(px, LOD_FAR_PX, LOD_NEAR_PX);
+
+      const passos = THREE.MathUtils.lerp(MIN_STEPS, GEODESIC_STEPS, detalhe);
+      uniforms.uSteps.value = passos;
+      /*
+       * O PASSO CRESCE QUANDO O ORÇAMENTO ENCOLHE, e é isso que impede a escada de virar regressão.
+       *
+       * Com passo fixo, cortar passos deixaria o raio parado no meio do caminho: a sombra e a
+       * deflexão sumiriam ao afastar, que é exatamente o comportamento que o pedido proíbe. Como o
+       * passo é proporcional a `r`, o raio percorre `ln(R/R_s)` em unidades de `escala` — então
+       * fixar `escala = ln(R/R_s) / (passos · fração)` faz QUALQUER orçamento atravessar a esfera
+       * inteira. O 0,62 é a fatia do orçamento gasta chegando até o horizonte; o resto sobra para
+       * os cruzamentos do disco e para as voltas perto do anel de fótons.
+       */
+      const alcance = Math.log(Math.max((bh.outer * 1.25) / Math.max(bh.rs, 1e-4), Math.E));
+      uniforms.uStepScale.value = alcance / Math.max(passos * 0.62, 1);
+      uniforms.uDiskDetail.value = detalhe;
+
+      // A fronteira que separa "antes da massa" de "depois dela", para o teste de profundidade.
+      uniforms.uBhDist.value = distancia;
+
       uniforms.uAspect.value = size.width / size.height;
       uniforms.uGlitch.value = glitch;
+    },
+
+    /** O raio da sombra em mundo, a partir do que `blackHole.geometry()` já devolve. */
+    shadowRadiusOf: (bh) => (bh.rs * Math.sqrt(27)) / 2,
+
+    /**
+     * Liga a profundidade da cena. Chamada UMA vez, na montagem do composer.
+     *
+     * A textura é a mesma instância pela vida toda do alvo de render, então não há o que atualizar
+     * por quadro — o que muda por quadro é `uBhDist`, e ele é escrito no `sync`.
+     */
+    setDepth(depthTexture, near, far) {
+      pass.uniforms.tDepth.value = depthTexture;
+      pass.uniforms.uHasDepth.value = depthTexture ? 1 : 0;
+      pass.uniforms.uNear.value = near;
+      pass.uniforms.uFar.value = far;
     },
 
     /** Afinação da lente. `setCinematic` continua por cima, como offset temporário. */

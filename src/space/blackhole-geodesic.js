@@ -82,6 +82,27 @@ export const GLSL_GEODESIC = /* glsl */ `
   uniform float uDiskTime;
   uniform vec3 uHot, uMid, uCool;
   uniform float uErrorMix;
+  /*
+   * A ESCADA DE DETALHE, e ela e a mesma regra dos outros corpos procedurais desta cena: quanto
+   * menor o objeto na tela, menos dele se resolve. planet.js, photosphere.js, pulsar.js e a
+   * galaxia todos fazem isso, e o buraco negro era o unico que pagava o preco cheio a qualquer
+   * distancia.
+   *
+   * ⚠️ **A LENTE NAO ENTRA NA ESCADA.** Ela dobra a luz e por isso e percebida de qualquer lugar —
+   * e o comportamento que ja existia e nao pode regredir. O que a escada corta e o ORCAMENTO DE
+   * PASSOS e o DETALHE DO DISCO, nunca o tracado em si: mesmo no degrau mais baixo o raio continua
+   * sendo integrado do inicio ao fim, so que com passos mais longos. Uma sombra ou uma deflexao que
+   * sumissem ao afastar seriam a regressao que este comentario existe para impedir.
+   *
+   *   uSteps      quantos passos o laco pode gastar (o teto do for continua constante, como o GLSL exige)
+   *   uStepScale  o passo como fracao do raio — cresce quando ha menos passos, para o raio AINDA
+   *               atravessar a esfera de influencia inteira. Sem isso, cortar passos deixaria o raio
+   *               parado no meio do caminho e a sombra sumiria de longe.
+   *   uDiskDetail 0 = disco sem turbulencia (o fbm e podado); 1 = campo completo
+   */
+  uniform float uSteps;
+  uniform float uStepScale;
+  uniform float uDiskDetail;
 
   /*
    * O RAIO DE INFLUENCIA. Fora dele a deflexao e desprezivel e o disco ja acabou, entao o raio
@@ -142,9 +163,24 @@ export const GLSL_GEODESIC = /* glsl */ `
     float localA = (fase - 0.5) * 2.8;
     float localB = (fract(uDiskTime / 2.8 + 0.5) - 0.5) * 2.8;
     float radial = span * 9.0 - uDiskTime * uDiskSpin * 0.35;
-    float estriaA = fbm(vec2((giro + taxa * localA) * 2.4, radial) * vec2(1.0, 2.6)) * 0.5 + 0.5;
-    float estriaB = fbm(vec2((giro + taxa * localB) * 2.4, radial) * vec2(1.0, 2.6)) * 0.5 + 0.5;
-    float estria = mix(estriaA, estriaB, peso);
+    /*
+     * ⚠️ O DEGRAU BAIXO PODA AS DUAS CHAMADAS DE fbm, e essa e a economia que importa.
+     *
+     * O filamento e a unica coisa cara aqui: duas amostras de tres oitavas, pagas por CRUZAMENTO de
+     * disco — e um raio perto do anel de fotons cruza o plano quatro ou cinco vezes. Com
+     * uDiskDetail em 0 o compilador poda os dois ramos e o disco fica liso, que e exatamente o que
+     * ele parece quando tem 20 px de raio na tela: nao ha filamento resolvivel ali para desenhar.
+     *
+     * A constante 0,72 e a MEDIA do campo, entao o brilho medio do disco nao muda ao trocar de
+     * degrau — o disco nao pisca quando a camera cruza o limiar, que era o risco real da mudanca.
+     * E o mesmo truque do uCheap das fatias do disco antigo.
+     */
+    float estria = 0.72;
+    if (uDiskDetail > 0.01) {
+      float estriaA = fbm(vec2((giro + taxa * localA) * 2.4, radial) * vec2(1.0, 2.6)) * 0.5 + 0.5;
+      float estriaB = fbm(vec2((giro + taxa * localB) * 2.4, radial) * vec2(1.0, 2.6)) * 0.5 + 0.5;
+      estria = mix(0.72, mix(estriaA, estriaB, peso), uDiskDetail);
+    }
     estria = pow(estria, mix(1.4, 3.2, uDiskTurbulence * 0.35));
 
     // Rampa de temperatura de Shakura-Sunyaev: T proporcional a r^(-3/4). O que muda com o raio e
@@ -209,14 +245,82 @@ export const GLSL_GEODESIC = /* glsl */ `
     float b = dot(p, direcao);
     float c = dot(p, p) - R * R;
     float delta = b * b - c;
-    if (delta <= 0.0) return vec4(0.0);
-    float entrada = -b - sqrt(delta);
-    if (entrada < 0.0 && c > 0.0) return vec4(0.0);
+    float entrada = -b - sqrt(max(delta, 0.0));
+
+    /*
+     * ⚠️ QUEM NAO ENTRA NA ESFERA AINDA E DEFLETIDO — e a primeira versao devolvia zero aqui.
+     *
+     * Isso punha um CORTE DURO na lente: fora da esfera de influencia a imagem ficava intocada, e a
+     * distorcao suave que cobria a tela inteira desaparecia. O usuario notou na hora, e estava
+     * certo: a versao anterior (deflexao analitica em espaco de tela) distorcia de qualquer lugar,
+     * porque e isso que uma lente gravitacional faz — ela nao tem borda.
+     *
+     * A correcao nao e alargar a esfera (custaria marcha em toda a tela). E usar a deflexao de
+     * CAMPO FRACO, que e exata justamente onde a marcha nao vale a pena: alfa = 2 R_s / b, com b
+     * o parametro de impacto. Uma raiz quadrada e uma divisao, sem laco nenhum, e ela CASA com a
+     * marcha na fronteira — la b e grande e alfa e minusculo, entao nao ha degrau entre os dois
+     * regimes.
+     */
+    if (delta <= 0.0 || (entrada < 0.0 && c > 0.0)) {
+      float ateOMaisPerto = -dot(p, direcao);
+      if (ateOMaisPerto > 0.0) {
+        vec3 perp = p + direcao * ateOMaisPerto;
+        float impacto = length(perp);
+        if (impacto > 1e-4) {
+          /*
+           * ⚠️ AQUI HAVIA UM ENVELOPE, e ele foi REMOVIDO pela REGRA DA FISICA.
+           *
+           * Eu multiplicava alfa por um smoothstep que zerava a deflexao alem de 3 R, para matar o
+           * que o usuario descreveu como "uma segunda lente maior". Media que motivou: com a sombra
+           * em 121 px, a deflexao ainda valia 20 px em b = 100 e 5 px em b = 400 — o ceu inteiro
+           * entortava.
+           *
+           * O numero estava certo e a conclusao estava errada. alfa = 2 R_s / b e a deflexao de
+           * Einstein: uma massa com este R_s (2,37, contra um grafo que orbita entre 91 e 217)
+           * DISTORCE mesmo o ceu inteiro. O incomodo e de composicao, e composicao nao mexe na
+           * simulacao — a camera escolhe de onde observar, o pos-processamento escolhe como
+           * apresentar, e a fisica fica.
+           *
+           * Se a distorcao de fundo voltar a incomodar, o conserto e na LINGUAGEM VISUAL (dar pesos
+           * diferentes a massa e a imagem deformada, para o olho parar de ler a deformacao como um
+           * segundo objeto) ou na camera. Nao aqui.
+           */
+          // O raio dobra PARA DENTRO, na direcao do centro — dai o sinal negativo.
+          dirFinal = normalize(direcao - (perp / impacto) * (2.0 * uRs / impacto));
+        }
+      }
+      return vec4(0.0);
+    }
     p += direcao * max(entrada, 0.0);
 
     vec3 v = direcao;
     vec3 momento = cross(p, v);
     float h2 = dot(momento, momento);
+
+    /*
+     * ⚠️ A CAPTURA E ANALITICA, e nao um teste passo a passo — e essa foi a correcao que tirou a
+     * sombra FACETADA do degrau baixo do LOD.
+     *
+     * Testando r < R_s a cada passo, a sombra depende de quao fino e o passo: com o orcamento
+     * reduzido (18 passos, passo de 0,28 r) o raio PULA POR CIMA do horizonte e sai do outro lado
+     * sem nunca registrar captura. O resultado na tela era uma cunha de bordas retas em vez de um
+     * disco, e ela mudava de forma conforme a camera se afastava — exatamente a regressao que o
+     * pedido proibe.
+     *
+     * Mas nao e preciso marchar para saber: para uma geodesica NULA a captura depende so do
+     * parametro de impacto, e ele e conservado. b = |p x v| com |v| = 1 no infinito, e a luz cai
+     * se e somente se b < sqrt(27)/2 · R_s — que e, por definicao, o raio da SOMBRA. Uma linha, e
+     * o resultado e:
+     *
+     *   - uma silhueta CIRCULAR exata, como um buraco negro de Schwarzschild tem sempre;
+     *   - independente do orcamento de passos, entao a sombra e a mesma nos cinco degraus;
+     *   - de graga: h2 ja era calculado para a integracao.
+     *
+     * A marcha continua acontecendo, e continua sendo necessaria — ela e quem desenha o DISCO, e um
+     * raio capturado pode muito bem atravessar o disco na frente do buraco antes de cair.
+     */
+    float bCrit = 2.598076 * uRs;
+    bool capturado = h2 < bCrit * bCrit;
 
     vec3 cor = vec3(0.0);
     float alfa = 0.0;
@@ -226,10 +330,14 @@ export const GLSL_GEODESIC = /* glsl */ `
       float r = sqrt(r2);
       // Caiu no horizonte: nada sai dali. O alfa vai a 1 e o fundo e apagado — e essa a SOMBRA, e
       // a borda dela e macia sozinha, porque raios vizinhos escapam por muito pouco.
-      if (r < uRs) return vec4(cor, 1.0);
+      if (r < uRs) break;
       // Escapou da esfera de influencia: para de integrar e entrega a direcao de saida.
       if (r > R && i > 0) break;
       if (alfa > 0.99) break;
+      // O ORCAMENTO DA ESCADA. O teto do for continua constante (o GLSL exige), e quem manda no
+      // custo real e este corte — com o passo crescendo junto (uStepScale), menos passos ainda
+      // atravessam a esfera de influencia inteira, so que mais grosso.
+      if (float(i) >= uSteps) break;
 
       /*
        * ⚠️ O PASSO E ADAPTATIVO, e a primeira versao usou passo FIXO — o defeito mais caro deste
@@ -248,7 +356,7 @@ export const GLSL_GEODESIC = /* glsl */ `
        * onde a trajetoria curva, longos onde ela e reta. O piso em rs * 0,06 protege o horizonte
        * e o teto impede que um raio distante pule o disco inteiro entre duas amostras.
        */
-      float passo = clamp(r * 0.12, uRs * 0.06, R * 0.08);
+      float passo = min(r * uStepScale, R * 0.08);
 
       vec3 anterior = p;
       // Leapfrog: acelera, depois anda. A ordem importa — andar antes de acelerar defasa a
@@ -277,6 +385,24 @@ export const GLSL_GEODESIC = /* glsl */ `
     }
 
     dirFinal = normalize(v);
-    return vec4(cor, clamp(alfa, 0.0, 1.0));
+    /*
+     * ⚠️ O ALFA QUE SAI DAQUI E SO A CAPTURA — nao o do disco. Devolver o alfa do disco foi o
+     * defeito que deixou "a lente opaca", e a queixa do usuario foi literal.
+     *
+     * O disco de acrecao e opticamente espesso na natureza, mas nesta cena ele nao pode APAGAR o
+     * grafo: 579 corpos orbitam atras e atraves dele, e o disco antigo era AdditiveBlending por
+     * exatamente essa razao. Com o alfa do disco na saida, o mix no passe substituia o fundo, e
+     * como alfa satura perto de 1 em quase todo o anel, sumiam de uma vez as estrelas, os corpos
+     * E a propria distorcao — nao havia mais fundo para ser distorcido.
+     *
+     * A divisao certa e por FENOMENO, e nao por conveniencia:
+     *
+     *   - o HORIZONTE bloqueia. E o unico alfa verdadeiro daqui, e ele e 0 ou 1.
+     *   - o DISCO emite. Ele SOMA, como todo emissor desta cena (coma, feixe, nebulosa, fotosfera).
+     *
+     * O alfa interno continua existindo e continua servindo: ele atenua os cruzamentos seguintes,
+     * para que o disco oclua o proprio lado distante em vez de somar cinco copias de si mesmo.
+     */
+    return vec4(cor, capturado ? 1.0 : 0.0);
   }
 `;

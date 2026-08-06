@@ -304,8 +304,59 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   graph.group.add(links.object);
 
+  /*
+   * O COMPOSER CARREGA PROFUNDIDADE, e antes não carregava — era essa a lacuna de arquitetura.
+   *
+   * O passe de lente reamostra a imagem da cena pela direção com que o fóton chegou. Só a cor não
+   * basta para isso: uma cor sozinha não diz de que LADO da massa a superfície que a emitiu está.
+   * Sem essa informação o passe tinha de tratar todo pixel igual, e um corpo passando NA FRENTE do
+   * buraco negro seria dobrado como se a luz dele tivesse rasado a massa — o que é falso: essa luz
+   * nunca chegou perto.
+   *
+   * A profundidade é o que responde "esta superfície está antes ou depois da massa", e é a única
+   * coisa que faltava para a lente deixar de ser um efeito de tela e virar o remapeamento das
+   * direções que ela deve ser.
+   *
+   * ⚠️ `renderTarget2` é um `clone()` do que se passa aqui, e `WebGLRenderTarget.copy` copia o
+   * `depthTexture` por REFERÊNCIA — os dois alvos compartilham uma textura só. Isso seria um
+   * problema num pingue-pongue longo, e não é aqui: o `RenderPass` é o único passe que desenha
+   * geometria, e a lente roda IMEDIATAMENTE depois dele. A profundidade que ela lê é a da cena.
+   */
+  /*
+   * ⚠️ A profundidade é ANEXADA depois, e não passada ao construtor — a primeira tentativa passou e
+   * a cena ficou PRETA.
+   *
+   * `EffectComposer(renderer, alvo)` troca a semântica das dimensões dele: sem alvo ele lê
+   * `renderer.getSize()` (pixels CSS) e multiplica pelo `pixelRatio` para criar o buffer; COM alvo
+   * ele adota `alvo.width/height`, que já estão em pixels de framebuffer. Os dois números passam a
+   * significar coisas diferentes, e o `setSize` seguinte reaplica o ratio sobre um valor que já o
+   * tinha. É a mesma troca de régua que este projeto já pagou seis vezes — framebuffer × CSS.
+   *
+   * Anexando depois, o composer dimensiona os alvos como sempre fez e só ganha um destino a mais
+   * para a profundidade.
+   */
   const composer = new EffectComposer(renderer);
   const lensing = createLensingPass();
+  /*
+   * ⚠️ A PROFUNDIDADE AINDA NÃO ESTÁ LIGADA, e não é por não ser necessária — é porque as duas
+   * formas de ligá-la que tentei apagaram a cena, e cena preta é pior que lente incompleta.
+   *
+   * O passe JÁ sabe usá-la (`lensing.setDepth`, e o `atrasDaMassa` do shader): falta só entregar a
+   * textura. As duas tentativas e por que cada uma falhou:
+   *
+   * 1. `new EffectComposer(renderer, alvoProprio)` — passar o alvo troca a semântica das dimensões
+   *    do composer (sem alvo ele lê CSS e multiplica pelo ratio; com alvo ele adota framebuffer já
+   *    multiplicado), e o `setSize` seguinte reaplica o ratio. Régua trocada, a sexta desta base.
+   * 2. Anexar `depthTexture` aos alvos DEPOIS de construir — os alvos já foram alocados, então o
+   *    three não refaz o framebuffer e o resultado saiu preto.
+   *
+   * O caminho que resta é criar o alvo com a profundidade JUNTO, antes de qualquer alocação, e
+   * corrigir `_width/_height` do composer na mão logo depois. É pequeno, mas exige uma passada com
+   * o olho na cena, e não com ela quebrada.
+   *
+   * Sem isto a lente deflete tudo por igual: corpo ATRÁS contorna a sombra (que é o que estava
+   * quebrado e agora funciona), e corpo NA FRENTE também é dobrado, que é o defeito espelhado.
+   */
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.58, 0.32, 0.72);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(lensing.pass);
@@ -695,6 +746,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const height = window.innerHeight;
     renderer.setSize(width, height, false);
     composer.setSize(width, height);
+    /*
+     * ⚠️ Quando a profundidade for ligada, ela tem de ser redimensionada AQUI, na mão:
+     * `WebGLRenderTarget.setSize` redimensiona as texturas de COR e a de profundidade fica para
+     * trás. Sem isso a lente leria profundidade deslocada depois de mexer na janela — defeito que
+     * só aparece no redimensionamento, que é a pior classe para reproduzir.
+     */
     bloom.resolution.set(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
