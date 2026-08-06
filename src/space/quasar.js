@@ -525,7 +525,16 @@ const FRAGMENT = /* glsl */ `
       float beta = 0.42 / sqrt(max(span, 0.16));
       float mu = atraves / max(rd, 1e-4);
       float delta = 1.0 / max(1.0 - beta * senI * mu, 0.08);
-      float beaming = clamp(pow(delta, 3.0), 0.06, 7.0);
+      /*
+       * ⚠️ TETO EM 3, e nao 7. O 7 saturava o nucleo inteiro em branco.
+       *
+       * A potencia 3 e a lei certa, mas o disco ja entra com pow(fluxo, 0.4) chegando a ~6 na
+       * borda interna: multiplicar por mais 7 estourava a exposicao e a estrutura das bandas
+       * desaparecia num blob. O usuario olhou e disse que o objeto estava "sem o nucleo" — e
+       * estava: o nucleo existia e ninguem via, porque tudo em volta tambem era branco.
+       * O teto e de EXIBICAO, como o pow(., 0.4) ao lado, e fica declarado como tal.
+       */
+      float beaming = clamp(pow(delta, 3.0), 0.06, 3.0);
       disco *= beaming;
 
       /*
@@ -579,7 +588,15 @@ const FRAGMENT = /* glsl */ `
        * sai de um cosseno em toroR, sem custar amostra de ruido nenhuma; quem quebra a
        * regularidade e a amostra que o DISCO ja tirou, reaproveitada aqui de graca.
        */
-      float faixas = 0.78 + 0.22 * cos(toroR * 17.0 + semente * 6.2831);
+      /*
+       * ⚠️ 7 voltas e nao 17, e a fase quebrada pelo ruido do disco.
+       *
+       * A 17, perfeitamente concentricas, as faixas liam como MOIRE — anel de interferencia, nao
+       * pista de poeira. Sao dois defeitos juntos: densidade alta demais para o tamanho na tela, e
+       * regularidade perfeita, que o olho reconhece como artefato de amostragem. Somar bandas na
+       * FASE quebra a concentricidade sem custar amostra nova.
+       */
+      float faixas = 0.82 + 0.18 * cos(toroR * 7.0 + bandas * 1.6 + semente * 6.2831);
       float toro = perfilToro * faixas * (0.86 + 0.14 * bandas) * (0.35 + 0.65 * (1.0 - vGlow.z));
 
       /*
