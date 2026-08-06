@@ -46,7 +46,21 @@ import { createNebula, nebulaParams } from './nebula.js';
  * `start.z` acompanha `graphSpread`: a casca de nós foi de 46–110 para 68–160 unidades, e uma
  * câmera parada em 54 ficaria DENTRO dela — olhando o grafo de dentro para fora.
  */
-const CAMERA = { fov: 46, near: 0.1, far: 900, start: new THREE.Vector3(0, 12, 88) };
+/*
+ * ⚠️ `start` é o enquadramento de quem nunca mexeu na câmera, e ele acompanha o `graphSpread`.
+ *
+ * 88 unidades enquadravam a casca de 68–161. Com o espaçamento no máximo (3,5) ela vai a 91–217, e
+ * o vetor inteiro teve de mudar — DISTÂNCIA e ELEVAÇÃO, e a segunda importou mais que a primeira.
+ *
+ * Medido olhando três poses. De 260 o céu vira um aglomerado pequeno num quadro vazio, que é o
+ * oposto de vasto. De 96 quase no plano do disco (`y = 26`), o disco de acreção — que com
+ * `coreScale 2.05` tem raio 80 — enche o quadro sozinho e o céu fica atrás dele. 150 com `y = 96`
+ * põe a câmera a ~34° acima do plano: o núcleo ancora o centro sem dominar, e a casca de arquivos
+ * se abre em profundidade até 217, que é a leitura pedida.
+ *
+ * `fov` aqui é só o valor de partida do objeto: quem manda é o slider (`tuning`), aplicado no boot.
+ */
+const CAMERA = { fov: 46, near: 0.1, far: 900, start: new THREE.Vector3(0, 96, 115) };
 
 /**
  * Suavização exponencial independente de frame rate.

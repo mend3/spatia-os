@@ -17,14 +17,63 @@
 const STORAGE_KEY = 'espatial.tuning.v1';
 
 /**
- * Os defaults que valiam antes da revisão de ambientação (2026-08-05).
+ * Todo valor que já foi default de uma chave, por chave.
  *
- * Existem só para a migração abaixo saber distinguir "nunca mexi neste slider" de "escolhi
- * este valor". Quem afinou a cena à mão não pode ter o trabalho descartado por uma mudança de
- * default; quem herdou o número anterior sem nunca tocar nele deve receber o novo.
+ * Existe para a migração abaixo distinguir "nunca mexi neste slider" de "escolhi este valor". Quem
+ * afinou a cena à mão não pode perder o trabalho por uma mudança de default; quem herdou o número
+ * anterior sem nunca tocar nele deve receber o novo.
+ *
+ * ⚠️ É uma LISTA por chave, e era um valor só. A segunda revisão de ambientação (2026-08-05, tarde)
+ * mexeu em seis chaves que já tinham entrada aqui da primeira — e com um valor só, migrar a segunda
+ * vez apagaria a primeira: quem estava sentado no default intermediário passaria a ser tratado como
+ * alguém que escolheu aquilo, e nunca mais receberia default novo nenhum. Um histórico de defaults
+ * é o que o mecanismo sempre precisou; ele só não tinha sido pedido duas vezes ainda.
+ *
+ * ⚠️ Persistir é TUDO OU NADA: `persist()` grava o objeto inteiro, então quem mexeu em UM slider
+ * tem as 28 chaves no storage. Por isso não basta olhar "a chave está lá?" — tem de ser o valor.
  */
-const LEGACY_DEFAULTS = Object.freeze({'starSize': 1.45, 'starBrightness': 0.8, 'starDrift': 3.75, 'cameraDrift': 1, 'fov': 80, 'lensStrength': 0.28, 'bloomStrength': 0.58, 'bloomThreshold': 0.72, 'aberration': 1, 'grain': 0.03, 'vignette': 1});
+const SUPERSEDED = Object.freeze({
+  // Primeira revisão de ambientação (manhã de 2026-08-05).
+  starSize: [1.45, 1.0],
+  starBrightness: [0.8, 0.55],
+  starDrift: [3.75],
+  cameraDrift: [1, 0.4],
+  fov: [80, 46],
+  lensStrength: [0.28],
+  bloomStrength: [0.58, 0.45],
+  bloomThreshold: [0.72],
+  aberration: [1],
+  grain: [0.03],
+  vignette: [1],
+  // Segunda revisão: céu vasto (fov e espaçamento no máximo, o resto derivado deles).
+  graphSpread: [2.6],
+  starSpread: [0.76],
+  nodeSize: [1.1],
+  coreScale: [1.55],
+  graphSpeed: [0.2],
+});
 
+/*
+ * ## A ambientação padrão: um universo VASTO, e o que "vasto" custou em cada linha
+ *
+ * `fov` e `graphSpread` no MÁXIMO foi o pedido; o resto abaixo é consequência medida dos dois, não
+ * gosto solto. Cada um deles quebrava alguma coisa se ficasse onde estava:
+ *
+ * | chave | antes → agora | por que TINHA de mudar |
+ * |---|---|---|
+ * | `graphSpread` | 2,6 → **3,5** | o pedido. A casca de arquivos vai de 68–161 para 91–217 |
+ * | `fov` | 46 → **80** | o pedido. A meia-altura do quadro dobra (`tan` 0,42 → 0,84) |
+ * | `starSpread` | 0,76 → **1,6** | o campo estelar vive em 150–400 × isto: em 0,76 ele começava em 114 e o grafo, agora chegando a 217, ATRAVESSAVA o próprio fundo |
+ * | `starSize` | 1,0 → **2,0** | o fundo foi de 114–304 para 240–640: 2,1× mais longe, 2,1× menor em pixel |
+ * | `starBrightness` | 0,55 → **0,7** | idem — mais longe, mais apagado |
+ * | `nodeSize` | 1,1 → **1,45** | 1,35× mais distante. ⚠️ Só isso: `gl_PointSize` é `300/z` e NÃO depende do `fov`, então o campo de visão não encolhe o sprite — encolhe o mundo em volta dele |
+ * | `coreScale` | 1,55 → **2,05** | o teto é estrutural (`26 · graphSpread / 39`) e o espaçamento o empurrou de 1,19 para 2,33. O núcleo é o centro gravitacional da composição e agora cabe maior. 2,05 deixa 11 unidades entre a borda do disco e a primeira órbita — em 2,2 sobrariam 5, e a câmera dentro do disco é um defeito que esta cena já pagou cinco vezes |
+ * | `graphSpeed` | 0,2 → **0,25** | ⚠️ o espaçamento NÃO muda a taxa angular (ela sai de `node.radius`, que é local), então a órbita ficou com o mesmo ritmo num círculo maior. O empurrão é pelo "vivo" do pedido, e ele multiplica o relógio das luas também |
+ * | `cameraDrift` | 0,4 → **0,55** | céu vasto e parado lê como fundo de tela |
+ * | `bloomStrength` | 0,45 → **0,5** | mais vazio escuro por quadro; o brilho é o que o mantém povoado |
+ *
+ * `CAMERA.start` em `space/scene.js` acompanha: 88 unidades enquadravam a casca antiga.
+ */
 export const SPEC = [
   // grupo, chave, rótulo, min, max, passo, default
   ['NÚCLEO', 'diskSpin', 'ROTAÇÃO DO DISCO', 0, 4, 0.05, 1],
@@ -55,12 +104,12 @@ export const SPEC = [
    * Escala o GRUPO, não `diskWidth`: aquela muda a proporção interna e distorceria o objeto em
    * vez de aproximá-lo.
    */
-  ['NÚCLEO', 'coreScale', 'TAMANHO DO NÚCLEO', 0.5, 2.2, 0.05, 1.55],
+  ['NÚCLEO', 'coreScale', 'TAMANHO DO NÚCLEO', 0.5, 2.2, 0.05, 2.05],
   ['NÚCLEO', 'breath', 'RESPIRAÇÃO', 0, 3, 0.05, 1],
 
-  ['CÉU', 'starSpread', 'ESPAÇAMENTO DAS ESTRELAS', 0.4, 2.5, 0.02, 0.76],
-  ['CÉU', 'starSize', 'TAMANHO DAS ESTRELAS', 0.2, 3, 0.05, 1.0],
-  ['CÉU', 'starBrightness', 'BRILHO DAS ESTRELAS', 0, 2.5, 0.05, 0.55],
+  ['CÉU', 'starSpread', 'ESPAÇAMENTO DAS ESTRELAS', 0.4, 2.5, 0.02, 1.6],
+  ['CÉU', 'starSize', 'TAMANHO DAS ESTRELAS', 0.2, 3, 0.05, 2.0],
+  ['CÉU', 'starBrightness', 'BRILHO DAS ESTRELAS', 0, 2.5, 0.05, 0.7],
   ['CÉU', 'starDrift', 'DERIVA DO CÉU', 0, 6, 0.05, 0.8],
 
   /*
@@ -76,9 +125,9 @@ export const SPEC = [
    * mesmo tempo aproximar a câmera de um astro e crescer o núcleo — os dois estavam presos pela
    * mesma falta de espaço.
    */
-  ['GRAFO', 'graphSpread', 'ESPAÇAMENTO DOS NÓS', 0.3, 3.5, 0.02, 2.6],
-  ['GRAFO', 'graphSpeed', 'VELOCIDADE ORBITAL', 0, 4, 0.05, 0.2],
-  ['GRAFO', 'nodeSize', 'TAMANHO DOS NÓS', 0.2, 3, 0.05, 1.1],
+  ['GRAFO', 'graphSpread', 'ESPAÇAMENTO DOS NÓS', 0.3, 3.5, 0.02, 3.5],
+  ['GRAFO', 'graphSpeed', 'VELOCIDADE ORBITAL', 0, 4, 0.05, 0.25],
+  ['GRAFO', 'nodeSize', 'TAMANHO DOS NÓS', 0.2, 3, 0.05, 1.45],
   /*
    * ⚠️ A aresta não é mais desenhada em repouso, então este parâmetro passou a controlar o
    * VÍNCULO SOB DEMANDA (`space/links.js`): o arco que aparece ao passar o cursor num astro ou
@@ -109,12 +158,12 @@ export const SPEC = [
   ['LUAS', 'moonSpeed', 'VELOCIDADE DAS LUAS', 0, 4, 0.05, 1],
   ['LUAS', 'moonOrbitOpacity', 'TRAÇO DAS ÓRBITAS', 0, 1, 0.02, 0.22],
 
-  ['CÂMERA', 'cameraDrift', 'DERIVA DA CÂMERA', 0, 6, 0.05, 0.4],
+  ['CÂMERA', 'cameraDrift', 'DERIVA DA CÂMERA', 0, 6, 0.05, 0.55],
   ['CÂMERA', 'cameraEase', 'SUAVIDADE DA CÂMERA', 2, 20, 0.5, 9],
-  ['CÂMERA', 'fov', 'CAMPO DE VISÃO', 28, 80, 1, 46],
+  ['CÂMERA', 'fov', 'CAMPO DE VISÃO', 28, 80, 1, 80],
 
   ['LENTE', 'lensStrength', 'FORÇA DA LENTE', 0, 2.5, 0.02, 0.18],
-  ['LENTE', 'bloomStrength', 'BLOOM', 0, 2, 0.02, 0.45],
+  ['LENTE', 'bloomStrength', 'BLOOM', 0, 2, 0.02, 0.5],
   ['LENTE', 'bloomThreshold', 'LIMIAR DO BLOOM', 0, 1, 0.02, 0.8],
   ['LENTE', 'aberration', 'ABERRAÇÃO CROMÁTICA', 0, 4, 0.05, 0.4],
   ['LENTE', 'grain', 'GRÃO', 0, 0.12, 0.002, 0.012],
@@ -151,7 +200,7 @@ function load() {
      * decisão e fica de pé.
      */
     return Object.fromEntries(
-      known.filter(([key, value]) => !(key in LEGACY_DEFAULTS) || value !== LEGACY_DEFAULTS[key])
+      known.filter(([key, value]) => !(SUPERSEDED[key] ?? []).includes(value))
     );
   } catch {
     return {};
