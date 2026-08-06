@@ -142,7 +142,10 @@ const TAIL_VERTEX = /* glsl */ `
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     // A particula encolhe ao longo do rastro E com a distancia da camera, como qualquer ponto.
-    gl_PointSize = max(aSize * (1.0 - t * 0.82) * uPixel / max(-mv.z, 0.001), 1.0);
+    // ⚠️ Teto pelo mesmo motivo do vento do pulsar (pulsar-wind.js): tamanho/z nao tem limite
+    // superior, e de perto 260 particulas viram 260 quads de tela cheia. 90 px e maior que o do
+    // vento porque aqui sao 3x menos particulas e elas SAO a figura, nao o ambiente.
+    gl_PointSize = clamp(aSize * (1.0 - t * 0.82) * uPixel / max(-mv.z, 0.001), 1.0, 90.0);
     vT = t;
   }
 `;

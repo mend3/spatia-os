@@ -158,12 +158,16 @@ const FOCUS_FLOOR_RADII = 3.4;
  * máximo do rastro) de propósito — a ponta da cauda é a parte que já esgarçou, e enquadrá-la
  * inteira encolheria a cabeça, que é onde está a leitura.
  *
- * ⚠️ O pulsar subiu de 2,2 para 4 quando o feixe virou jato colimado: a agulha agora vai a 1,7× o
- * alcance nominal (7,7 a 14,4 raios), e a 2,2 a chegada cortava os dois jatos na borda da tela —
- * justamente a figura que define o corpo. Recua menos que o comprimento total pelo mesmo motivo do
- * cometa: a ponta do jato é a parte tênue, e enquadrá-la inteira encolheria a estrela e a gaiola.
+ * ⚠️ **O pulsar foi a 4 e voltou a 2,6, e o erro foi MEDIDO.** A ideia era enquadrar o jato inteiro
+ * (`SCALE.jet` chega a 16 raios) e o vento (35). Só que o recuo entra na distância de foco: a 4 o
+ * chão do zoom deixava o corpo com `px` = 26,4 — o valor EXATO de `pulsar.LOD_FAR_PX`. O pulsar
+ * ficava com `level ≈ 0` e simplesmente não era desenhado, em nenhuma distância alcançável.
+ *
+ * A lição é a do cometa, e agora ela tem duas ocorrências: **enquadra-se a figura, não a extensão.**
+ * O vento é ambiente e o jato é agulha — os dois podem (e devem) sair do quadro. Quem tem de caber
+ * é o corpo com a magnetosfera, que é onde a leitura mora.
  */
-const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 4, station: 1.15 });
+const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 2.6, station: 1.15 });
 /** Free-flight range, when nothing is locked. */
 const ZOOM_RANGE = { min: 12, max: 260 };
 /**

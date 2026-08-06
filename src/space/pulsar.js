@@ -26,6 +26,7 @@
  */
 import * as THREE from 'three';
 import { createPulse } from './pulsar-pulse.js';
+import { createWind } from './pulsar-wind.js';
 import { GLSL_SIMPLEX3 } from './planet-noise.js';
 
 /** Onde o pulsar começa a aparecer e onde satura, em pixels de raio. */
@@ -73,6 +74,7 @@ const FRAGMENT = /* glsl */ `
   uniform float uEdge;
   uniform float uSpine;
   uniform float uSharp;
+  uniform float uAlign;
   varying float vAlong;
   varying float vRadial;
   void main(){
@@ -98,7 +100,21 @@ const FRAGMENT = /* glsl */ `
      * fio junto — os dois numeros nao sao independentes.
      */
     float espinha = pow(clamp(1.0 - vRadial, 0.0, 1.0), uSharp) * uSpine;
-    float fill = (doEixo + espinha) * aoLongo * uAmount;
+    /*
+     * BEAMING RELATIVISTICO: o feixe estoura quando aponta para o observador.
+     *
+     * Nao e so perspectiva. O plasma sobe pelo eixo a uma fracao alta de c, e a radiacao de uma
+     * fonte que se aproxima e concentrada para a frente e deslocada para cima em energia — o
+     * fator de Doppler entra na intensidade com uma potencia alta (3 a 4 para um jato continuo).
+     * E por isso que um blazar, que e o mesmo objeto visto de frente, e ordens de grandeza mais
+     * brilhante que a mesma fonte de perfil.
+     *
+     * uAlign e o cosseno entre o eixo do feixe e a linha de visada, calculado no JS. A potencia 3
+     * e o expoente do caso continuo; o piso impede que o feixe de perfil desapareca de vez, que
+     * apagaria a informacao em vez de so escurece-la.
+     */
+    float doppler = 0.35 + 2.4 * pow(clamp(uAlign, 0.0, 1.0), 3.0);
+    float fill = (doEixo + espinha) * aoLongo * uAmount * doppler;
     if (fill < 0.004) discard;
     // Branco no fio, cor do corpo no halo.
     gl_FragColor = vec4(mix(uColor, vec3(1.0), clamp(espinha, 0.0, 1.0)) * fill, fill);
@@ -145,8 +161,26 @@ const CORE_FRAGMENT = /* glsl */ `
   uniform float uTime;
   uniform float uSeed;
   uniform vec3 uCam;
+  uniform vec3 uMag;
+  uniform float uBeat;
   varying vec3 vPos;
   varying vec3 vNormal;
+
+  /*
+   * SINCROTRON: a cor sai da ENERGIA, e a rampa e a mesma que se ve nas fotos.
+   *
+   * Eletron relativistico em campo magnetico emite num espectro largo, e o que a imagem mostra e
+   * a energia caindo do centro para fora: branco onde estoura, azul, ciano, roxo e vermelho
+   * escuro na cauda. Uma cor so com brilho variavel nao produz isso — o que muda com a energia e
+   * o MATIZ, nao a luminancia.
+   */
+  vec3 sincrotron(float e){
+    vec3 c = mix(vec3(0.32, 0.02, 0.10), vec3(0.45, 0.10, 0.72), smoothstep(0.0, 0.28, e));
+    c = mix(c, vec3(0.16, 0.62, 0.95), smoothstep(0.24, 0.55, e));
+    c = mix(c, vec3(0.42, 0.78, 1.0), smoothstep(0.5, 0.78, e));
+    return mix(c, vec3(1.0), smoothstep(0.74, 1.0, e));
+  }
+
   void main(){
     vec3 q = vPos * 3.4 + uSeed;
     /*
@@ -189,10 +223,35 @@ const CORE_FRAGMENT = /* glsl */ `
      * poem as calhas quase apagadas e as cristas estourando, que e o contraste que o olho le como
      * plasma. A erupcao entra por cima disso, nao no lugar dele.
      */
-    float brilho = (0.22 + fervura * 0.85 + erupcao * 1.5) * borda * uAmount;
+    /*
+     * HOTSPOTS POLARES — e a superficie inteira era tratada igual, que era o defeito principal.
+     *
+     * O que aquece a crosta de uma estrela de neutrons nao e ela mesma: e o plasma acelerado
+     * DESCENDO pelas linhas de campo abertas e batendo nas calotas polares magneticas. So ali. O
+     * resto da superficie e frio em comparacao, e por isso quase nunca se ve um disco luminoso —
+     * ve-se emissao quase pontual que aparece e some conforme a calota entra e sai de vista.
+     *
+     * uMag e o eixo magnetico em espaco LOCAL. O cosseno ao expoente alto recorta a calota; o
+     * valor absoluto acende os DOIS polos, que e o certo — o dipolo e simetrico, e e por isso que
+     * um pulsar pisca duas vezes por volta quando a geometria ajuda.
+     */
+    vec3 n = normalize(vNormal);
+    float calota = pow(abs(dot(n, normalize(uMag))), 26.0);
+    // A mancha quente nao tem borda limpa: o mesmo campo que ferve a deforma.
+    float hotspot = calota * (0.72 + fervura * 0.55);
+
+    /*
+     * A ESFERA RECUA. Antes ela era ~90% do que se via; agora e a base fria sobre a qual as
+     * calotas estouram — a proporcao que o corpo real tem. O termo de borda continua fazendo a silhueta
+     * ser irregular, mas o que chama o olho passa a ser o polo, nao o disco.
+     */
+    float superficie = (0.08 + fervura * 0.34 + erupcao * 0.9);
+    float energia = clamp(superficie * 0.5 + hotspot * 1.35 + erupcao * 0.6, 0.0, 1.0);
+    float brilho = (superficie + hotspot * 2.6) * borda * uAmount * uBeat;
     if (brilho < 0.004) discard;
-    // Branco no que esta mais quente, cor do corpo no resto — a mesma logica da espinha do feixe.
-    vec3 cor = mix(uColor, vec3(1.0), clamp(erupcao * 0.8 + 0.25, 0.0, 1.0));
+    // A cor vem da ENERGIA pela rampa sincrotron, e uColor do tipo entra so como tingimento:
+    // o corpo tem de continuar dizendo "infra" sem que isso apague a fisica da emissao.
+    vec3 cor = mix(sincrotron(energia), uColor, 0.28);
     gl_FragColor = vec4(cor * brilho, brilho);
   }
 `;
@@ -247,6 +306,18 @@ export function pulsarParams(node = {}, color = 0xffffff) {
  * O pulsar do astro em foco. Um por cena, como as outras peles.
  */
 const OLHO = new THREE.Vector3();
+const EIXO = new THREE.Vector3();
+const VISADA = new THREE.Vector3();
+const QUAT = new THREE.Quaternion();
+
+/**
+ * Alcance de cada camada, em múltiplos de `beam`. Ver a tabela em `update`.
+ *
+ * `beam` (6,5 · 0,7…1,3 raios) continua sendo o parâmetro por corpo; estas razões constroem a
+ * hierarquia espacial em cima dele. Mexer numa camada aqui não move as outras, que era exatamente
+ * o problema de tudo sair do mesmo número.
+ */
+const SCALE = Object.freeze({ lobe: 0.42, jet: 1.9, wind: 4.2 });
 
 export function createPulsar() {
   const group = new THREE.Group();
@@ -259,6 +330,8 @@ export function createPulsar() {
       uTime: { value: 0 },
       uSeed: { value: 0 },
       uCam: { value: new THREE.Vector3() },
+      uMag: { value: new THREE.Vector3(0, 1, 0) },
+      uBeat: { value: 1 },
     },
     vertexShader: CORE_VERTEX,
     fragmentShader: CORE_FRAGMENT,
@@ -290,6 +363,7 @@ export function createPulsar() {
         uSpine: { value: spine },
         uSharp: { value: sharp },
         uCone: { value: cone },
+        uAlign: { value: 0 },
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
@@ -378,6 +452,14 @@ export function createPulsar() {
   const pulso = createPulse();
   group.add(pulso.object);
 
+  /*
+   * O VENTO pendura no eixo magnético: a cintura equatorial dele é definida pelas linhas de campo
+   * fechadas, não pelo eixo de rotação. Ele gira com a varredura, e é o certo — a magnetosfera
+   * inteira é solidária ao dipolo.
+   */
+  const vento = createWind();
+  eixoMagnetico.add(vento.object);
+
   return {
     object: group,
 
@@ -394,6 +476,18 @@ export function createPulsar() {
       group.visible = level > 0.002;
       if (!group.visible) return 0;
 
+      /*
+       * UM BATIMENTO SÓ para tudo — "como um coração", e é o que faltava.
+       *
+       * O período já governava a varredura e nada mais: brilho, hotspot, halo e vento corriam em
+       * relógios independentes, então o corpo tinha várias animações em vez de uma pulsação. Agora
+       * sai daqui um número 0…1 por quadro e todas as camadas o leem.
+       *
+       * `sin⁴` e não `sin`: o batimento fica quase todo o ciclo baixo e sobe rápido, que é a forma
+       * de um pulso e não de uma respiração.
+       */
+      const batimento = reduced ? 0.5 : Math.sin((elapsed / params.period) * Math.PI) ** 4;
+
       core.scale.setScalar(params.core);
       coreMat.uniforms.uColor.value.set(params.color);
       coreMat.uniforms.uAmount.value = level;
@@ -401,6 +495,9 @@ export function createPulsar() {
       // A fervura CONGELA com movimento reduzido, como o `boil` da fotosfera: o campo parado é um
       // instante legítimo da convecção, e a estrutura continua lá.
       coreMat.uniforms.uTime.value = reduced ? 0 : elapsed;
+      // O batimento entra no núcleo como GANHO, não substituindo a fervura: a superfície continua
+      // viva entre as batidas, ela só não estoura.
+      coreMat.uniforms.uBeat.value = 0.55 + batimento * 0.9;
       // `uCam` em espaço LOCAL do núcleo: o grupo tem rotação e escala próprias, e a conta de
       // ângulo de visada tem de acontecer no mesmo referencial em que `vPos` vive.
       if (camera) core.worldToLocal(coreMat.uniforms.uCam.value.copy(camera.position));
@@ -408,10 +505,10 @@ export function createPulsar() {
       /*
        * O raio da base é a ABERTURA e a altura é o ALCANCE, e as duas peças usam razões opostas.
        *
-       * O JATO é 1,7× mais longo que o alcance nominal e abre 20% — jato de AGN real colima em
-       * poucos graus, e o que se vê nas referências é uma agulha atravessando a imagem. (Os 11%
-       * são de MALHA; o brilho visível é bem mais fino, feito pela espinha no shader — agulha
-       * geométrica fina ficaria sub-pixel e cintilaria — ver o cálculo em FRAGMENT.)
+       * O JATO abre 20% e o comprimento vem de `SCALE.jet` — jato relativístico colima em poucos
+       * graus, e o que se vê nas referências é uma agulha. (Os 20% são de MALHA; o brilho visível
+       * é bem mais fino, feito pela espinha no shader — agulha geométrica fina ficaria sub-pixel
+       * e cintilaria, ver o cálculo em FRAGMENT.)
        *
        * O LOBO é curto (38%) e largo (48%): é a emissão perto da estrela, a parte que o Crab
        * mostra como duas asas difusas. Sem ele o jato sai do nada; sem o jato o corpo vira um
@@ -421,11 +518,26 @@ export function createPulsar() {
         mat.uniforms.uColor.value.set(params.color);
         mat.uniforms.uAmount.value = 0.55 * level * mat.userData.gain;
       }
-      for (const jato of jatos) jato.scale.set(params.beam * 0.2, params.beam * 1.7, 1);
-      for (const lobo of lobos) lobo.scale.set(params.beam * 0.48, params.beam * 0.38, params.beam * 0.48);
+      /*
+       * ESCALAS DESACOPLADAS — e antes tudo saía do mesmo `beam`, o que prendia o corpo inteiro
+       * numa casca só e fazia o pulsar parecer um efeito colado no astro.
+       *
+       * | camada | alcance | por quê |
+       * |---|---|---|
+       * | magnetosfera (lobo) | ~2–4 raios | onde as linhas fechadas seguram o plasma |
+       * | cone de emissão (jato) | ~8–15 raios | a região colimada |
+       * | vento relativístico | ~20–40 raios | expansão livre, e é o que dá o TAMANHO do corpo |
+       *
+       * A hierarquia é o ponto: três alcances em razão ~4 entre si constroem profundidade que
+       * uma casca só nunca dá. `SCALE` guarda as razões contra `beam`, que continua sendo o
+       * parâmetro por corpo.
+       */
+      for (const jato of jatos) jato.scale.set(params.beam * 0.2, params.beam * SCALE.jet, 1);
+      for (const lobo of lobos) lobo.scale.set(params.beam * 0.5, params.beam * SCALE.lobe, params.beam * 0.5);
       // O pulso alcança a ponta do LOBO, não a do jato: ele é emissão isotrópica, e ir tão longe
       // quanto a agulha colimada afirmaria que ela não colima nada. Ver `pulsar-pulse.js`.
-      pulso.update(params.beam * 0.62, level, elapsed, params.seed, params.color, camera, reduced);
+      pulso.update(params.beam * SCALE.wind, level, elapsed, params.seed, params.color, camera, reduced);
+      vento.update(params.beam * SCALE.wind, level, elapsed, batimento, reduced);
 
       group.rotation.set(params.tilt, params.yaw, 0);
       eixoMagnetico.rotation.z = params.obliquity;
@@ -453,6 +565,20 @@ export function createPulsar() {
         eixoMagnetico.worldToLocal(OLHO.copy(camera.position));
         const giro = Math.atan2(OLHO.x, OLHO.z);
         for (const jato of jatos) jato.rotation.y = giro;
+
+        /*
+         * O eixo magnético em MUNDO, e daí duas coisas que precisam dele.
+         *
+         * O núcleo recebe o eixo em espaço LOCAL dele para recortar as calotas quentes; os feixes
+         * recebem o cosseno contra a linha de visada para o beaming relativístico. É a mesma
+         * direção lida em dois referenciais, e é por isso que ela é calculada uma vez só.
+         */
+        EIXO.set(0, 1, 0).applyQuaternion(eixoMagnetico.getWorldQuaternion(QUAT)).normalize();
+        VISADA.copy(camera.position).sub(group.position).normalize();
+        const alinhamento = Math.abs(EIXO.dot(VISADA));
+        for (const mat of [jatoMat, loboMat]) mat.uniforms.uAlign.value = alinhamento;
+        core.updateWorldMatrix(true, false);
+        core.worldToLocal(coreMat.uniforms.uMag.value.copy(group.position).addScaledVector(EIXO, 1));
       }
       return level;
     },
@@ -464,6 +590,7 @@ export function createPulsar() {
       jatoMat.dispose();
       loboMat.dispose();
       pulso.dispose();
+      vento.dispose();
     },
   };
 }
