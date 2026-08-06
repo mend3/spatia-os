@@ -131,6 +131,7 @@ import * as THREE from 'three';
 import { hash01, KIND_COLORS } from './graph.js';
 import { GLSL_PSNOISE } from './ring-noise.js';
 import { armsFor, classForConcentration, GALAXY_CLASSES, MIN_ARMS } from './galaxy-classes.js';
+import { MOTION, rateOf } from './motion-catalog.js';
 
 /*
  * How many anchor radii the disc spans. `R_disk = planetAnchor().radius * SPAN`, and
@@ -230,15 +231,24 @@ const BAR_FRAC = 0.35;
 const ARM_AMP = 0.42;
 
 /*
- * Pattern speed, rad/s — shared by every galaxy, because the pattern speed of a density wave
- * is a property of the wave and not of the folder. The per-galaxy SIGN is hashed: a sky where
- * every galaxy turns the same way reads as a stamp, which is the argument `planet.js:354-356`
- * makes for retrograde spin.
+ * Pattern speed, rad/s — shared by every galaxy, because the pattern speed of a density wave is a
+ * property of the wave and not of the folder. The per-galaxy SIGN is hashed: a sky where every
+ * galaxy turns the same way reads as a stamp, which is the argument `planet.js:354-356` makes for
+ * retrograde spin.
  *
- * 0.06 rad/s is ~105 s per turn. That is why the bench ships a pattern-speed multiplier that
- * reaches +-20 — otherwise the winding check would need two minutes of holding CORRER.
+ * ⚠️ THIS WAS A HARDCODED 0.06 AND THE SCENE HAD NOT RUN AT 0.06 FOR SOME TIME.
+ *
+ * `scene.js` overrides the uniform every frame with `rateOf(MOTION.patternSpin)` — 45 s per turn,
+ * a rate calibrated against a perception threshold — so the live sky ran at 0.1396 while this
+ * constant said 0.06 (105 s). The default was dead code in the app and NOT dead in the bench:
+ * `galaxy-variants.js` multiplies its spin slider by `OMEGA_P`, so every winding check was
+ * calibrated against a base 2.3x slower than the thing it was checking.
+ *
+ * Reading it from the catalog is what makes the bench and the sky the same experiment. The
+ * multiplier reaching +-20 still earns its keep — at 1x a full turn takes 45 s, and the trailing
+ * check needs a turn.
  */
-export const OMEGA_P = 0.06;
+export const OMEGA_P = rateOf(MOTION.patternSpin);
 
 /*
  * Salts. Free ones, checked against every salt already in use across `src/space/`: 2/3/4

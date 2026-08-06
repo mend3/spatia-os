@@ -52,6 +52,7 @@
  * compressão, do mesmo tipo que a escala log dos tamanhos, e declarada aqui em vez de escondida
  * num fator mágico. É a única.
  */
+import { MOTION, meanMotion as keplerMeanMotion } from './motion-catalog.js';
 
 /**
  * Coeficiente de Roche para satélite FLUIDO, em raios físicos do primário.
@@ -120,13 +121,14 @@ const MU_MIN = 5;
 /**
  * Parâmetro gravitacional do núcleo, `G·M`, na mesma unidade que o resto da cena.
  *
- * Extraído da lei que as órbitas já obedecem em `graph.js`: `speed = (r/26)^-1.5 · 0.16`. Igualando
- * a `ω = sqrt(GM/r³)` em `r = 26` sai `GM = 0.16² · 26³`. Derivar em vez de escolher é o que faz a
- * lua girar em ritmo COERENTE com a órbita do pai — uma constante nova aqui deixaria os dois
- * movimentos falando de sistemas diferentes, que é o defeito que a cena já pagou uma vez com os
- * arcos a 38% da distância real.
+ * Vem do `motion-catalog.js`, que é onde a lei orbital mora. Aqui ele era RECONSTRUÍDO a partir da
+ * calibração do `graph.js` (`0.16² · 26³`), com um comentário explicando a derivação justamente
+ * porque o código não a expressava — e as duas cópias podiam divergir sem que nada acusasse.
+ * Divergindo, a lua giraria num ritmo INCOERENTE com a órbita do pai: dois movimentos falando de
+ * sistemas solares diferentes, que é o defeito que a cena já pagou uma vez com os arcos a 38% da
+ * distância real.
  */
-const MU_CORE = 0.16 ** 2 * 26 ** 3;
+const MU_CORE = MOTION.keplerOrbit.gravitationalParameter;
 
 /** Raio físico implicado pela massa, a densidade comum. NÃO é o raio desenhado. */
 export const physicalRadius = (mass) => DENSITY_K * Math.cbrt(Math.max(mass, 0));

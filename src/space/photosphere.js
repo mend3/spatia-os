@@ -37,6 +37,11 @@
  */
 import * as THREE from 'three';
 import { GLSL_SIMPLEX3 } from './planet-noise.js';
+import * as motion from '../core/motion.js';
+import { MOTION } from './motion-catalog.js';
+import { glslFloat } from './glsl.js';
+
+const BOIL = MOTION.boil.rates;
 
 /** Onde a fotosfera começa e onde satura, em pixels de raio na tela. Igual à do planeta. */
 export const LOD_FAR_PX = 90;
@@ -68,9 +73,17 @@ const FRAGMENT = /* glsl */ `
   uniform float uDetail;
   varying vec3 vObject;
 
-  const float LIMB_U = ${LIMB_U.toFixed(3)};
-  const float CELLS = ${CELLS.toFixed(1)};
-  const float UMBRA = ${UMBRA.toFixed(3)};
+  const float LIMB_U = ${glslFloat(LIMB_U)};
+  const float CELLS = ${glslFloat(CELLS)};
+  const float UMBRA = ${glslFloat(UMBRA)};
+
+  // Taxas de fervura, do motion-catalog.js. A ORDEM entre elas e a fisica: supergranulacao
+  // grande e lenta, granulacao pequena e rapida vivendo dentro dela. (Sem backtick aqui: ele
+  // fecha o template do shader.)
+  const float BOIL_SLOW = ${glslFloat(BOIL.supergranulation)};
+  const float BOIL_FAST = ${glslFloat(BOIL.granulation)};
+  const float BOIL_FINE = ${glslFloat(BOIL.fine)};
+  const float SPOT_DRIFT = ${glslFloat(BOIL.spots)};
 
   ${GLSL_SIMPLEX3}
 
@@ -83,11 +96,11 @@ const FRAGMENT = /* glsl */ `
    * rapida), que e a estrutura real: as celulas pequenas vivem dentro das grandes.
    */
   float granulation(vec3 p){
-    float slow = simplex3(p * CELLS * 0.22 + vec3(0.0, uTime * 0.014, uSeed));
-    float fast = simplex3(p * CELLS + vec3(uSeed, uTime * 0.09, 0.0));
+    float slow = simplex3(p * CELLS * 0.22 + vec3(0.0, uTime * BOIL_SLOW, uSeed));
+    float fast = simplex3(p * CELLS + vec3(uSeed, uTime * BOIL_FAST, 0.0));
     // A oitava fina entra por rampa com o nivel de detalhe: a 90px ela oscila mais de uma vez
     // por pixel e so produz cintilacao.
-    float fine = simplex3(p * CELLS * 2.6 + vec3(0.0, uTime * 0.16, uSeed)) * uDetail;
+    float fine = simplex3(p * CELLS * 2.6 + vec3(0.0, uTime * BOIL_FINE, uSeed)) * uDetail;
     return slow * 0.42 + fast * 0.44 + fine * 0.14;
   }
 
@@ -105,7 +118,7 @@ const FRAGMENT = /* glsl */ `
      * demais para se perceber num olhar; o termo de tempo existe para que duas visitas ao mesmo
      * astro em dias diferentes nao sejam identicas.
      */
-    float field = simplex3(normal * 2.3 + vec3(uSeed * 3.1, uTime * 0.004, 0.0));
+    float field = simplex3(normal * 2.3 + vec3(uSeed * 3.1, uTime * SPOT_DRIFT, 0.0));
     float spot = smoothstep(0.52, 0.78, field) * uSpots;
     // Penumbra: a borda da mancha e filamentar e menos fria que a umbra.
     float penumbra = smoothstep(0.42, 0.56, field) * uSpots;
@@ -259,7 +272,16 @@ export function createPhotosphere() {
       u.uCool.value.copy(params.cool);
       u.uSpots.value = params.spots;
       u.uSeed.value = params.seed;
-      u.uTime.value = elapsed;
+      /*
+       * `boil` declara `reduced: 'freeze'` no catálogo, e agora obedece.
+       *
+       * Parar o relógio congela a granulação inteira num quadro — as células ficam onde estão, com
+       * a mancha onde está. É o que `freeze` quer dizer: a superfície continua sendo a superfície
+       * que aquela estrela tem, sem nada se mexendo. Zerar `uTime` em vez de guardar o último
+       * valor é de propósito: assim o corpo tem a MESMA cara em toda sessão com movimento
+       * reduzido, em vez de depender do instante em que a preferência foi lida.
+       */
+      u.uTime.value = motion.isReduced() ? 0 : elapsed;
       u.uDetail.value = near;
       return near;
     },

@@ -292,7 +292,30 @@ pela mesma sonda os candidatos rejeitados **com o motivo**.
 
 O SSOT vive em [`src/space/motion-catalog.js`](../src/space/motion-catalog.js): as leis, as taxas,
 o `reduced` de cada uma e — como no `catalog.js` — o que cada movimento **proíbe**. Cada entrada
-declara o próprio `status`, e hoje só `patternSpin` é lido de lá.
+declara o próprio `status`, e hoje só `expansion` continua `declared` — nada expande na cena.
+
+**Trazer os `own` para cá não foi a substituição mecânica que este documento previa.** Centralizar
+revelou três constantes que já viviam em dois lugares, livres para divergir sem que nada acusasse:
+
+| duplicata | onde estava | o que a divergência quebraria |
+|---|---|---|
+| `GM` do núcleo | `graph.js:makeOrbit` (`(r/26)^-1.5·0.16`) e `orbital-zones.js:MU_CORE` (`0.16²·26³`) | lua e pai orbitando sistemas diferentes |
+| taxa/inflação/amplitude do pulso | vertex shader do ponto **e** o espelho JS de `starRadius()` | anel respirando fora de fase com a estrela |
+| três taxas da granulação | soltas no GLSL da fotosfera | — (só ilegibilidade) |
+| velocidade de padrão | `galaxy.js:OMEGA_P` = 0,06, contra os 0,1396 que a cena roda | a bancada checando enrolamento numa base 2,33× mais lenta que a cena |
+
+A segunda é a mais instrutiva: o comentário do espelho **já afirmava** "a MESMA expressão do shader,
+nenhum caminho separado para manter em dia", e três literais depois isso era falso.
+
+Um quarto movimento não tinha entrada nenhuma: o **balanço vertical** (`bob`) do céu. Ele foi
+encontrado sem nome dentro de `advance()` — que é como um movimento decorativo sobrevive, já que
+nada no modelo o reivindica e portanto nada o questiona. Está declarado agora, inclusive a parte
+incômoda: ele **não é física** (órbita circular não balança), e existe por legibilidade.
+
+⚠️ `applied` compromete o campo `reduced` também. `boil` e `spin` declaravam `freeze` e continuavam
+animando com `prefers-reduced-motion` — declarar sem obedecer é a mesma mentira que este catálogo
+existe para impedir, então os dois passaram a congelar o RELÓGIO (não o parâmetro: o planeta para
+virado para um lado, com nuvem e crosta lendo o mesmo tempo).
 
 `f(tempo)` puro: nenhum estado interno, nenhuma integração. É o que a cena já faz — `graph.js:511`
 calcula `angle = phase + elapsed * speed`, sem velocidade acumulada, e é isso que sustenta a posição
@@ -442,8 +465,8 @@ contados, não enumerados; funções, classes e embeddings não são extraídos.
 5. **Excentricidade no CÉU**, junto com a decisão sobre a colisão com "raio = recência". (Na lua ela
    já existe e não depende desta decisão — o raio de uma lua não é eixo de tempo.)
 6. **Repo × pasta** como galáxia × sistema estelar.
-7. **Trazer os movimentos `own` para o catálogo** — `keplerOrbit`, `boil`, `spin` e `pulse` são
-   movimento real com a constante dentro do próprio módulo. Substituição direta, sem risco.
+7. ~~Trazer os movimentos `own` para o catálogo~~ — **feito**; não era substituição direta, e a
+   seção 6 traz as três duplicatas que ela achou.
 
 ## Estado de implementação
 

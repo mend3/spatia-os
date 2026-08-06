@@ -68,6 +68,10 @@ import * as THREE from 'three';
 import { hash01 } from './graph.js';
 import { GLSL_SIMPLEX3, GLSL_TERRAIN } from './planet-noise.js';
 import { planetPalette, rampTexture, skyColor, TWILIGHT, WET_EDGE } from './planet-palette.js';
+import * as motion from '../core/motion.js';
+import { MOTION } from './motion-catalog.js';
+
+const SPIN = MOTION.spin;
 
 /*
  * Faixa de transição do nível de detalhe, em pixels de RAIO na tela.
@@ -352,8 +356,9 @@ export function planetParams(node = {}) {
      */
     atmosphere: THREE.MathUtils.smoothstep(mass, 0.24, 0.68) * (0.6 + seedC * 0.7),
     // Retrógrado é possível — Vênus e Urano giram ao contrário, e um céu em que todo mundo gira
-    // para o mesmo lado lê como carimbo.
-    spin: (seedB - 0.35) * 0.16,
+    // para o mesmo lado lê como carimbo. A largura da faixa e a fatia retrógrada vêm do
+    // `motion-catalog.js`; a assimetria entre os dois sentidos está documentada lá.
+    spin: (seedB - SPIN.retrograde) * SPIN.span,
     tilt: (seedC - 0.5) * 0.9,
     palette,
     sky: skyColor(palette),
@@ -475,7 +480,16 @@ export function createPlanet() {
       if (!surface) build();
       group.visible = true;
 
-      spinner.rotation.set(params.tilt, elapsed * params.spin, 0);
+      /*
+       * `spin` declara `reduced: 'freeze'` no catálogo, e agora obedece.
+       *
+       * O planeta congela virado para um lado só — o que ele perde é a rotação, não a inclinação
+       * nem o terminador, que continuam dizendo onde é dia e onde é noite. Parar o RELÓGIO em vez
+       * de zerar `params.spin` mantém a nuvem congelada junto com a crosta: as duas leem o mesmo
+       * tempo, e travar só uma faria a atmosfera deslizar sobre um planeta parado.
+       */
+      const clock = motion.isReduced() ? 0 : elapsed;
+      spinner.rotation.set(params.tilt, clock * params.spin, 0);
       // Depois do `rotation.set`, nunca antes: a matriz que converte câmera e luz para o espaço
       // do objeto tem de ser a DESTE quadro. Um quadro de atraso aqui aparece como o terminador
       // arrastando atrás da superfície.
@@ -496,8 +510,9 @@ export function createPlanet() {
       // divergir move a linha de costa ou faz a montanha furar a atmosfera.
       const relief = Math.max(params.amplitude - params.sea, 1e-4);
       const shellRadius = 1 + relief + SHELL_MARGIN;
-      // Nuvem gira ~3× a superfície: é o que a separa de uma textura pintada no planeta.
-      const cloudAngle = elapsed * params.spin * 3;
+      // Nuvem gira ~3× a superfície: é o que a separa de uma textura pintada no planeta. Mesmo
+      // `clock` da crosta — ver o `rotation.set` acima.
+      const cloudAngle = clock * params.spin * SPIN.cloudFactor;
 
       const u = surface.material.uniforms;
       u.uAmplitude.value = params.amplitude;

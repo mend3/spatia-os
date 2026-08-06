@@ -20,6 +20,11 @@ import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
 import { classify } from './catalog.js';
 import { moonsOf } from './orbital-zones.js';
+import { MOTION, meanMotion, rateOf } from './motion-catalog.js';
+import { glslFloat } from './glsl.js';
+
+const PULSE = MOTION.pulse;
+const BOB = MOTION.bob;
 
 /*
  * Extensão do sistema de anéis, em raios do disco visível — espelha o teto de `rings.js`. Aqui
@@ -106,6 +111,12 @@ const VERTEX = /* glsl */ `
   varying float vHalo;
 
   void main(){
+  // Do catálogo de movimento, e o espelho em JS de starRadius() lê os MESMOS três valores. Eram
+  // literais nos dois lugares. (Sem backtick neste comentário: ele fecha o template do shader.)
+  const float PULSE_RATE = ${glslFloat(PULSE.rate)};
+  const float PULSE_INFLATE = ${glslFloat(PULSE.inflate)};
+  const float PULSE_AMPLITUDE = ${glslFloat(PULSE.amplitude)};
+
     vIgnition = aIgnition;
     vSupernova = aSupernova;
     vSeed = aSeed;
@@ -121,7 +132,7 @@ const VERTEX = /* glsl */ `
     // uPulse a 0 congela a oscilação sem apagar o realce: o nó aceso continua maior e mais
     // quente, só não bate. É o que prefers-reduced-motion pede — menos movimento, não menos
     // informação. (Sem backtick neste comentário: ele fecha o template literal do shader.)
-    float pulse = 1.0 + aIgnition * (1.6 + sin(uTime * 9.0) * 0.35 * uPulse);
+    float pulse = 1.0 + aIgnition * (PULSE_INFLATE + sin(uTime * PULSE_RATE) * PULSE_AMPLITUDE * uPulse);
     // O tamanho encolhe menos que o brilho: um ponto de 1px atenuado desapareceria por
     // aliasing, e aí a atenuação viraria remoção sem ninguém pedir.
     float shrink = mix(0.62, 1.0, within);
@@ -344,10 +355,18 @@ export function createGraph() {
       0.001
     );
     const pulseAmount = material.uniforms.uPulse.value;
-    // A MESMA expressão do shader, inclusive o termo oscilante: se o ponto respira, o anel
-    // respira junto. Com `prefers-reduced-motion` o `uPulse` é 0 nos dois lugares pelo mesmo
-    // uniform — nenhum caminho separado para manter em dia.
-    const pulse = 1 + ignition[i] * (1.6 + Math.sin(elapsed * 9) * 0.35 * pulseAmount);
+    /*
+     * A MESMA expressão do shader, inclusive o termo oscilante: se o ponto respira, o anel
+     * respira junto. Com `prefers-reduced-motion` o `uPulse` é 0 nos dois lugares pelo mesmo
+     * uniform.
+     *
+     * ⚠️ As três constantes agora vêm do `motion-catalog.js`, então elas não podem mais divergir —
+     * eram literais aqui E no shader, e este comentário já afirmava que não havia "caminho
+     * separado para manter em dia" enquanto havia três. O que continua duplicado é a FORMA da
+     * expressão, que nenhuma constante resolve: mexeu num lado, mexa no outro (`VERTEX`, acima).
+     */
+    const pulse =
+      1 + ignition[i] * (PULSE.inflate + Math.sin(elapsed * PULSE.rate) * PULSE.amplitude * pulseAmount);
     const within = 1 - smoothstep(0, REVEAL_BAND, nodes[i].recency - window.current);
     const shrink = 0.62 + (1 - 0.62) * within;
     const tangent = Math.tan((camera.fov * Math.PI) / 360);
@@ -565,7 +584,9 @@ export function createGraph() {
       // de "galáxia", que é o que a referência mostra.
       inclination: (hash01(node.id, 2) - 0.5) * Math.PI * 0.55,
       phase: hash01(node.id, 3) * Math.PI * 2,
-      speed: Math.pow(radius / SHELLS.file[0], -1.5) * 0.16,
+      // `sqrt(GM/r³)` — a mesma função que dá o movimento médio das luas, com o mesmo `GM`. Era
+      // `(r/26)^-1.5 · 0.16` aqui e `0.16² · 26³` lá, duas escritas da mesma constante.
+      speed: meanMotion(radius),
       wobble: hash01(node.id, 4),
       i,
     };
@@ -605,6 +626,19 @@ export function createGraph() {
          */
         const trueAnomaly =
           mean + 2 * e * Math.sin(mean) + 1.25 * e * e * Math.sin(2 * mean);
+    /*
+     * O balanço CONGELA com movimento reduzido, e é o único movimento daqui que congela.
+     *
+     * A órbita é amortecida e não parada (`respectMotion`, em `scene.js`) porque órbita parada
+     * afirma que o sistema morreu. O balanço não afirma nada — ele é decorativo, e o
+     * `motion-catalog.js` agora diz isso na cara. Movimento sem evento por trás é a categoria que
+     * a regra deste projeto zera, junto com o grão e a respiração.
+     *
+     * Congelar a FASE, e não a amplitude: cada corpo guarda o deslocamento vertical que o hash lhe
+     * deu e para ali. Zerar a amplitude alinharia o céu inteiro no plano, que é justamente a
+     * leitura de lâminas rígidas que o balanço existe para desfazer.
+     */
+    const bobPhase = motion.isReduced() ? 0 : elapsed * rateOf(BOB);
         // Equação do cônico. É o que faz a lua acelerar no periastro — a segunda lei de Kepler
         // aparece sozinha, sem ninguém animar velocidade.
         const r = (node.semiMajor * (1 - e * e)) / (1 + e * Math.cos(trueAnomaly));
@@ -624,7 +658,7 @@ export function createGraph() {
       }
 
       const angle = node.phase + elapsed * node.speed * tune.speed;
-      const bob = Math.sin(elapsed * 0.35 + node.wobble * 6.28) * node.radius * 0.045;
+      const bob = Math.sin(bobPhase + node.wobble * BOB.phaseSpread) * node.radius * BOB.amplitude;
       /*
        * Rotação REAL em torno de X — a versão anterior não era uma órbita inclinada.
        *
