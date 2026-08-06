@@ -195,6 +195,37 @@ const SALT_KNOT = 101;
  * @param {object} galaxy  o retorno de `galaxyParams` do mesmo hub
  * @returns {Readonly<object>|null} `null` se o hub não qualifica
  */
+/**
+ * As feições que saem de `cosView`, numa função só.
+ *
+ * Elas moram aqui, e não soltas dentro de `quasarParams`, porque desde que o eixo virou de MUNDO o
+ * `cosView` muda a cada quadro com a câmera — então quem as calcula é o laço de desenho, não a
+ * montagem do objeto. Uma função só: com uma cópia na montagem e outra no laço, a primeira
+ * divergência apareceria justamente quando a revisão fosse útil.
+ *
+ * @param {number} cosView cosseno do ângulo entre o eixo de spin e a linha de visada, em [0,1]
+ */
+export function viewFeatures(cosView) {
+  const cos = Math.min(Math.max(cosView, 0), 1);
+  const sinView = Math.sqrt(Math.max(0, 1 - cos * cos));
+  return {
+    cosView: cos,
+    /*
+     * O JATO ENCURTA quando aponta para você — e este é o par que engana: o lado que estoura de
+     * brilho é o MESMO que fica curto na tela. Um blazar é um ponto brilhantíssimo com um toco de
+     * jato, não um risco enorme. Piso de 0,22 para o toco não sumir de vez.
+     */
+    jet: JET_REACH * Math.max(0.22, sinView),
+    /* O jato próximo e o distante saem do MESMO `cosView` com sinal trocado — é a definição. */
+    gainNear: dopplerGain(cos),
+    gainFar: dopplerGain(-cos),
+    /* O toro esconde o núcleo MULTIPLICANDO; aditivo não sabe tapar. Ver a nota em `quasarParams`. */
+    nucleus: THREE.MathUtils.smoothstep(cos, TORUS_COS - 0.16, TORUS_COS + 0.16),
+    /** Achatamento do disco de acreção na tela: ele é perpendicular ao eixo. */
+    squash: Math.max(0.07, cos),
+  };
+}
+
 export function quasarParams(galaxy, viewOverride = null) {
   if (!galaxy || !isActive(galaxy)) return null;
   const path = galaxy.path ?? 'no-path';
@@ -238,10 +269,45 @@ export function quasarParams(galaxy, viewOverride = null) {
    */
   const power = Math.min(1, Math.log2(bulge / QUASAR_BULGE_FLOOR + 1) / 2.4);
 
+  /*
+   * ⚠️ O EIXO DE MUNDO — decisão do usuário, e ele troca o que este objeto é.
+   *
+   * `axis` (acima) é uma direção de TELA, e com ela o quasar tinha sempre a mesma pose: girar a
+   * câmera não mudava nada, os dois jatos eram um par esquerda/direita fixo, e a queixa foi
+   * literal — *"é impossível inspecionar girando a câmera"*. Um eixo de tela não tem o que revelar.
+   *
+   * Com um eixo de MUNDO, `cosView` deixa de ser hash e passa a sair da câmera, a cada quadro. E
+   * como ele explica cinco feições de uma vez, as cinco passam a responder à órbita juntas: o disco
+   * achata, o jato encurta, o beaming troca de lado, o toro cobre ou descobre o núcleo, e a
+   * espessura do toro aparece. O preço foi aceito com o olho aberto: em parte da órbita o disco
+   * fica de perfil e quase some — que é o que um disco de verdade faz.
+   *
+   * A direção é sorteada na ESFERA, não no círculo: `z` uniforme em [-1,1] mais azimute uniforme é
+   * a única combinação isotrópica. Sortear dois ângulos empilharia objetos nos polos, que é o mesmo
+   * erro que `cosView` uniforme evita do outro lado.
+   */
+  /*
+   * `viewOverride` deixou de significar "cosView" e passou a significar a INCLINAÇÃO DO EIXO.
+   *
+   * Faz sentido só depois da troca: com eixo de mundo, `cosView` é o ângulo entre o eixo e a
+   * câmera, então ele não é mais um parâmetro do objeto — é uma relação. O que a bancada pode
+   * escolher é para onde o eixo APONTA, e é isso que este número faz agora. Deixá-lo como
+   * "cosView" seria um controle que mente: mexe e o objeto não obedece, porque quem manda passou
+   * a ser a órbita.
+   */
+  const zAxis = viewOverride === null ? hash01(path, SALT_AXIS) * 2 - 1 : viewOverride * 2 - 1;
+  const azimuteEixo = hash01(path, SALT_AXIS + 17) * Math.PI * 2;
+  const raioEixo = Math.sqrt(Math.max(0, 1 - zAxis * zAxis));
+
   return Object.freeze({
     path,
     bulge,
     axis,
+    axisWorld: new THREE.Vector3(
+      raioEixo * Math.cos(azimuteEixo),
+      raioEixo * Math.sin(azimuteEixo),
+      zAxis
+    ),
     cosView,
     /*
      * O JATO ENCURTA quando aponta para você — e este é o par que engana: o lado que estoura de
@@ -790,23 +856,62 @@ export function createQuasars(capacity = 16) {
     if (array[at] !== before) dirty = true;
   }
 
-  function writeStatic(i, p) {
+  /*
+   * A POSE, resolvida contra a CÂMERA — e é ela que faz o objeto virar quando a câmera vira.
+   *
+   * O eixo de spin é uma direção de MUNDO (`params.axisWorld`). Dela saem duas coisas por quadro:
+   *
+   *   `cosView`  = |eixo · direção de visada|. É o número que explica as cinco feições, e agora ele
+   *               muda com a órbita em vez de ser hash. Módulo porque os dois lados do eixo são o
+   *               mesmo eixo — quem distingue aproximando de afastando é o par gainNear/gainFar.
+   *   a direção  = projeção do eixo na base da câmera (direita, cima). É para onde a agulha aponta
+   *   NA TELA     na tela, e é o que muda quando o operador gira a cena.
+   *
+   * ⚠️ Sem câmera (montagem, primeiro quadro) a pose de partida de `quasarParams` continua valendo.
+   * Devolver zero aqui poria todo quasar de perfil no quadro em que a cena monta.
+   */
+  const EIXO = new THREE.Vector3();
+  const VISADA = new THREE.Vector3();
+  const DIREITA = new THREE.Vector3();
+  const CIMA = new THREE.Vector3();
+
+  function poseDe(p, camera, position) {
+    if (!camera || !p.axisWorld) return { cos: Math.cos(p.axis), sin: Math.sin(p.axis), vista: p };
+    EIXO.copy(p.axisWorld);
+    VISADA.copy(position).sub(camera.position).normalize();
+    const cosView = Math.min(1, Math.abs(EIXO.dot(VISADA)));
+    DIREITA.setFromMatrixColumn(camera.matrixWorld, 0);
+    CIMA.setFromMatrixColumn(camera.matrixWorld, 1);
+    const sx = EIXO.dot(DIREITA);
+    const sy = EIXO.dot(CIMA);
+    // Eixo apontando quase na linha de visada: a projeção some e a direção na tela fica indefinida.
+    // Nesse regime o jato já está no piso de comprimento, então qualquer direção serve — e uma
+    // constante evita o eixo dar piruetas em torno da degenerescência.
+    const norma = Math.hypot(sx, sy);
+    const cos = norma > 1e-4 ? sx / norma : 1;
+    const sin = norma > 1e-4 ? sy / norma : 0;
+    return { cos, sin, vista: viewFeatures(cosView) };
+  }
+
+  function writeStatic(i, p, camera, position) {
+    const pose = poseDe(p, camera, position);
+    const v = pose.vista;
     const axis = buffers.get('aAxis');
-    put(axis, i * 3, Math.cos(p.axis));
-    put(axis, i * 3 + 1, Math.sin(p.axis));
+    put(axis, i * 3, pose.cos);
+    put(axis, i * 3 + 1, pose.sin);
     // O achatamento viaja com o EIXO, e não com o alcance, porque é dele que ele é função: o disco
     // é perpendicular ao eixo de spin, então é a direção do eixo que a projeção comprime.
-    put(axis, i * 3 + 2, p.squash);
+    put(axis, i * 3 + 2, v.squash);
 
     const reach = buffers.get('aReach');
-    put(reach, i * 3, p.jet);
+    put(reach, i * 3, v.jet);
     put(reach, i * 3 + 1, p.lobe);
     put(reach, i * 3 + 2, p.knot);
 
     const glow = buffers.get('aGlow');
-    put(glow, i * 4, p.gainNear);
-    put(glow, i * 4 + 1, p.gainFar);
-    put(glow, i * 4 + 2, p.nucleus);
+    put(glow, i * 4, v.gainNear);
+    put(glow, i * 4 + 1, v.gainFar);
+    put(glow, i * 4 + 2, v.nucleus);
     put(glow, i * 4 + 3, p.power);
 
     const tone = buffers.get('aTone');
@@ -891,7 +996,7 @@ export function createQuasars(capacity = 16) {
         view[i * 4 + 3] = 0;
         if (px >= ladder.far) acesos += 1;
 
-        writeStatic(i, entry.params);
+        writeStatic(i, entry.params, camera, entry.position);
       }
 
       geometry.instanceCount = count;

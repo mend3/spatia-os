@@ -39,11 +39,17 @@ export const QUASAR_SPEC = {
   distance: 10,
   controls: [
     /*
-     * A INCLINAÇÃO é o controle principal desta bancada, e ele move CINCO coisas de uma vez.
+     * ⚠️ Este slider MUDOU DE SIGNIFICADO quando o eixo virou de mundo, e a mudança é a lição.
      *
-     * 1 é de frente (disco circular, jato curto e para você), 0 é de perfil (disco vira risco, jato
-     * atravessa a tela, o toro esconde o núcleo). Revisar o quasar é varrer isto e ver as cinco se
-     * moverem juntas — se uma ficar parada, ela deixou de sair do `cosView` e virou constante.
+     * Antes ele era `cosView` — a inclinação aparente. Com eixo de mundo isso deixou de ser um
+     * parâmetro do objeto e virou uma RELAÇÃO: `cosView` é o ângulo entre o eixo e a câmera, e
+     * quem o move é a órbita. O que a bancada ainda escolhe é para onde o eixo APONTA no mundo
+     * (1 = eixo alinhado com o polo, 0,5 = deitado no plano, 0 = polo oposto).
+     *
+     * ⚠️ **A INSPEÇÃO AGORA É GIRAR A CÂMERA.** É esse o ganho da troca: as cinco feições
+     * (achatamento, comprimento do jato, beaming, o toro cobrir o núcleo, a espessura dele) passam
+     * a responder ao arrasto do mouse, juntas. Uma que fique parada ao orbitar deixou de sair do
+     * `cosView`.
      */
     /*
      * ⚠️ Abre em 0,80 e NÃO no meio da faixa: `TORUS_COS` é 0,574 com rampa de ±0,16, então
@@ -51,7 +57,7 @@ export const QUASAR_SPEC = {
      * funcionando, e era o que fazia a bancada abrir com a tela vazia e `núcleo visível 0,00`.
      * O espécime tem de abrir MOSTRANDO o objeto; esconder é o que o slider serve para provar.
      */
-    { key: 'view', label: 'INCLINAÇÃO (cosView)', type: 'range', min: 0, max: 1, step: 0.01, value: 0.8 },
+    { key: 'view', label: 'EIXO · APONTA PARA', type: 'range', min: 0, max: 1, step: 0.01, value: 0.5 },
     // O tamanho na tela varre a escada de LOD inteira num gesto só, como no espécime da galáxia.
     { key: 'radius', label: 'RAIO DA ÂNCORA', type: 'range', min: 0.05, max: 2.5, step: 0.01, value: 1 },
     /*
@@ -70,7 +76,8 @@ export const QUASAR_SPEC = {
     'AS BANDAS DO DISCO CISALHAM: com INCLINAÇÃO ~0,7 e FLUXO 1, o interior tem de girar visivelmente mais rápido que a borda. Se o padrão inteiro gira como um bloco, a lei de Kepler (omega ∝ r^-1.5) saiu da fase e virou rotação rígida — e um disco rígido é um anel pintado.',
     'NENHUMA COSTURA RADIAL. Gire e varra a SEMENTE olhando para o eixo maior: uma cicatriz reta saindo do centro significa que o ruído das bandas voltou a ser amostrado no ângulo cru (`atan` salta de +pi para -pi) em vez de num círculo.',
     'O BEAMING É ASSIMÉTRICO E COLORIDO: com INCLINAÇÃO baixa (de perfil), um lado do disco tem de ficar mais claro E MAIS AZUL que o outro. Só mais claro significa que o Doppler entrou no brilho e não na temperatura — é assim que luz refletida se comporta, não gás em órbita.',
-    'INCLINAÇÃO = 1 (de frente) MATA a assimetria. A velocidade fica transversal à linha de visada, então o beaming tem de sumir por completo. Assimetria sobrando de frente é o fator ancorado numa direção de tela em vez de na geometria.',
+    'GIRE A CÂMERA e as cinco feições têm de andar JUNTAS: o disco achata, o jato encurta, o beaming troca de lado, o toro cobre e descobre o núcleo, e a espessura dele aparece. Uma que fique parada deixou de sair do `cosView` e virou constante — e antes desta troca NENHUMA se movia, porque o eixo era de tela.',
+    'ORBITE ATÉ O EIXO APONTAR PARA VOCÊ: o jato tem de ficar CURTO e MUITO brilhante ao mesmo tempo (é um blazar), não longo e brilhante. O par "estoura e encurta" sai do mesmo cosseno; se ele estourar sem encurtar, o beaming está lendo um ângulo e o comprimento outro.',
     'O TORO NÃO ACHATA COM O DISCO. Leve a INCLINAÇÃO a 0: o disco vira um risco e o toro TEM de continuar uma faixa grossa. Os dois virando linha juntos significa que o piso de razão de aspecto (h/r ~ 0,5) sumiu — e sem espessura o toro não tem como esconder o núcleo, que é a razão de ele existir.',
     'BORDA NENHUMA, EM CANTO NENHUM. Nem faixa reta (a caixa do jato cortando o lóbulo), nem círculo (a caixa do núcleo cortando o toro). Este arquivo já pagou as duas: cada corte usa a cauda da PRÓPRIA gaussiana que ele corta, e a caixa segue a feição mais externa.',
     'MASSA DE BOJO abaixo de 50: a bancada fica VAZIA e o relatório diz `apagado`. O portão não é decoração — 35 dos 213 hubs do corpus real dependem dele.',
