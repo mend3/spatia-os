@@ -354,17 +354,19 @@ export const MOTION = Object.freeze({
      * duas a olho mantendo as duas visivelmente vivas — a mesma licença declarada que a escala de
      * tempo das luas e a esfera de Hill cheia.
      *
-     * MEDIDO na tela, em `deploy/daimon/bootstrap-loop.sh` (churn 13, a cauda mais longa do corpus)
-     * no enquadramento em que ela cabe inteira: o rastro de poeira ocupa ~410 px. Uma travessia em
-     * 4,6 s dá ~89 px/s de MÉDIA, e o íon (rastro maior, ciclo menor) fica em ~240. Como a partícula
-     * acelera, a velocidade vale a média no meio do rastro e o dobro dela na ponta.
+     * O que está calibrado é o TEMPO DE TRAVESSIA, e é de propósito: ele não depende do
+     * enquadramento. A velocidade na tela sai dele com `comprimento_em_raios · px / período`, e o
+     * `px` do corpo em foco é publicado por `window.espatial.planet()`.
      *
-     * Para comparar, `patternSpin` foi calibrado em ~21 px/s no mesmo tipo de enquadramento — e a
-     * ordem é a certa: braço de galáxia tem de ser majestoso, jato de gás tem de ser jato.
+     * MEDIDO assim em `deploy/daimon/bootstrap-loop.sh` (churn 13, a cauda mais longa do corpus),
+     * com o LOD saturado (`px` 261, `level` 1): a cauda tem 7,54 raios, então o íon corre ~896 px/s
+     * de média e a poeira ~334. Números grandes porque nesse zoom o corpo sozinho tem 261 px de
+     * raio e a cauda inteira já não cabe na tela — o que se vê é a metade de perto, onde a
+     * partícula ainda está acelerando e anda a menos da metade disso. Num enquadramento em que a
+     * cauda cabe, tudo escala junto.
      *
-     * ⚠️ Os dois números dependem do enquadramento e o `px` do corpo não é exposto por nenhuma
-     * sonda; o que está calibrado aqui é o TEMPO DE TRAVESSIA, que não depende. Se um dia a sonda
-     * publicar o `px`, a conta vira medida direta em vez de derivada de um span lido na imagem.
+     * Para comparar, `patternSpin` foi calibrado em ~21 px/s com o corpo travado — e a ordem é a
+     * certa: braço de galáxia tem de ser majestoso, jato de gás tem de ser jato.
      *
      * ⚠️ O período é FIXO e o comprimento varia com a atividade, então cometa mais ativo escoa mais
      * RÁPIDO. É o certo pela física — a cauda é longa justamente porque o gás foi mais longe no
@@ -404,11 +406,22 @@ export const MOTION = Object.freeze({
     span: 0.16,
     retrograde: 0.35,
     /*
-     * Clouds turn ~3× the crust. It is what separates a weather layer from a texture painted on
-     * the planet: the two decouple visibly within a few seconds of looking, and nothing else in
-     * the frame says the atmosphere is a different body of matter.
+     * A nuvem gira UM POUCO mais que a crosta, e o "um pouco" é o dado real.
+     *
+     * ⚠️ Era 3× — nuvem dando uma volta a cada meia volta do planeta —, justificado por
+     * legibilidade: "é o que separa uma camada de tempo de uma textura pintada". O usuário olhou e
+     * disse que estava rápido demais, e a física concorda. Vento zonal é uma FRAÇÃO da rotação:
+     * Júpiter 0,9% (jato de ~110 m/s contra 12.570 m/s no equador), Saturno 4% (400 contra 9.870),
+     * Netuno 15% (400 contra 2.683) — o mais extremo do Sistema Solar. Vênus superrotaciona a 60×,
+     * mas isso é a atmosfera INTEIRA girando junto, um fenômeno diferente do jato, e nenhum corpo
+     * daqui é Vênus.
+     *
+     * 1,15 é Netuno, o caso real mais forte. O que se paga: com a taxa média de giro desta cena
+     * (0,044 rad/s, ~144 s por volta do planeta), o desacoplamento visível de ~15° passa de 3 s
+     * para ~40 s de observação, e a nuvem só completa uma volta sobre a crosta a cada ~16 min. É a
+     * troca certa — a camada continua sendo outro corpo de matéria, só que sem deslizar.
      */
-    cloudFactor: 3,
+    cloudFactor: 1.15,
     allowed: ['planet', 'comet'],
     forbids: Object.freeze({
       moon: 'todas as 19 luas arredondadas do Sistema Solar estão travadas por maré',

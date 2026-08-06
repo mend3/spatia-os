@@ -510,8 +510,9 @@ export function createPlanet() {
       // divergir move a linha de costa ou faz a montanha furar a atmosfera.
       const relief = Math.max(params.amplitude - params.sea, 1e-4);
       const shellRadius = 1 + relief + SHELL_MARGIN;
-      // Nuvem gira ~3× a superfície: é o que a separa de uma textura pintada no planeta. Mesmo
-      // `clock` da crosta — ver o `rotation.set` acima.
+      // Nuvem gira um POUCO mais que a superfície (jato zonal de Netuno, +15%): o suficiente para
+      // não ser textura pintada, sem deslizar. Mesmo `clock` da crosta — ver o `rotation.set`
+      // acima, e a justificativa em `MOTION.spin.cloudFactor`.
       const cloudAngle = clock * params.spin * SPIN.cloudFactor;
 
       const u = surface.material.uniforms;
