@@ -448,8 +448,14 @@ export function createGraph() {
   let dirtyState = new Map();
   // Índices dos nós que ganharam anel neste `markDirty` — a HUD cede em volta deles.
   let ringed = [];
-  /** Índice do astro cujas luas estão acesas. −1 = nenhum. Ver `isDormantMoon`. */
-  let moonParent = -1;
+  /**
+   * Índice do astro em FOCO. −1 = nenhum.
+   *
+   * Governa duas coisas: quais luas existem (só as dele) e quem NÃO balança — ver `advance`. Era
+   * `moonParent` e servia só à primeira; o balanço precisou da mesma informação e um segundo
+   * campo com o mesmo conteúdo é como dois estados do mesmo fato passam a divergir.
+   */
+  let focusedIndex = -1;
   /** Por nó: quanto o sprite virou halo (0 = disco cheio, 1 = só a coroa). */
   let halo = null;
   let haloIndex = -1;
@@ -841,7 +847,20 @@ export function createGraph() {
       }
 
       const angle = node.phase + elapsed * node.speed * tune.speed;
-      const bob = Math.sin(bobPhase + node.wobble * BOB.phaseSpread) * node.radius * BOB.amplitude;
+      /*
+       * O BALANÇO NÃO SE APLICA AO ASTRO EM FOCO.
+       *
+       * Ele é decorativo por declaração própria (`motion-catalog.js`): existe para o céu não ler
+       * como lâminas rígidas. Travada a câmera num corpo, essa leitura deixa de existir — e o que
+       * sobra é o corpo subindo e descendo na tela, porque a âncora persegue com suavização e
+       * fica atrás. O operador reportou como "a animação de respiração fica movendo o objeto".
+       *
+       * Zerado, e não congelado numa fase: o corpo em foco fica no plano da própria órbita, que é
+       * onde ele deveria estar para ser olhado.
+       */
+      const bob = node.i === focusedIndex
+        ? 0
+        : Math.sin(bobPhase + node.wobble * BOB.phaseSpread) * node.radius * BOB.amplitude;
       /*
        * Rotação REAL em torno de X — a versão anterior não era uma órbita inclinada.
        *
@@ -896,9 +915,9 @@ export function createGraph() {
    * buffer de todo quadro para não comunicar nada. A fotosfera, o planeta, o remanescente e o
    * traço de órbita já seguem esta disciplina: o detalhe nasce quando alguém pede aquele corpo.
    *
-   * Zero significa "nenhum foco", e não o índice 0 — `moonParent` guarda −1 nesse caso.
+   * Zero significa "nenhum foco", e não o índice 0 — `focusedIndex` guarda −1 nesse caso.
    */
-  const isDormantMoon = (node) => node.type === 'moon' && node.parentIndex !== moonParent;
+  const isDormantMoon = (node) => node.type === 'moon' && node.parentIndex !== focusedIndex;
 
   function applyKindFilter() {
     if (!hidden || !points) return;
@@ -1282,15 +1301,17 @@ export function createGraph() {
     spread: () => group.scale.x || 1,
 
     /**
-     * Acende as luas DESTE astro e apaga todas as outras. `null` apaga todas.
+     * Diz ao grafo qual astro está em foco. `null` solta.
+     *
+     * Acende as luas dele e apaga todas as outras — e tira ELE do balanço vertical.
      *
      * Escreve só quando muda: o atributo `aHidden` tem um float por corpo e reenviá-lo por quadro
      * seria upload de buffer por quadro para o mesmo valor — a mesma disciplina do `haloOf`.
      */
-    setMoonFocus(source) {
+    setFocus(source) {
       const alvo = source === null || source === undefined ? -1 : (index.get(source) ?? -1);
-      if (alvo === moonParent) return;
-      moonParent = alvo;
+      if (alvo === focusedIndex) return;
+      focusedIndex = alvo;
       applyKindFilter();
     },
     kindColor: (kind) => KIND_COLORS[kind] ?? KIND_COLORS.other,

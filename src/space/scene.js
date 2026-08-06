@@ -137,15 +137,6 @@ const FOCUS_FIT_PX = 260;
 const FOCUS_FLOOR_RADII = 3.4;
 
 /**
- * Folga do enquadramento de SISTEMA: a órbita externa não encosta na borda da tela.
- *
- * 1,12 deixa a elipse mais externa com ~12% de respiro. Exatamente 1,0 poria o apoastro tangente
- * ao quadro, e a lua ali passaria metade da volta cortada pelo canto — que lê como defeito de
- * desenho, não como órbita.
- */
-const SYSTEM_FIT_MARGIN = 1.12;
-
-/**
  * Quanto cada pele ocupa ALÉM do raio do corpo, em raios — o fator que o foco usa para recuar.
  *
  * Fotosfera e planeta são o corpo e valem 1 por omissão. As outras não: a nebulosa é a nuvem, não
@@ -363,8 +354,6 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   let fitPending = false;
   /** A guarda do núcleo mordeu neste quadro? Sonda: ela deforma o enquadramento em silêncio. */
   let guardBit = false;
-  /** Borda externa do sistema de luas do astro em foco, em unidades locais. 0 = não tem luas. */
-  let moonOuter = 0;
   /** Última superfície decidida — o traço do solver só sai quando ela muda. */
   let ultimaSuperficie = null;
   /** Parâmetros do planeta em foco. Recalculados só na TROCA de astro — são puros e congelados. */
@@ -1092,13 +1081,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     if (focusedNode !== moonSource) {
       // As luas existem no céu só enquanto o astro delas está em foco — mesma disciplina da
-      // superfície procedural. Ver `graph.setMoonFocus`.
-      graph.setMoonFocus(focusedNode);
+      // superfície procedural. Ver `graph.setFocus`.
+      graph.setFocus(focusedNode);
       const luas = focusedNode ? graph.moonsAt(focusedNode) : [];
       moonOrbits.build(luas);
-      // Borda externa do sistema, em unidades LOCAIS — é o que o enquadramento de foco precisa
-      // enxergar quando o corpo tem luas. Ver `SYSTEM_FIT_MARGIN`.
-      moonOuter = luas.length ? luas[luas.length - 1].semiMajor : 0;
       moonSource = focusedNode;
     }
     if (pouso) moonOrbits.show(pouso.position, graph.spread());
@@ -1112,19 +1098,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
       if (fitPending && pouso.px > 0) {
         /*
-         * QUEM TEM LUAS POUSA NO SISTEMA, não na superfície.
+         * ⚠️ FOCO POUSA NO CORPO — e por um tempo ele pousou no SISTEMA, o que foi pior.
          *
-         * `FOCUS_FIT_PX` enche a tela com o corpo, que é o certo para ver a fotosfera ou a crosta.
-         * Só que a lua orbita a ~7,4 raios do corpo: nesse enquadramento o sistema inteiro está
-         * fora da tela, e travar num corpo com luas mostrava justamente a única coisa que não
-         * mudou nele. A superfície continua a um gesto de roda daqui — o piso de zoom
-         * (`FOCUS_FLOOR_RADII`, 3,4 raios) fica bem abaixo da distância que ela pede.
+         * A ideia era boa e o resultado não: como a lua orbita a ~7,4 raios, enquadrar o sistema
+         * põe a câmera a 23 unidades e o corpo fica com 33 px. O operador trava num documento e
+         * recebe um ponto distante — reportado como "não consigo dar zoom nem controlar a câmera",
+         * porque nada do que ele faz parece mudar o que está vendo. E dois corpos do mesmo tamanho
+         * passavam a enquadrar diferente conforme tivessem ou não luas, o que é surpresa pura.
          *
-         * 40 dos 473 corpos têm sistema; para os outros nada muda.
+         * Travar num astro significa VER AQUELE ASTRO. O sistema continua desenhado — o traço das
+         * órbitas sai do quadro, e é ele o convite para afastar. Informação oferecida, não imposta.
          */
-        const paraOSistema = moonOuter > 0
-          ? ((moonOuter * graph.spread()) / Math.tan((camera.fov * Math.PI) / 360)) * SYSTEM_FIT_MARGIN
-          : 0;
+
         /*
          * A PELE pode ser maior que o corpo, e o enquadramento tem de saber disso.
          *
@@ -1135,7 +1120,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
          */
         const extensao = SKIN_EXTENT[decisao?.surface] ?? 1;
         orbit.targetDistance = clampDistance(
-          paraOSistema || ((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX) * extensao
+          ((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX) * extensao
         );
         fitPending = false;
       }
