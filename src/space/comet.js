@@ -166,10 +166,96 @@ const TAIL_FRAGMENT = /* glsl */ `
   }
 `;
 
+/**
+ * O NÚCLEO é irregular, e não é enfeite — é o que ser pequeno OBRIGA.
+ *
+ * Abaixo de ~400 km de diâmetro a autogravidade não vence a resistência do material, então o corpo
+ * nunca chega ao equilíbrio hidrostático e não arredonda. Núcleo cometário tem quilômetros: 67P tem
+ * 4 km e é um amendoim de dois lobos, Halley é um batata alongado. A esfera é que seria a mentira —
+ * ela afirmaria um corpo grande o bastante para se arredondar, que é exatamente a fronteira que o
+ * catálogo já usa para decidir quais luas são redondas.
+ *
+ * ⚠️ Sem `simplex3` aqui de propósito, e a razão é diferente da estação: harmônicas baixas são o
+ * que descreve ESTA forma. Ruído fractal daria uma superfície rugosa em toda escala — um asteroide
+ * texturizado. O que caracteriza um núcleo é a silhueta de poucos lobos, e isso são três termos.
+ */
+function esculpirNucleo(seed) {
+  const geometry = new THREE.IcosahedronGeometry(1, 3);
+  const pos = geometry.attributes.position;
+  // Cinco fases independentes a partir de uma semente só. `x - floor(x)` e não `% 1`: o resto de
+  // um negativo é negativo, e uma fase fora de [0,1) faria dois cometas coincidirem por acaso.
+  const fase = (n) => {
+    const x = Math.sin(seed * 127.1 + n * 311.7) * 43758.5453;
+    return (x - Math.floor(x)) * Math.PI * 2;
+  };
+  const [a, b, c, d, e] = [fase(1), fase(2), fase(3), fase(4), fase(5)];
+  /*
+   * CONTATO BINÁRIO em cerca de metade dos corpos, e essa proporção é observada.
+   *
+   * 67P, Arrokoth, Halley: a fusão de dois corpos a baixa velocidade é comum o bastante para ser
+   * a forma típica, não a exceção. `cintura` estrangula o meio ao longo de um eixo; quando o
+   * sorteio a desliga, sobra o irregular de lobo único, que também existe.
+   */
+  const bilobado = seed > 0.5;
+  const eixo = new THREE.Vector3(Math.cos(a), Math.sin(b), Math.sin(a) * Math.cos(b)).normalize();
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i += 1) {
+    v.fromBufferAttribute(pos, i);
+    // Três harmônicas de frequência crescente: os lobos, o degrau grande, a quina. A função é da
+    // DIREÇÃO, então os vértices duplicados da malha não-indexada caem no mesmo lugar — sem isso
+    // a casca abriria fenda em cada aresta compartilhada.
+    let r = 1
+      + 0.20 * Math.sin(2.3 * v.x + a) * Math.cos(2.7 * v.y + b)
+      + 0.11 * Math.sin(4.1 * v.z + c) * Math.cos(3.7 * v.x + d)
+      + 0.06 * Math.sin(6.9 * v.y + e);
+    if (bilobado) {
+      // A cintura: uma gaussiana estreita em torno do plano perpendicular ao eixo. Estrangula em
+      // vez de cortar — os dois lobos continuam ligados por um pescoço, que é o que se vê.
+      const ao = v.dot(eixo);
+      r -= 0.30 * Math.exp(-(ao * ao) / 0.045);
+    }
+    pos.setXYZ(i, v.x * r, v.y * r, v.z * r);
+  }
+  // Malha não-indexada + normais recalculadas = sombreamento FACETADO, e é o que se quer: corpo
+  // abaixo do limite hidrostático tem quina de verdade, e faceta lê como rocha, não como esfera.
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+const NUCLEUS_VERTEX = /* glsl */ `
+  varying vec3 vNormal;
+  void main(){
+    // Normal em MUNDO: a luz vem do nucleo da cena e o corpo gira, entao a conta tem de acontecer
+    // num referencial que nenhum dos dois arrasta junto.
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const NUCLEUS_FRAGMENT = /* glsl */ `
+  precision highp float;
+  uniform vec3 uLight;
+  uniform vec3 uRock;
+  varying vec3 vNormal;
+  void main(){
+    /*
+     * ALBEDO 0,04 — mais escuro que carvao, e e o dado que manda no desenho.
+     *
+     * Sem termo ambiente o corpo sumiria no preto; com ambiente demais ele vira pedra cinza e
+     * perde o terminador, que e o unico sinal de que aquilo e SOLIDO. O piso baixo deixa a face
+     * escura quase preta e o limbo iluminado aparece como um crescente fino — a imagem que a
+     * Giotto trouxe do Halley e a Rosetta do 67P.
+     */
+    float lambert = max(dot(vNormal, uLight), 0.0);
+    gl_FragColor = vec4(uRock * (0.05 + 0.95 * lambert), 1.0);
+  }
+`;
+
 const COMA_FRAGMENT = /* glsl */ `
   precision highp float;
   uniform vec3 uColor;
   uniform float uAmount;
+  uniform float uCore;
   varying vec2 vUv;
   void main(){
     /*
@@ -182,6 +268,19 @@ const COMA_FRAGMENT = /* glsl */ `
      */
     float d = length((vUv - 0.5) * 2.0);
     float fill = pow(max(1.0 - d, 0.0), 1.4) * uAmount * 0.55;
+    /*
+     * O CORPO OCULTA A COMA ATRAS DELE — e sem isto o nucleo nao existe na tela.
+     *
+     * A coma e aditiva e desenhada sem teste de profundidade (ela e emissao, nao solido), entao
+     * ela soma por cima do nucleo e apaga qualquer relevo que ele tenha. Uma esfera lisa nao fazia
+     * falta ali; um corpo esculpido faz.
+     *
+     * A saida nao e ligar o teste de profundidade — isso cortaria a metade de tras da coma, que
+     * existe de verdade. E descontar a coluna de gas que o corpo SOLIDO bloqueia, que e o que
+     * acontece de fato: no centro so chega a metade da frente. O resultado e o nucleo em
+     * silhueta escura contra o gas, com o limbo aceso — a imagem que a Giotto trouxe do Halley.
+     */
+    fill *= smoothstep(uCore * 0.9, uCore * 1.7, d);
     if (fill < 0.004) discard;
     gl_FragColor = vec4(uColor * fill, fill);
   }
@@ -269,12 +368,34 @@ export function createComet() {
   const group = new THREE.Group();
   group.visible = false;
 
-  const nucleoMat = new THREE.MeshBasicMaterial({ color: 0x2b2b33 });
-  const nucleo = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), nucleoMat);
+  /*
+   * O núcleo é o único opaco desta pele, e o único que escreve profundidade.
+   *
+   * Coma e caudas são emissão: aditivas, sem `depthWrite`, sem `depthTest`. O corpo é matéria —
+   * ele tem de ocluir o que passa atrás. `renderOrder` baixo para ele entrar antes do gás.
+   */
+  const nucleoMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uLight: { value: new THREE.Vector3(1, 0, 0) },
+      // Cinza-escuro neutro, e ele NÃO é a cor do `kind`: o núcleo é rocha, e pintá-lo da cor do
+      // conhecimento diria que a matéria dele muda com o tipo do arquivo. O gás é que carrega a cor.
+      uRock: { value: new THREE.Color(0x6b6a72) },
+    },
+    vertexShader: NUCLEUS_VERTEX,
+    fragmentShader: NUCLEUS_FRAGMENT,
+  });
+  const nucleo = new THREE.Mesh(esculpirNucleo(0.5), nucleoMat);
+  nucleo.renderOrder = 7;
   group.add(nucleo);
+  /** Semente da malha corrente — a geometria é reesculpida quando o foco troca de cometa. */
+  let nucleoSeed = null;
 
   const comaMat = new THREE.ShaderMaterial({
-    uniforms: { uColor: { value: new THREE.Color(0xffffff) }, uAmount: { value: 0 } },
+    uniforms: {
+      uColor: { value: new THREE.Color(0xffffff) },
+      uAmount: { value: 0 },
+      uCore: { value: 0.15 },
+    },
     vertexShader: VERTEX,
     fragmentShader: COMA_FRAGMENT,
     transparent: true,
@@ -397,11 +518,28 @@ export function createComet() {
       if (!group.visible) return 0;
 
       const relogio = reduced ? 0 : elapsed;
+      // Reesculpe só quando o foco troca de cometa — mesmo ciclo de vida das outras peles.
+      if (params.seed !== nucleoSeed) {
+        nucleo.geometry.dispose();
+        nucleo.geometry = esculpirNucleo(params.seed);
+        nucleoSeed = params.seed;
+      }
       nucleo.scale.setScalar(params.nucleus);
       nucleo.rotation.set(params.seed * 6.28, relogio * params.spin, 0);
+      /*
+       * A LUZ VEM DO NÚCLEO DA CENA, que é o único corpo emissivo — a mesma fonte que ilumina o
+       * planeta em `scene.js` e a mesma que empurra as caudas. Direção do corpo PARA a origem.
+       *
+       * Cai de graça uma coisa certa: a face acesa do núcleo aponta para onde as caudas NÃO
+       * apontam. O crescente iluminado e o rastro ficam em lados opostos, que é a geometria real
+       * de um cometa e o que amarra as três partes numa leitura só.
+       */
+      nucleoMat.uniforms.uLight.value.copy(position).normalize().negate();
 
       comaMat.uniforms.uColor.value.set(params.color);
       comaMat.uniforms.uAmount.value = params.amount * level;
+      // Raio do corpo em unidades da coma: é onde o gás para de ser somado (ver COMA_FRAGMENT).
+      comaMat.uniforms.uCore.value = params.nucleus / Math.max(params.coma, 1e-4);
       coma.scale.setScalar(params.coma);
       coma.quaternion.copy(camera.quaternion);
 
