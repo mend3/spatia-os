@@ -92,6 +92,7 @@
 import * as THREE from 'three';
 import { hash01 } from './graph.js';
 import { GLSL_SIMPLEX3 } from './planet-noise.js';
+import { GLSL_OPTICAL_DEPTH, ASPECT_FOLHA, ASPECT_PAREDE } from './optical-depth.js';
 import { glslFloat } from './glsl.js';
 
 /**
@@ -437,6 +438,7 @@ const FRAGMENT = /* glsl */ `
   varying vec3 vLod;
 
   ${GLSL_SIMPLEX3}
+  ${GLSL_OPTICAL_DEPTH}
 
   /*
    * A RAMPA DE TEMPERATURA do disco, e ela é a assinatura de cor do objeto.
@@ -604,6 +606,17 @@ const FRAGMENT = /* glsl */ `
       disco *= beaming;
 
       /*
+       * A COLUNA, e e ela que tira o aspecto de adesivo (ver optical-depth.js).
+       *
+       * O que chega ao olho nao atravessou um PONTO do disco, atravessou uma COLUNA — e a coluna
+       * cresce com 1/cos(i). De vies o disco fica mais denso, satura, e para de ser translucido;
+       * de frente ele e o mais fino que pode ser. O buraco negro central ganha isso de graca
+       * porque la o raio e integrado e cruza o plano; aqui, que e billboard, entra em forma
+       * fechada. Densidade 0,9 e opticamente fina de frente (sai 59%) e opaca de perfil.
+       */
+      disco *= saidaDaLaje(0.9, squash, ${glslFloat(ASPECT_FOLHA)});
+
+      /*
        * A CORONA e compacta, quente e ISOTROPICA — ela nao achata com o disco.
        *
        * Ela e o plasma a 10^9 K logo acima do disco interno, e e ela que produz o raio X duro. Na
@@ -663,7 +676,13 @@ const FRAGMENT = /* glsl */ `
        * FASE quebra a concentricidade sem custar amostra nova.
        */
       float faixas = 0.82 + 0.18 * cos(toroR * 7.0 + bandas * 1.6 + semente * 6.2831);
-      float toro = perfilToro * faixas * (0.86 + 0.14 * bandas) * (0.35 + 0.65 * (1.0 - vGlow.z));
+      /*
+       * O toro passa pela MESMA lei, com o piso de PAREDE: h/r da ordem de 1, entao a coluna dele
+       * para de crescer muito antes da do disco. E por isso que um nucleo tipo 2 nao apaga — o toro
+       * satura e continua morno, reemitindo no infravermelho o que absorveu.
+       */
+      float toro = perfilToro * faixas * (0.86 + 0.14 * bandas) * (0.35 + 0.65 * (1.0 - vGlow.z))
+                 * saidaDaLaje(1.6, squashToro, ${glslFloat(ASPECT_PAREDE)});
 
       /*
        * O nucleo entra com o peso da OBSCURACAO; o toro entra sempre. Ver a nota em quasarParams
