@@ -89,8 +89,30 @@ const DISK_FRAGMENT = /* glsl */ `
   precision highp float;
   uniform float uTime, uSpin, uIntensity, uTurbulence, uInner, uOuter, uErrorMix, uViewAz, uViewInPlane;
   uniform vec3 uHot, uMid, uCool;
+  uniform float uHeight, uWeight, uCheap;
   varying vec3 vLocal;
   ${NOISE}
+
+  /*
+   * SEGUNDOS ate o campo de filamentos se refazer, e o GANHO do cisalhamento diferencial.
+   *
+   * O ciclo tem de ser longo o bastante para o cisalhamento desenhar espiral e curto o bastante
+   * para ele nao virar cabelo. Com o ganho em 0,18 a borda interna anda ~1,8 unidades de ruido
+   * por segundo contra a externa, entao em meio ciclo (1,4 s) ela acumula ~2,5 feicoes de
+   * defasagem: espiral visivel, e nenhuma feicao sobrevive tempo suficiente para enrolar.
+   *
+   * O ganho ataca SO a parte diferencial. O giro de conjunto continua com o coeficiente cheio,
+   * entao o disco gira tao rapido quanto antes — o que mudou e so quanto ele TORCE.
+   */
+  const float SHEAR_CYCLE = 2.8;
+  const float SHEAR_GAIN = 0.18;
+
+  // Uma amostra do campo de filamentos. Extraida em funcao porque agora ela e chamada DUAS vezes,
+  // com fases de cisalhamento diferentes — ver a mistura no corpo principal.
+  float striacao(float flow, float radial){
+    vec2 filament = vec2(flow * 2.4, radial);
+    return fbm(filament * vec2(1.0, 2.6)) * 0.5 + 0.5;
+  }
 
   void main(){
     // RingGeometry é gerada no plano XY (z=0) e só depois o mesh é rotacionado — então o
@@ -104,11 +126,56 @@ const DISK_FRAGMENT = /* glsl */ `
     // Rotação diferencial: a borda interna gira muito mais rápido que a externa. É o que
     // impede o disco de parecer uma textura girando rígida.
     float keplerian = pow(max(radius / uInner, 0.35), -1.5);
-    float flow = theta + uTime * uSpin * keplerian * 6.0;
 
-    // Coordenada alongada em θ: ruído esticado ao longo do fluxo vira filamento.
-    vec2 filament = vec2(flow * 2.4, span * 9.0 - uTime * uSpin * 0.35);
-    float striation = fbm(filament * vec2(1.0, 2.6)) * 0.5 + 0.5;
+    /*
+     * ⚠️ O CISALHAMENTO NAO PODE ACUMULAR SEM FIM — e era isso que estava acontecendo.
+     *
+     * A conta era flow = theta + uTime * uSpin * keplerian * 6.0. O termo kepleriano varia de
+     * ~0,3 na borda externa a 4,83 na interna, entao a DIFERENCA de fase entre as duas bordas
+     * cresce linearmente com o relogio e nunca para. Medido: com uSpin de repouso (0,18) a fase
+     * diferencial anda ~11,7 unidades de ruido por segundo. Depois de um minuto de cena as duas
+     * bordas estao 700 feicoes fora de fase — o campo enrolou em centenas de fios finos, e o
+     * disco perde a camada de densidade e vira estriado.
+     *
+     * E o defeito nao e novo: e o ENROLAMENTO de Lin-Shu, o mesmo que matou o campo de arestas e
+     * que MOTION.patternSpin existe para impedir ("padrao que gira sem transportar materia"). O
+     * disco do buraco negro nunca passou por aquele catalogo, entao repetiu o erro sozinho.
+     *
+     * A correcao e a que a fisica manda: turbulencia de disco de acrecao NAO enrola para sempre —
+     * a magnetorrotacao regenera a estrutura continuamente, e os filamentos nascem, cisalham e
+     * sao substituidos. Duas copias do campo, defasadas de meio ciclo, misturadas por peso
+     * triangular: cada uma so vive meio ciclo, entao o cisalhamento e limitado por construcao.
+     * Nenhuma das duas some — quando uma nasce a outra esta no pico, e a soma nunca pisca.
+     */
+    float giro = theta + uTime * uSpin * 6.0;
+    // rad/s de cisalhamento DIFERENCIAL, ja atenuado: o giro de conjunto continua rapido (e o
+    // que da a sensacao de rotacao), so a parte que enrola anda devagar.
+    float taxa = (keplerian - 1.0) * uSpin * 6.0 * SHEAR_GAIN;
+
+    float fase = fract(uTime / SHEAR_CYCLE);
+    // Peso triangular: 0 no meio da vida da copia A, 1 quando ela reinicia — e nesse instante a
+    // copia B esta no proprio meio. A troca acontece onde a copia que sai vale zero.
+    float peso = abs(fase * 2.0 - 1.0);
+    float localA = (fase - 0.5) * SHEAR_CYCLE;
+    float localB = (fract(uTime / SHEAR_CYCLE + 0.5) - 0.5) * SHEAR_CYCLE;
+
+    /*
+     * uHeight descorrelaciona a FATIA: sem ele as copias empilhadas mostrariam o mesmo campo
+     * deslocado em y, e a pilha leria como um decalque repetido em vez de volume.
+     */
+    float radialDrift = span * 9.0 - uTime * uSpin * 0.35 + uHeight * 31.0;
+    /*
+     * FORA DO PLANO MEDIO nao ha amostragem de ruido, e isso e fisica antes de ser economia: a
+     * altura de escala e sustentada por pressao, e o gas la em cima e rarefeito e liso. A
+     * estrutura filamentar vive no plano medio, que e onde a densidade esta.
+     *
+     * uCheap = 1 devolve uma constante e o compilador poda as duas chamadas de fbm da fatia.
+     */
+    float striation = uCheap > 0.5 ? 0.72 : mix(
+      striacao(giro + taxa * localA, radialDrift),
+      striacao(giro + taxa * localB, radialDrift),
+      peso
+    );
     striation = pow(striation, mix(1.4, 3.2, uTurbulence * 0.35));
 
     float temperature = pow(1.0 - span, 3.4);
@@ -194,14 +261,45 @@ const DISK_FRAGMENT = /* glsl */ `
     float boost = 1.0 / max(1.0 - beta * mu, 0.05);
     brightness *= pow(boost, 3.0);
 
+    // O PESO DA FATIA. As fatias somam (blending aditivo) e os pesos somam 1, entao visto de
+    // frente o disco tem exatamente o brilho de antes — o que muda e so a distribuicao vertical.
+    brightness *= uWeight;
     gl_FragColor = vec4(color * brightness, brightness);
   }
 `;
+
+/**
+ * As fatias do disco, em desvios-padrão da altura de escala. Ímpar de propósito: a do meio É o
+ * disco que já existia, então o plano médio continua idêntico ao de antes.
+ *
+ * ⚠️ **As de fora NÃO amostram ruído** — e a primeira versão amostrava, o que MATOU A ABA.
+ *
+ * Cinco fatias com o campo completo é 5× o custo de fragmento de um anel que enche a tela, e o
+ * campo passou a ser amostrado DUAS vezes por causa do ciclo anti-enrolamento: 10× o original.
+ * A GPU travou e o navegador fechou a aba. O erro de raciocínio foi tratar "volume" como "mais
+ * cópias do mesmo detalhe" — mas o que dá espessura a olho é a LUZ fora do plano médio, não a
+ * estrutura dela. Fora do plano o gás é rarefeito: uma névoa lisa é o que ele é de verdade.
+ *
+ * Custo final: 2 amostras de ruído (só o plano médio) + 4 fatias triviais.
+ */
+const SLICE_OFFSETS = Object.freeze([-1.6, -0.8, 0, 0.8, 1.6]);
+
+/**
+ * Altura de escala, em frações do raio EXTERNO.
+ *
+ * Disco fino real tem `h/r` entre 0,01 e 0,1; as ilustrações de referência mostram um toro bem
+ * mais gordo, porque nelas o disco está inchado por radiação. 0,05 fica no topo da faixa física e
+ * é o suficiente para a espessura aparecer de perfil sem o disco virar rosquinha visto de cima.
+ */
+const SCALE_HEIGHT = 0.05;
 
 export function createBlackHole() {
   const group = new THREE.Group();
 
   const uniforms = {
+    uHeight: { value: 0 },
+    uWeight: { value: 1 },
+    uCheap: { value: 0 },
     uTime: { value: 0 },
     uSpin: { value: REGIMES.boot.spin },
     uIntensity: { value: REGIMES.boot.intensity },
@@ -232,9 +330,55 @@ export function createBlackHole() {
     side: THREE.DoubleSide,
   });
 
+  /*
+   * O DISCO É UMA PILHA DE FATIAS, não um plano — e antes era um plano.
+   *
+   * `RingGeometry` tem espessura ZERO. De frente isso não aparece; de perfil, com a câmera no
+   * plano do disco, o que se vê é uma folha de um pixel — foi exatamente o que o usuário
+   * fotografou em x = 0. Disco de acreção real tem altura de escala: a pressão do gás sustenta
+   * uma espessura, e é ela que dá a leitura de VOLUME que as referências têm.
+   *
+   * Cinco cópias do mesmo disco, deslocadas em y por uma gaussiana, com os pesos SOMANDO 1. Como
+   * o blending é aditivo, a soma vista de frente é idêntica à do disco único de antes — nenhuma
+   * regressão no enquadramento em que ele já estava bom. De perfil, a mesma luz se espalha por
+   * uma faixa em vez de uma linha.
+   *
+   * As fatias compartilham os OBJETOS de uniform (`{...uniforms}` copia as referências, não os
+   * valores), então uma escrita em `uniforms.uTime.value` atinge as cinco. Só `uHeight` e
+   * `uWeight` são próprios.
+   */
   const disk = new THREE.Mesh(new THREE.RingGeometry(DISK_INNER, DISK_OUTER, 256, 64), diskMaterial);
   disk.rotation.x = -Math.PI / 2;
-  group.add(disk);
+
+  const slices = [];
+  {
+    const pesos = SLICE_OFFSETS.map((i) => Math.exp(-(i * i) / 2));
+    const soma = pesos.reduce((a, b) => a + b, 0);
+    SLICE_OFFSETS.forEach((i, k) => {
+      const material = i === 0
+        ? diskMaterial
+        : new THREE.ShaderMaterial({
+          uniforms: { ...uniforms, uHeight: { value: 0 }, uWeight: { value: 0 }, uCheap: { value: 1 } },
+          vertexShader: DISK_VERTEX,
+          fragmentShader: DISK_FRAGMENT,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+        });
+      material.uniforms.uHeight.value = i * SCALE_HEIGHT * DISK_OUTER;
+      material.uniforms.uWeight.value = pesos[k] / soma;
+      const malha = i === 0
+        ? disk
+        : new THREE.Mesh(new THREE.RingGeometry(DISK_INNER, DISK_OUTER, 256, 64), material);
+      malha.rotation.x = -Math.PI / 2;
+      // A pilha é aditiva e sem `depthWrite`, então a ordem entre as fatias não importa — mas ela
+      // tem de vir DEPOIS do horizonte, que é opaco e escreve profundidade.
+      malha.position.y = material.uniforms.uHeight.value;
+      slices.push(malha);
+      group.add(malha);
+    });
+  }
 
   // Sem anel extra colado no horizonte. Nesta inclinação rasante um anel de raio próximo
   // ao da esfera se sobrepõe à silhueta dela, e o passe de lente esfrega isso num espiral
@@ -300,7 +444,7 @@ export function createBlackHole() {
       uniforms.uOuter.value = DISK_OUTER * tune.width;
 
       horizon.scale.setScalar(breath);
-      disk.scale.setScalar(1 + pulse * live.breath * tune.breath * 0.45);
+      for (const fatia of slices) fatia.scale.setScalar(1 + pulse * live.breath * tune.breath * 0.45);
       /*
        * A rotação de corpo rígido SAIU.
        *
@@ -327,7 +471,7 @@ export function createBlackHole() {
       group.scale.setScalar(values.coreScale ?? 1);
       // O disco é geometria fixa; a largura efetiva é o raio externo lido pelo shader, e a
       // borda de fade acompanha porque `span` é normalizado por uOuter.
-      disk.scale.setScalar(1);
+      for (const fatia of slices) fatia.scale.setScalar(1);
     },
 
     intensity: () => live.intensity,
