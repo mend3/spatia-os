@@ -250,7 +250,29 @@ const FRAGMENT = /* glsl */ `
      * shader nem compilava: o que eu estava calibrando era o halo do sprite por baixo. Foi a
      * bancada que expos isso, que e exatamente para o que ela existe.
      */
-    gl_FragColor = vec4(color * brightness * 0.72, 1.0);
+    /*
+     * ESPICULAS NO LIMBO: as linguas de plasma que fazem a borda de uma estrela ser VIVA.
+     *
+     * Elas so aparecem de vies (crescem com 1-mu, como as faculas) e vem do mesmo campo de ruido
+     * que ja ferve — sao a cromosfera vista de perfil, o mesmo material em outra geometria. Sem
+     * elas a estrela termina numa circunferencia perfeita, que e a silhueta de um adesivo.
+     */
+    float espiculas = pow(max(cells, 0.0), 2.2) * pow(1.0 - mu, 3.0) * 2.6;
+    brightness += espiculas;
+
+    /*
+     * E A SUPERFICIE NAO E OPACA — alfa < 1, e isso e o corpo, nao um efeito.
+     *
+     * Fotosfera e opticamente espessa no meio do disco e RAREIA no limbo: la a linha de visada
+     * atravessa menos plasma antes de sair, e e por isso que o Sol nao tem borda de tesoura. Com
+     * alfa 1 a esfera terminava num recorte duro contra o ceu e lia como disco colado.
+     *
+     * O ruido entra no limiar junto com mu, entao a borda tambem e IRREGULAR e muda com o tempo:
+     * a mesma ideia do nucleo do pulsar, e pelo mesmo motivo.
+     */
+    float limiar = 0.055 + max(cells, 0.0) * 0.10;
+    float alfa = smoothstep(0.0, max(limiar, 0.01), mu);
+    gl_FragColor = vec4(color * brightness * 0.72 * alfa, alfa);
   }
 `;
 
@@ -427,6 +449,11 @@ export function createPhotosphere() {
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
+      // A fotosfera deixou de ser opaca (ver o alfa no fim do FRAGMENT). Sem `depthWrite: false`
+      // a borda translúcida ainda gravaria profundidade e recortaria o halo do sprite por baixo —
+      // o buraco quadrado clássico de superfície transparente escrevendo no z-buffer.
+      transparent: true,
+      depthWrite: false,
     });
     // 48×32 basta: a esfera não tem deslocamento, então a malha só precisa de silhueta lisa —
     // toda a estrutura mora no fragmento.
