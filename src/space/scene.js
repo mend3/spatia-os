@@ -472,6 +472,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   on('ui.focus-node', ({ source }) => focusNode(source ?? null));
 
   /*
+   * Filtro de tipo do histograma "forma do corpus". `kinds` nulo devolve o céu inteiro.
+   *
+   * Solta o foco quando o corpo travado é o que acabou de ser escondido: a câmera continuaria
+   * orbitando um ponto invisível, e nada na tela explicaria por que ela parou de responder.
+   */
+  on('ui.filter-kinds', ({ kinds }) => {
+    graph.setKindFilter(kinds ?? null);
+    const alvo = focusedNode ? graph.nodeAt(focusedNode) : null;
+    if (alvo && kinds && !kinds.includes(alvo.kind || 'other')) focusNode(null);
+  });
+
+  /*
    * O vínculo responde ao GESTO, e o cursor vence o foco enquanto existe.
    *
    * São duas perguntas diferentes com a mesma resposta visual: "o que é aquilo ali?" (cursor,

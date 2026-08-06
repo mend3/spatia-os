@@ -103,6 +103,7 @@ const VERTEX = /* glsl */ `
   attribute float aSeed;
   attribute float aHalo;
   attribute vec3 aColor;
+  attribute float aHidden;
   varying vec3 vColor;
   varying float vIgnition;
   varying float vReveal;
@@ -110,13 +111,25 @@ const VERTEX = /* glsl */ `
   varying float vSeed;
   varying float vHalo;
 
-  void main(){
   // Do catálogo de movimento, e o espelho em JS de starRadius() lê os MESMOS três valores. Eram
   // literais nos dois lugares. (Sem backtick neste comentário: ele fecha o template do shader.)
   const float PULSE_RATE = ${glslFloat(PULSE.rate)};
   const float PULSE_INFLATE = ${glslFloat(PULSE.inflate)};
   const float PULSE_AMPLITUDE = ${glslFloat(PULSE.amplitude)};
 
+  void main(){
+    /*
+     * FILTRO POR TIPO — descartado no clipe, nao encolhido.
+     *
+     * Zerar gl_PointSize NAO esconde nada: o tamanho tem piso de 1.0 logo abaixo, e um ponto de
+     * 1px continua clicavel e continua acendendo. Jogar o vertice para fora do volume de clipe
+     * faz a GPU descartar o ponto inteiro, que e a unica forma de ele deixar de existir.
+     */
+    if (aHidden > 0.5) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      gl_PointSize = 0.0;
+      return;
+    }
     vIgnition = aIgnition;
     vSupernova = aSupernova;
     vSeed = aSeed;
@@ -268,6 +281,19 @@ export function createGraph() {
   let index = new Map();
   let positions = null;
   let ignition = null;
+  /** 1 = descartado no clipe. Espelho em JS do atributo `aHidden`, ver o vertex shader. */
+  let hidden = null;
+  /**
+   * Tipos VISÍVEIS, ou `null` para "todos".
+   *
+   * `null` e "o conjunto de todos os tipos" não são a mesma coisa e a diferença importa: com
+   * `null` um tipo que aparecer numa recarga futura nasce visível, que é o comportamento certo
+   * para quem nunca tocou no filtro. Com um conjunto explícito, ele nasceria escondido — o
+   * corpus teria crescido e a tela não diria.
+   */
+  let visibleKinds = null;
+  /** Última lista passada a `rings.set`, para o filtro poder reconstruir sem esperar a varredura. */
+  let ringEntries = [];
   /*
    * Intensidade da casca por nó. Hoisted para fora do `load` porque a RESOLUÇÃO de
    * compatibilidade acontece depois — quando o estado do disco chega — e ela precisa reescrever
@@ -507,9 +533,15 @@ export function createGraph() {
     geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
     geometry.setAttribute('aHalo', new THREE.BufferAttribute(halo, 1));
     geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+    hidden = new Float32Array(count);
+    geometry.setAttribute('aHidden', new THREE.BufferAttribute(hidden, 1));
     points = new THREE.Points(geometry, material);
     points.frustumCulled = false;
     group.add(points);
+    // Depois de `points` existir, senão o `needsUpdate` não tem em quem pegar. O filtro sobrevive
+    // à recarga da topologia: quem desligou `config` não quer que ele volte sozinho porque o
+    // disco mudou.
+    applyKindFilter();
 
     edgePairs = (payload.edges || [])
       .map(([child, parent]) => [index.get(child), index.get(parent)])
@@ -594,6 +626,19 @@ export function createGraph() {
 
   function advance(elapsed) {
     if (!positions) return;
+    /*
+     * O balanço CONGELA com movimento reduzido, e é o único movimento daqui que congela.
+     *
+     * A órbita é amortecida e não parada (`respectMotion`, em `scene.js`) porque órbita parada
+     * afirma que o sistema morreu. O balanço não afirma nada — ele é decorativo, e o
+     * `motion-catalog.js` agora diz isso na cara. Movimento sem evento por trás é a categoria que
+     * a regra deste projeto zera, junto com o grão e a respiração.
+     *
+     * Congelar a FASE, e não a amplitude: cada corpo guarda o deslocamento vertical que o hash lhe
+     * deu e para ali. Zerar a amplitude alinharia o céu inteiro no plano, que é justamente a
+     * leitura de lâminas rígidas que o balanço existe para desfazer.
+     */
+    const bobPhase = motion.isReduced() ? 0 : elapsed * rateOf(BOB);
     for (const node of nodes) {
       const offset = node.i * 3;
 
@@ -626,19 +671,6 @@ export function createGraph() {
          */
         const trueAnomaly =
           mean + 2 * e * Math.sin(mean) + 1.25 * e * e * Math.sin(2 * mean);
-    /*
-     * O balanço CONGELA com movimento reduzido, e é o único movimento daqui que congela.
-     *
-     * A órbita é amortecida e não parada (`respectMotion`, em `scene.js`) porque órbita parada
-     * afirma que o sistema morreu. O balanço não afirma nada — ele é decorativo, e o
-     * `motion-catalog.js` agora diz isso na cara. Movimento sem evento por trás é a categoria que
-     * a regra deste projeto zera, junto com o grão e a respiração.
-     *
-     * Congelar a FASE, e não a amplitude: cada corpo guarda o deslocamento vertical que o hash lhe
-     * deu e para ali. Zerar a amplitude alinharia o céu inteiro no plano, que é justamente a
-     * leitura de lâminas rígidas que o balanço existe para desfazer.
-     */
-    const bobPhase = motion.isReduced() ? 0 : elapsed * rateOf(BOB);
         // Equação do cônico. É o que faz a lua acelerar no periastro — a segunda lei de Kepler
         // aparece sozinha, sem ninguém animar velocidade.
         const r = (node.semiMajor * (1 - e * e)) / (1 + e * Math.cos(trueAnomaly));
@@ -692,7 +724,35 @@ export function createGraph() {
      */
   }
 
+  /**
+   * Este nó está escondido pelo filtro de tipo?
+   *
+   * Só ARQUIVO e LUA têm tipo. Repo e pasta são agregados — esconder a galáxia porque o operador
+   * desligou `config` apagaria o continente junto com a cidade, e o histograma que comanda o
+   * filtro nem conta agregados. A lua herda o `kind` do pai (ver `load`), então ela some junto com
+   * ele de graça, que é o único comportamento coerente: lua de arquivo escondido órbita o nada.
+   */
+  const isFiltered = (node) =>
+    Boolean(visibleKinds) &&
+    (node.type === 'file' || node.type === 'moon') &&
+    !visibleKinds.has(node.kind || 'other');
+
+  function applyKindFilter() {
+    if (!hidden || !points) return;
+    for (let i = 0; i < nodes.length; i++) hidden[i] = isFiltered(nodes[i]) ? 1 : 0;
+    points.geometry.getAttribute('aHidden').needsUpdate = true;
+    /*
+     * O anel é reconstruído AQUI, e não deixado para a próxima varredura do disco.
+     *
+     * A varredura roda por temporizador; esperar por ela deixaria um anel órfão girando em volta
+     * de uma estrela que já saiu da tela, por segundos. O gesto do filtro é imediato e o que ele
+     * remove tem de sair junto — `ringEntries` guarda a última lista exatamente para isto.
+     */
+    rings.set(ringEntries.filter((entry) => !hidden[entry.index]));
+  }
+
   function dispose() {
+    ringEntries = [];
     rings.set([]);
     moonCount = 0;
     moonsDropped = 0;
@@ -771,6 +831,9 @@ export function createGraph() {
          * desenha anel. Regra em `space/catalog.js`, com o porquê da prioridade.
          */
         if (classify(nodes[i], { dirty: state }).id !== 'planeta-anelado') continue;
+        // Corpo escondido não deixa o anel dele para trás: um anel sem estrela no meio lê como
+        // defeito de render, e o filtro é justamente o gesto de tirar aquele tipo da tela.
+        if (hidden?.[i]) continue;
         entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency });
         ringed.push(i);
       }
@@ -798,6 +861,7 @@ export function createGraph() {
       }
       if (mudouCasca) points.geometry.getAttribute('aSupernova').needsUpdate = true;
 
+      ringEntries = entries;
       return { ...rings.set(entries), total: Object.keys(files).length };
     },
 
@@ -850,9 +914,30 @@ export function createGraph() {
     pick(raycaster) {
       if (!points) return null;
       raycaster.params.Points.threshold = 0.9;
-      const hit = raycaster.intersectObject(points, false)[0];
-      if (!hit || hit.distanceToRay > 1.4) return null;
-      return { node: nodes[hit.index], position: positionOf(hit.index) };
+      /*
+       * ⚠️ TODOS os acertos, não o primeiro: o raycast do three não sabe do filtro.
+       *
+       * Ele trabalha sobre as POSIÇÕES, e um nó escondido continua tendo posição — o descarte
+       * acontece no clipe, na GPU, onde o raycast não olha. Pegar `[0]` devolveria um corpo
+       * invisível, e o gesto morreria em silêncio: a câmera voaria para o nada e o leitor abriria
+       * um arquivo que o operador acabou de tirar da tela.
+       */
+      for (const hit of raycaster.intersectObject(points, false)) {
+        if (hit.distanceToRay > 1.4) return null;
+        if (hidden?.[hit.index]) continue;
+        return { node: nodes[hit.index], position: positionOf(hit.index) };
+      }
+      return null;
+    },
+
+    /**
+     * Que tipos ficam visíveis. `null` devolve o céu inteiro.
+     *
+     * @param {Iterable<string>|null} kinds
+     */
+    setKindFilter(kinds) {
+      visibleKinds = kinds ? new Set(kinds) : null;
+      applyKindFilter();
     },
 
     /** Afinação: espaçamento escala o grupo, então nós e arestas seguem juntos. */

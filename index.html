@@ -802,13 +802,30 @@
   /* Container flex encolhe os filhos: sem isto o rótulo da seção quebra em duas linhas. */
   .config-menu .btn { flex: 0 0 auto; justify-content: flex-start; white-space: nowrap; }
   .config-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .shape-row { display: grid; grid-template-columns: 62px 1fr 34px; gap: 8px; align-items: center;
-               padding: 2px 0; }
+  /* Quatro colunas: tipo, corpo celeste, barra, contagem. A linha é um botão de alternância —
+     o histograma É o filtro, ver `apps/index.js:fs-shape`.
+
+     ⚠️ O seletor precisa do `.btn` junto. `.btn[data-variant="row"]` já impõe
+     `grid-template-columns: auto 1fr auto` e tem especificidade 0-2-0; um `.shape-row` sozinho
+     (0-1-0) perde, e o sintoma é a quarta coluna colapsando para 0px — a barra some e a contagem
+     quebra para a linha de baixo, sem nenhum erro em lugar nenhum. */
+  .btn.shape-row { display: grid; grid-template-columns: 62px 58px 1fr 34px; gap: 8px;
+                   align-items: center; padding: 2px 0; width: 100%; text-align: left;
+                   background: none; border: 0; cursor: pointer; }
   .shape-name { color: var(--ink-dim); font-size: 8px; letter-spacing: 0.18em; }
+  /* O corpo celeste que o tipo é. Mais apagado que o nome: é a glosa, não o dado. */
+  .shape-body { color: var(--ink-faint); font-size: 8px; letter-spacing: 0.1em;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .shape-track { height: 3px; background: rgba(255, 179, 92, 0.08); }
   .shape-bar { display: block; height: 100%; }
   .shape-count { color: var(--ink-faint); font-size: 8px; text-align: right;
                  font-variant-numeric: tabular-nums; }
+  .shape-row:hover .shape-name { color: var(--ink); }
+  /* DESLIGADO: apaga e risca, mas a barra e a contagem continuam lá. O histograma existe para
+     dizer de que o corpus é feito, e esse fato não muda porque o tipo saiu da tela — some a
+     estrela, não o dado. */
+  .shape-row[data-on="0"] { opacity: 0.38; }
+  .shape-row[data-on="0"] .shape-name { text-decoration: line-through; }
 
   .config-profile { display: grid; grid-template-columns: 132px 1fr; gap: 10px;
                     align-items: baseline; padding: 3px 0; }

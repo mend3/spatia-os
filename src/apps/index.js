@@ -26,6 +26,7 @@ import { PROFILES } from '../core/profiles.js';
 import { PLATES } from '../space/backdrop.js';
 import { DIRTY_LABELS } from '../space/rings.js';
 import { KIND_COLORS as SKY_COLORS } from '../space/graph.js';
+import { morphologyOf } from '../space/catalog.js';
 
 const COLORS = { files: 0x7ee0c0, system: 0xffab54, web: 0xff9b4a, bridge: 0x5ce1e6 };
 
@@ -248,9 +249,21 @@ function registerFilesWidgets() {
      *
      * A barra é o próprio número: largura proporcional ao maior. Sem eixo, sem legenda — a
      * pergunta é "de que este corpus é feito", e a resposta é a ordem de grandeza.
+     *
+     * ## O histograma É o filtro
+     *
+     * Clicar numa linha tira aquele tipo do céu. Não é um painel de filtros separado de propósito:
+     * a lista que responde "de que isto é feito" é a mesma que responde "me mostra só isto", e
+     * duplicá-la em dois lugares daria duas verdades sobre o mesmo conjunto.
+     *
+     * ⚠️ O estado vive AQUI, no widget, e não no grafo. A cena é quem obedece (`ui.filter-kinds`),
+     * e o widget é quem lembra — se fosse ao contrário, trocar de rota destruiria o painel e o
+     * filtro voltaria sozinho, que é a corrida de remontagem que este arquivo já pagou duas vezes.
      */
     render(view) {
       view.empty('carregando…');
+      // `null` = nada foi tocado ainda. Vira Set no primeiro clique, e daí em diante é a verdade.
+      let ligados = null;
       api
         .graph()
         .then(({ stats }) => {
@@ -260,23 +273,72 @@ function registerFilesWidgets() {
             return;
           }
           const peak = kinds[0][1];
-          const linhas = kinds.map(([kind, count]) => {
-            const linha = el('div', 'shape-row');
-            linha.append(el('span', 'shape-name', kind));
-            const trilho = el('div', 'shape-track');
-            const barra = el('i', 'shape-bar');
-            barra.style.width = `${Math.max(2, (count / peak) * 100)}%`;
-            // A cor é a MESMA que o céu usa para aquele tipo — o histograma e a cena falam do
-            // mesmo dado, e cor divergente faria parecerem dois assuntos.
-            barra.style.background = `#${(SKY_COLORS[kind] ?? SKY_COLORS.other).toString(16).padStart(6, '0')}`;
-            trilho.append(barra);
-            linha.append(trilho, el('span', 'shape-count', String(count)));
-            return linha;
-          });
-          view.set(linhas);
+          const todos = kinds.map(([kind]) => kind);
+          const ativo = (kind) => !ligados || ligados.has(kind);
+
+          const alternar = (kind) => {
+            // Primeiro clique parte de "todos ligados": o gesto é DESLIGAR o que atrapalha, que é
+            // o que se quer quando se está procurando algo. Começar do vazio faria o primeiro
+            // clique apagar o céu inteiro.
+            if (!ligados) ligados = new Set(todos);
+            if (ligados.has(kind)) ligados.delete(kind);
+            else ligados.add(kind);
+            /*
+             * Desligar TUDO devolve o céu inteiro em vez de deixar a tela preta.
+             *
+             * Um céu vazio é indistinguível de um defeito de carga, e o operador que chegou lá
+             * clicando não tem como saber qual dos dois está vendo. Voltar ao estado neutro é a
+             * saída legível — e é o mesmo estado em que o painel nasceu.
+             */
+            if (ligados.size === 0) ligados = null;
+            emit({ t: 'ui.filter-kinds', kinds: ligados ? [...ligados] : null });
+            desenhar();
+          };
+
+          function desenhar() {
+            view.set(
+              kinds.map(([kind, count]) => {
+                const ligado = ativo(kind);
+                const linha = button({
+                  variant: 'row',
+                  size: 'row',
+                  data: { kind, on: ligado ? '1' : '0' },
+                });
+                linha.classList.add('shape-row');
+                linha.title = ligado ? `ocultar ${kind} do céu` : `mostrar ${kind} no céu`;
+                linha.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+                linha.append(el('span', 'shape-name', kind));
+
+                // Que corpo celeste este tipo é. `°` marca a morfologia que o modelo declara e a
+                // cena ainda não desenha — sem a marca, o rótulo afirmaria uma imagem que não
+                // está lá.
+                const forma = morphologyOf(kind);
+                const corpo = el('span', 'shape-body', forma.drawn ? forma.body : `${forma.body}°`);
+                if (!forma.drawn) corpo.title = `${forma.body} ainda não é desenhada — o corpo aparece como estrela`;
+                linha.append(corpo);
+
+                const trilho = el('div', 'shape-track');
+                const barra = el('i', 'shape-bar');
+                barra.style.width = `${Math.max(2, (count / peak) * 100)}%`;
+                // A cor é a MESMA que o céu usa para aquele tipo — o histograma e a cena falam do
+                // mesmo dado, e cor divergente faria parecerem dois assuntos.
+                barra.style.background = `#${(SKY_COLORS[kind] ?? SKY_COLORS.other).toString(16).padStart(6, '0')}`;
+                trilho.append(barra);
+                linha.append(trilho, el('span', 'shape-count', String(count)));
+                linha.addEventListener('click', () => alternar(kind));
+                return linha;
+              })
+            );
+          }
+
+          desenhar();
         })
         .catch((error) => view.empty(`indisponível: ${error.message}`));
-      return null;
+      /*
+       * Destruir o painel SOLTA o filtro. Um céu filtrado por um controle que não está mais na
+       * tela é um estado sem dono — e o operador não teria onde clicar para desfazê-lo.
+       */
+      return { destroy: () => emit({ t: 'ui.filter-kinds', kinds: null }) };
     },
   });
 

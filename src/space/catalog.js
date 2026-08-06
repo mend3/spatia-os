@@ -309,3 +309,34 @@ export function classify(node, facts = {}) {
 
 /** A classe deste nó pode carregar esta feição? Consulta o `forbids` declarado. */
 export const allows = (entry, feature) => !(entry.forbids && feature in entry.forbids);
+
+/**
+ * Que corpo celeste cada TIPO de arquivo é — a tabela de morfologias por `kind`.
+ *
+ * ⚠️ ISTO É A INTENÇÃO DECLARADA, NÃO O QUE A CENA DESENHA HOJE, e a distinção é o motivo de o
+ * campo `drawn` existir. Quem escolhe a superfície de um corpo é a CLASSE, e a classe sai do
+ * ESTADO (sujo → planeta anelado, dormente → cometa extinto, o resto → estrela com fotosfera).
+ * O `kind` hoje governa só a COR. A tabela abaixo é o destino que o `modelo-de-renderizacao.md`
+ * traçou por tipo, e a HUD a mostra marcando o que ainda não existe — um rótulo dizendo "cometa"
+ * num corpo que a tela desenha como estrela seria a interface mentindo sobre a própria cena.
+ *
+ * `drawn: false` significa que a MORFOLOGIA não foi implementada. `fotosfera` e `planeta` existem
+ * (`photosphere.js`, `planet.js`); cometa, estação, pulsar e nebulosa são o backlog medido, na
+ * ordem de retorno de cobertura.
+ */
+export const MORPHOLOGY_BY_KIND = Object.freeze({
+  config: Object.freeze({ body: 'fotosfera', drawn: true }),
+  schema: Object.freeze({ body: 'fotosfera', drawn: true }),
+  doc: Object.freeze({ body: 'planeta', drawn: true }),
+  decision: Object.freeze({ body: 'planeta', drawn: true }),
+  memory: Object.freeze({ body: 'planeta', drawn: true }),
+  script: Object.freeze({ body: 'cometa', drawn: false }),
+  agent: Object.freeze({ body: 'estação', drawn: false }),
+  infra: Object.freeze({ body: 'pulsar', drawn: false }),
+  compose: Object.freeze({ body: 'nebulosa', drawn: false }),
+  lock: Object.freeze({ body: 'estrela', drawn: true }),
+  other: Object.freeze({ body: 'estrela', drawn: true }),
+});
+
+/** A morfologia declarada para este tipo, com `estrela` como padrão — é o que a classe faz. */
+export const morphologyOf = (kind) => MORPHOLOGY_BY_KIND[kind] ?? MORPHOLOGY_BY_KIND.other;
