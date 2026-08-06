@@ -338,6 +338,35 @@ export const starSeed = (node) => hash01(node.source ?? String(node.i ?? 0), 7);
  * de Hill cheia (sem o fator 0,5 de satélite progrado). ⚠️ Ele NÃO mexe na contagem nem na prova
  * de não-colisão — as duas continuam decididas na régua da mecânica, onde a banda existe.
  */
+/**
+ * A lei de tamanho dos AGREGADOS: `raio = base · N^expoente`, N = arquivos descendentes.
+ *
+ * `0.35` é a relação tamanho–luminosidade de galáxias de disco (R ∝ L^0.3–0.4, Shen et al. 2003):
+ * o tamanho cresce com o conteúdo, mas devagar, e é por isso que uma galáxia com 100× mais
+ * estrelas não é 100× maior.
+ *
+ * `1.2` NÃO é gosto — é o valor que **preserva a tinta total** da lei anterior. Somando `raio²`
+ * sobre os 72 agregados deste corpus, a fórmula velha dava 616; com o expoente 0,35 e este base a
+ * soma continua 616. Isso importa porque o cabeçalho de `galaxy.js` mede que os discos já cobrem
+ * ~49% da tela na pose padrão e chama isso de "o maior risco visual do módulo": a mudança
+ * redistribui o tamanho sem acrescentar cobertura. O que muda é a VARIÂNCIA — poucas gigantes e
+ * muitas anãs, que é a forma de uma distribuição real.
+ */
+const GALAXY_SIZE_BASE = 1.2;
+const GALAXY_SIZE_EXP = 0.35;
+
+/**
+ * O caminho de um agregado, para casar com o prefixo dos arquivos.
+ *
+ * `repo:devshell-one` chega com `dir: ''` — a raiz não tem diretório —, então o caminho vem do
+ * próprio id. Sem esta linha os dois repositórios cairiam no mesmo balde vazio e ficariam ambos
+ * com N = 1, que é a menor galáxia do céu para o objeto que contém o céu inteiro.
+ */
+const prefixoDe = (node) => node.dir || node.id.slice(node.id.indexOf(':') + 1);
+
+/** Arquivos descendentes por caminho de pasta. Preenchido em `load`. */
+const descendentes = new Map();
+
 const MOON_DRAW_GAIN = 2.1;
 
 /** Sprite da lua, na régua do pai. Ver `MOON_DRAW_GAIN` para as duas réguas envolvidas. */
@@ -648,6 +677,28 @@ export function createGraph() {
     nodes = nodes.concat(moons);
     moonCount = moons.length;
 
+    /*
+     * ARQUIVOS DESCENDENTES por caminho de pasta — a base do tamanho dos agregados.
+     *
+     * Um passe pelos arquivos somando 1 a cada ancestral do caminho: O(arquivos × profundidade),
+     * ~2,5 mil operações neste corpus, uma vez por carga. A alternativa óbvia — para cada pasta,
+     * varrer todos os arquivos com `startsWith` — é O(pastas × arquivos) e faz 30 mil.
+     *
+     * ⚠️ Não dá para usar o campo `parent` para isto. Ele existe, mas a cadeia não fecha até a
+     * raiz: contando por `parent`, o repositório inteiro somava 55 dos 410 arquivos. O caminho é
+     * a fonte confiável de hierarquia neste payload.
+     */
+    descendentes.clear();
+    for (const node of nodes) {
+      if (node.type !== 'file') continue;
+      const partes = (node.path ?? node.source ?? '').split('/');
+      let caminho = '';
+      for (let d = 0; d < partes.length - 1; d += 1) {
+        caminho = d === 0 ? partes[0] : `${caminho}/${partes[d]}`;
+        descendentes.set(caminho, (descendentes.get(caminho) ?? 0) + 1);
+      }
+    }
+
     index = new Map(nodes.map((node, i) => [node.id, i]));
 
     const count = nodes.length;
@@ -674,11 +725,33 @@ export function createGraph() {
       // A lua é a exceção, e por física: ela e o pai têm a mesma densidade, então a razão de
       // raios é a raiz cúbica da razão de massas — `orbital-zones.js` já resolveu isso. Reaplicar
       // a lei log aqui daria luas do tamanho do pai (medido: 0,46 a 1,00 do raio dele).
+      /*
+       * ⚠️ AGREGADO NÃO DIMENSIONA POR `chunks` — massa e tamanho são coisas diferentes.
+       *
+       * A fórmula anterior era `1.5 + log2(1 + chunks) * 0.3`, e o resultado na tela era um céu de
+       * galáxias TODAS DO MESMO TAMANHO. Medido no corpus: `chunks` de agregado varia **1788×**
+       * (2 a 3576) e a fórmula devolvia só **2,55×** de raio (1,98 a 5,04), com a metade central
+       * espremida entre 2,34 e 3,33 — 1,4×, que o olho não separa.
+       *
+       * Duas coisas estavam erradas, e a segunda é a que importa:
+       *
+       * 1. O `log2` comprime demais. Três ordens de grandeza viravam um fator 2,5.
+       * 2. **A base era a massa.** `chunks` é quanto de conteúdo há ali — é MASSA, e é o que decide
+       *    a morfologia (`galaxy-classes.js` escolhe a classe de Hubble pela concentração). O que
+       *    dimensiona uma galáxia é quantas ESTRELAS ela tem, e a estrela desta cena é o arquivo.
+       *
+       * A lei nova é `base · N^0.35`, com N = arquivos DESCENDENTES. O expoente é a relação
+       * tamanho–luminosidade de galáxias de disco (R ∝ L^0.3–0.4), e com N variando 2 a 399 neste
+       * corpus ele devolve **6,4× de raio** — 2,5× mais separação que antes.
+       *
+       * Descendentes e não filhos diretos: uma pasta é grande pelo que ela CONTÉM. Por filho
+       * direto, a raiz do repositório (que só tem subpastas) seria a menor galáxia do céu.
+       */
       sizes[i] = node.type === 'moon'
         ? moonSpriteSize(node, nodes[node.parentIndex]) * tune.moonSize
         : node.type === 'file'
           ? 0.55 + Math.log2(1 + node.chunks) * 0.42
-          : 1.5 + Math.log2(1 + node.chunks) * 0.3;
+          : GALAXY_SIZE_BASE * (descendentes.get(prefixoDe(node)) ?? 1) ** GALAXY_SIZE_EXP;
       // `supernova` é 0…1 e vem do servidor (`recency._annotate_supernova`), normalizado pelo
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
