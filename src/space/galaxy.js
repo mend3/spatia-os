@@ -502,7 +502,22 @@ const FRAGMENT = /* glsl */ `
     // The unwound angle. ONE scalar, and the ONLY place uOmegaP appears. Curvature is frozen in
     // r; only the phase moves with time — which is what makes this a density wave instead of a
     // material structure that would wind up (Lin-Shu, catalog.js:235-240).
-    float su = th - spin * (uOmegaP * uTime + log(max(r, rin) / rin) * vShape.y);
+    //
+    // THE TWO TERMS CARRY OPPOSITE SIGNS, AND THAT IS THE WHOLE TRAILING-ARM CLAIM.
+    //
+    // The ridge sits at su = 0 mod 2pi/m, so the arm is theta = spin*(w*t - b*ln(r/rin)). The
+    // time term turns the pattern one way, sign(spin); the log term sweeps the arm the OTHER way
+    // as r grows. Outer end lags the inner one: the arm TRAILS, which is what essentially every
+    // grand-design spiral does (NGC 4622 is famous precisely for being the exception).
+    //
+    // They used to share a sign. That put the outer end AHEAD of rotation — leading arms, on
+    // every galaxy in the sky. Hashing the spin sign did not hide half of it and could not: it
+    // multiplies both terms, so flipping it turns the galaxy and rewinds the arm together, and
+    // the two stay locked in the wrong relative sense. It reads as a pinwheel driven backwards.
+    //
+    // ⚠️ A screenshot cannot catch this — it needs two instants. What catches it is the bench's
+    // pattern-speed multiplier (+-20): wind it up and watch which end of the arm leads.
+    float su = th - spin * (uOmegaP * uTime - log(max(r, rin) / rin) * vShape.y);
     float u = m * su;
 
     float ridge = 0.5 + 0.5 * cos(u);
