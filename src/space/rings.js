@@ -97,6 +97,11 @@ const TILT = 1.1;
  * 2,4 mantém Saturno (2,45) e Urano (2,20) praticamente inteiros e só comprime Júpiter (3,20),
  * cujos gossamer são exatamente a parte tênue que menos se perde ao encolher.
  */
+// Rascunho do ângulo de visada do anel em foco. No escopo do módulo porque `follow` roda por
+// anel por quadro — alocar um Vector3 ali seria lixo por quadro num laço que já é quente.
+const NORMAL = new THREE.Vector3();
+const TO_CAMERA = new THREE.Vector3();
+
 const SPAN_CAP = 2.4;
 
 /**
@@ -288,7 +293,20 @@ const VERTEX = /* glsl */ `
   uniform vec3 uColor;
   uniform float uOpacity;
   uniform float uForward;
+  /*
+   * DUAS GRANDEZAS QUE ERAM UM NUMERO SO — e a confusao apagava o volume do anel em foco.
+   *
+   * uCosTilt e ACHATAMENTO DE TELA: quanto a elipse do billboard e espremida em y. Em modo
+   * mundo ele vale 1, porque a projecao ja achata e achatar de novo aplicaria o tombo duas vezes.
+   *
+   * uCosView e o cosseno REAL entre a normal do disco e a direcao da camera — a fisica do
+   * caminho obliquo. Enquanto os dois eram o mesmo uniform, o anel em foco (o unico que vira de
+   * verdade quando se orbita) recebia 1 aqui tambem, e a profundidade optica ficava pinada em
+   * "de frente": ganho constante, volume nenhum. Girar a camera nao revelava nada, que e
+   * exatamente o que o foco existe para permitir.
+   */
   uniform float uCosTilt;
+  uniform float uCosView;
   // Limbo do astro em unidades do quad: 1/span. Varia por família, então NÃO é constante.
   uniform float uLimb;
   uniform float uNear;
@@ -462,7 +480,7 @@ const VERTEX = /* glsl */ `
      * efeito de densidade e profundidade" para todos, e o certo não era copiá-la duas vezes: era
      * tirá-la daqui. Comportamento IDÊNTICO — mesma exponencial, mesmo piso de 0,05.
      */
-    float seen = saidaDaLaje(DEPTH * density, uCosTilt, ${glslFloat(ASPECT_FOLHA)});
+    float seen = saidaDaLaje(DEPTH * density, uCosView, ${glslFloat(ASPECT_FOLHA)});
 
     float intensity = (seen * lit + sparkle * uNear) * phaseTerm(p.y) * uOpacity;
     if (intensity < 0.004) discard;
@@ -515,6 +533,7 @@ export function createRings() {
             uRock: { value: null },
             uPhase: { value: 0 },
             uCosTilt: { value: Math.cos(TILT) },
+            uCosView: { value: Math.cos(TILT) },
             uLimb: { value: 1 / SPAN_CAP },
           },
           vertexShader: VERTEX,
@@ -679,6 +698,21 @@ export function createRings() {
           // Sem achatamento no shader: a elipse na tela agora é a PROJEÇÃO de um disco de verdade.
           // Achatar de novo aplicaria o tombo duas vezes.
           ring.mesh.material.uniforms.uCosTilt.value = 1;
+          /*
+           * ⚠️ MAS a profundidade óptica precisa do ângulo DE VERDADE — e é aqui que o foco
+           * ganha o que ele existe para dar: orbitar em volta do corpo revela a forma.
+           *
+           * A normal do disco é +Z local levado pela orientação da malha; o cosseno com a
+           * direção à câmera é o `cos(i)` da lei `tau/cos(i)`. Em módulo porque as duas faces
+           * valem — o anel é uma laje, não uma superfície orientada.
+           *
+           * Enquanto isto herdava o `1` da linha acima, o anel em foco tinha ganho de densidade
+           * CONSTANTE: de perfil ele deveria saturar e ficar espesso, e continuava com o mesmo
+           * peso de quando visto de frente.
+           */
+          NORMAL.set(0, 0, 1).applyQuaternion(ring.mesh.quaternion);
+          TO_CAMERA.copy(camera.position).sub(ring.mesh.position).normalize();
+          ring.mesh.material.uniforms.uCosView.value = Math.abs(NORMAL.dot(TO_CAMERA));
         } else {
           // Ordem importa: `roll` gira em torno do eixo de visão (inclina o eixo maior da elipse
           // na tela) e `tilt` tomba em torno do eixo X já rolado. Invertido, o rolamento passaria
@@ -688,6 +722,10 @@ export function createRings() {
           ring.mesh.rotateX(tilt);
           // O achatamento na tela depende do tombo DESTE anel, que tem dispersão por nó.
           ring.mesh.material.uniforms.uCosTilt.value = Math.cos(tilt);
+          // No billboard os dois COINCIDEM: o quad encara a câmera, então o único ângulo que
+          // existe entre o disco e o olho é o próprio tombo. Não há o que orbitar aqui — e é
+          // por isso que o volume só se inspeciona em foco.
+          ring.mesh.material.uniforms.uCosView.value = Math.cos(tilt);
         }
         // O passe de extinção acompanha posição, orientação e escala do anel — é o MESMO anel,
         // desenhado duas vezes com blendings opostos.

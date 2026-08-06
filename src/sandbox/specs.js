@@ -68,12 +68,22 @@ export const SPECS = [
       { key: 'tombo', label: 'TOMBO', type: 'range', min: 0, max: 1.5, step: 0.01, value: 1.1 },
       { key: 'raio', label: 'RAIO DA ESTRELA', type: 'range', min: 0.2, max: 1.4, step: 0.02, value: 0.7 },
       { key: 'estrela', label: 'DESENHAR A ESTRELA', type: 'bool', value: true },
+      /*
+       * O modo MUNDO é o que a cena usa no astro EM FOCO, e ele não tinha espécime.
+       *
+       * Sem ele a bancada só sabia mostrar o billboard — que copia a quaternion da câmera e por
+       * isso NUNCA muda de pose por mais que se orbite. Foi assim que a profundidade óptica
+       * pinada em "de frente" (o `uCosTilt = 1` do ramo em foco) passou despercebida: o caminho
+       * onde ela existe não era desenhável aqui.
+       */
+      { key: 'mundo', label: 'ANEL DE MUNDO (foco)', type: 'bool', value: false },
     ],
     watch: [
       'a metade DISTANTE some atrás da estrela e reaparece — se ela atravessa, a oclusão quebrou',
       'a metade PRÓXIMA escurece o disco da estrela (extinção); com blending aditivo ela clarearia',
       'Saturno: a Divisão de Cassini separa duas faixas largas · Urano: aros finos e separados · Júpiter: halo difuso',
-      'gire com o mouse: a elipse mantém a mesma forma (é billboard com tombo, não anel de mundo)',
+      'gire com o mouse: com ANEL DE MUNDO desligado a elipse mantém a mesma forma (é billboard)',
+      'ligue ANEL DE MUNDO e ORBITE: de perfil o anel tem de SATURAR e ficar espesso (tau/cos i), de frente translúcido — se o peso não muda, a profundidade óptica voltou a ficar pinada',
     ],
     build(ctx) {
       const group = new THREE.Group();
@@ -145,7 +155,9 @@ export const SPECS = [
            */
           const world = values.raio / VISIBLE_CORE;
           const px = (values.raio * window.innerHeight) / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
-          rings.follow(positions, camera, () => 1, () => ({ world, px }), clock.elapsed, values.tombo);
+          // `focusedIndex` 0 = o anel deste espécime é o "em foco": vira anel de MUNDO e passa a
+          // responder à órbita. -1 mantém o billboard, que é o que a cena desenha fora do foco.
+          rings.follow(positions, camera, () => 1, () => ({ world, px }), clock.elapsed, values.tombo, values.mundo ? 0 : -1);
           ctx.report({
             'família': values.familia,
             'alcance': `${RING_FAMILIES[values.familia].reach.toFixed(2)} R`,
