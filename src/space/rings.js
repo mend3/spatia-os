@@ -576,19 +576,44 @@ export function createRings() {
      * @param {number} [tiltOverride]  tombo fixo, para a BANCADA varrer o ângulo. Na cena o
      *   tombo é por nó (dispersão determinística) e este parâmetro não é passado.
      */
-    follow(positions, camera, dimOf, radiusOf, elapsed = 0, tiltOverride) {
+    follow(positions, camera, dimOf, radiusOf, elapsed = 0, tiltOverride, focusedIndex = -1) {
       for (const ring of active) {
         const offset = ring.index * 3;
         ring.mesh.position.set(positions[offset], positions[offset + 1], positions[offset + 2]);
-        // Ordem importa: `roll` gira em torno do eixo de visão (inclina o eixo maior da elipse
-        // na tela) e `tilt` tomba em torno do eixo X já rolado. Invertido, o rolamento passaria
-        // a girar o anel dentro do próprio plano — onde ele é simétrico e nada mudaria.
-        ring.mesh.quaternion.copy(camera.quaternion);
-        ring.mesh.rotateZ(ring.roll);
         const tilt = tiltOverride ?? ring.tilt;
-        ring.mesh.rotateX(tilt);
-        // O achatamento na tela depende do tombo DESTE anel, que tem dispersão por nó.
-        ring.mesh.material.uniforms.uCosTilt.value = Math.cos(tilt);
+        /*
+         * ANEL DE MUNDO para o astro EM FOCO; billboard para todo o resto.
+         *
+         * O billboard existe por um bom motivo: de longe o corpo é um sprite de poucos pixels e o
+         * anel é SINAL ("este arquivo está sujo"). Um anel de mundo visto de perfil desaparece —
+         * é o que Saturno faz de verdade, e aqui apagaria a informação sem nada ter mudado no
+         * arquivo. Encarando a câmera, ele nunca some.
+         *
+         * ⚠️ Só que billboard NÃO PASSA NA FRENTE. Ele é um plano sem espessura no centro do
+         * corpo: tudo que cai dentro da silhueta da esfera é ocluído, então a metade próxima do
+         * anel nunca cruza o planeta — e é exatamente isso que toda foto de Saturno mostra. O
+         * defeito só aparece quando o corpo deixa de ser sprite e vira esfera, ou seja, em foco.
+         * Reportado como "os anéis estão mal posicionados, deixando uma vista feia".
+         *
+         * Em foco, então, o quad passa a viver no MUNDO: deitado no plano equatorial (o
+         * `-π/2` põe o plano XY na horizontal) e tombado por `tilt`. Aí a profundidade resolve
+         * sozinha o que estava faltando — arco de trás atrás, arco da frente na frente.
+         */
+        if (ring.index === focusedIndex) {
+          ring.mesh.rotation.set(-Math.PI / 2 + tilt, ring.roll, 0);
+          // Sem achatamento no shader: a elipse na tela agora é a PROJEÇÃO de um disco de verdade.
+          // Achatar de novo aplicaria o tombo duas vezes.
+          ring.mesh.material.uniforms.uCosTilt.value = 1;
+        } else {
+          // Ordem importa: `roll` gira em torno do eixo de visão (inclina o eixo maior da elipse
+          // na tela) e `tilt` tomba em torno do eixo X já rolado. Invertido, o rolamento passaria
+          // a girar o anel dentro do próprio plano — onde ele é simétrico e nada mudaria.
+          ring.mesh.quaternion.copy(camera.quaternion);
+          ring.mesh.rotateZ(ring.roll);
+          ring.mesh.rotateX(tilt);
+          // O achatamento na tela depende do tombo DESTE anel, que tem dispersão por nó.
+          ring.mesh.material.uniforms.uCosTilt.value = Math.cos(tilt);
+        }
         // O passe de extinção acompanha posição, orientação e escala do anel — é o MESMO anel,
         // desenhado duas vezes com blendings opostos.
         const shade = ring.mesh.userData.shade;
@@ -630,7 +655,7 @@ export function createRings() {
         shade.position.copy(ring.mesh.position);
         shade.quaternion.copy(ring.mesh.quaternion);
         shade.scale.copy(ring.mesh.scale);
-        shade.material.uniforms.uCosTilt.value = Math.cos(tilt);
+        shade.material.uniforms.uCosTilt.value = ring.index === focusedIndex ? 1 : Math.cos(tilt);
         shade.material.uniforms.uOpacity.value = ring.mesh.material.uniforms.uOpacity.value;
       }
     },

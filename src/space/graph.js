@@ -1099,7 +1099,9 @@ export function createGraph() {
           camera,
           dimOf,
           (i) => starRadius(i, elapsed, viewportHeight, camera),
-          elapsed
+          elapsed,
+          undefined,
+          focusedIndex
         );
       }
       // Decaimento: memória usada volta a brilhar e depois apaga de novo. Sem o decaimento
