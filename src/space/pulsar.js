@@ -25,7 +25,7 @@
  * com um feixe só lê como defeito de desenho.
  */
 import * as THREE from 'three';
-import { createFieldCage } from './pulsar-field.js';
+import { createPulse } from './pulsar-pulse.js';
 import { GLSL_SIMPLEX3 } from './planet-noise.js';
 
 /** Onde o pulsar começa a aparecer e onde satura, em pixels de raio. */
@@ -369,14 +369,14 @@ export function createPulsar() {
   }
 
   /*
-   * A GAIOLA DE CAMPO pendura no eixo MAGNÉTICO, com os feixes.
+   * O PULSO DE EMISSÃO fica no grupo EXTERNO, não no eixo magnético.
    *
-   * É o campo dipolar que colima a emissão pelos polos — desenhar o feixe no eixo magnético e as
-   * linhas no de rotação mostraria o efeito separado da causa, e a obliquidade (a única razão de
-   * haver pulso) perderia o sentido visual.
+   * A energia que o quasar solta não é canalizada pelos polos como o feixe é: ela sai para todo
+   * lado. Pendurada no eixo magnético, a casca giraria com a varredura — uma esfera girando é
+   * indistinguível de uma parada, mas o padrão de filamento não é, e ele denunciaria o giro.
    */
-  const campo = createFieldCage();
-  eixoMagnetico.add(campo.object);
+  const pulso = createPulse();
+  group.add(pulso.object);
 
   return {
     object: group,
@@ -423,9 +423,9 @@ export function createPulsar() {
       }
       for (const jato of jatos) jato.scale.set(params.beam * 0.2, params.beam * 1.7, 1);
       for (const lobo of lobos) lobo.scale.set(params.beam * 0.48, params.beam * 0.38, params.beam * 0.48);
-      // A gaiola fecha no equador da alça maior — um pouco dentro do lobo, que é onde o campo
-      // deixa de ser dipolar e o plasma passa a ser arrastado. Ver `pulsar-field.js`.
-      campo.update(params.beam * 0.34, level);
+      // O pulso alcança a ponta do LOBO, não a do jato: ele é emissão isotrópica, e ir tão longe
+      // quanto a agulha colimada afirmaria que ela não colima nada. Ver `pulsar-pulse.js`.
+      pulso.update(params.beam * 0.62, level, elapsed, params.seed, params.color, camera, reduced);
 
       group.rotation.set(params.tilt, params.yaw, 0);
       eixoMagnetico.rotation.z = params.obliquity;
@@ -463,7 +463,7 @@ export function createPulsar() {
       for (const feixe of [...jatos, ...lobos]) feixe.geometry.dispose();
       jatoMat.dispose();
       loboMat.dispose();
-      campo.dispose();
+      pulso.dispose();
     },
   };
 }
