@@ -313,16 +313,14 @@ export const allows = (entry, feature) => !(entry.forbids && feature in entry.fo
 /**
  * Que corpo celeste cada TIPO de arquivo é — a tabela de morfologias por `kind`.
  *
- * ⚠️ ISTO É A INTENÇÃO DECLARADA, NÃO O QUE A CENA DESENHA HOJE, e a distinção é o motivo de o
- * campo `drawn` existir. Quem escolhe a superfície de um corpo é a CLASSE, e a classe sai do
- * ESTADO (sujo → planeta anelado, dormente → cometa extinto, o resto → estrela com fotosfera).
- * O `kind` hoje governa só a COR. A tabela abaixo é o destino que o `modelo-de-renderizacao.md`
- * traçou por tipo, e a HUD a mostra marcando o que ainda não existe — um rótulo dizendo "cometa"
- * num corpo que a tela desenha como estrela seria a interface mentindo sobre a própria cena.
+ * Ela era INTENÇÃO DECLARADA e virou o que a cena desenha: `solver.js` roteia a superfície por esta
+ * tabela quando a classe é a padrão, então o `kind` deixou de governar só a cor. `drawn` sobrevive
+ * para marcar morfologia declarada e ainda não implementada — hoje nenhuma, e o campo continua aqui
+ * porque a próxima entrada nova nasce sem módulo e a HUD precisa dizer isso em vez de prometer.
  *
- * `drawn: false` significa que a MORFOLOGIA não foi implementada. `fotosfera` e `planeta` existem
- * (`photosphere.js`, `planet.js`); cometa, estação, pulsar e nebulosa são o backlog medido, na
- * ordem de retorno de cobertura.
+ * ⚠️ A CLASSE ainda manda quando o ESTADO produz um corpo próprio: sujo → planeta anelado, dormente
+ * → cometa extinto. A morfologia decide o corpo PADRÃO, não o corpo em todo caso — quem quiser a
+ * ordem inteira leia `solver.js`, que é onde as duas se compõem.
  */
 export const MORPHOLOGY_BY_KIND = Object.freeze({
   config: Object.freeze({ body: 'fotosfera', drawn: true }),
@@ -330,10 +328,10 @@ export const MORPHOLOGY_BY_KIND = Object.freeze({
   doc: Object.freeze({ body: 'planeta', drawn: true }),
   decision: Object.freeze({ body: 'planeta', drawn: true }),
   memory: Object.freeze({ body: 'planeta', drawn: true }),
-  script: Object.freeze({ body: 'cometa', drawn: false }),
-  agent: Object.freeze({ body: 'estação', drawn: false }),
-  infra: Object.freeze({ body: 'pulsar', drawn: false }),
-  compose: Object.freeze({ body: 'nebulosa', drawn: false }),
+  script: Object.freeze({ body: 'cometa', drawn: true }),
+  agent: Object.freeze({ body: 'estação', drawn: true }),
+  infra: Object.freeze({ body: 'pulsar', drawn: true }),
+  compose: Object.freeze({ body: 'nebulosa', drawn: true }),
   lock: Object.freeze({ body: 'estrela', drawn: true }),
   other: Object.freeze({ body: 'estrela', drawn: true }),
 });

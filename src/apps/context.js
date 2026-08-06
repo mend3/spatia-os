@@ -39,7 +39,7 @@ import { el, plural, shortPath } from '../hud/dom.js';
 import { on, emit } from '../core/bus.js';
 import * as attention from '../core/attention.js';
 import { button } from '../hud/button.js';
-import { classify } from '../space/catalog.js';
+import { classify, morphologyOf } from '../space/catalog.js';
 import { DIRTY_LABELS } from '../space/rings.js';
 
 /**
@@ -102,15 +102,25 @@ function desenhar(node, dirty, origin, vizinhos) {
   linhas.push(cabecalho);
 
   /*
-   * A CLASSE primeiro, e o gesto que a trouxe junto dela.
+   * O NOME DO CORPO primeiro, e o gesto que o trouxe junto dele.
    *
-   * "ESTRELA" e "PLANETA COM ANEL" não são rótulo decorativo: é a classe que decide quais
+   * "PLANETA COM ANEL" e "COMETA EXTINTO" não são rótulo decorativo: é a classe que decide quais
    * feições aquele corpo pode carregar, e é ela que responde "por que este tem anel e aquele
    * não". Sem isso o catálogo é uma regra que só o código conhece.
+   *
+   * ⚠️ Menos quando a classe é a PADRÃO — e aí ela passou a mentir. `estrela` é o nome do estado
+   * "nada de especial aconteceu com este arquivo", e desde que a morfologia passou a rotear a
+   * superfície (`solver.js`) o corpo desenhado nesse caso vem do `kind`: um `agent` aparece como
+   * ESTAÇÃO na tela enquanto o painel dizia ESTRELA. Reportado exatamente assim, e é a mesma
+   * classe de defeito do leitor que pedia um gesto já feito — duas afirmações sobre um só estado.
+   *
+   * Quando o ESTADO produz um corpo próprio (sujo, dormente, lua, agregado) a classe continua
+   * sendo a resposta certa, porque ali ela é que decide o que a tela desenha.
    */
   const meta = el('div', 'hover-meta');
+  const corpo = classe.id === 'estrela' ? morphologyOf(node.kind).body.toUpperCase() : classe.name;
   meta.textContent = [
-    classe.name,
+    corpo,
     origin === 'focus' ? 'TRAVADO' : null,
     node.kind,
     node.type === 'file' ? null : 'AGREGADO',
