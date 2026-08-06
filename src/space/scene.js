@@ -22,7 +22,7 @@ import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
-import { createGraph, hash01 } from './graph.js';
+import { createGraph, hash01, starSeed } from './graph.js';
 import * as motion from '../core/motion.js';
 import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
@@ -35,6 +35,7 @@ import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
+import { createRemnant } from './remnant.js';
 
 /*
  * `start.z` acompanha `graphSpread`: a casca de nós foi de 46–110 para 68–160 unidades, e uma
@@ -205,6 +206,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   let hubs = [];
   const planet = createPlanet();
   const photosphere = createPhotosphere();
+  const remnant = createRemnant();
   let starParamsCache = null;
   let starSource = null;
   let planetSource = null;
@@ -212,7 +214,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   scene.add(
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
-    stars.object, blackHole.group, graph.group, planet.object, photosphere.object,
+    stars.object, blackHole.group, graph.group, planet.object, photosphere.object, remnant.object,
     /*
      * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
      * as entradas vêm de `planetAnchor`, que já multiplicou posição e raio pela escala do grupo.
@@ -1128,6 +1130,25 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     }
 
     /*
+     * A NEBULOSIDADE do remanescente troca de desenho junto com o corpo, e pelo mesmo fator.
+     *
+     * De longe ela vive dentro do sprite; de perto o sprite bate no teto de 511 do driver e para
+     * de crescer enquanto o corpo continua — a estrela transbordava o próprio remanescente no
+     * zoom máximo. `probe.level` é o mesmo número que o `haloOf` usa para abrir o núcleo, então a
+     * geometria entra exatamente na medida em que o sprite sai: nunca as duas somadas, nunca
+     * nenhuma das duas. Ver `space/remnant.js`.
+     */
+    probe.casca = probe.desenhado ? (pouso.node.supernova || 0) * probe.level : 0;
+    remnant.update(
+      pouso?.position ?? ZERO,
+      pouso?.radius ?? 0,
+      probe.casca,
+      probe.desenhado ? starSeed(pouso.node) : 0,
+      probe.desenhado ? graph.kindColor(pouso.node.kind) : 0xffffff,
+      camera
+    );
+
+    /*
      * TODAS as galáxias por quadro, num desenho só.
      *
      * Não é como o planeta e a fotosfera, que só existem para o corpo focado: são 71 hubs
@@ -1179,7 +1200,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // `getSize` devolve pixels de CSS (o `pixelRatio` é interno ao renderer), que é a mesma
       // régua do `getBoundingClientRect` do lado da HUD. Misturar as duas daria furo deslocado
       // pelo DPR — e só em monitor retina, que é a pior classe de bug para reproduzir.
-      signals.update(graph.signalPoints(camera, size.x, size.y, elapsed));
+      //
+      // `bufferHeight` vai junto porque a inversão do `gl_PointSize` lá dentro fala em pixel de
+      // FRAMEBUFFER. São réguas diferentes no mesmo cálculo; ver `graph.signalPoints`.
+      signals.update(
+        graph.signalPoints(camera, { width: size.x, height: size.y, bufferHeight: canvas.height }, elapsed)
+      );
     }
 
     glitch = smooth(glitch, 0, 3.2, delta);

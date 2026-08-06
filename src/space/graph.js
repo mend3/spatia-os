@@ -180,15 +180,19 @@ const VERTEX = /* glsl */ `
  * Estático de propósito: um anel que pulsa seria movimento sem evento por trás, e a cena já tem
  * uma regra sobre isso (`prefers-reduced-motion`). A supernova é um estado, não um piscar.
  */
-const FRAGMENT = /* glsl */ `
-  precision highp float;
-  varying vec3 vColor;
-  varying float vIgnition;
-  varying float vReveal;
-  varying float vSupernova;
-  varying float vSeed;
-  varying float vHalo;
-
+/**
+ * O ENVOLTORIO DO REMANESCENTE, em GLSL — a fonte unica da forma.
+ *
+ * Exportado porque ele e desenhado em DOIS lugares e tem de ser a mesma forma nos dois: no sprite
+ * (de longe, dentro do `gl_PointCoord`) e em geometria propria (de perto, quando o sprite bate no
+ * teto de 511 do driver e para de crescer enquanto o corpo continua). Copiar a funcao daria duas
+ * nebulosas para o mesmo astro, divergindo na primeira vez que alguem mexesse num dos lados —
+ * exatamente o defeito que o pulso da ignicao ja pagou com tres literais em dois arquivos.
+ *
+ * `ENV_OUTER = 1.0` esta em unidades de `pc`, onde 1 e a borda do sprite. Quem desenha em mundo
+ * converte pelo `VISIBLE_CORE`: o disco visivel do astro vive em `pc = 0,6`.
+ */
+export const ENVELOPE_GLSL = /* glsl */ `
   const float TAU = 6.28318530718;
   // Envoltorio: onde comeca, ate onde vai, quanto rende e quanto o contorno ondula.
   const float ENV_INNER = 0.34;
@@ -217,6 +221,18 @@ const FRAGMENT = /* glsl */ `
     float fill = smoothstep(outer, ENV_INNER, length(pc));
     return fill * fill;
   }
+`;
+
+const FRAGMENT = /* glsl */ `
+  precision highp float;
+  varying vec3 vColor;
+  varying float vIgnition;
+  varying float vReveal;
+  varying float vSupernova;
+  varying float vSeed;
+  varying float vHalo;
+
+${ENVELOPE_GLSL}
 
   void main(){
     vec2 pc = (gl_PointCoord - 0.5) * 2.0;
@@ -233,7 +249,15 @@ const FRAGMENT = /* glsl */ `
     core *= mix(1.0, smoothstep(0.0, 0.62, d), vHalo);
     // Corona só em nó aceso: dá o "volta a brilhar" sem inflar o céu inteiro.
     float corona = (1.0 - smoothstep(0.0, 1.3, d)) * vIgnition * 0.55;
-    float shell = envelope(pc, vSeed) * vSupernova * ENV_GAIN;
+    /*
+     * A NEBULOSIDADE CEDE junto com o nucleo, pelo mesmo vHalo e pelo mesmo motivo.
+     *
+     * Quando a geometria propria assume (ver space/remnant.js), duas nebulosas ficariam somadas
+     * no mesmo lugar — e a de dentro do sprite e a que para de crescer no teto de 511. Sem esta
+     * linha o defeito nao seria "a casca nao acompanha", seria "a casca acompanha por cima de
+     * uma que nao acompanha", que e pior de ver e de diagnosticar.
+     */
+    float shell = envelope(pc, vSeed) * vSupernova * ENV_GAIN * (1.0 - vHalo);
     float intensity = (core + corona + shell) * vReveal;
     if (intensity < 0.004) discard;
     gl_FragColor = vec4(vColor * intensity, intensity);
@@ -275,6 +299,18 @@ const TEMP = new THREE.Vector3();
  * Cada chamada devolve material NOVO: `uSize`, `uReveal` e `uPulse` são estado, e compartilhar um
  * material entre a cena e a bancada faria o slider de uma mexer no céu da outra.
  */
+/**
+ * Semente da forma do envoltório de um astro.
+ *
+ * Sai do CAMINHO, não do índice: o índice muda quando o corpus ganha ou perde um arquivo, e a
+ * supernova de um arquivo trocaria de silhueta sem que nada tivesse acontecido com ele.
+ *
+ * Exportada porque a nebulosidade é desenhada em dois lugares — no sprite (atributo `aSeed`) e em
+ * geometria própria (`remnant.js`) — e uma semente diferente daria ao mesmo astro dois contornos
+ * que se substituem sem combinar, que é pior do que não trocar.
+ */
+export const starSeed = (node) => hash01(node.source ?? String(node.i ?? 0), 7);
+
 export function createPointMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -383,6 +419,21 @@ export function createGraph() {
    * Devolve o raio do SPRITE (metade do `gl_PointSize`), com o teto da GPU já aplicado. Onde o
    * anel cai a partir daí é decisão de `rings.js` — por rodapé de tela, não pelo limbo.
    */
+  /**
+   * Quantos pixels um raio de MUNDO ocupa na tela, à distância em que ele está.
+   *
+   * `R·H/(2·tan(fov/2)·z)`. Existe como função porque dois consumidores precisam dela — a âncora
+   * do planeta e o furo que a HUD abre — e a segunda cópia dessa conta é como o furo passou a
+   * discordar do anel que ele deveria cercar.
+   *
+   * ⚠️ A régua de `viewportHeight` é a régua da resposta: framebuffer entra, framebuffer sai; CSS
+   * entra, CSS sai. Quem chama escolhe, e escolher errado não dá erro nenhum.
+   */
+  function apparentPx(radiusWorld, position, camera, viewportHeight) {
+    const meiaAltura = Math.tan((camera.fov * Math.PI) / 360) * camera.position.distanceTo(position);
+    return (radiusWorld * viewportHeight) / (2 * Math.max(meiaAltura, 1e-4));
+  }
+
   function starRadius(i, elapsed, viewportHeight, camera) {
     const spread = group.scale.x || 1;
     // Distância de VISTA do nó — a mesma que o shader usa em `-viewPosition.z`. Ela entra e sai
@@ -529,10 +580,7 @@ export function createGraph() {
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
       supernovae[i] = node.type === 'file' ? node.supernova || 0 : 0;
-      // Semente da forma da casca. Sai do CAMINHO, não do índice: o índice muda quando o corpus
-      // ganha ou perde um arquivo, e a supernova de um arquivo trocaria de silhueta sem que
-      // nada tivesse acontecido com ele.
-      seeds[i] = hash01(node.source ?? String(i), 7);
+      seeds[i] = starSeed(node);
       color.setHex(KIND_COLORS[node.kind] ?? KIND_COLORS.other);
       colors.set([color.r, color.g, color.b], i * 3);
       registerPath(node, i);
@@ -983,19 +1031,34 @@ export function createGraph() {
      *
      * @returns {Array<{x: number, y: number, r: number}>} em pixels de CSS
      */
-    signalPoints(camera, width, height, elapsed) {
+    signalPoints(camera, { width, height, bufferHeight }, elapsed) {
       const out = [];
       if (!positions || !ringed.length || !camera) return out;
+      const escala = group.scale.x || 1;
       for (const i of ringed) {
-        const at = positionOf(i).multiplyScalar(group.scale.x || 1).project(camera);
+        const mundo = positionOf(i).multiplyScalar(escala);
+        const at = mundo.clone().project(camera);
         // Atrás da câmera: `project` devolve coordenadas espelhadas e o furo apareceria do lado
         // oposto da tela, seguindo um astro que ninguém está vendo.
         if (at.z > 1) continue;
-        const size = starRadius(i, elapsed, height, camera);
+        /*
+         * DUAS RÉGUAS DE PIXEL, e cada uma no lugar em que é verdade.
+         *
+         * `starRadius` inverte o `gl_PointSize`, que é pixel de FRAMEBUFFER — passar a altura CSS
+         * ali inflava `world` pelo DPR, e o furo saía o dobro do necessário em tela retina. A
+         * projeção de saída, porém, é para a HUD, que mede em CSS como o `getBoundingClientRect`
+         * do outro lado. Uma altura só serviria a uma das duas e mentiria para a outra.
+         *
+         * E o raio sai da GEOMETRIA (`world`), não de `px`: aquele carrega o teto de 511 do
+         * driver, então em zoom extremo o furo parava de crescer enquanto o anel continuava — a
+         * mesma confusão entre tamanho do sprite e tamanho do corpo que deixou o planeta
+         * procedural inalcançável. Ver `starRadius`.
+         */
+        const size = starRadius(i, elapsed, bufferHeight, camera);
         out.push({
           x: (at.x * 0.5 + 0.5) * width,
           y: (-at.y * 0.5 + 0.5) * height,
-          r: size.px * VISIBLE_CORE * SPAN_HINT,
+          r: apparentPx(size.world * VISIBLE_CORE * escala, mundo, camera, height) * SPAN_HINT,
         });
       }
       return out;
@@ -1024,14 +1087,13 @@ export function createGraph() {
        *
        * `starRadius().px` é metade do `gl_PointSize`, que satura no teto de 511 do driver e
        * ainda oscila com o pulso da ignição. Na mesma pose ele deu 75 e 153, atravessando o
-       * limiar de 90 do planeta nos dois sentidos: a superfície piscava. Aqui é a projeção
-       * exata do raio no plano da tela — monótona na distância, imune ao teto e ao pulso.
+       * limiar de 90 do planeta nos dois sentidos: a superfície piscava. `apparentPx` é a
+       * projeção exata do raio no plano da tela — monótona na distância, imune ao teto e ao pulso.
        */
-      const meiaAltura = Math.tan((camera.fov * Math.PI) / 360) * camera.position.distanceTo(position);
       return {
         position,
         radius,
-        px: (radius * viewportHeight) / (2 * Math.max(meiaAltura, 1e-4)),
+        px: apparentPx(radius, position, camera, viewportHeight),
         node: nodes[i],
       };
     },
