@@ -15,20 +15,26 @@
  */
 import * as THREE from 'three';
 import { ShaderPass } from '../../vendor/jsm/postprocessing/ShaderPass.js';
+import { GLSL_GEODESIC } from './blackhole-geodesic.js';
 
 const FRAGMENT = /* glsl */ `
   precision highp float;
   uniform sampler2D tDiffuse;
-  uniform vec2 uCenter;      // posição do horizonte em coordenadas de tela
-  uniform float uRadius;     // raio aparente do horizonte
-  uniform float uStrength;   // força da deflexão
+  uniform float uStrength;   // força da lente, como MULTIPLICADOR do traçado
   uniform float uAspect;
   uniform float uTime;
   uniform float uGrain;
   uniform float uAberration;
   uniform float uGlitch;
   uniform float uVignette;
+  // A câmera, para reconstruir o raio de cada pixel e reprojetar a direção de saída.
+  uniform vec3 uCamPos;
+  uniform vec3 uCamRight, uCamUp, uCamFwd;
+  uniform float uTanHalfFov;
+  uniform mat4 uViewProj;
   varying vec2 vUv;
+
+  ${GLSL_GEODESIC}
 
   float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
 
@@ -41,113 +47,67 @@ const FRAGMENT = /* glsl */ `
   void main(){
     vec2 uv = barrel(vUv, 0.06);
 
-    // Aspecto aplicado ao vetor, não à uv: sem isso a lente fica elíptica em tela larga.
-    vec2 toCenter = (uv - uCenter) * vec2(uAspect, 1.0);
-    float distance = length(toCenter);
-    vec2 direction = distance > 0.0001 ? toCenter / distance : vec2(0.0);
-
-    // Deflexão que cresce ao aproximar do horizonte, saturada para não inverter a imagem.
-    // Teto baixo de propósito. Sem ele a deflexão perto do horizonte chega a ~0.4 em uv, e
-    // o fundo é arrastado em leques enormes: deixa de ler como lente e passa a ler como
-    // artefato de shader.
-    // Massa pontual desloca a imagem por θ_E²/θ — ∝ 1/θ, NÃO 1/θ².
-    //
-    // Com o quadrado, dobrar a distância ao horizonte derrubava a deflexão a um quarto em vez
-    // de à metade: o efeito virava um borrão apertado colado no horizonte e sumia logo fora
-    // dele. Perdia-se a assinatura de "o campo estelar inteiro está sutilmente torcido", que é
-    // o que faz uma lente ler como lente e não como filtro local.
-    // ⚠️ A ESCALA tem que ser preservada ao trocar a lei, e eu não preservei na primeira
-    // tentativa: trocar /d² por /d mantendo uRadius*uRadius no numerador derrubou a
-    // deflexão ~20× perto do horizonte (uRadius≈0.033, então dividir por d≈0.05 em vez de por
-    // d²≈0.0025) e a lente sumiu da cena. Subir o default de lensStrength não resolveria: o
-    // valor fica salvo no localStorage de quem já usou, e a correção precisa valer para ele.
-    //
-    // uRadius/d é adimensional e vale EXATAMENTE uStrength em d = uRadius — o mesmo que
-    // a versão antiga entregava ali. O que muda é só a queda: a metade em 2R, onde antes era um
-    // quarto. É a correção da física sem mexer no que o operador já afinou.
-    float deflection = uStrength * uRadius / max(distance, uRadius * 0.35);
     /*
-     * O teto ESCALA COM O OBJETO, e antes não escalava.
+     * O RAIO DESTE PIXEL, em espaco de MUNDO.
      *
-     * Era 0.145 absoluto — 14,5% da altura da tela. Com o raio da sombra em ~0.033 UV, isso
-     * é um deslocamento máximo de 4,4 RAIOS DE SOMBRA: a distorção ficava maior que o objeto
-     * que a produz. Pior, sendo absoluto ele não encolhia quando a câmera se afastava, então
-     * quanto menor o buraco negro na tela, MAIOR o borrão em proporção a ele.
-     *
-     * Amarrado a uRadius, o desenho vira invariante de distância: o campo estelar torce até
-     * ~1.2 raio de sombra em volta dela, de perto e de longe.
-     *
-     * O teto continua existindo por outro motivo, que não mudou: deslocamento em espaço de
-     * TELA não sabe fazer lente forte (não produz imagem múltipla nem anel de Einstein de
-     * verdade). Passado certo ponto ele deixa de ler como lente e passa a ler como artefato,
-     * e o teto é o que impede a técnica de tentar o que ela não consegue.
+     * A base da camera chega pronta do JS (direita/cima/frente ja ortonormais) porque reconstrui-la
+     * aqui a partir da inversa da projecao custaria duas matrizes por fragmento para produzir
+     * exatamente os mesmos tres vetores, iguais para a tela inteira.
      */
-    /*
-     * O TETO SUBIU de 1,2 para 2,0 raios de sombra, e o motivo e a queixa de que "o fundo nao
-     * reage". A 1,2 a deflexao saturava logo fora da sombra e o campo estelar mal se movia: o
-     * efeito lia como mascara preta com um borrao colado, nao como espaco curvo. O teto continua
-     * existindo pela razao que nao mudou — deslocamento em espaco de TELA nao sabe fazer lente
-     * forte, nao produz imagem multipla nem anel de Einstein de verdade — mas 1,2 estava
-     * cortando bem antes desse limite.
-     */
-    deflection = min(deflection, uRadius * 2.0);
-    vec2 lensed = uv - direction * deflection / vec2(uAspect, 1.0);
+    vec2 ndc = uv * 2.0 - 1.0;
+    vec3 dir = normalize(
+      uCamFwd
+      + uCamRight * (ndc.x * uTanHalfFov * uAspect)
+      + uCamUp * (ndc.y * uTanHalfFov)
+    );
 
     /*
-     * SOMBRA GRADUAL — e a rampa curta era o que fazia o objeto ler como BOLA PRETA.
-     *
-     * Era smoothstep(0,99R → 1,09R): 10% do raio, uma borda de tesoura. O cerebro le isso como
-     * superficie solida, e a queixa foi literal — "parece uma esfera preta gigante". Um buraco
-     * negro nao tem superficie: o que se ve e a SOMBRA, e a fronteira dela e o lugar mais
-     * dificil de localizar da imagem.
-     *
-     * A fisica: a fracao de raios capturados nao salta de 0 a 1 num raio. Ela cresce
-     * continuamente conforme o parametro de impacto se aproxima do critico, e mesmo fora da
-     * sombra uma parte da luz ainda cai. Sao dois termos:
-     *
-     *   nucleo  — a rampa principal, agora com 44% do raio (0,58 a 1,02) em vez de 10%;
-     *   residuo — absorcao PARCIAL indo ate 1,9 raios, que e o que faz o escuro "vazar" para
-     *             fora da sombra em vez de terminar numa circunferencia.
-     *
-     * ⚠️ O residuo foi 0,68 ate 2,4R na primeira tentativa e escurecia a CENA, nao so a borda:
-     * a 2,4R ele cobre um pedaco grande da tela e a borda interna do disco (que comeca em 1,41R)
-     * perdia ate 32% do brilho. Escurecer o disco perto da sombra e desejado — e o "o horizonte
-     * engole a luz gradualmente" —, escurecer o ceu inteiro nao e. 0,80 ate 1,9R mantem o
-     * vazamento e devolve o disco.
-     *
-     * O anel de fotons continua fora dos dois, em 1,1R, onde a rampa principal ja fechou.
+     * O TRACADO. Ele devolve o que o raio ENCONTROU (disco, e alfa 1 se caiu no horizonte) e a
+     * direcao com que saiu. uStrength continua sendo o controle do operador, mas agora ele mistura
+     * entre "sem lente" e "lente inteira" em vez de escalar uma deflexao inventada — o painel de
+     * afinacao de quem ja usou continua com significado.
      */
-    float nucleo = smoothstep(uRadius * 0.58, uRadius * 1.02, distance);
-    float residuo = mix(0.80, 1.0, smoothstep(uRadius * 1.02, uRadius * 1.9, distance));
-    float shadow = nucleo * residuo;
+    vec3 dirFinal = dir;
+    vec4 tracado = tracarGeodesica(uCamPos, dir, dirFinal);
+    dirFinal = normalize(mix(dir, dirFinal, clamp(uStrength, 0.0, 1.0)));
 
-    // Anel de fótons: estreito, e no limite EXTERNO da transição da sombra.
-    //
-    // Em 1.02 ele caía dentro da rampa do shadow (0.99→1.09) e era suprimido em ~78% —
-    // fisicamente defensável, visualmente o anel desaparecia. A borda da sombra, aqui, É essa
-    // rampa; o anel mora onde ela termina.
-    float ring = exp(-pow((distance - uRadius * 1.1) / (uRadius * 0.05), 2.0));
+    /*
+     * ONDE O FUNDO E LIDO. A direcao de saida e reprojetada para a tela, entao as estrelas, as
+     * galaxias e os corpos ja renderizados ESCORREGAM em volta do buraco — o passe nao inventa um
+     * ceu, ele reamostra o que a cena desenhou.
+     *
+     * ⚠️ Isso e exato so para o que esta no infinito. O grafo orbita a r ~ 91-217 contra ~6 de raio
+     * de sombra, entao o erro de paralaxe e pequeno; e a mesma aproximacao que a versao anterior ja
+     * fazia, agora com a deflexao certa.
+     */
+    vec4 clipe = uViewProj * vec4(dirFinal, 0.0);
+    vec2 fundoUv = clipe.w > 0.0001 ? (clipe.xy / clipe.w) * 0.5 + 0.5 : uv;
+    // Direcao radial na tela, para a aberracao acompanhar a torcao em vez de apontar sempre igual.
+    vec2 desvio = fundoUv - uv;
+    vec2 radial = length(desvio) > 0.0001 ? normalize(desvio) : vec2(1.0, 0.0);
 
+    // Aberracao cromatica: uma amostra por canal, deslocada ao longo do desvio da lente. Franja
+    // para ser notada de relance, nao para pintar o ceu de arco-iris.
+    float shift = uAberration * min(0.0006 + length(desvio) * 0.35, 0.0012);
     float glitchOffset = uGlitch * (hash(vec2(floor(vUv.y * 90.0), floor(uTime * 14.0))) - 0.5) * 0.05;
-    lensed.x += glitchOffset;
+    fundoUv.x += glitchOffset;
 
-    // Aberração cromática: uma amostra por canal, deslocada ao longo do raio da lente.
-    // Aberração proporcional à deflexão, mas saturada: franja colorida é para ser notada de
-    // relance, não para pintar o céu de arco-íris.
-    float shift = uAberration * min(0.0006 + deflection * 0.004, 0.0012);
     vec3 color;
-    color.r = texture2D(tDiffuse, lensed + direction * shift).r;
-    color.g = texture2D(tDiffuse, lensed).g;
-    color.b = texture2D(tDiffuse, lensed - direction * shift).b;
+    color.r = texture2D(tDiffuse, fundoUv + radial * shift).r;
+    color.g = texture2D(tDiffuse, fundoUv).g;
+    color.b = texture2D(tDiffuse, fundoUv - radial * shift).b;
 
-    color *= shadow;
-
-    // O anel de Einstein REALÇA a luz que já está ali; não a inventa. Somar o anel de forma
-    // plana desenhava um círculo perfeito em screen-space mesmo onde não havia nada atrás do
-    // horizonte — um donut flutuando no vazio, que nenhum buraco negro produz. Multiplicar
-    // pela luminância amostrada faz o realce aparecer só onde o disco realmente é dobrado.
-    float luminance = dot(color, vec3(0.299, 0.587, 0.114));
-    color += vec3(1.0, 0.74, 0.44) * ring * shadow * min(luminance * 2.6, 1.4);
+    /*
+     * A SOMBRA e o alfa do tracado, e nao ha rampa escrita a mao nenhuma.
+     *
+     * A versao anterior tinha dois smoothsteps de raio (nucleo e residuo) escolhidos para imitar
+     * uma borda macia. Aqui a maciez e o resultado: perto do parametro de impacto critico raios
+     * vizinhos escapam por muito pouco, entao a fracao capturada varia continuamente de pixel para
+     * pixel. A borda mais dificil de localizar da imagem — que e o que um horizonte de eventos tem
+     * — sai da fisica em vez de ser aproximada por uma curva.
+     */
+    color = mix(color, tracado.rgb, tracado.a);
+    color += tracado.rgb * (1.0 - tracado.a);
 
     float vignette = mix(1.0, smoothstep(1.25, 0.35, length(vUv - 0.5) * 1.6), uVignette);
     color *= vignette;
@@ -162,8 +122,6 @@ export function createLensingPass() {
   const pass = new ShaderPass({
     uniforms: {
       tDiffuse: { value: null },
-      uCenter: { value: new THREE.Vector2(0.5, 0.5) },
-      uRadius: { value: 0.09 },
       uStrength: { value: 0.85 },
       uAspect: { value: 1 },
       uTime: { value: 0 },
@@ -171,6 +129,26 @@ export function createLensingPass() {
       uAberration: { value: 1 },
       uGlitch: { value: 0 },
       uVignette: { value: 1 },
+      // A câmera, para o traçado montar o raio de cada pixel.
+      uCamPos: { value: new THREE.Vector3() },
+      uCamRight: { value: new THREE.Vector3(1, 0, 0) },
+      uCamUp: { value: new THREE.Vector3(0, 1, 0) },
+      uCamFwd: { value: new THREE.Vector3(0, 0, -1) },
+      uTanHalfFov: { value: 1 },
+      uViewProj: { value: new THREE.Matrix4() },
+      // O buraco negro e o disco, em unidades de MUNDO — vêm de `blackHole.geometry()`.
+      uBhPos: { value: new THREE.Vector3() },
+      uRs: { value: 1 },
+      uDiskInner: { value: 4 },
+      uDiskOuter: { value: 39 },
+      uDiskSpin: { value: 0.18 },
+      uDiskIntensity: { value: 0.75 },
+      uDiskTurbulence: { value: 0.6 },
+      uDiskTime: { value: 0 },
+      uErrorMix: { value: 0 },
+      uHot: { value: new THREE.Color(0xffdba8) },
+      uMid: { value: new THREE.Color(0xff8f3c) },
+      uCool: { value: new THREE.Color(0x521705) },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -178,8 +156,6 @@ export function createLensingPass() {
     `,
     fragmentShader: FRAGMENT,
   });
-
-  const projected = new THREE.Vector3();
 
   return {
     pass,
@@ -190,17 +166,47 @@ export function createLensingPass() {
      */
     sync(camera, blackHole, size, { glitch = 0 } = {}) {
       const uniforms = pass.uniforms;
-      projected.set(0, 0, 0).applyMatrix4(blackHole.group.matrixWorld).project(camera);
-      uniforms.uCenter.value.set((projected.x + 1) / 2, (projected.y + 1) / 2);
 
-      // Raio aparente: o raio do horizonte convertido para fração de tela, via o meio-fov.
-      const distance = camera.position.distanceTo(blackHole.group.position);
-      const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * distance;
-      uniforms.uRadius.value = THREE.MathUtils.clamp(
-        blackHole.horizonRadius / (halfHeight * 2),
-        0.02,
-        0.45
+      /*
+       * A BASE DA CÂMERA, montada aqui e não no shader.
+       *
+       * São três vetores iguais para a tela inteira; reconstruí-los por fragmento a partir da
+       * inversa da projeção custaria duas matrizes por pixel para chegar no mesmo lugar.
+       *
+       * ⚠️ `uCamUp` sai da MATRIZ da câmera, não de `(0,1,0)`. A cena tem `cameraDrift` e o polar
+       * chega perto do zênite: com um "up" fixo o raio ficaria torto exatamente nas poses em que o
+       * disco é visto quase de cima, que são as que o operador mais usa.
+       */
+      camera.updateMatrixWorld();
+      uniforms.uCamPos.value.copy(camera.position);
+      uniforms.uCamRight.value.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      uniforms.uCamUp.value.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+      // A terceira coluna é o eixo +Z da câmera, que aponta para TRÁS: a frente é o negativo dela.
+      uniforms.uCamFwd.value.setFromMatrixColumn(camera.matrixWorld, 2).normalize().negate();
+      uniforms.uTanHalfFov.value = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      uniforms.uViewProj.value.multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse
       );
+
+      /*
+       * A geometria vem do `blackHole`, JÁ multiplicada pela escala do grupo. Recalculá-la aqui foi
+       * exatamente o defeito medido da versão anterior: este passe lia `horizonRadius` cru e ficava
+       * 2,05× menor que o objeto na tela, desenhando o anel de fótons dentro do preto.
+       */
+      const bh = blackHole.geometry();
+      uniforms.uBhPos.value.copy(bh.center);
+      uniforms.uRs.value = bh.rs;
+      uniforms.uDiskInner.value = bh.inner;
+      uniforms.uDiskOuter.value = bh.outer;
+      uniforms.uDiskSpin.value = bh.spin;
+      uniforms.uDiskIntensity.value = bh.intensity;
+      uniforms.uDiskTurbulence.value = bh.turbulence;
+      uniforms.uErrorMix.value = bh.error;
+      uniforms.uHot.value.copy(bh.hot);
+      uniforms.uMid.value.copy(bh.mid);
+      uniforms.uCool.value.copy(bh.cool);
+
       uniforms.uAspect.value = size.width / size.height;
       uniforms.uGlitch.value = glitch;
     },
@@ -215,6 +221,12 @@ export function createLensingPass() {
 
     setTime(elapsed) {
       pass.uniforms.uTime.value = elapsed;
+      /*
+       * O disco tem o PRÓPRIO relógio, e ele é o mesmo número — mas com nome separado de propósito.
+       * `uTime` move grão e glitch, que são acabamento de câmera; `uDiskTime` move a matéria. Um
+       * "congelar o grão" futuro não pode parar o disco junto.
+       */
+      pass.uniforms.uDiskTime.value = elapsed;
     },
 
     /**

@@ -52,6 +52,8 @@ const DISK_OUTER = HORIZON_RADIUS * 13.0;
 // regimes cognitivos tem que levar o mesmo tempo a 30 ou a 144fps, e um quadro longo não
 // pode virar um salto de intensidade no disco.
 const REGIME_RATE = 2.4;
+/** Temporário do `geometry()`. Reusado para não alocar um Vector3 por quadro. */
+const CENTRO = new THREE.Vector3();
 
 const NOISE = /* glsl */ `
   // Hash e fbm baratos: o disco pede filamento, não realismo de ruído. Três oitavas
@@ -388,6 +390,20 @@ export function createBlackHole() {
       // A pilha é aditiva e sem `depthWrite`, então a ordem entre as fatias não importa — mas ela
       // tem de vir DEPOIS do horizonte, que é opaco e escreve profundidade.
       malha.position.y = material.uniforms.uHeight.value;
+      /*
+       * ⚠️ O DISCO DE GEOMETRIA ESTÁ DESLIGADO — quem o desenha agora é o traçado de geodésicas
+       * (`blackhole-geodesic.js`), dentro do passe de tela.
+       *
+       * Ele não foi apagado ainda de propósito: a troca é grande e o raymarch precisa passar pelo
+       * olho do usuário na máquina dele antes de a versão antiga sumir do repositório. Enquanto
+       * isso ele custa zero — `visible: false` tira a malha do render list inteiro, não só do
+       * desenho. Quando o raymarch for aprovado, este bloco e o `DISK_FRAGMENT` saem juntos.
+       *
+       * A ESFERA DO HORIZONTE continua ligada, e não é esquecimento: ela é opaca e escreve
+       * profundidade, então é ela que oclui os corpos que passam ATRÁS do buraco negro. O passe de
+       * tela não lê profundidade e não saberia fazer isso.
+       */
+      malha.visible = false;
       slices.push(malha);
       group.add(malha);
     });
@@ -427,6 +443,42 @@ export function createBlackHole() {
 
     horizonRadius: HORIZON_RADIUS,
     diskOuter: DISK_OUTER,
+
+    /**
+     * A geometria e o estado que o traçado de geodésicas precisa, em unidades de MUNDO.
+     *
+     * ⚠️ Tudo aqui já vai multiplicado por `group.scale`, e é essa multiplicação que faltava.
+     * `HORIZON_RADIUS` é o valor de projeto (3,0); o objeto na cena tem `coreScale` em cima dele
+     * (2,05 no padrão), logo 6,15. `scene.js` fazia a conta à mão num lugar e **`lensing.js` não
+     * fazia em lugar nenhum** — media o raio aparente pelos 3,0 crus. Medido: com isso o anel de
+     * fótons era desenhado a 0,69 do raio da esfera OPACA, ou seja dentro do preto, junto com a
+     * rampa inteira que suaviza a borda da sombra. Era exatamente o que se via na tela.
+     *
+     * Uma função só, pela mesma razão que `clampDistance` de `scene.js` é uma só: dois donos do
+     * mesmo número é como eles divergem.
+     */
+    geometry() {
+      const escala = group.scale.x;
+      return {
+        center: group.getWorldPosition(CENTRO),
+        /*
+         * `HORIZON_RADIUS` é o raio da SOMBRA, não o de Schwarzschild — o cabeçalho da constante
+         * já diz isso. Para Schwarzschild a sombra tem √27/2 ≈ 2,598 R_s, então o traçado, que
+         * integra em torno de R_s, precisa da divisão. Passar a sombra como se fosse R_s inflaria
+         * o horizonte 2,6× e engoliria o disco inteiro.
+         */
+        rs: (HORIZON_RADIUS * escala) / Math.sqrt(27) * 2,
+        inner: DISK_INNER * escala,
+        outer: DISK_OUTER * escala,
+        spin: live.spin * tune.spin,
+        intensity: live.intensity * tune.intensity,
+        turbulence: live.turbulence,
+        error: uniforms.uErrorMix.value,
+        hot: uniforms.uHot.value,
+        mid: uniforms.uMid.value,
+        cool: uniforms.uCool.value,
+      };
+    },
 
     setRegime(state) {
       Object.assign(target, REGIMES[state] || REGIMES.idle);
