@@ -36,10 +36,24 @@ const EDGE = 0.006;
  * `reach` é o raio onde o perfil termina, em raios do planeta — e portanto quanto o anel se
  * afasta da estrela. `sheets` são faixas contínuas `[de, até]`; `bands` são anéis estreitos
  * (centro, largura); `gaps` são vãos escavados depois de somadas as faixas.
+ *
+ * ## `obliquity` — e ela não estava aqui, que era o defeito
+ *
+ * Anel planetário fica no plano EQUATORIAL do planeta, então quanto ele sai do plano orbital é a
+ * obliquidade do corpo — um dado real, por planeta, exatamente como `reach`. O anel do astro em
+ * foco usava no lugar dela o `TILT` de `rings.js`, que é outra coisa: o achatamento da ELIPSE NA
+ * TELA, calibrado para o billboard. Reusado como rotação de mundo, 1,1 rad põe todo anel a **63°
+ * do plano orbital** — mais perto de Urano que de Saturno, com as referências pedindo Saturno.
+ *
+ * ⚠️ Urano é 97,8° de verdade e por isso o anel dele fica de pé. Não é defeito e não vai ser
+ * suavizado: `staged → uranus` foi a família escolhida, e falsear a obliquidade faria o rótulo
+ * mentir. Se a pose incomodar, o conserto é remapear o ESTADO para outra família.
  */
 export const RING_FAMILIES = {
   saturn: {
     reach: 2.45,
+    /** 26,73° — a obliquidade que dá a pose de todas as fotos de Saturno. */
+    obliquity: 0.4665,
     // Gelo centimétrico: retroespalha. Ver `uForward` em `rings.js`.
     forward: 0,
     sheets: [
@@ -60,6 +74,8 @@ export const RING_FAMILIES = {
 
   uranus: {
     reach: 2.20,
+    /** 97,77° — Urano rola deitado, então o anel dele fica quase de pé. É o dado, não um exagero. */
+    obliquity: 1.7064,
     // Partículas grandes e muito escuras (albedo ~0.05): também retroespalham.
     forward: 0,
     sheets: [],
@@ -80,6 +96,8 @@ export const RING_FAMILIES = {
 
   jupiter: {
     reach: 3.20,
+    /** 3,13° — praticamente no plano orbital, e é o que faz o anel de Júpiter ser sempre de perfil. */
+    obliquity: 0.0546,
     // Poeira sub-micrométrica: lobo frontal dominante — é assim que a Voyager 2 o descobriu.
     forward: 1,
     sheets: [
@@ -203,5 +221,10 @@ export function profileTexture(name) {
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.needsUpdate = true;
-  return { texture, reach: family.reach, forward: family.forward ?? 0 };
+  return {
+    texture,
+    reach: family.reach,
+    forward: family.forward ?? 0,
+    obliquity: family.obliquity ?? RING_FAMILIES.saturn.obliquity,
+  };
 }

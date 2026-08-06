@@ -552,6 +552,15 @@ export function createRings() {
           // número — foi a divergência entre eles que cortou o anel ao meio.
           span: Math.min(profile.reach, SPAN_CAP),
           tilt: TILT + (jitter(entry.index, 1) - 0.5) * TILT_SPREAD,
+          /*
+           * INCLINAÇÃO DE MUNDO, e ela é outra grandeza que o `tilt` — ver `RING_FAMILIES`.
+           *
+           * `tilt` achata a elipse NA TELA (billboard); esta tomba o disco a partir do plano
+           * orbital, que é o que a obliquidade do planeta faz com o anel equatorial dele. A
+           * dispersão continua porque planetas reais não combinaram inclinação entre si, e agora
+           * ela é um desvio em torno de um valor MEDIDO em vez de em torno de um chute.
+           */
+          obliquity: profile.obliquity + (jitter(entry.index, 1) - 0.5) * TILT_SPREAD,
           roll: (jitter(entry.index, 2) - 0.5) * ROLL_SPREAD,
         });
       });
@@ -595,12 +604,21 @@ export function createRings() {
          * defeito só aparece quando o corpo deixa de ser sprite e vira esfera, ou seja, em foco.
          * Reportado como "os anéis estão mal posicionados, deixando uma vista feia".
          *
-         * Em foco, então, o quad passa a viver no MUNDO: deitado no plano equatorial (o
-         * `-π/2` põe o plano XY na horizontal) e tombado por `tilt`. Aí a profundidade resolve
-         * sozinha o que estava faltando — arco de trás atrás, arco da frente na frente.
+         * Em foco, então, o quad passa a viver no MUNDO: deitado no plano orbital (o `-π/2` põe o
+         * plano XY na horizontal) e tombado pela OBLIQUIDADE. Aí a profundidade resolve sozinha o
+         * que estava faltando — arco de trás atrás, arco da frente na frente.
+         *
+         * ⚠️ **Aqui não entra `tilt`, e entrar foi o defeito.** `tilt` é o achatamento da elipse na
+         * TELA, calibrado para o billboard; somado ao `-π/2` ele vira ângulo a partir do plano
+         * orbital, e 1,1 rad põe todo anel a **63° de obliquidade** — quase Urano, com as
+         * referências pedindo Saturno. Daí a queixa de que o anel saía diagonal. A grandeza certa
+         * é por família e está medida em `RING_FAMILIES` (Saturno 26,7°, Júpiter 3,1°, Urano 97,8°).
+         *
+         * `tiltOverride` continua valendo: é a bancada varrendo o ângulo, e ali o número é a
+         * variável do experimento, não a pose do corpo.
          */
         if (ring.index === focusedIndex) {
-          ring.mesh.rotation.set(-Math.PI / 2 + tilt, ring.roll, 0);
+          ring.mesh.rotation.set(-Math.PI / 2 + (tiltOverride ?? ring.obliquity), ring.roll, 0);
           // Sem achatamento no shader: a elipse na tela agora é a PROJEÇÃO de um disco de verdade.
           // Achatar de novo aplicaria o tombo duas vezes.
           ring.mesh.material.uniforms.uCosTilt.value = 1;
