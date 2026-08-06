@@ -25,6 +25,8 @@
  * com um feixe só lê como defeito de desenho.
  */
 import * as THREE from 'three';
+import { createFieldCage } from './pulsar-field.js';
+import { GLSL_SIMPLEX3 } from './planet-noise.js';
 
 /** Onde o pulsar começa a aparecer e onde satura, em pixels de raio. */
 export const LOD_FAR_PX = 26;
@@ -45,14 +47,20 @@ const hash01 = (text, salt) => {
 };
 
 const VERTEX = /* glsl */ `
+  uniform float uCone;
   varying float vAlong;
   varying float vRadial;
   void main(){
-    // A geometria poe o APICE em y=0 (no corpo) e a base em y=1 (ver createPulsar). vAlong e a
-    // fracao percorrida; vRadial e a distancia ao eixo em fracao do raio DAQUELA altura, e sem
-    // ele o feixe fica com borda lateral reta e le como faixa chapada em vez de luz.
+    // A geometria poe a base em y=0 (no corpo) e a ponta em y=1. vAlong e a fracao percorrida.
     vAlong = position.y;
-    vRadial = length(position.xz) / max(position.y, 1e-4);
+    /*
+     * vRadial e a distancia ao eixo em fracao do raio LOCAL, e o denominador muda com a peca.
+     *
+     * No CONE (uCone = 1) o raio cresce com a altura, entao a fracao e xz/y. No CILINDRO
+     * (uCone = 0) o raio e constante e igual a 1. Sem esta troca o cilindro herdaria a conta do
+     * cone e ficaria com o miolo aceso so na ponta — a divisao por y apagaria a base inteira.
+     */
+    vRadial = length(position.xz) / max(mix(1.0, position.y, uCone), 1e-4);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -61,18 +69,131 @@ const FRAGMENT = /* glsl */ `
   precision highp float;
   uniform vec3 uColor;
   uniform float uAmount;
+  uniform float uFall;
+  uniform float uEdge;
+  uniform float uSpine;
+  uniform float uSharp;
   varying float vAlong;
   varying float vRadial;
   void main(){
-    // A emissao cai ao longo do feixe: o cone se abre e a mesma energia cobre mais area. Sem esta
-    // queda o feixe termina numa borda reta, que le como cone SOLIDO e nao como luz.
-    float aoLongo = pow(clamp(1.0 - vAlong, 0.0, 1.0), 1.6);
-    // E cai TAMBEM do eixo para a borda: feixe de radio nao tem parede. Ao quadrado para o miolo
-    // concentrar, que e o que da a leitura de facho e nao de fatia.
-    float doEixo = pow(clamp(1.0 - vRadial, 0.0, 1.0), 2.0);
-    float fill = aoLongo * doEixo * uAmount;
+    // A emissao cai ao longo do feixe. uFall separa as duas pecas: o LOBO difuso morre depressa
+    // (expoente alto) e o JATO colimado quase nao perde brilho no comprimento (expoente ~1), que
+    // e o que faz dele uma agulha que atravessa a imagem em vez de um cone que termina.
+    float aoLongo = pow(clamp(1.0 - vAlong, 0.0, 1.0), uFall);
+    // E cai TAMBEM do eixo para a borda: feixe de radio nao tem parede.
+    float doEixo = pow(clamp(1.0 - vRadial, 0.0, 1.0), uEdge);
+    /*
+     * A ESPINHA — o fio branco no meio do feixe, e e ela que faltava.
+     *
+     * Nas referencias (o quasar com o jato atravessando o disco, o Crab) o feixe nao e um facho
+     * de cor uniforme: e um nucleo BRANCO estourado com um halo colorido em volta. O olho le
+     * isso como energia; um cone de uma cor so le como geometria pintada.
+     *
+     * ⚠️ O expoente e uniform porque a primeira tentativa (40, fixo) reproduziu EXATAMENTE o
+     * defeito que ela dizia evitar. Com o cone abrindo 11% e a espinha a 4% do raio dele, o fio
+     * aceso ficava em 0,4% do comprimento — menos de um pixel, invisivel. Contas, com o jato a
+     * ~200 px na tela: a meia-largura do cone no meio do jato e abertura·100 px, e o fio e a
+     * fracao r onde (1-r)^n = 0,5. Para um fio de ~4 px com halo de ~20 px sai abertura 0,2 e
+     * n = 17. Regra: a espinha e uma fracao do RAIO DO CONE, entao estreitar o cone estreita o
+     * fio junto — os dois numeros nao sao independentes.
+     */
+    float espinha = pow(clamp(1.0 - vRadial, 0.0, 1.0), uSharp) * uSpine;
+    float fill = (doEixo + espinha) * aoLongo * uAmount;
     if (fill < 0.004) discard;
-    gl_FragColor = vec4(uColor * fill, fill);
+    // Branco no fio, cor do corpo no halo.
+    gl_FragColor = vec4(mix(uColor, vec3(1.0), clamp(espinha, 0.0, 1.0)) * fill, fill);
+  }
+`;
+
+
+/**
+ * O NÚCLEO não é um círculo — é massa de energia.
+ *
+ * A queixa foi literal: "simplesmente um círculo com cones". E `MeshBasicMaterial` é exatamente
+ * isso: uma cor chapada dentro de uma silhueta perfeita, sem estrutura, sem variação, sem borda
+ * viva. Nenhum corpo desta cena que EMITE se parece com isso — a fotosfera ferve, a nebulosa
+ * escoa, a coma tem lei de queda. O núcleo do pulsar era o único emissor desenhado como adesivo.
+ *
+ * O que entra no lugar, e cada termo responde por uma coisa que se vê nas referências:
+ *
+ * | termo | o que é | o que ele conserta |
+ * |---|---|---|
+ * | `fervura` | ruído 3D avançado no tempo, duas oitavas | superfície uniforme |
+ * | `erupcao` | picos raros e agudos do mesmo campo | massa inerte, sem eventos |
+ * | `borda` | o ruído também modula o ALFA no limbo | a silhueta de círculo perfeito |
+ * | alfa < 1 | aditivo e translúcido | "as superfícies não devem ser opacas" |
+ *
+ * ⚠️ Ele é ADITIVO como o resto da emissão desta pele. Um emissor opaco tapa o feixe que sai de
+ * trás dele, e o pulsar volta a ter um feixe só — que foi o defeito que pôs os cones sem teste de
+ * profundidade em primeiro lugar.
+ */
+const CORE_VERTEX = /* glsl */ `
+  varying vec3 vPos;
+  varying vec3 vNormal;
+  void main(){
+    vPos = position;
+    vNormal = normalize(normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const CORE_FRAGMENT = /* glsl */ `
+  precision highp float;
+  ${GLSL_SIMPLEX3}
+  uniform vec3 uColor;
+  uniform float uAmount;
+  uniform float uTime;
+  uniform float uSeed;
+  uniform vec3 uCam;
+  varying vec3 vPos;
+  varying vec3 vNormal;
+  void main(){
+    vec3 q = vPos * 3.4 + uSeed;
+    /*
+     * FERVURA: duas oitavas avancando no tempo, a fina mais rapida que a grossa.
+     *
+     * E a mesma ordem que a granulacao da fotosfera usa, e pelo mesmo motivo: celula grande e
+     * lenta com celula pequena e rapida dentro dela le como conveccao. Igualadas, le como
+     * textura rolando.
+     */
+    float grossa = simplex3(q + vec3(0.0, uTime * 0.35, 0.0));
+    float fina = simplex3(q * 2.7 - vec3(uTime * 0.8, 0.0, uTime * 0.5));
+    float fervura = grossa * 0.62 + fina * 0.38;
+
+    /*
+     * ERUPCAO: o mesmo campo, so que so a CRISTA dele.
+     *
+     * Elevar a potencia alta mata tudo menos os picos mais altos do ruido, entao a superficie
+     * fica calma quase toda e estoura em pontos isolados que nascem e morrem. Erupcao nao e
+     * ruido mais forte, e ruido RARO — sem o corte, o corpo inteiro pisca junto.
+     */
+    float erupcao = pow(max(fervura, 0.0), 6.0) * 3.2;
+
+    // Angulo de visada: 1 no meio do disco, 0 no limbo.
+    float mu = clamp(dot(normalize(vNormal), normalize(uCam - vPos)), 0.0, 1.0);
+
+    /*
+     * A BORDA E IRREGULAR, e e isto que tira o "circulo".
+     *
+     * O alfa cai no limbo (mu -> 0) como qualquer corpo translucido — a linha de visada atravessa
+     * menos plasma la. Somando a fervura ao limiar, a queda acontece mais cedo em umas direcoes e
+     * mais tarde em outras: a silhueta ganha lingua e reentrancia, e muda com o tempo.
+     */
+    float limiar = 0.16 + fervura * 0.22;
+    float borda = smoothstep(0.0, max(limiar, 0.02), mu);
+
+    /*
+     * Faixa dinamica ALTA de proposito: massa de energia nao e uma cor com textura por cima.
+     *
+     * Com 0,55 de piso o corpo ficava chapado — um planeta mosqueado. Piso baixo e ganho alto
+     * poem as calhas quase apagadas e as cristas estourando, que e o contraste que o olho le como
+     * plasma. A erupcao entra por cima disso, nao no lugar dele.
+     */
+    float brilho = (0.22 + fervura * 0.85 + erupcao * 1.5) * borda * uAmount;
+    if (brilho < 0.004) discard;
+    // Branco no que esta mais quente, cor do corpo no resto — a mesma logica da espinha do feixe.
+    vec3 cor = mix(uColor, vec3(1.0), clamp(erupcao * 0.8 + 0.25, 0.0, 1.0));
+    gl_FragColor = vec4(cor * brilho, brilho);
   }
 `;
 
@@ -92,8 +213,15 @@ export function pulsarParams(node = {}, color = 0xffffff) {
 
   return Object.freeze({
     seed,
-    /** Corpo pequeno: o que se vê de um pulsar é o feixe, não a superfície. */
-    core: 0.22 + massa * 0.14,
+    /*
+     * Corpo PEQUENO — e a primeira versão ainda era grande demais.
+     *
+     * A 0,22–0,36 raios ele enchia o centro da tela como uma bola pálida, e a queixa foi literal:
+     * "simplesmente um círculo com cones". Estrela de nêutrons tem ~10 km: em qualquer escala em
+     * que o feixe caiba, ela é um PONTO. 0,10–0,16 devolve a proporção das referências, em que o
+     * corpo é o brilho de onde tudo sai e não a figura principal.
+     */
+    core: 0.10 + massa * 0.06,
     /**
      * Período em segundos. INVERSO da massa, ao contrário do resto do céu — e é a física: pulsar
      * jovem e massivo é lento, o de milissegundo é o velho reciclado por acreção.
@@ -118,23 +246,66 @@ export function pulsarParams(node = {}, color = 0xffffff) {
 /**
  * O pulsar do astro em foco. Um por cena, como as outras peles.
  */
+const OLHO = new THREE.Vector3();
+
 export function createPulsar() {
   const group = new THREE.Group();
   group.visible = false;
 
-  const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true });
-  const core = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), coreMat);
-  group.add(core);
-
-  const beamMat = new THREE.ShaderMaterial({
-    uniforms: { uColor: { value: new THREE.Color(0xffffff) }, uAmount: { value: 0 } },
-    vertexShader: VERTEX,
-    fragmentShader: FRAGMENT,
+  const coreMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(0xffffff) },
+      uAmount: { value: 0 },
+      uTime: { value: 0 },
+      uSeed: { value: 0 },
+      uCam: { value: new THREE.Vector3() },
+    },
+    vertexShader: CORE_VERTEX,
+    fragmentShader: CORE_FRAGMENT,
     transparent: true,
     depthWrite: false,
-    depthTest: false,
     blending: THREE.AdditiveBlending,
   });
+  // 32×24: a esfera não tem deslocamento — a estrutura toda mora no fragmento, e a malha só
+  // precisa de silhueta lisa o bastante para o ruído deformá-la.
+  const core = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), coreMat);
+  group.add(core);
+
+  /*
+   * DUAS PEÇAS POR POLO, e é a diferença entre "cone" e "pulsar".
+   *
+   * As referências mostram duas coisas que um cone só não faz ao mesmo tempo. O Crab é um par de
+   * LOBOS difusos, largos e curtos, com borda macia — a emissão perto da estrela. O quasar é uma
+   * AGULHA colimada, fina e longa, que atravessa a imagem inteira sem perder brilho. As duas são
+   * o mesmo fenômeno em escalas diferentes (o plasma sai largo e é colimado pelo campo), e é por
+   * isso que elas dividem o eixo e o shader: o que muda são três expoentes e o comprimento.
+   */
+  function criarMaterial({ fall, edge, spine, sharp, gain, cone }) {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: new THREE.Color(0xffffff) },
+        uAmount: { value: 0 },
+        uFall: { value: fall },
+        uEdge: { value: edge },
+        uSpine: { value: spine },
+        uSharp: { value: sharp },
+        uCone: { value: cone },
+      },
+      vertexShader: VERTEX,
+      fragmentShader: FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+      // O ganho vive NO material: ele apareceu duas vezes na primeira escrita (aqui e no laço do
+      // `update`), que é a duplicata que esta cena já pagou quatro vezes. Uma cópia só.
+      userData: { gain },
+    });
+  }
+  // Jato: quase não perde brilho no comprimento, miolo apertado, espinha branca acesa.
+  const jatoMat = criarMaterial({ fall: 0.9, edge: 3.2, spine: 1, sharp: 17, gain: 1.5, cone: 0 });
+  // Lobo: morre depressa, borda larga e macia, sem espinha — ele é o halo, não o fio.
+  const loboMat = criarMaterial({ fall: 2.2, edge: 1.8, spine: 0, sharp: 1, gain: 0.85, cone: 1 });
 
   /*
    * O EIXO MAGNÉTICO é um grupo próprio, inclinado dentro do eixo de ROTAÇÃO.
@@ -148,7 +319,8 @@ export function createPulsar() {
   eixoRotacao.add(eixoMagnetico);
   group.add(eixoRotacao);
 
-  const feixes = [];
+  const jatos = [];
+  const lobos = [];
   for (const lado of [1, -1]) {
     /*
      * ÁPICE NO CORPO, base longe — e a primeira versão fez o contrário.
@@ -158,16 +330,53 @@ export function createPulsar() {
      * um ponto e se abre. `rotateX(π)` inverte, e o `translate` põe o ápice na origem para
      * `position.y` valer direto como fração percorrida no shader.
      */
-    const geo = new THREE.ConeGeometry(1, 1, 16, 1, true);
-    geo.rotateX(Math.PI);
-    geo.translate(0, 0.5, 0);
-    const feixe = new THREE.Mesh(geo, beamMat);
-    feixe.frustumCulled = false;
-    feixe.renderOrder = 9;
-    if (lado < 0) feixe.rotation.z = Math.PI;
-    feixes.push(feixe);
-    eixoMagnetico.add(feixe);
+    for (const [mat, lista] of [[jatoMat, jatos], [loboMat, lobos]]) {
+      /*
+       * O JATO É UM CILINDRO e o LOBO é um cone, e a diferença é a colimação.
+       *
+       * Jato de núcleo ativo é colimado: ele mantém a largura por distâncias absurdas — é essa
+       * propriedade que o torna um jato e não um jorro. Desenhado como cone, ele lia como CUNHA
+       * TRIANGULAR, que foi a primeira coisa que apareceu na tela. O feixe de rádio do pulsar, ao
+       * contrário, abre mesmo — o cone está certo lá.
+       *
+       * ⚠️ **E o jato é um QUAD, não um cilindro** — a primeira tentativa foi cilindro e ele
+       * simplesmente não apareceu, sem erro nenhum. `CylinderGeometry(…, true)` é aberto: só
+       * existe a PAREDE, e nela `length(xz)` vale 1 em todo vértice. Com `uCone = 0` o shader
+       * dividia por 1 e obtinha `vRadial = 1` em cada fragmento, o que zera tanto o halo quanto a
+       * espinha. Um tubo é uma casca; o feixe precisa do INTERIOR, e cone só funciona porque a
+       * parede dele varre raios de 0 (no ápice) a 1.
+       *
+       * O quad tem largura constante — que é o que colimação significa — e é girado a cada quadro
+       * para encarar a câmera (ver `update`), como qualquer rastro. `PlaneGeometry(2, 1)` dá
+       * x ∈ [−1, 1] e y ∈ [0, 1], então `length(position.xz)` já é |x| e `position.y` já é a
+       * fração percorrida: o mesmo shader serve às duas peças sem um `if`.
+       *
+       * `ConeGeometry` nasce com o ápice em +y; `rotateX(π)` põe o ápice embaixo, no corpo, para
+       * a luz sair de um ponto e abrir. O `translate` põe a base em y=0 nos dois.
+       */
+      const geo = mat === jatoMat
+        ? new THREE.PlaneGeometry(2, 1)
+        : new THREE.ConeGeometry(1, 1, 16, 1, true);
+      if (mat !== jatoMat) geo.rotateX(Math.PI);
+      geo.translate(0, 0.5, 0);
+      const feixe = new THREE.Mesh(geo, mat);
+      feixe.frustumCulled = false;
+      feixe.renderOrder = 9;
+      if (lado < 0) feixe.rotation.z = Math.PI;
+      lista.push(feixe);
+      eixoMagnetico.add(feixe);
+    }
   }
+
+  /*
+   * A GAIOLA DE CAMPO pendura no eixo MAGNÉTICO, com os feixes.
+   *
+   * É o campo dipolar que colima a emissão pelos polos — desenhar o feixe no eixo magnético e as
+   * linhas no de rotação mostraria o efeito separado da causa, e a obliquidade (a única razão de
+   * haver pulso) perderia o sentido visual.
+   */
+  const campo = createFieldCage();
+  eixoMagnetico.add(campo.object);
 
   return {
     object: group,
@@ -176,24 +385,47 @@ export function createPulsar() {
      * @param {object} params  de `pulsarParams`
      * @param {number} px      raio aparente do corpo
      * @param {number} elapsed relógio da cena
-     * @param {boolean} reduced  `prefers-reduced-motion` — congela a varredura
+     * @param {boolean} reduced  `prefers-reduced-motion` — congela a varredura e a fervura
+     * @param {THREE.Camera} camera  para o ângulo de visada do núcleo
      * @returns {number} nível de detalhe aplicado, 0…1
      */
-    update(params, px, elapsed, reduced = false) {
+    update(params, px, elapsed, reduced = false, camera = null) {
       const level = THREE.MathUtils.clamp((px - LOD_FAR_PX) / (LOD_NEAR_PX - LOD_FAR_PX), 0, 1);
       group.visible = level > 0.002;
       if (!group.visible) return 0;
 
       core.scale.setScalar(params.core);
-      coreMat.color.set(params.color);
-      coreMat.opacity = level;
+      coreMat.uniforms.uColor.value.set(params.color);
+      coreMat.uniforms.uAmount.value = level;
+      coreMat.uniforms.uSeed.value = params.seed * 37;
+      // A fervura CONGELA com movimento reduzido, como o `boil` da fotosfera: o campo parado é um
+      // instante legítimo da convecção, e a estrutura continua lá.
+      coreMat.uniforms.uTime.value = reduced ? 0 : elapsed;
+      // `uCam` em espaço LOCAL do núcleo: o grupo tem rotação e escala próprias, e a conta de
+      // ângulo de visada tem de acontecer no mesmo referencial em que `vPos` vive.
+      if (camera) core.worldToLocal(coreMat.uniforms.uCam.value.copy(camera.position));
 
-      beamMat.uniforms.uColor.value.set(params.color);
-      beamMat.uniforms.uAmount.value = 0.55 * level;
-      // O raio da base é a ABERTURA do feixe; a altura é o alcance. Separados porque um facho
-      // estreito e longo e um curto e aberto são pulsares diferentes.
-      const abertura = params.beam * 0.17;
-      for (const feixe of feixes) feixe.scale.set(abertura, params.beam, abertura);
+      /*
+       * O raio da base é a ABERTURA e a altura é o ALCANCE, e as duas peças usam razões opostas.
+       *
+       * O JATO é 1,7× mais longo que o alcance nominal e abre 20% — jato de AGN real colima em
+       * poucos graus, e o que se vê nas referências é uma agulha atravessando a imagem. (Os 11%
+       * são de MALHA; o brilho visível é bem mais fino, feito pela espinha no shader — agulha
+       * geométrica fina ficaria sub-pixel e cintilaria — ver o cálculo em FRAGMENT.)
+       *
+       * O LOBO é curto (38%) e largo (48%): é a emissão perto da estrela, a parte que o Crab
+       * mostra como duas asas difusas. Sem ele o jato sai do nada; sem o jato o corpo vira um
+       * borrão. A razão entre os dois é o que dá a silhueta de ampulheta das referências.
+       */
+      for (const mat of [jatoMat, loboMat]) {
+        mat.uniforms.uColor.value.set(params.color);
+        mat.uniforms.uAmount.value = 0.55 * level * mat.userData.gain;
+      }
+      for (const jato of jatos) jato.scale.set(params.beam * 0.2, params.beam * 1.7, 1);
+      for (const lobo of lobos) lobo.scale.set(params.beam * 0.48, params.beam * 0.38, params.beam * 0.48);
+      // A gaiola fecha no equador da alça maior — um pouco dentro do lobo, que é onde o campo
+      // deixa de ser dipolar e o plasma passa a ser arrastado. Ver `pulsar-field.js`.
+      campo.update(params.beam * 0.34, level);
 
       group.rotation.set(params.tilt, params.yaw, 0);
       eixoMagnetico.rotation.z = params.obliquity;
@@ -205,14 +437,33 @@ export function createPulsar() {
        * apontando para um lado, que é um instante legítimo da varredura.
        */
       eixoRotacao.rotation.y = reduced ? 0 : (elapsed / params.period) * Math.PI * 2;
+
+      /*
+       * O QUAD DO JATO ENCARA A CÂMERA, e a rotação acontece DEPOIS de todas as outras.
+       *
+       * Ele é plano: visto de perfil desapareceria, e um pulsar que perde um jato conforme a
+       * varredura gira lê como defeito. O único grau de liberdade que não muda a direção do jato
+       * é o giro em torno do próprio eixo — então é esse que se usa. `worldToLocal` no eixo
+       * magnético leva a câmera para o referencial em que esse giro é simplesmente `rotation.y`,
+       * e a conta tem de vir depois de `eixoRotacao`/`eixoMagnetico` já estarem postos, senão ela
+       * usa a pose do quadro anterior.
+       */
+      if (camera) {
+        eixoMagnetico.updateWorldMatrix(true, false);
+        eixoMagnetico.worldToLocal(OLHO.copy(camera.position));
+        const giro = Math.atan2(OLHO.x, OLHO.z);
+        for (const jato of jatos) jato.rotation.y = giro;
+      }
       return level;
     },
 
     dispose() {
       core.geometry.dispose();
       coreMat.dispose();
-      for (const feixe of feixes) feixe.geometry.dispose();
-      beamMat.dispose();
+      for (const feixe of [...jatos, ...lobos]) feixe.geometry.dispose();
+      jatoMat.dispose();
+      loboMat.dispose();
+      campo.dispose();
     },
   };
 }

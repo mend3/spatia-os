@@ -157,8 +157,13 @@ const FOCUS_FLOOR_RADII = 3.4;
  * o arquivo, e o cometa é a cauda tanto quanto o núcleo. O cometa recua 3 e não 9 (o comprimento
  * máximo do rastro) de propósito — a ponta da cauda é a parte que já esgarçou, e enquadrá-la
  * inteira encolheria a cabeça, que é onde está a leitura.
+ *
+ * ⚠️ O pulsar subiu de 2,2 para 4 quando o feixe virou jato colimado: a agulha agora vai a 1,7× o
+ * alcance nominal (7,7 a 14,4 raios), e a 2,2 a chegada cortava os dois jatos na borda da tela —
+ * justamente a figura que define o corpo. Recua menos que o comprimento total pelo mesmo motivo do
+ * cometa: a ponta do jato é a parte tênue, e enquadrá-la inteira encolheria a estrela e a gaiola.
  */
-const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 2.2, station: 1.15 });
+const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 4, station: 1.15 });
 /** Free-flight range, when nothing is locked. */
 const ZOOM_RANGE = { min: 12, max: 260 };
 /**
@@ -1254,7 +1259,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());
       } else comet.object.visible = false;
       if (decisao.surface === SURFACE.PULSAR) {
-        level = pulsar.update(morphParams, pouso.px, elapsed, motion.isReduced());
+        level = pulsar.update(morphParams, pouso.px, elapsed, motion.isReduced(), camera);
       } else pulsar.object.visible = false;
       if (decisao.surface === SURFACE.NEBULA) {
         level = nebula.update(morphParams, camera, pouso.px, elapsed, motion.isReduced());
