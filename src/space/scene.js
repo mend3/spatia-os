@@ -30,7 +30,8 @@ import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams } from './planet.js';
 import { createLinks } from './links.js';
-import { createGalaxy, galaxyParams } from './galaxy.js';
+import { createGalaxy, galaxyParams, diskPx, LOD_ARM_PX, LOD_FULL_PX } from './galaxy.js';
+import { createQuasars, quasarParams } from './quasar.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
@@ -190,6 +191,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const links = createLinks();
   const galaxy = createGalaxy();
   /*
+   * O QUASAR É UM SEGUNDO DESENHO, e não cabia no da galáxia — era esse o obstáculo levantado.
+   *
+   * O quad da galáxia tem 1,35 raios de âncora; o jato precisa de 6,3. Alargar o quad existente
+   * pagaria a área maior em TODOS os 213 hubs para que 7 deles usassem a borda, e o disco da
+   * galáxia perderia resolução na mesma proporção. Duas malhas, cada uma do tamanho que precisa.
+   */
+  const quasars = createQuasars();
+  /*
    * Os parâmetros de cada galáxia são ESTÁTICOS — dependem da massa dos filhos, que só muda
    * quando a topologia recarrega. Calcular por quadro seria refazer 71 partições de arquivos a
    * 60Hz para obter o mesmo resultado.
@@ -231,6 +240,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * trocado, e ele já foi pago uma vez neste arquivo.
      */
     galaxy.object,
+    // Mesma razão da galáxia, e o módulo repete o aviso no próprio JSDoc: as entradas vêm de
+    // `planetAnchor`, já em MUNDO. Sob `graph.group` o `graphSpread` entraria duas vezes.
+    quasars.object,
     particles.object,
     satellites.group, wormholes.group, bodies.group
   );
@@ -1481,10 +1493,26 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     if (hubs.length) {
       const lote = [];
+      /*
+       * O QUASAR SAI DA MESMA VARREDURA, e é de propósito.
+       *
+       * Ele não é um corpo do céu: é o núcleo ATIVO de uma galáxia massiva, então quem decide se
+       * ele existe é `quasarParams`, lendo os MESMOS `hub.params` que já desenham o disco. Uma
+       * segunda varredura poderia divergir da primeira sobre quais hubs existem neste quadro —
+       * e a âncora é a mesma, no mesmo quadro, pelo mesmo motivo que `planetAnchor` existe.
+       *
+       * `quasarParams` devolve `null` para quem não passa do limiar de massa de BOJO, então a
+       * lista sai curta sozinha: 7 de 72 hubs no corpus medido (9,7%, a fração observada).
+       */
+      const nucleos = [];
       for (const hub of hubs) {
         const ancora = graph.planetAnchor(hub.id, camera, canvas.height, elapsed);
         if (!ancora) continue;
         lote.push({ params: hub.params, position: ancora.position, radius: ancora.radius });
+        const nucleo = quasarParams(hub.params);
+        if (nucleo) {
+          nucleos.push({ params: nucleo, position: ancora.position, radius: ancora.radius });
+        }
         // A sonda tem de dizer a verdade nos DOIS sentidos. Ela já sabia acusar "decidido e não
         // desenhado" enquanto a galáxia era só bancada; deixar o carimbo para trás agora a faria
         // negar uma imagem que está na tela, que é o mesmo defeito espelhado.
@@ -1502,9 +1530,41 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        */
       galaxy.tune({ omega: motion.isReduced() ? 0 : rateOf(MOTION.patternSpin) });
       const acesas = galaxy.update(lote, camera, canvas.height, elapsed);
+      /*
+       * A MESMA projeção e a MESMA escada da galáxia, injetadas — não recalculadas aqui.
+       *
+       * `diskPx` e `LOD_ARM_PX`/`LOD_FULL_PX` são de `galaxy.js` e vão para dentro do quasar como
+       * argumento. É o que impede os dois de discordarem sobre qual número escolheu o nível de
+       * detalhe: um núcleo aceso sobre um disco que já desistiu de resolver seria a mesma classe de
+       * defeito das duas réguas de pixel que o anel pagou.
+       */
+      /*
+       * O FLUXO DO QUASAR É DECIDIDO PELO PERFIL DE QUALIDADE, não pelo módulo.
+       *
+       * Animação é custo, e num perfil mínimo ela é a primeira coisa que sai — mas congelar não
+       * pode apagar feição nenhuma: com `flow = 0` os nós do jato e a rugosidade do lóbulo
+       * continuam desenhados, só param de andar. É a mesma disciplina de `reduced: freeze` do
+       * `motion-catalog.js`, e o motivo é o mesmo: quem pediu menos movimento não pediu menos
+       * informação.
+       *
+       * O portão sai de `graphSpeed` porque é o knob que os PERFIS já usam para dizer "esta
+       * máquina se move menos" (`mínimo` o põe em 0,1 contra 0,25 do padrão). Um vigésimo terceiro
+       * parâmetro só para isto seria uma chave a mais para alguém esquecer de ligar — e este
+       * arquivo já pagou por chave órfã.
+       */
+      const fluxo = motion.isReduced()
+        ? 0
+        : THREE.MathUtils.clamp(tune.graphSpeed / 0.25, 0, 1.6);
+      quasars.tune({ flow: fluxo });
+      const nucleosAcesos = quasars.update(nucleos, camera, canvas.height, elapsed, diskPx, {
+        far: LOD_ARM_PX,
+        near: LOD_FULL_PX,
+      });
       trace('galaxy', () => ({
         instancias: lote.length,
         acimaDoLimiarDeBraco: acesas,
+        quasares: nucleos.length,
+        quasaresAcesos: nucleosAcesos,
         omega: +rateOf(MOTION.patternSpin).toFixed(4),
         voltaEmSegundos: MOTION.patternSpin.period,
         girouAteAgora: `${((elapsed * rateOf(MOTION.patternSpin) * 180) / Math.PI).toFixed(0)}°`,

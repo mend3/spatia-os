@@ -350,6 +350,7 @@ const FRAGMENT = /* glsl */ `
 
   uniform float uTime;
   uniform float uGain;
+  uniform float uFlow;
 
   varying vec2 vP;
   varying vec3 vAxis;
@@ -400,12 +401,33 @@ const FRAGMENT = /* glsl */ `
      *
      * As folgas (3,5 larguras, 1,8 lobos, 7 nucleos) sao as caudas das gaussianas correspondentes:
      * cortar na largura nominal terminaria cada peca numa reta.
+     *
+     * ⚠️ E UMA CAIXA POR PECA, nao uma caixa para todas — a primeira versao tinha uma so, com a
+     * folga do JATO, e desenhava o LOBO dentro dela. O lobo e uma bolha de raio lobo, ordens de
+     * grandeza mais larga que largura: a caixa estreita passava pelo meio dele e o cortava numa
+     * RETA. O usuario fotografou o resultado — *"uma faixa quadrada evidenciando a superficie
+     * flat"* — e a leitura era exata: o que aparecia era a borda da regiao de teste, nao uma feicao.
+     *
+     * A regra que sai daqui: **cada corte tem de usar a cauda da PROPRIA gaussiana que ele corta.**
+     * Uma caixa comum e sempre a mais estreita das duas, e a mais estreita e sempre quem aparece.
      */
     float dLongo = abs(aoLongo);
     float dAtraves = abs(atraves);
-    bool naAgulha = dAtraves < largura * 3.5 && dLongo < jato + lobo * 1.8;
-    bool noNucleo = raio < nucleo * 7.0;
-    if (!naAgulha && !noNucleo) discard;
+    // O jato: agulha fina, cortada na cauda da largura DELE.
+    bool naAgulha = dAtraves < largura * 3.5 && dLongo < jato * 1.06;
+    // Os lobos: dois discos de raio lobo, centrados nas pontas. Corte RADIAL, porque a feicao e
+    // redonda — uma caixa alinhada aos eixos deixaria canto visivel em vez de reta.
+    bool noLobo = length(vec2(dLongo - jato, atraves)) < lobo * 1.8;
+    /*
+     * ⚠️ 10 nucleos, e nao 7 — a folga tem de ser a do TORO, que e a peca mais externa daqui.
+     *
+     * A 7 o corte caia em toroR = 1,24, onde a gaussiana do toro ainda vale
+     * exp(-((0,24)/0,42)^2) = 0,72 — 72% do pico, num circulo. Era a borda que o usuario viu
+     * "evidenciando que e flat". Mesma regra do lobo: **o corte usa a cauda da propria gaussiana**,
+     * e a do toro so morre em toroR = 1,76, que e raio = 10 nucleos.
+     */
+    bool noNucleo = raio < nucleo * 10.0;
+    if (!naAgulha && !noLobo && !noNucleo) discard;
 
     vec3 cor = vec3(0.0);
     float luz = 0.0;
@@ -458,7 +480,11 @@ const FRAGMENT = /* glsl */ `
        * entra em vermelho-alaranjado, nunca em branco.
        */
       float toroR = span / 1.35;
-      float toro = exp(-pow((toroR - 1.0) / 0.42, 2.0)) * (0.35 + 0.65 * (1.0 - vGlow.z));
+      // Suporte compacto, como no lobo: no corte (toroR = 1,76) a gaussiana ainda vale 3,6%, cinco
+      // vezes o piso de descarte. Subtrair o degrau faz ela chegar a zero onde a regiao termina.
+      const float PT = 0.0365;
+      float perfilToro = max(exp(-pow((toroR - 1.0) / 0.42, 2.0)) - PT, 0.0) / (1.0 - PT);
+      float toro = perfilToro * (0.35 + 0.65 * (1.0 - vGlow.z));
 
       /*
        * O nucleo entra com o peso da OBSCURACAO; o toro entra sempre. Ver a nota em quasarParams
@@ -491,7 +517,19 @@ const FRAGMENT = /* glsl */ `
        * um lento. Uma amostra de ruido ao longo do eixo, avancando devagar no tempo — o padrao
        * MIGRA para fora, que e o que os nos fazem.
        */
-      float no = simplex3(vec3(dLongo * 3.1 - uTime * 0.22, semente, 12.0)) * 0.5 + 0.5;
+      /*
+       * ⚠️ A TAXA FOI MEDIDA EM SEGUNDOS DE TRAVESSIA, nao escolhida no olho.
+       *
+       * Era 0,22: com a escala espacial 3,1, o padrao andava 0,071 de dLongo por segundo e o jato
+       * tem 5 de comprimento — **70 segundos** para um no atravessar. E o mesmo defeito que a
+       * galaxia pagou ("nao gira" era 105 s por volta): abaixo do limiar de percepcao, o olho le
+       * como parado, e foi assim que o usuario descreveu. A 0,9 a travessia cai para ~17 s, que e
+       * o tempo em que um no e visivelmente OUTRO no entre duas olhadas.
+       *
+       * uFlow e o portao: 0 congela sem apagar nada (o padrao continua, so nao anda), e quem o
+       * escolhe e o perfil de qualidade, em scene.js.
+       */
+      float no = simplex3(vec3(dLongo * 3.1 - uTime * uFlow * 0.9, semente, 12.0)) * 0.5 + 0.5;
       float pulso = 0.62 + 0.75 * no * no;
 
       /*
@@ -514,19 +552,38 @@ const FRAGMENT = /* glsl */ `
       // continuar dizendo de que pasta ele e.
       cor += mix(vTone * 1.4, vec3(0.82, 0.92, 1.0), clamp(espinha * 1.2, 0.0, 1.0)) * feixe;
       luz += feixe;
+    }
 
-      /*
-       * OS LOBOS, e eles NAO herdam a assimetria do jato.
-       *
-       * Lobo e plasma ja freado contra o meio intergalactico: nada ali se move a fracao relevante
-       * de c, entao nao ha beaming. Os dois aparecem com brilho parecido mesmo quando so um jato e
-       * visivel — e essa discordancia entre agulha de um lado so e par de lobos simetrico e a
-       * figura classica de radiogalaxia. Herdar o Doppler aqui apagaria a informacao.
-       */
+    /*
+     * OS LOBOS, e eles NAO herdam a assimetria do jato.
+     *
+     * Lobo e plasma ja freado contra o meio intergalactico: nada ali se move a fracao relevante
+     * de c, entao nao ha beaming. Os dois aparecem com brilho parecido mesmo quando so um jato e
+     * visivel — e essa discordancia entre agulha de um lado so e par de lobos simetrico e a
+     * figura classica de radiogalaxia. Herdar o Doppler aqui apagaria a informacao.
+     *
+     * ⚠️ FORA do bloco da agulha, e nao dentro dele. Aqui eles estavam presos a caixa estreita do
+     * jato, que passava pelo meio da bolha e a cortava numa reta — a faixa retangular fotografada.
+     */
+    if (noLobo) {
       float dLobo = length(vec2(dLongo - jato, atraves));
-      float bolha = exp(-pow(dLobo / lobo, 2.0));
+      /*
+       * SUPORTE COMPACTO: a gaussiana menos o valor que ela tem NO CORTE, renormalizada.
+       *
+       * Cortar em 1,8 sigma deixa 3,9% do pico — 5x acima do piso de descarte deste shader (0,003),
+       * o que trocaria a faixa reta por um disco fantasma de borda visivel. Subtrair o degrau faz o
+       * perfil chegar a zero exatamente onde a regiao termina, entao nao ha borda para ver.
+       *
+       * A conta que decide isto: no corte ANTIGO (a caixa do jato, 0,2975 de meia-altura) a
+       * gaussiana do lobo valia exp(-(0,2975/0,8)^2) = 0,87 — 87% do pico cortados numa reta. Era
+       * essa a faixa fotografada, e o numero explica por que ela era tao evidente.
+       */
+      const float PE = 0.0392;  // exp(-1.8^2), o degrau no corte
+      float bolha = max(exp(-pow(dLobo / lobo, 2.0)) - PE, 0.0) / (1.0 - PE);
       // A borda do lobo e irregular: ele e uma bolha inflada num meio que nao e uniforme.
-      float rugosidade = 0.70 + 0.55 * (simplex3(vec3(p * 1.6, uTime * 0.03 + semente)) * 0.5 + 0.5);
+      // 0,03 dava ~200 s para a rugosidade do lobo mudar de cara: parado. O lobo e plasma ja
+      // freado, entao ele fervilha DEVAGAR de proposito — mas devagar tem de ser perceptivel.
+      float rugosidade = 0.70 + 0.55 * (simplex3(vec3(p * 1.6, uTime * uFlow * 0.12 + semente)) * 0.5 + 0.5);
       float lobos = bolha * rugosidade * 0.42;
       cor += mix(vTone, vec3(0.62, 0.72, 0.95), 0.55) * lobos;
       luz += lobos;
@@ -560,7 +617,7 @@ export function createQuasars(capacity = 16) {
   let center = null;
   let view = null;
   const buffers = new Map();
-  const settings = { gain: 1 };
+  const settings = { gain: 1, flow: 1 };
 
   function build(size) {
     dispose();
@@ -587,7 +644,7 @@ export function createQuasars(capacity = 16) {
     geometry.instanceCount = 0;
 
     material = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uGain: { value: 1 } },
+      uniforms: { uTime: { value: 0 }, uGain: { value: 1 }, uFlow: { value: 1 } },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
       transparent: true,
@@ -655,8 +712,15 @@ export function createQuasars(capacity = 16) {
   return {
     object: group,
 
-    tune({ gain = 1 } = {}) {
+    /**
+     * @param {{gain?: number, flow?: number}} opts  `flow` é o multiplicador do relógio: 1 é a
+     *   taxa nominal, 0 congela. Quem decide é o PERFIL DE QUALIDADE — animação é custo, e num
+     *   perfil mínimo ela é a primeira coisa que sai. Congelar não apaga nada: o padrão continua
+     *   desenhado, só para de andar.
+     */
+    tune({ gain = 1, flow = 1 } = {}) {
       settings.gain = gain;
+      settings.flow = flow;
     },
 
     /**
@@ -720,6 +784,7 @@ export function createQuasars(capacity = 16) {
       if (dirty) for (const [name] of STATIC_LAYOUT) geometry.getAttribute(name).needsUpdate = true;
       material.uniforms.uTime.value = elapsed;
       material.uniforms.uGain.value = settings.gain;
+      material.uniforms.uFlow.value = settings.flow;
 
       return acesos;
     },
