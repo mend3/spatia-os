@@ -239,6 +239,43 @@ export const MOTION = Object.freeze({
   }),
 
   /**
+   * A moon going round its planet — the same Kepler law, on a clock of its own.
+   */
+  moonOrbit: Object.freeze({
+    id: 'moonOrbit',
+    status: 'applied',
+    law: 'Kepler mean motion about the parent, multiplied by a declared time scale',
+    /*
+     * ⚠️ A LEI DE KEPLER SOBREVIVE; a ESCALA DE TEMPO é uma compressão declarada.
+     *
+     * Medido no corpus: a lua de `wiki/sources/graphiti.md` leva 47 s por volta e o pai dela leva
+     * 86 s em torno do núcleo — a lua é 1,8× mais rápida que o próprio planeta. Em sistemas reais
+     * essa razão é de MILHARES (Io: 1,8 dias contra os 12 anos de Júpiter). O usuário olhou e
+     * disse que as luas não orbitavam, e ele estava certo: a 47 s por volta, num olhar de poucos
+     * segundos, elas não se movem.
+     *
+     * A causa não é a lei, é o raio. Esta cena comprime o raio orbital do PAI (casca 26–62) e não
+     * comprime na mesma medida a janela Roche→Hill da lua, então `a_lua/a_pai` fica em 0,08 onde a
+     * realidade tem 1e-3. Kepler aplicado a raios comprimidos devolve períodos que não separam.
+     *
+     * `5` multiplica TODAS as luas igualmente, então a terceira lei continua valendo ENTRE elas —
+     * a interna ainda corre mais que a externa, na razão certa, e a prova de não-colisão (que é
+     * geométrica, por banda radial disjunta) não depende de tempo nenhum. O que muda é só o
+     * relógio do sistema inteiro, e ele entra nesta lista junto com a escala log dos tamanhos, a
+     * esfera de Hill cheia e o ganho de desenho da lua.
+     */
+    timeScale: 5,
+    allowed: ['moon'],
+    reduced: 'keep',
+    /*
+     * `keep` e não `freeze`: a órbita da lua CARREGA a informação de que existe um sistema ali.
+     * Parada, ela vira um ponto ao lado de outro ponto — e a cena já decidiu isso uma vez para a
+     * órbita do céu ("órbita parada afirma que o sistema morreu"). O amortecimento global de
+     * `respectMotion` continua valendo para ela como para o resto.
+     */
+  }),
+
+  /**
    * The slow churn of a nebula: gas that moves without the cloud going anywhere.
    */
   nebulaDrift: Object.freeze({

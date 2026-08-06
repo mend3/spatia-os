@@ -42,6 +42,28 @@ import { MOTION } from './motion-catalog.js';
 import { glslFloat } from './glsl.js';
 
 const BOIL = MOTION.boil.rates;
+const SPIN = MOTION.spin;
+
+/**
+ * A casca de arquivo, de `graph.js:SHELLS`. Aqui ela serve como eixo de IDADE para a rotação.
+ *
+ * Espelhada e não importada porque `graph.js` importa este módulo por outro caminho — e o que se
+ * usa é a FAIXA, não o valor: mover a casca muda onde os corpos ficam, não o que "velho" quer
+ * dizer. Se as duas divergirem, o pior caso é a rotação saturar num extremo, não quebrar.
+ */
+const SHELL_INNER = 26;
+const SHELL_OUTER = 62;
+const SHELL_MID = (SHELL_INNER + SHELL_OUTER) / 2;
+
+/**
+ * Período de rotação, em segundos, do corpo mais recente ao mais antigo.
+ *
+ * Girocronologia: `P ∝ t^0.5` (Skumanich) — o Sol leva 25 dias, uma estrela jovem de tipo solar
+ * leva poucos dias. A faixa aqui é de tela: 22 s dá uma volta que se percebe num olhar sem virar
+ * pião, e 78 s ainda muda visivelmente entre duas visitas. Fora dessa faixa o eixo deixa de
+ * informar — rápido demais vira animação, lento demais vira corpo parado.
+ */
+const SPIN_PERIOD = { young: 22, old: 78 };
 
 /** Onde a fotosfera começa e onde satura, em pixels de raio na tela. Igual à do planeta. */
 export const LOD_FAR_PX = 90;
@@ -105,6 +127,9 @@ const FRAGMENT = /* glsl */ `
   uniform float uLimb;
   uniform float uCells;
   uniform float uUmbra;
+  // Rotacao propria: angulo acumulado e eixo (inclinacao). Ver photosphereParams.
+  uniform float uSpin;
+  uniform float uTilt;
   varying vec3 vObject;
 
   // Taxas de fervura, do motion-catalog.js. A ORDEM entre elas e a fisica: supergranulacao
@@ -134,13 +159,32 @@ const FRAGMENT = /* glsl */ `
     return slow * 0.42 + fast * 0.44 + fine * 0.14;
   }
 
+  /*
+   * A ESTRELA GIRA — e o que gira e a AMOSTRAGEM, nao a malha.
+   *
+   * Rodar o objeto no espaco moveria tambem o limbo e as faculas, que sao funcao da linha de
+   * visada e nao do corpo: a borda escura passearia pelo disco, o que nenhuma estrela faz. O que
+   * pertence ao corpo e o campo — granulacao e manchas. Entao o eixo gira as COORDENADAS de
+   * amostragem e o resto do shader continua olhando para a camera.
+   */
+  vec3 rotacionar(vec3 p, float ang, float tilt){
+    // Inclina o eixo no plano x-y, gira em torno dele, desinclina. Sem o tilt toda estrela do ceu
+    // giraria com o polo para cima, que le como carimbo.
+    float ct = cos(tilt), st = sin(tilt);
+    vec3 q = vec3(p.x * ct + p.y * st, -p.x * st + p.y * ct, p.z);
+    float c = cos(ang), s = sin(ang);
+    q = vec3(q.x * c - q.z * s, q.y, q.x * s + q.z * c);
+    return vec3(q.x * ct - q.y * st, q.x * st + q.y * ct, q.z);
+  }
+
   void main(){
     vec3 normal = normalize(vObject);
     // mu = cosseno do angulo entre a normal e a linha de visada. 1 no centro do disco, 0 no
     // limbo. Tudo aqui e funcao dele.
     float mu = clamp(dot(normal, normalize(uCam - vObject)), 0.0, 1.0);
 
-    float cells = granulation(normal);
+    vec3 corpo = rotacionar(normal, uSpin, uTilt);
+    float cells = granulation(corpo);
 
     /*
      * MANCHAS. Campo separado, de escala muito maior, cortado por limiar alto — mancha e evento
@@ -148,7 +192,7 @@ const FRAGMENT = /* glsl */ `
      * demais para se perceber num olhar; o termo de tempo existe para que duas visitas ao mesmo
      * astro em dias diferentes nao sejam identicas.
      */
-    float field = simplex3(normal * 2.3 + vec3(uSeed * 3.1, uTime * SPOT_DRIFT, 0.0));
+    float field = simplex3(corpo * 2.3 + vec3(uSeed * 3.1, uTime * SPOT_DRIFT, 0.0));
     float spot = smoothstep(0.52, 0.78, field) * uSpots;
     // Penumbra: a borda da mancha e filamentar e menos fria que a umbra.
     float penumbra = smoothstep(0.42, 0.56, field) * uSpots;
@@ -315,7 +359,46 @@ export function photosphereParams(node, hash01, kindColor) {
   const atividade = THREE.MathUtils.clamp(Math.log2(1 + churn) / Math.log2(1 + CHURN_FULL), 0, 1);
   const spots = atividade * (0.45 + seed * 0.6);
 
-  return Object.freeze({ seed: seed * 10, hot, cool, spots, cells, limb, umbra, temp });
+  /*
+   * ROTAÇÃO PRÓPRIA — e o período sai da IDADE, o que aqui é o raio orbital.
+   *
+   * Não é analogia: é **girocronologia**. Estrela de tipo solar perde momento angular por vento
+   * magnético e desacelera de forma tão regular que a rotação é usada para DATAR estrelas
+   * (`P ∝ t^0.5`, Skumanich). Nesta cena o raio orbital é a recência — então "corpo na periferia
+   * gira devagar" é a lei, não uma licença. Era o que faltava para a estrela ter tempo próprio: a
+   * granulação já fervia, mas fervura não tem eixo, e um corpo sem eixo não lê como corpo.
+   *
+   * O SINAL vem do hash, pelo mesmo motivo do planeta: um céu inteiro girando para o mesmo lado
+   * lê como carimbo. `span` e `retrograde` são do `motion-catalog.js`, compartilhados com ele —
+   * duas leis de rotação seria a duplicata que este projeto já pagou três vezes.
+   */
+  const raioOrbital = Number.isFinite(node.radius) ? node.radius : SHELL_MID;
+  const idade = THREE.MathUtils.clamp((raioOrbital - SHELL_INNER) / (SHELL_OUTER - SHELL_INNER), 0, 1);
+  /*
+   * ⚠️ O HASH DÁ O SINAL; a IDADE dá a MAGNITUDE. A primeira versão deu as duas ao hash e errou.
+   *
+   * Escrito como `(seed − retrograde) · span` — a forma que o planeta usa — o hash que cai em cima
+   * de `retrograde` produz rotação ZERO, e o corpo fica parado sem que nada explique por quê.
+   * Medido no corpus: períodos de 74 s a **21.348 s**, mediana 285 s. Nessa faixa a estrela não
+   * gira, ela só não está parada o suficiente para alguém provar.
+   *
+   * Separando as duas, todo corpo gira e o período fica na faixa que a girocronologia pede: jovem
+   * depressa, velho devagar, sem buraco no meio. O retrógrado continua mais lento que o progrado,
+   * que é a assimetria que o `motion-catalog.js` declara e o Sistema Solar tem (Vênus é o mais
+   * lento dos oito).
+   */
+  const retrogrado = seed < SPIN.retrograde;
+  const spin =
+    (retrogrado ? -1 : 1) *
+    ((Math.PI * 2) / THREE.MathUtils.lerp(SPIN_PERIOD.young, SPIN_PERIOD.old, idade)) *
+    (retrogrado ? 0.6 : 1);
+
+  return Object.freeze({
+    seed: seed * 10, hot, cool, spots, cells, limb, umbra, temp,
+    spin,
+    // Eixo inclinado: sem isto todo polo aponta para cima e a rotação vira um carrossel só.
+    tilt: (hash01(node.source ?? 'sem-caminho', 19) - 0.5) * 1.1,
+  });
 }
 
 export function createPhotosphere() {
@@ -335,6 +418,8 @@ export function createPhotosphere() {
         uTime: { value: 0 },
         uSpots: { value: 0 },
         uSeed: { value: 0 },
+        uSpin: { value: 0 },
+        uTilt: { value: 0 },
         uLimb: { value: 0.6 },
         uCells: { value: 26.0 },
         uUmbra: { value: 0.19 },
@@ -379,6 +464,10 @@ export function createPhotosphere() {
       u.uSpots.value = params.spots;
       u.uSeed.value = params.seed;
       // As três que a temperatura move — sem elas o corpo volta a ser o Sol de todo mundo.
+      // A rotação usa o MESMO relógio congelável da fervura: `spin` declara `reduced: 'freeze'`,
+      // e parar o relógio deixa a estrela virada para um lado, que é um instante legítimo.
+      u.uSpin.value = (motion.isReduced() ? 0 : elapsed) * (params.spin ?? 0);
+      u.uTilt.value = params.tilt ?? 0;
       u.uLimb.value = params.limb ?? 0.6;
       u.uCells.value = params.cells ?? 26;
       u.uUmbra.value = params.umbra ?? 0.19;

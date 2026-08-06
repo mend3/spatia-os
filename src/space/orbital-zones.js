@@ -54,6 +54,9 @@
  */
 import { MOTION, meanMotion as keplerMeanMotion } from './motion-catalog.js';
 
+/** Compressão do relógio das luas — declarada em `motion-catalog.js`, entrada `moonOrbit`. */
+const MOON_TIME_SCALE = MOTION.moonOrbit.timeScale;
+
 /**
  * Coeficiente de Roche para satélite FLUIDO, em raios físicos do primário.
  *
@@ -356,7 +359,10 @@ export function moonsOf(node, centralMass, hash, { minRadiusOverOuter = MOON_MIN
       inclination: systemTilt + (hash(`${node.id}#${order}`, 15) - 0.5) * INCLINATION_SPREAD,
       // Terceira lei: a lua interna corre mais rápido. É isto que impede o alinhamento permanente
       // — com períodos distintos, qualquer configuração se desfaz sozinha.
-      meanMotion: keplerMeanMotion(semiMajor, mu),
+      // A terceira lei INTEIRA, vezes a escala de tempo declarada: a interna continua correndo
+      // mais que a externa na razão certa, e o sistema todo passa a andar num relógio visível.
+      // Ver `motion-catalog.js`, entrada `moonOrbit`.
+      meanMotion: keplerMeanMotion(semiMajor, mu) * MOON_TIME_SCALE,
       meanAnomaly: hash(`${node.id}#${order}`, 11) * Math.PI * 2,
     };
   });
