@@ -427,6 +427,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     blackHole.tune(values);
     stars.tune(values);
     graph.tune(values);
+    moonOrbits.tune(values);
     lensing.tune(values);
     bloom.strength = values.bloomStrength;
     bloom.threshold = values.bloomThreshold;
@@ -1354,7 +1355,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       }));
     }
 
-    links.update(graph.positions(), delta, elapsed);
+    links.update(graph.positions(), delta, elapsed, tune.edgeOpacity);
 
     backdrop.update(delta, camera.aspect, camera);
 

@@ -86,6 +86,29 @@ export const SPEC = [
    */
   ['GRAFO', 'edgeOpacity', 'FORÇA DO VÍNCULO', 0, 1, 0.02, 0.55],
 
+  /*
+   * LUAS — e os tetos aqui são de CUSTO, não de gosto.
+   *
+   * `moonSize` multiplica `MOON_DRAW_GAIN` (`space/graph.js`), que já é uma compressão declarada:
+   * a lua desenhada fiel tem 4,4% do raio do pai e some no enquadramento do sistema. O teto de 3
+   * existe porque acima disso a lua passa a competir com o próprio pai em tamanho aparente e o
+   * sistema deixa de ler como sistema — e o piso de 0,4 devolve a proporção quase fiel para quem
+   * quiser vê-la. **Não muda a contagem nem a prova de não-colisão**: as duas vivem na régua da
+   * mecânica (`orbital-zones.js`), e este slider é da régua do sprite.
+   *
+   * `moonSpeed` multiplica o relógio já comprimido do `moonOrbit.timeScale`. O teto de 4 é o que
+   * mantém o passo angular por quadro abaixo de ~0,1 rad a 60fps na lua mais interna — acima
+   * disso a elipse começa a ler como polígono, porque a posição é amostrada uma vez por quadro.
+   * Zero PARA as luas, e é um estado legítimo (quem quiser olhar a geometria sem o movimento).
+   *
+   * `moonOrbitOpacity` é o traço das órbitas. Zero apaga — o sistema volta a ser pontos, que é o
+   * que ele era antes do traço existir, e há quem prefira. Não custa nada: são 96 segmentos por
+   * lua e só do astro em foco.
+   */
+  ['LUAS', 'moonSize', 'TAMANHO DAS LUAS', 0.4, 3, 0.05, 1],
+  ['LUAS', 'moonSpeed', 'VELOCIDADE DAS LUAS', 0, 4, 0.05, 1],
+  ['LUAS', 'moonOrbitOpacity', 'TRAÇO DAS ÓRBITAS', 0, 1, 0.02, 0.22],
+
   ['CÂMERA', 'cameraDrift', 'DERIVA DA CÂMERA', 0, 6, 0.05, 0.4],
   ['CÂMERA', 'cameraEase', 'SUAVIDADE DA CÂMERA', 2, 20, 0.5, 9],
   ['CÂMERA', 'fov', 'CAMPO DE VISÃO', 28, 80, 1, 46],

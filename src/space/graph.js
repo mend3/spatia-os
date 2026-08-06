@@ -462,7 +462,12 @@ export function createGraph() {
   let haloAmount = 0;
   const rings = createRings();
   group.add(rings.group);
-  const tune = { speed: 1 };
+  /*
+   * Espelho local da afinação que o LAÇO lê. `speed` é a órbita do céu; `moonSize` e `moonSpeed`
+   * são das luas. Ficam aqui e não em `tuning.values()` por chamada porque `advance` roda por
+   * quadro sobre todos os nós — getter por nó seria a conta mais cara do laço.
+   */
+  const tune = { speed: 1, moonSize: 1, moonSpeed: 1 };
   // Alvo e valor corrente da janela: 1 = tudo revelado, que é como o céu nasce.
   const window = { target: 1, current: 1 };
 
@@ -670,7 +675,7 @@ export function createGraph() {
       // raios é a raiz cúbica da razão de massas — `orbital-zones.js` já resolveu isso. Reaplicar
       // a lei log aqui daria luas do tamanho do pai (medido: 0,46 a 1,00 do raio dele).
       sizes[i] = node.type === 'moon'
-        ? moonSpriteSize(node, nodes[node.parentIndex])
+        ? moonSpriteSize(node, nodes[node.parentIndex]) * tune.moonSize
         : node.type === 'file'
           ? 0.55 + Math.log2(1 + node.chunks) * 0.42
           : 1.5 + Math.log2(1 + node.chunks) * 0.3;
@@ -821,7 +826,9 @@ export function createGraph() {
         const parent = node.parentIndex * 3;
         const e = node.eccentricity;
         // Anomalia MÉDIA: cresce linear no tempo. É a única grandeza da elipse que faz isso.
-        const mean = node.meanAnomaly + elapsed * node.meanMotion * tune.speed;
+        // `moonSpeed` multiplica o relógio da lua SEM tocar na razão entre elas: a terceira lei
+        // continua valendo, o sistema inteiro só anda mais rápido ou mais devagar.
+        const mean = node.meanAnomaly + elapsed * node.meanMotion * tune.speed * tune.moonSpeed;
         /*
          * EQUAÇÃO DO CENTRO — a elipse sem resolver Kepler por iteração.
          *
@@ -918,6 +925,18 @@ export function createGraph() {
    * Zero significa "nenhum foco", e não o índice 0 — `focusedIndex` guarda −1 nesse caso.
    */
   const isDormantMoon = (node) => node.type === 'moon' && node.parentIndex !== focusedIndex;
+
+  /** Reescreve `aSize` das luas quando o slider de tamanho muda. Ver `tune`. */
+  function reescreverTamanhoDasLuas() {
+    if (!sizes || !points) return;
+    let mexeu = false;
+    for (const node of nodes) {
+      if (node.type !== 'moon') continue;
+      sizes[node.i] = moonSpriteSize(node, nodes[node.parentIndex]) * tune.moonSize;
+      mexeu = true;
+    }
+    if (mexeu) points.geometry.getAttribute('aSize').needsUpdate = true;
+  }
 
   function applyKindFilter() {
     if (!hidden || !points) return;
@@ -1130,6 +1149,20 @@ export function createGraph() {
       group.scale.setScalar(values.graphSpread);
       material.uniforms.uSize.value = 4.6 * values.nodeSize;
       tune.speed = values.graphSpeed;
+      tune.moonSpeed = values.moonSpeed ?? 1;
+      /*
+       * O TAMANHO da lua vive no buffer, não num uniform — então mudá-lo exige reescrever `aSize`.
+       *
+       * `uSize` escala TODO ponto do céu; a lua precisa de um fator só dela. Reescrever é barato
+       * (uma passada nos nós, só quando o slider se move) e é o único jeito de o ajuste não
+       * inflar as estrelas junto. Sem a guarda de igualdade, seria upload de buffer por quadro,
+       * porque `tune` é chamado a cada notificação do store.
+       */
+      const novoTamanho = values.moonSize ?? 1;
+      if (novoTamanho !== tune.moonSize) {
+        tune.moonSize = novoTamanho;
+        reescreverTamanhoDasLuas();
+      }
     },
 
     positionOf,

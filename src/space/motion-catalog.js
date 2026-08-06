@@ -258,13 +258,22 @@ export const MOTION = Object.freeze({
      * comprime na mesma medida a janela Roche→Hill da lua, então `a_lua/a_pai` fica em 0,08 onde a
      * realidade tem 1e-3. Kepler aplicado a raios comprimidos devolve períodos que não separam.
      *
-     * `5` multiplica TODAS as luas igualmente, então a terceira lei continua valendo ENTRE elas —
-     * a interna ainda corre mais que a externa, na razão certa, e a prova de não-colisão (que é
-     * geométrica, por banda radial disjunta) não depende de tempo nenhum. O que muda é só o
-     * relógio do sistema inteiro, e ele entra nesta lista junto com a escala log dos tamanhos, a
-     * esfera de Hill cheia e o ganho de desenho da lua.
+     * O fator multiplica TODAS as luas igualmente, então a terceira lei continua valendo ENTRE
+     * elas — a interna ainda corre mais que a externa, na razão certa, e a prova de não-colisão (que
+     * é geométrica, por banda radial disjunta) não depende de tempo nenhum. O que muda é só o
+     * relógio do sistema, e ele entra nesta lista junto com a escala log dos tamanhos, a esfera de
+     * Hill cheia e o ganho de desenho da lua.
+     *
+     * ⚠️ **`graphSpeed` multiplica isto por cima, e a primeira calibração esqueceu dele.** O valor
+     * era 5, medido contra o período CRU — e o relógio da cena roda a 0,1–0,2, de propósito (uma
+     * órbita de arquivo leva ~865 s e é assim que ela lê como majestosa). O resultado na tela era
+     * 86 s por volta: a razão contra o pai tinha melhorado de 1:1,8 para 1:10, e a lua continuava
+     * parada para quem olha por cinco segundos.
+     *
+     * 18 põe a lua interna em ~12 s no `graphSpeed` padrão (0,2) e ~24 s no mínimo (0,1). Quem
+     * quiser outro ritmo tem o slider `moonSpeed` no painel, que multiplica este número.
      */
-    timeScale: 5,
+    timeScale: 18,
     allowed: ['moon'],
     reduced: 'keep',
     /*

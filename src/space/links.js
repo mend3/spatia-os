@@ -200,14 +200,22 @@ export function createLinks() {
      * @param {number} delta
      * @param {number} elapsed
      */
-    update(positionsArray, delta, elapsed) {
+    update(positionsArray, delta, elapsed, force = 1) {
       opacity += (target - opacity) * (1 - Math.exp(-delta / FADE));
       if (opacity < 0.004 && target === 0) {
         object.visible = false;
         return;
       }
       object.visible = true;
-      material.uniforms.uOpacity.value = opacity;
+      /*
+       * ⚠️ `edgeOpacity` era slider ÓRFÃO — o painel dizia "FORÇA DO VÍNCULO" e nada lia o valor.
+       *
+       * Achado por auditoria de consumo: das 25 chaves do `SPEC`, esta era a única sem leitor. O
+       * comentário do `tuning.js` até explicava que ela passara a governar o vínculo sob demanda
+       * quando a aresta em repouso saiu — a explicação foi escrita, a ligação não. Slider que não
+       * faz nada é pior que slider ausente: ele afirma um controle que não existe.
+       */
+      material.uniforms.uOpacity.value = opacity * force;
       material.uniforms.uTime.value = elapsed;
 
       if (!positionsArray || !pairs.length) return;

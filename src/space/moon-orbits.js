@@ -41,7 +41,13 @@ import { moonOffset } from './graph.js';
  */
 const SAMPLES = 96;
 
-/** Opacidade do traço. Ele é referência, não figura: tem de ceder para a lua e para o astro. */
+/**
+ * Opacidade do traço, e ela é o DEFAULT do slider `moonOrbitOpacity`.
+ *
+ * O traço é referência, não figura: tem de ceder para a lua e para o astro. 0,22 é onde ele
+ * informa a banda sem competir com o corpo — e quem discordar tem o controle no painel, inclusive
+ * zero, que devolve o sistema a pontos soltos (o que ele era antes deste módulo existir).
+ */
 const OPACITY = 0.22;
 
 /**
@@ -117,6 +123,11 @@ export function createMoonOrbits() {
 
     hide() {
       object.visible = false;
+    },
+
+    /** Afinação: só a opacidade. Um material para todas as elipses, então é uma escrita só. */
+    tune(values) {
+      material.opacity = values.moonOrbitOpacity ?? OPACITY;
     },
 
     dispose() {
