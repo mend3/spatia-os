@@ -341,7 +341,15 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   // ao fundo. `anchor` interpola entre a origem (sistema) e a posição do corpo.
   const anchor = new THREE.Vector3();
   const anchorTarget = new THREE.Vector3();
-  const frames = { count: 0, long: 0, since: performance.now() };
+  /*
+   * `hidden` marca a janela de amostragem que NÃO é medida.
+   *
+   * Aba em segundo plano congela o `requestAnimationFrame`: a janela fecha com zero quadro e a
+   * conta devolve 0 FPS — que não é "máquina lenta", é "ninguém desenhou". Foi exatamente o que
+   * aconteceu numa sessão de automação: a cena abriu em aba oculta e o boot anunciou "0 FPS
+   * MEDIDOS · PERFIL MÍNIMO RECOMENDADO" sobre uma máquina que roda a cena inteira em 0,45 ms.
+   */
+  const frames = { count: 0, long: 0, since: performance.now(), hidden: document.hidden };
   // Espelho local do store: o loop lê daqui em vez de chamar getters por quadro.
   let tune = tuning.values();
 
@@ -795,7 +803,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * fato na maior parte das vezes.
    */
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) saveOrbit();
+    if (!document.hidden) return;
+    // Contamina a janela de telemetria em curso: dali em diante ela mede uma aba que parou de
+    // desenhar, e a média resultante fala da visibilidade, não do desempenho.
+    frames.hidden = true;
+    saveOrbit();
   });
   window.addEventListener('pagehide', () => saveOrbit());
 
@@ -1300,10 +1312,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       };
     },
 
-    /** Amostra de desempenho para o beacon; zera a janela a cada leitura. */
+    /**
+     * Amostra de desempenho para o beacon; zera a janela a cada leitura.
+     *
+     * `null` quando a janela não foi medida — aba oculta em qualquer momento dela, ou nenhum
+     * quadro desenhado. É a distinção que faltava: ausência de medida e medida ruim davam o mesmo
+     * número, e quem consome não tinha como saber qual dos dois recebeu. A janela é reiniciada de
+     * todo jeito, senão a amostra seguinte carregaria o trecho oculto junto.
+     */
     sampleTelemetry() {
       const now = performance.now();
       const seconds = (now - frames.since) / 1000;
+      const medida = !frames.hidden && frames.count > 0;
       const sample = {
         fps: seconds > 0 ? frames.count / seconds : 0,
         long_frames: frames.long,
@@ -1312,7 +1332,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       frames.count = 0;
       frames.long = 0;
       frames.since = now;
-      return sample;
+      frames.hidden = document.hidden;
+      return medida ? sample : null;
     },
 
     /** Grava a órbita agora (o ⌘S). Devolve se havia gesto novo a registrar. */

@@ -392,7 +392,15 @@ async function main() {
   });
 
   await boot.report(health, nodeCount);
-  api.startTelemetry(() => ({ ...scene.sampleTelemetry(), audio: audio.isEnabled() }));
+  /*
+   * Janela sem medida não vira beacon. `startTelemetry` já pula o `null` — o espalhamento é que
+   * o desfazia, transformando "não medi" num relatório vazio que o servidor registra como se
+   * fosse leitura. Aba em segundo plano é a maior parte da vida de uma aba.
+   */
+  api.startTelemetry(() => {
+    const amostra = scene.sampleTelemetry();
+    return amostra && { ...amostra, audio: audio.isEnabled() };
+  });
   await boot.engage();
 }
 
@@ -428,8 +436,20 @@ function installProfiles(scene, streams) {
    * Espera antes de medir: os primeiros segundos incluem compilação de shader, upload de
    * buffers e a carga da topologia. Medir ali diria que toda máquina é lenta.
    */
-  setTimeout(() => {
+  const sondar = () => {
     const amostra = scene.sampleTelemetry();
+    /*
+     * Janela sem medida não vira recomendação — ela vira outra tentativa.
+     *
+     * Aba em segundo plano congela o `requestAnimationFrame` e a janela fecha com zero quadro.
+     * Anunciar "0 FPS MEDIDOS · PERFIL MÍNIMO" ali é dizer que a máquina é lenta com base em
+     * nada, e o operador que voltar para a aba encontra o veredito já dado. Tentar de novo custa
+     * um timer e para sozinho no primeiro segundo de fato desenhado.
+     */
+    if (!amostra) {
+      setTimeout(sondar, PROFILE_PROBE_MS);
+      return;
+    }
     const sugerido = profiles.suggest({ fps: amostra.fps, longFrames: amostra.long_frames });
     if (sugerido === profiles.DEFAULT_PROFILE) return;
     const nome = profiles.byId(sugerido)?.name ?? sugerido;
@@ -437,7 +457,8 @@ function installProfiles(scene, streams) {
       `${Math.round(amostra.fps)} FPS MEDIDOS · PERFIL ${nome} RECOMENDADO EM SISTEMA › CONFIGURAÇÃO`,
       'warn'
     );
-  }, PROFILE_PROBE_MS);
+  };
+  setTimeout(sondar, PROFILE_PROBE_MS);
 }
 
 /**
