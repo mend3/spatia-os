@@ -183,19 +183,30 @@ RECÊNCIA. Arquivo antigo segura suas seções em órbita; arquivo recente não.
 `catalogo-celeste.md` previa. Medido: corte em `a = 37,9` — **40 corpos, 279 luas**, 5 seções sem
 espaço.
 
-**A órbita é ELÍPTICA, e a excentricidade não é escolhida.** O periastro não pode entrar no Roche e
-o apoastro não pode sair do Hill, o que fixa `e = (outer−inner)/(outer+inner)` — a maior elipse que
-a zona comporta. Como `slack = a/a_corte`, sai a segunda leitura da idade: **a excentricidade é o
-gradiente do tempo**. Corpo recém-passado do limiar tem lua em órbita quase circular colada no
-Roche; o mais antigo do céu chega a `e = 0,23`. Medido: 0,050 a 0,231, mediana 0,078.
+**Cada lua tem a SUA órbita — uma banda radial por lua.** (Substituiu o modelo co-orbital em
+2026-08-05, depois de o usuário olhar a cena: todas na mesma elipse liam como fila de contas num
+fio, porque era literalmente isso.) A janela é cortada em N bandas disjuntas, e raio, período,
+fase, periastro, inclinação e excentricidade são todos **próprios de cada lua**.
 
-**Luas não colidem, e isso é demonstrado — não estimado.** Todas as luas de um corpo correm na MESMA
-elipse, defasadas em anomalia média: mesmo período, separação constante para sempre (é a
-configuração de Jano e Epimeteu). Órbitas em raios diferentes teriam ω diferente e acabariam se
-alinhando, e a janela Roche→Hill não tem largura para separar faixas radiais — a conta dá menos de
-uma lua cabendo. Quantas cabem é geométrico: a separação mínima é no APOASTRO, e o ponto fixo leva
-em conta que cortar luas engorda as que sobram. Verificado simulando 7 períodos: a menor distância
-entre duas luas em todo o corpus é **1,537× a soma dos raios delas**.
+**A não-colisão continua DEMONSTRADA, e por uma propriedade do `advance()`:** a posição da lua é
+`(r·cosθ, r·senθ·sen i, r·senθ·cos i)`, cuja distância ao pai é `r` exatamente — a inclinação não
+altera a distância. Basta então o intervalo `[a(1−e) − r_lua, a(1+e) + r_lua]` caber na banda para
+que duas luas nunca estejam à mesma distância do pai. Medido no corpus: **0 sobreposições de faixa
+em 278 luas**, pior folga +1,93e-2.
+
+**O gargalo não era a janela — era a lua estar desenhada grande demais.** A conta antiga estava
+certa no que mediu (`W/r_lua` de 0,44 a 3,05, e separar N luas exige `2N`: **0 de 40 corpos**
+comportavam duas faixas), mas não questionou o `r_lua`. Ele vinha da densidade comum
+(`r = P·∛(1/N)`), dando luas de 0,44 a 0,58 do raio do pai — isso é um binário, não uma lua.
+Agora o raio desenhado é o que a banda paga, limitado pelo teto da massa: **0,010 a 0,054 do raio
+do pai**, que é onde satélites reais vivem (Io 2,6% de Júpiter, Titã 4,4% de Saturno). É uma
+compressão declarada, do mesmo tipo que a escala log dos tamanhos.
+
+⚠️ **A excentricidade deixou de medir a idade.** Ela era `(outer−inner)/(outer+inner)` — a maior
+elipse que a zona comporta — e portanto o gradiente do tempo (0,050 a 0,231). Agora é hasheada por
+lua dentro do que a banda paga: **0 a 0,0082**, praticamente circular. A idade não sumiu da cena (é
+o raio orbital do PAI, que continua sendo o eixo do tempo), mas deixou de aparecer duas vezes.
+Medido: 40 corpos, **278 luas**, 6 seções sem espaço.
 
 **Alcance do anel: MEDIDO E RECUSADO.** Seria a outra metade da frase, e não sobrevive à medida. O
 alcance em raios do corpo é `∝ m^(1/3)/R(m)`, e com a lei log de tamanho isso espalha só **1,54×**
@@ -479,4 +490,4 @@ Nenhuma linha desta tabela mente sobre estar pronta.
 | Cosmologia | parcial — massa vira tamanho (`log2`) e concentração vira classe de galáxia. **A primeira capacidade por limiar existe**: lua, pela janela Roche→Hill (`orbital-zones.js`). Atmosfera e anel-por-massa continuam sem limiar |
 | Estado | parcial — `envelope` já passa pelo solver; `dirty`, `hub`, `isolado` e `aceso` ainda são aplicados direto |
 | Solver | existe — `space/solver.js`: superfície + um conflito, com motivo e sonda. Falta o resto dos candidatos |
-| Animação | existe como SSOT — `space/motion-catalog.js`, 1 de 6 entradas `applied`. **Excentricidade existe para lua** (0,050–0,231, derivada da zona); o resto do céu continua circular |
+| Animação | existe como SSOT e é LIDO — `space/motion-catalog.js`, 6 de 7 entradas `applied` (só `expansion` é `declared`, e nada expande). `reduced` obedecido em todas. **Cada lua tem órbita própria** (banda radial, período/fase/inclinação/`e` próprios, 0 sobreposições em 278); o resto do céu continua circular |
