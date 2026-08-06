@@ -135,11 +135,15 @@ export const SPECS = [
            */
           /*
            * O contrato de `radiusOf` devolve `{world, px}`: mundo escala a malha, pixel decide
-           * o NÍVEL DE DETALHE. Aqui o px é derivado do raio pedido e da altura do canvas — na
-           * cena ele vem do `gl_PointSize` real.
+           * o NÍVEL DE DETALHE.
+           *
+           * ⚠️ `px` é o raio aparente do disco VISÍVEL — `values.raio`, não `world`. Eram o mesmo
+           * número dividido por `VISIBLE_CORE` enquanto o anel media em raio de sprite; desde que
+           * ele passou a medir na régua do resto da engine, projetar `world` aqui inflaria a
+           * bancada em 1/0,6 e ela aprovaria transição que a cena não faz. Ver `rings.js`.
            */
           const world = values.raio / VISIBLE_CORE;
-          const px = (world * window.innerHeight) / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
+          const px = (values.raio * window.innerHeight) / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
           rings.follow(positions, camera, () => 1, () => ({ world, px }), clock.elapsed, values.tombo);
           ctx.report({
             'família': values.familia,

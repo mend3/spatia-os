@@ -139,14 +139,29 @@ const OPACITY = 0.9;
 let maxRings = 64;
 
 /*
- * Faixa de transição entre os dois níveis, em pixels de raio do sprite.
+ * Faixa de transição entre os dois níveis, em pixels de raio do DISCO VISÍVEL do astro.
  *
- * 26px é a ordem de grandeza de um astro na vista padrão; 90px, a de quando a câmera está
+ * 15,6px é a ordem de grandeza de um astro na vista padrão; 54px, a de quando a câmera está
  * travada num deles. A faixa é LARGA de propósito — transição estreita vira degrau, e degrau é
  * o que faz nível de detalhe parecer bug em vez de detalhe.
+ *
+ * ⚠️ **Eram 26 e 90, e a mudança é de RÉGUA, não de comportamento.** Estes dois números eram os
+ * únicos da engine medidos em raio do SPRITE — metade do `gl_PointSize`, com o teto de 511 do
+ * driver junto. Todo o resto (planeta, fotosfera, cometa, pulsar, nebulosa, estação, lente, e o
+ * orçamento inteiro de `lod.js`) mede o raio aparente do disco visível, e as duas réguas se
+ * convertem exatamente: **visível = 0,6 × sprite**, que é o `VISIBLE_CORE`. Daí `26 × 0,6 = 15,6`
+ * e `90 × 0,6 = 54` — a troca de material acontece na MESMA distância de antes, de propósito.
+ *
+ * O que a régua velha custava: a entrada saturava em 255,5px (o teto do driver, `511 × 0,5`), então
+ * de perto o número parava de acompanhar o corpo; e nenhum destes dois valores dava para comparar
+ * com nenhum outro limiar da engine sem uma conversão que ninguém tinha escrito.
+ *
+ * ⚠️ E medir o ANEL em vez do astro (seria `× ring.span`) é outra decisão, não esta: `span` varia
+ * por família, então ela moveria a transição de cada anel para um lugar diferente. Quem quiser
+ * fazê-la, faça-a por conta própria e olhando.
  */
-export const LOD_FAR_PX = 26;
-export const LOD_NEAR_PX = 90;
+export const LOD_FAR_PX = 15.6;
+export const LOD_NEAR_PX = 54;
 
 /** `smoothstep` do GLSL em JS — a transição é decidida na CPU, uma vez por anel. */
 function smoothstep(edge0, edge1, x) {
@@ -635,9 +650,10 @@ export function createRings() {
         // O passe de extinção acompanha posição, orientação e escala do anel — é o MESMO anel,
         // desenhado duas vezes com blendings opostos.
         const shade = ring.mesh.userData.shade;
-        // Raio do sprite da estrela AGORA — já com ignição, spread, fov, resolução e o teto
-        // de gl_PointSize — vezes o rodapé. É o que mantém o anel colado ao astro em qualquer
-        // ajuste do painel e em qualquer monitor.
+        // Raio do sprite da estrela AGORA — já com ignição, spread, fov e resolução — vezes o
+        // rodapé. É o que mantém o anel colado ao astro em qualquer ajuste do painel e em qualquer
+        // monitor. Sem o teto de `gl_PointSize`: ele é verdade sobre o ponto que a GPU desenha e
+        // mentira sobre o corpo, e foi por herdá-lo que o anel já descolou. Ver `graph.js`.
         //
         // ⚠️ ANTES do bloco da extinção: ela COPIA esta escala, e na ordem anterior copiava a
         // do quadro PASSADO. Ficava um quadro atrás em toda mudança de tamanho — invisível com

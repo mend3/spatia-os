@@ -83,17 +83,6 @@ const REVEAL_RATE = 16;
 
 // O `300.0 / -viewPosition.z` do vertex shader. Vive aqui porque duas contas dependem dele.
 const POINT_SCALE = 300;
-/*
- * Teto de `gl_PointSize` da GPU, em pixels.
- *
- * Medido nesta máquina: `ALIASED_POINT_SIZE_RANGE` = [1, 511]. **A estrela satura nesse valor e
- * a geometria do anel não** — sem espelhar o teto aqui, uma estrela perto da câmera para de
- * crescer enquanto o anel continua, e ele descola exatamente no caso em que mais aparece.
- * 511 é o piso comum entre GPUs; usar o valor real exigiria o contexto GL aqui dentro, e errar
- * para MENOS só torna o anel conservador.
- */
-const POINT_SIZE_CAP = 511;
-
 const VERTEX = /* glsl */ `
   uniform float uSize, uTime, uReveal, uRevealBand, uRevealDim, uPulse;
   attribute float aSize;
@@ -578,38 +567,43 @@ export function createGraph() {
      * THE SPRITE'S SIZE AND THE BODY'S SIZE ARE NOT THE SAME NUMBER, and conflating them is what
      * made the procedural surface unreachable.
      *
-     * `POINT_SIZE_CAP` is a DRIVER limit on `gl_PointSize`: past 511px the GPU simply refuses to
-     * draw the sprite any larger. That ceiling is true about pixels and false about geometry — a
-     * body does not stop having size because the rasterizer stopped growing its point.
+     * O `gl_PointSize` tem TETO de driver — medido nesta máquina, `ALIASED_POINT_SIZE_RANGE` =
+     * [1, 511]: passado disso a GPU simplesmente se recusa a desenhar o ponto maior. Esse teto é
+     * verdade sobre PIXEL e mentira sobre GEOMETRIA — um corpo não deixa de ter tamanho porque o
+     * rasterizador parou de crescer o ponto dele.
      *
-     * Deriving `world` from the capped value imported that lie into the world: once the cap was
-     * hit, `world` became proportional to the camera distance, so the body shrank in world units
-     * at exactly the rate the camera approached. Apparent size then pinned at
-     * `CAP × VISIBLE_CORE / 2 = 511 × 0.6 / 2 = 153.3px`, forever, for every body — measured with
-     * `window.espatial.planet()` on three bodies spanning 1 to 103 chunks: all three reported
-     * px 153 and detail level 0.61, at any distance.
+     * Derivar `world` do valor com teto importava a mentira para o mundo: batido o teto, `world`
+     * virava proporcional à distância da câmera, então o corpo encolhia no mundo na mesma taxa em
+     * que a câmera se aproximava. O tamanho aparente travava em `511 × 0,6 / 2 = 153,3px`, para
+     * sempre, em todo corpo — medido com `window.espatial.planet()` em três corpos de 1 a 103
+     * chunks: os três reportaram px 153 e nível 0,61, a qualquer distância. `planet.js` só fecha o
+     * detalhe em `LOD_NEAR_PX = 200`, acima de 153,3: a superfície não estava escondida, era
+     * aritmeticamente impossível.
      *
-     * `planet.js` reaches full detail at `LOD_NEAR_PX = 200`. Above 153.3. So no camera move could
-     * ever show a finished surface — the feature was not hidden, it was arithmetically impossible.
-     *
-     * The split below is the fix: the cap stays where it is true (the pixels the GPU will draw)
-     * and the geometry keeps the uncapped size (what the body actually measures). They agree
-     * everywhere except very close, which is exactly where the sprite hands the body over to the
-     * surface mesh and `haloOf` opens its core.
+     * ⚠️ **Por isso o teto não aparece mais aqui.** Ele existe onde é verdade — no `gl_PointSize`
+     * do shader, que é o que a GPU desenha — e ESTA função só devolve grandezas de geometria. O
+     * teto sobreviveu no `px` por um tempo servindo ao nível de detalhe do anel, que era o único
+     * consumidor e media numa régua só dele; ver `rings.js`. Uma régua a menos, um teto a menos.
      */
     const pointWanted = material.uniforms.uSize.value * sizes[i] * pulse * shrink * (POINT_SCALE / distance);
-    const point = Math.min(pointWanted, POINT_SIZE_CAP);
     // De pixels de volta para unidades locais: um raio `R` a distância `z` ocupa
     // `R·H/(2·tan(fov/2)·z)` pixels. O `/spread` desfaz a escala que o grupo pai vai reaplicar.
     return {
-      // Unidades locais do grupo — é nisso que a malha do anel é escalada. Do tamanho SEM teto:
-      // ver o bloco acima. Com o teto aqui, o corpo encolhia no mundo na mesma taxa em que a
-      // câmera se aproximava, e o tamanho aparente ficava preso em 153,3px.
+      // Unidades locais do grupo — é nisso que a malha do anel é escalada.
       world: (pointWanted * tangent * distance) / (viewportHeight * spread),
-      // E o tamanho APARENTE, em pixels. É ele que decide o nível de detalhe: distância de
-      // mundo não serve, porque um astro grande e longe ocupa mais tela que um pequeno e
-      // perto — e quem decide se vale carregar textura de rocha é a tela, não o mundo.
-      px: point * 0.5,
+      /*
+       * O RAIO APARENTE DO DISCO VISÍVEL, em pixels da régua que `viewportHeight` trouxe.
+       *
+       * É ele que decide nível de detalhe: distância de mundo não serve, porque um astro grande e
+       * longe ocupa mais tela que um pequeno e perto — e quem decide se vale carregar textura de
+       * rocha é a tela, não o mundo.
+       *
+       * A conta é `apparentPx(world · VISIBLE_CORE · spread)` com o `world` acima, e as duas se
+       * cancelam até virar esta multiplicação: `spread`, `tangent`, `distance` e `viewportHeight`
+       * entram e saem. Fica a mesma grandeza que `apparentPx` devolve, sem uma segunda fórmula de
+       * projeção livre para divergir da primeira.
+       */
+      px: pointWanted * VISIBLE_CORE * 0.5,
     };
   }
 
@@ -1279,10 +1273,9 @@ export function createGraph() {
          * projeção de saída, porém, é para a HUD, que mede em CSS como o `getBoundingClientRect`
          * do outro lado. Uma altura só serviria a uma das duas e mentiria para a outra.
          *
-         * E o raio sai da GEOMETRIA (`world`), não de `px`: aquele carrega o teto de 511 do
-         * driver, então em zoom extremo o furo parava de crescer enquanto o anel continuava — a
-         * mesma confusão entre tamanho do sprite e tamanho do corpo que deixou o planeta
-         * procedural inalcançável. Ver `starRadius`.
+         * E o raio sai da GEOMETRIA (`world`) porque a régua de saída é CSS: `size.px` já é o raio
+         * aparente do disco visível, mas em pixels de FRAMEBUFFER, que é o que `starRadius` recebeu
+         * acima. Reaproveitá-lo aqui entregaria à HUD um furo do tamanho do DPR. Ver `starRadius`.
          */
         const size = starRadius(i, elapsed, bufferHeight, camera);
         out.push({
@@ -1315,10 +1308,11 @@ export function createGraph() {
       /*
        * O tamanho aparente sai da GEOMETRIA, não do sprite — e a diferença foi medida.
        *
-       * `starRadius().px` é metade do `gl_PointSize`, que satura no teto de 511 do driver e
-       * ainda oscila com o pulso da ignição. Na mesma pose ele deu 75 e 153, atravessando o
-       * limiar de 90 do planeta nos dois sentidos: a superfície piscava. `apparentPx` é a
-       * projeção exata do raio no plano da tela — monótona na distância, imune ao teto e ao pulso.
+       * `starRadius().px` já foi metade do `gl_PointSize`: saturava no teto de 511 do driver e na
+       * mesma pose deu 75 e 153, atravessando o limiar de 90 do planeta nos dois sentidos — a
+       * superfície piscava. Hoje ele é a projeção exata do raio visível no plano da tela, monótona
+       * na distância e sem teto, que é exatamente o que `apparentPx` devolve; a chamada continua
+       * aqui porque ela é a DEFINIÇÃO da grandeza, e `starRadius` é quem tem de bater com ela.
        */
       return {
         position,
