@@ -564,7 +564,24 @@ const FRAGMENT = /* glsl */ `
        */
       float fase = atan(aoLongo / squash, atraves);
       float kepler = pow(max(span, 0.18), -1.5);
-      float giro = fase + uTime * uFlow * 0.55 * kepler;
+      /*
+       * ⚠️ O CISALHAMENTO E ESTATICO; so a FASE anda, e a uma taxa UNICA.
+       *
+       * A primeira versao escreveu fase + uTime * taxa(raio) — a rotacao diferencial saindo do
+       * relogio. Isso ENROLA SEM FIM: a diferenca de fase entre raios vizinhos cresce linear com o
+       * tempo, e em segundos o ruido passa a oscilar varias vezes por pixel na direcao radial. O
+       * usuario fotografou o resultado — antes da animacao o disco era macio, depois virava um
+       * feixe de linhas concentricas finissimas. Nao e "detalhe demais": e aliasing, e ele piora
+       * para sempre.
+       *
+       * Esta base ja registrou TRES mortes por isto, e a regra esta no handoff: "antes de escrever fase = uTime * taxa(raio), pergunte quanto vale em 60 s". Em 60 s vale infinito.
+       *
+       * A saida e a mesma que a galaxia usa nos bracos (patternSpin): a CURVATURA fica congelada
+       * na forma e so a fase gira, rigidamente. O termo -2.6 * kepler e o cisalhamento — uma
+       * espiral fixa, que nao cresce com o tempo — e uTime * 0.35 roda o padrao inteiro como um
+       * bloco. O olho le rotacao diferencial na FORMA, que e onde ela e permanente.
+       */
+      float giro = fase - 2.6 * kepler + uTime * uFlow * 0.35;
       float bandas = simplex3(vec3(cos(giro) * 1.7, sin(giro) * 1.7, span * 5.2 + semente));
       // 0,45 de profundidade: fundo visível o bastante para ler como fluxo, raso o bastante para
       // não quebrar a queda monótona do brilho com o raio, que é a física de Shakura-Sunyaev.
