@@ -84,8 +84,10 @@
  *   quad da galáxia: ~21× a área POR INSTÂNCIA, mas em 1/10 das instâncias.
  * - A figura desenhada (agulha + dois lóbulos + núcleo) ocupa ~3% desse quad. Os outros 97% saem
  *   num `discard` de teste 2D, ANTES de qualquer amostra de ruído.
- * - Teto de ruído: **2 amostras de `simplex3` por fragmento aceso**, e jato e lóbulo são regiões
- *   disjuntas — na prática é 1.
+ * - Teto de ruído: **2 amostras de `simplex3` por fragmento aceso**. Jato e lóbulo são regiões
+ *   disjuntas, então uma delas paga 1; o NÚCLEO paga mais 1 (as bandas cisalhadas do disco), e o
+ *   núcleo se sobrepõe ao jato na base dele. O pior caso são 2, num punhado de fragmentos onde a
+ *   agulha nasce; o caso comum continua 1.
  */
 import * as THREE from 'three';
 import { hash01 } from './graph.js';
@@ -193,7 +195,7 @@ const SALT_KNOT = 101;
  * @param {object} galaxy  o retorno de `galaxyParams` do mesmo hub
  * @returns {Readonly<object>|null} `null` se o hub não qualifica
  */
-export function quasarParams(galaxy) {
+export function quasarParams(galaxy, viewOverride = null) {
   if (!galaxy || !isActive(galaxy)) return null;
   const path = galaxy.path ?? 'no-path';
 
@@ -216,7 +218,16 @@ export function quasarParams(galaxy) {
    * uniforme concentraria os objetos perto do plano do céu e quase nenhum apontaria para a câmera,
    * apagando os blazares, que são o extremo mais reconhecível da família.
    */
-  const cosView = hash01(path, SALT_VIEW);
+  /*
+   * `viewOverride` existe para a BANCADA, e só para ela.
+   *
+   * `cosView` explica cinco coisas de uma vez (achatamento, encurtamento do jato, beaming, o toro
+   * esconder ou não o núcleo, e a espessura do toro), e por isso ele é o único número que uma
+   * revisão precisa VARRER. Na cena ele é hasheado por caminho, de propósito — mas sem uma porta,
+   * a bancada teria de recalcular as cinco por conta própria, e aí ela mentiria na primeira
+   * divergência. Uma fórmula só, com uma entrada a mais.
+   */
+  const cosView = viewOverride === null ? hash01(path, SALT_VIEW) : Math.min(Math.max(viewOverride, 0), 1);
   const sinView = Math.sqrt(Math.max(0, 1 - cosView * cosView));
 
   const bulge = bulgeMassOf(galaxy);
@@ -424,9 +435,11 @@ const FRAGMENT = /* glsl */ `
      * A 7 o corte caia em toroR = 1,24, onde a gaussiana do toro ainda vale
      * exp(-((0,24)/0,42)^2) = 0,72 — 72% do pico, num circulo. Era a borda que o usuario viu
      * "evidenciando que e flat". Mesma regra do lobo: **o corte usa a cauda da propria gaussiana**,
-     * e a do toro so morre em toroR = 1,76, que e raio = 10 nucleos.
+     * E 13,5 e nao 10 porque o toro CRESCEU (pico de 1,35 para 1,8 spans, ver abaixo): a cauda
+     * dele agora morre em toroR = 1,79, que e span 3,21, que e raio 13,5 nucleos. A caixa acompanha
+     * a feicao — parada em 10, a borda voltava, so que num raio diferente.
      */
-    bool noNucleo = raio < nucleo * 10.0;
+    bool noNucleo = raio < nucleo * 13.5;
     if (!naAgulha && !noLobo && !noNucleo) discard;
 
     vec3 cor = vec3(0.0);
@@ -463,6 +476,59 @@ const FRAGMENT = /* glsl */ `
       float disco = sombra * pow(fluxo, 0.4) * (1.0 - smoothstep(0.55, 1.0, span));
 
       /*
+       * ⚠️ AS BANDAS CISALHADAS — e é ELA que separa "disco" de "degradê radial pintado".
+       *
+       * O usuário: *"os discos dos quasares não estão realistas"*. O que faltava não era cor nem
+       * brilho: era ESTRUTURA. Um disco liso e axissimétrico não tem como parecer matéria em
+       * órbita, porque matéria em órbita CISALHA — a borda interna dá muitas voltas enquanto a
+       * externa dá uma, e o padrão que sai disso é a assinatura visual de todo disco de acreção.
+       *
+       * LIDO NA FONTE (opensrc, black-hole-shader de Bruneton, BSD-3): o DefaultDiscColor
+       * dele não desenha gradiente nenhum — compõe a densidade a partir de N faixas de partículas
+       * em órbita, cada uma com raio interno, externo, fase e dtheta_dphi, que é a taxa de
+       * cisalhamento. A estrutura EMERGE da soma. Aqui não cabe a soma de N faixas (é um billboard
+       * de um quad, não um raymarch), mas cabe a causa dela: uma amostra de ruído cuja fase gira
+       * com a LEI DE KEPLER, omega ∝ r^(-3/2).
+       *
+       * ⚠️ A amostra é tirada num CÍRCULO (cos/sen da fase), não no ângulo cru. atan salta de
+       * +π para −π e o ruído saltaria junto: uma costura radial fixa na tela, que é o mesmo tipo de
+       * defeito que este arquivo já pagou duas vezes em borda de região.
+       */
+      float fase = atan(aoLongo / squash, atraves);
+      float kepler = pow(max(span, 0.18), -1.5);
+      float giro = fase + uTime * uFlow * 0.55 * kepler;
+      float bandas = simplex3(vec3(cos(giro) * 1.7, sin(giro) * 1.7, span * 5.2 + semente));
+      // 0,45 de profundidade: fundo visível o bastante para ler como fluxo, raso o bastante para
+      // não quebrar a queda monótona do brilho com o raio, que é a física de Shakura-Sunyaev.
+      disco *= 0.62 + 0.45 * (bandas * 0.5 + 0.5);
+
+      /*
+       * ⚠️ O BEAMING DO DISCO — o lado que se aproxima estoura, o outro apaga.
+       *
+       * Um disco inclinado NUNCA aparece simétrico: o gás orbita a fração relevante de c, então a
+       * metade que vem na nossa direção é amplificada e a que se afasta some. Nas quatro
+       * referências que o usuário mandou isso está em todas, e o jato deste mesmo arquivo já fazia
+       * — o disco não fazia, e era a maior discordância entre as duas metades do objeto.
+       *
+       * A GEOMETRIA: na elipse projetada, o eixo MAIOR (atraves) é onde a velocidade tangencial
+       * aponta para a linha de visada — Doppler máximo. No eixo MENOR ela é transversal, e o efeito
+       * é zero. Por isso o fator é a componente atraves/rd, escalada por sen(i), e a inclinação
+       * já existe: squash É o cosseno dela.
+       *
+       * A potência 3 não é escolha: é I ∝ delta³ para uma fonte contínua, a MESMA que
+       * blackhole.js aplica no disco central (pow(clamp(delta,...), 3.0)). Duas leis iguais em
+       * dois arquivos seriam duplicata; uma lei igual aplicada duas vezes é a lei.
+       */
+      float senI = sqrt(max(1.0 - squash * squash, 0.0));
+      // v/c orbital cai com 1/sqrt(r). 0,42 na borda interna é o regime de disco de quasar, onde o
+      // gás na ISCO passa de 0,3 c — abaixo disso a assimetria não se lê.
+      float beta = 0.42 / sqrt(max(span, 0.16));
+      float mu = atraves / max(rd, 1e-4);
+      float delta = 1.0 / max(1.0 - beta * senI * mu, 0.08);
+      float beaming = clamp(pow(delta, 3.0), 0.06, 7.0);
+      disco *= beaming;
+
+      /*
        * A CORONA e compacta, quente e ISOTROPICA — ela nao achata com o disco.
        *
        * Ela e o plasma a 10^9 K logo acima do disco interno, e e ela que produz o raio X duro. Na
@@ -479,12 +545,42 @@ const FRAGMENT = /* glsl */ `
        * Ele nasce FORA do disco (comeca onde a poeira sobrevive, no raio de sublimacao) e e frio:
        * entra em vermelho-alaranjado, nunca em branco.
        */
-      float toroR = span / 1.35;
-      // Suporte compacto, como no lobo: no corte (toroR = 1,76) a gaussiana ainda vale 3,6%, cinco
-      // vezes o piso de descarte. Subtrair o degrau faz ela chegar a zero onde a regiao termina.
-      const float PT = 0.0365;
+      /*
+       * ⚠️ O TORO NAO ACHATA COMO O DISCO, e e SO isso que o faz ler como rosca gorda.
+       *
+       * Um disco de acrecao e uma FOLHA: h/r ~ 0,05, e visto de perfil ele some numa linha. Um toro
+       * obscurecedor e uma PAREDE: h/r da ordem de 1 nos modelos de unificacao, e visto de perfil
+       * ele continua uma faixa grossa — e a espessura dele que esconde o nucleo, que e a razao de o
+       * toro existir no modelo. Achatar os dois pelo mesmo squash afirmava duas folhas.
+       *
+       * O piso em 0,5 e essa razao de aspecto: por mais de perfil que a orientacao caia, o toro nao
+       * fica mais fino que meio raio. Uma linha, e e ela que separa "elipse" de "volume".
+       */
+      float squashToro = max(squash, 0.5);
+      float spanToro = length(vec2(atraves, aoLongo / squashToro)) / max(nucleo * 4.2, 1e-4);
+      /*
+       * E ele e MAIOR que o disco, nao do tamanho dele.
+       *
+       * Nos quatro blueprints de referencia o toro domina a figura e o disco de acrecao e um ponto
+       * no meio — a escala real e de parsecs contra dias-luz. Estava em 1,35 (encostado na borda do
+       * disco, que morre em 1,0); vai a 1,8, que e o maior que cabe no orcamento de fragmento sem
+       * dobrar a area acesa.
+       */
+      float toroR = spanToro / 1.8;
+      // Suporte compacto: no corte (toroR = 1,79, ou seja raio = 13,5 nucleos) a gaussiana ainda
+      // vale 3,0% — cinco vezes o piso de descarte. Subtrair o degrau a leva a zero na borda.
+      const float PT = 0.030;
       float perfilToro = max(exp(-pow((toroR - 1.0) / 0.42, 2.0)) - PT, 0.0) / (1.0 - PT);
-      float toro = perfilToro * (0.35 + 0.65 * (1.0 - vGlow.z));
+      /*
+       * AS FAIXAS DE POEIRA, e elas sao PERIODICAS de proposito.
+       *
+       * O toro nao cisalha como o disco — ele e frio, denso e gira devagar, e o que as referencias
+       * mostram nele sao aneis concentricos regulares, nao filamento turbulento. Entao a estrutura
+       * sai de um cosseno em toroR, sem custar amostra de ruido nenhuma; quem quebra a
+       * regularidade e a amostra que o DISCO ja tirou, reaproveitada aqui de graca.
+       */
+      float faixas = 0.78 + 0.22 * cos(toroR * 17.0 + semente * 6.2831);
+      float toro = perfilToro * faixas * (0.86 + 0.14 * bandas) * (0.35 + 0.65 * (1.0 - vGlow.z));
 
       /*
        * O nucleo entra com o peso da OBSCURACAO; o toro entra sempre. Ver a nota em quasarParams
@@ -496,7 +592,10 @@ const FRAGMENT = /* glsl */ `
        * dois muda o matiz com a distancia, que e a mesma classe de erro que separar as duas reguas.
        */
       float brilhoDisco = disco * vGlow.z;
-      vec3 corNucleo = termico(clamp(1.0 - span * 1.1, 0.0, 1.0)) * brilhoDisco
+      // O Doppler move a COR junto com o brilho: T_obs = T · delta, então o lado que se aproxima
+      // não é só mais claro, é mais AZUL. Separar as duas metades do efeito daria um disco que
+      // clareia sem esquentar, que é como uma luz refletida se comporta — não uma que vem do gás.
+      vec3 corNucleo = termico(clamp((1.0 - span * 1.1) * delta, 0.0, 1.0)) * brilhoDisco
                      + vec3(0.80, 0.90, 1.0) * corona * vGlow.z * 1.6
                      + vec3(0.55, 0.26, 0.12) * toro * 0.9;
       cor += corNucleo * vLod.y;
