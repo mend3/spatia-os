@@ -291,6 +291,8 @@ async function main() {
     planet: () => scene.planetProbe(),
     /** Tempo, taxa e instâncias que o campo de galáxias está de fato recebendo. */
     galaxy: () => scene.galaxyProbe(),
+    /** Recuo × piso de detalhe de cada pele, com a tela de verdade. Ver `space/lod.js`. */
+    lod: () => scene.lodProbe(),
   });
 
   // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.
