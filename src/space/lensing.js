@@ -248,8 +248,21 @@ const FRAGMENT = /* glsl */ `
      *
      * O DISCO SOMA, porque ele emite. Todo emissor desta cena e aditivo pelo mesmo motivo.
      */
+    /*
+     * ⚠️ O DISCO TAMBEM E ATRAS DA MASSA, e esta linha somava ele por cima de tudo.
+     *
+     * A sombra ja era filtrada por atrasDaMassa; a emissao do disco NAO era, e o comentario acima
+     * afirmava a regra inteira enquanto o codigo aplicava metade dela. O usuario fotografou o
+     * resultado: um planeta em foco, com o buraco negro longe ATRAS dele, aparecia atravessado pela
+     * faixa alaranjada do disco.
+     *
+     * E ele nomeou a razao sozinho, e ela e exata: o disco NAO dobra a luz, ele EMITE. Deflexao e
+     * do nucleo; emissao e materia comum, e materia comum atras de um corpo opaco simplesmente nao
+     * chega ao olho. Isto e ocultacao, e nao tem sutileza relativistica nenhuma — nada em campo
+     * forte faz um disco de acrecao atravessar um planeta.
+     */
     color *= 1.0 - tracado.a * atrasDaMassa;
-    color += tracado.rgb;
+    color += tracado.rgb * atrasDaMassa;
 
     float vignette = mix(1.0, smoothstep(1.25, 0.35, length(vUv - 0.5) * 1.6), uVignette);
     color *= vignette;
