@@ -78,9 +78,11 @@ Estão no céu: `planeta-anelado`, `cometa-extinto` (segunda janela de churn, 5 
 estado — como classe ela excluía as outras e tirava a superfície de 27 corpos.
 
 **`lua` entrou em 2026-08-05**: as `sections` deixaram de ser payload sem consumidor e viram
-corpos — 40 arquivos seguram 279 luas em órbita ELÍPTICA, pela janela Roche→Hill de
-`src/space/orbital-zones.js`. A não-colisão é demonstrada (co-orbitais defasadas), não estimada, e
-as 5 seções que não couberam são reportadas na timeline em vez de sumirem. Quem
+corpos — 40 arquivos seguram **106 luas** em órbita ELÍPTICA, cada uma na sua banda radial, pela
+janela Roche→Hill de `src/space/orbital-zones.js`. A não-colisão é demonstrada (bandas disjuntas, e
+a inclinação não altera a distância ao pai), não estimada, e as 178 seções que não couberam são
+reportadas na timeline em vez de sumirem — a contagem caiu de 278 quando o piso de legibilidade
+passou a medir contra a órbita externa, que é quem fixa a distância da câmera. Quem
 decide não é a massa e sim a RECÊNCIA (o `m^(1/3)` cancela na razão entre as duas fronteiras), então
 a metade mais antiga do céu tem lua e a mais nova não.
 

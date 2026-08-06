@@ -10,7 +10,9 @@ daqui e vira comentário no código.
 
 **Estado em 2026-08-05:** planeta anelado e supernova estão no céu; cometa extinto passou a
 classificar (segunda janela de churn), com superfície mas ainda sem cauda; **lua entrou** (40 corpos,
-279 luas, órbita elíptica e sem colisão — a regra e as medidas em `src/space/orbital-zones.js`); zonas por razão de massa continuam
+106 luas, órbita elíptica e sem colisão — a regra e as medidas em `src/space/orbital-zones.js`; a
+contagem caiu de 278 quando o piso de legibilidade passou a medir contra a órbita externa, que é
+quem fixa a distância da câmera); zonas por razão de massa continuam
 só aqui, mas `μ ≥ 5` já é usado como o corte que separa lua de sistema duplo. O `status` de cada entrada em `src/space/catalog.js` é a fonte da verdade —
 nenhuma mente sobre estar pronta.
 
