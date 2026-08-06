@@ -257,9 +257,13 @@ export const GLSL_GEODESIC = /* glsl */ `
      *
      * A correcao nao e alargar a esfera (custaria marcha em toda a tela). E usar a deflexao de
      * CAMPO FRACO, que e exata justamente onde a marcha nao vale a pena: alfa = 2 R_s / b, com b
-     * o parametro de impacto. Uma raiz quadrada e uma divisao, sem laco nenhum, e ela CASA com a
-     * marcha na fronteira — la b e grande e alfa e minusculo, entao nao ha degrau entre os dois
-     * regimes.
+     * o parametro de impacto. Uma raiz quadrada e uma divisao, sem laco nenhum.
+     *
+     * ⚠️ ESTE COMENTARIO AFIRMAVA que os dois regimes "CASAM na fronteira, la b e grande e alfa e
+     * minusculo, entao nao ha degrau" — e era FALSO. Em b = R este ramo entrega 73 px de deflexao e
+     * a marcha entregava 2: o degrau de 71 px era a "segunda lente" que o usuario fotografou. Quem
+     * casa os dois agora e a CAUDA, no fim de tracarGeodesica. Alfa aqui nunca foi minusculo na
+     * fronteira; ele vale a deflexao inteira, porque e exatamente ali que ela toda acontece fora.
      */
     if (delta <= 0.0 || (entrada < 0.0 && c > 0.0)) {
       float ateOMaisPerto = -dot(p, direcao);
@@ -359,9 +363,26 @@ export const GLSL_GEODESIC = /* glsl */ `
       float passo = min(r * uStepScale, R * 0.08);
 
       vec3 anterior = p;
+      /*
+       * ⚠️ O uRs NA ACELERACAO NAO E DECORACAO — sem ele o integrador descreve OUTRO buraco negro.
+       *
+       * A equacao de orbita desta forca e u'' + u = 1.5 · massa · u², e a de Schwarzschild para
+       * luz e u'' + u = 1.5 · R_s · u². Sem o fator, a massa efetiva vale 1 UNIDADE DE MUNDO — e o
+       * resto do arquivo trabalha com uRs = 2,37. Os dois moravam no mesmo if: o teste de
+       * captura (b < sqrt(27)/2 · uRs) pintava a sombra de um buraco negro e a marcha entortava a
+       * luz do outro, 2,4x mais fraco.
+       *
+       * Consequencia medida, com a camera a 150: em b = 0,8 R a deflexao dava 33px onde a mesma
+       * massa exige 80px. E o raio critico da dinamica (2,598 unidades) caia DENTRO da sombra
+       * analitica (6,15), entao a esfera de fotons e as imagens de ordem superior nasciam num lugar
+       * que ja estava pintado de preto — nunca podiam aparecer.
+       *
+       * A referencia (vlwkaos/threejs-blackhole) escreve sem o fator porque LA R_s = 1. Aqui o
+       * mundo tem outra escala, e foi a adaptacao que ficou pelo caminho.
+       */
       // Leapfrog: acelera, depois anda. A ordem importa — andar antes de acelerar defasa a
       // integracao em meio passo e desloca visivelmente o anel de fotons.
-      v += (-1.5 * h2 * p / (r2 * r2 * r)) * passo;
+      v += (-1.5 * h2 * uRs * p / (r2 * r2 * r)) * passo;
       p += v * passo;
 
       /*
@@ -401,6 +422,52 @@ export const GLSL_GEODESIC = /* glsl */ `
     }
 
     dirFinal = normalize(v);
+
+    /*
+     * ⚠️ A CAUDA: a deflexao que aconteceu FORA da esfera, e sem ela a lente tinha DUAS BORDAS.
+     *
+     * A marcha comeca na ENTRADA da esfera, com a direcao ainda reta, e para quando o raio sai.
+     * Ela so acumula o que curvou LA DENTRO. O ramo de campo fraco, logo acima, entrega a deflexao
+     * de Einstein INTEIRA (2 R_s / b, de menos infinito a mais infinito). Os dois nao se
+     * encontram — e o comentario daquele ramo afirmava que sim, que "b e grande e alfa e minusculo,
+     * entao nao ha degrau". Era falso, e o degrau foi MEDIDO replicando este integrador em JS:
+     *
+     *   b = 1,00 R (ultimo de dentro) ....  1,9 px de deflexao
+     *   b = 1,01 R (primeiro de fora) .... 73,3 px
+     *
+     * 71 px de salto, num anel a ~300 px do centro na tela. E EXATAMENTE a "segunda lente maior"
+     * que o usuario circulou na foto: uma casca onde a imagem volta a ser reta, cercada por uma
+     * faixa que continua deslocada — o olho le a borda como um segundo objeto.
+     *
+     * A correcao nao e envelope nem mistura: e devolver ao raio o que ele perdeu. A fracao da
+     * deflexao total que mora DENTRO do raio R tem forma fechada para esta forca (que cai com
+     * 1/r⁴, nao com 1/r² — dai a concentracao maior perto do periastro):
+     *
+     *   dentro(b) = x0 · (3b² + 2x0²) / (2R³),   x0 = sqrt(R² - b²)
+     *
+     * Conferida contra a integracao numerica desde o infinito: 0,889 previsto contra 0,889 medido
+     * em b = 0,7R. Ela vale 1 quando b vira zero (a cauda some, o campo forte fica intacto) e 0
+     * quando b encosta em R (a cauda vira a deflexao inteira, que e o que o ramo de fora entrega).
+     * Por construcao os dois regimes se encontram, agora de verdade.
+     *
+     * ⚠️ Isto NAO e a REGRA DA FISICA sendo violada. O envelope removido ANULAVA deflexao real para
+     * a cena incomodar menos; esta cauda ADICIONA deflexao que a tecnica tinha perdido. Depois
+     * dela, o perfil medido cai monotonico do centro para a borda — 574, 222, 138, 100, 87, 78 |
+     * 73, 67, 57, 46, 37 px — sem casca nenhuma.
+     */
+    float bCauda = sqrt(h2);
+    if (bCauda > 1e-4) {
+      float x0 = sqrt(max(R * R - h2, 0.0));
+      float dentro = min(x0 * (3.0 * h2 + 2.0 * x0 * x0) / (2.0 * R * R * R), 1.0);
+      float alfaCauda = (2.0 * uRs / bCauda) * (1.0 - dentro);
+      // Mesma construcao do ramo fraco: o vetor do centro ate o ponto mais proximo da reta de
+      // saida aponta para FORA, entao subtrai-lo dobra o raio para DENTRO.
+      vec3 perpSaida = p + dirFinal * (-dot(p, dirFinal));
+      float impSaida = length(perpSaida);
+      if (impSaida > 1e-4) {
+        dirFinal = normalize(dirFinal - (perpSaida / impSaida) * alfaCauda);
+      }
+    }
     /*
      * ⚠️ O ALFA QUE SAI DAQUI E SO A CAPTURA — nao o do disco. Devolver o alfa do disco foi o
      * defeito que deixou "a lente opaca", e a queixa do usuario foi literal.
