@@ -278,8 +278,27 @@ export function moonsOf(node, centralMass, hash) {
       mass: moonMass,
       drawRadius: moonRadius,
       semiMajor,
-      // Limitada pela banda, e é por isso que ela é pequena: `a·e ≤ wiggle`.
-      eccentricity: (hash(`${node.id}#${order}`, 14) * Math.max(wiggle, 0)) / semiMajor,
+      /*
+       * A EXCENTRICIDADE NÃO É ESCOLHIDA — ela é o que a banda deixa sobrar. E por isso ela volta
+       * a MEDIR A IDADE, que é o que o modelo co-orbital tinha e a primeira versão em bandas
+       * perdeu ao sortear `e` por hash.
+       *
+       * A cadeia é direta: `wiggle ∝ band = W/N`, e `W = inner·(slack − 1)` com
+       * `slack = a_pai/a_corte`. Logo `e ≈ (slack − 1)/(8N)` — proporcional à folga da janela, que
+       * é exatamente a grandeza que o modelo antigo usava (`e = (outer−inner)/(outer+inner)`).
+       * Corpo recém-passado do limiar ganha órbita quase circular; o mais antigo do céu, a maior
+       * elipse que a banda comporta. Sortear aqui apagava isso e não comprava nada: as luas já se
+       * distinguem por raio, período, fase, periastro e inclinação.
+       *
+       * E ela continua VARIANDO ENTRE AS LUAS do mesmo corpo, sem hash nenhum: a excursão radial
+       * `wiggle` é a mesma em todas as bandas, então a lua interna, com `a` menor, fica mais
+       * excêntrica que a externa. É a razão física, não decoração.
+       *
+       * ⚠️ Um confundidor que o modelo antigo não tinha: o `N` no denominador. Documento com mais
+       * seções tem bandas mais estreitas e portanto luas menos excêntricas na mesma idade. O
+       * modelo co-orbital escapava disso só porque colapsava todas as luas numa órbita só.
+       */
+      eccentricity: Math.max(wiggle, 0) / semiMajor,
       periapsis: hash(`${node.id}#${order}`, 13) * Math.PI * 2,
       inclination: systemTilt + (hash(`${node.id}#${order}`, 15) - 0.5) * INCLINATION_SPREAD,
       // Terceira lei: a lua interna corre mais rápido. É isto que impede o alinhamento permanente

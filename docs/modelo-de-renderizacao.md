@@ -202,11 +202,27 @@ Agora o raio desenhado é o que a banda paga, limitado pelo teto da massa: **0,0
 do pai**, que é onde satélites reais vivem (Io 2,6% de Júpiter, Titã 4,4% de Saturno). É uma
 compressão declarada, do mesmo tipo que a escala log dos tamanhos.
 
-⚠️ **A excentricidade deixou de medir a idade.** Ela era `(outer−inner)/(outer+inner)` — a maior
-elipse que a zona comporta — e portanto o gradiente do tempo (0,050 a 0,231). Agora é hasheada por
-lua dentro do que a banda paga: **0 a 0,0082**, praticamente circular. A idade não sumiu da cena (é
-o raio orbital do PAI, que continua sendo o eixo do tempo), mas deixou de aparecer duas vezes.
-Medido: 40 corpos, **278 luas**, 6 seções sem espaço.
+**A excentricidade continua MEDINDO A IDADE, pelo mesmo argumento de sempre: ela não é escolhida —
+é o que sobra.** Antes era `(outer−inner)/(outer+inner)`, a maior elipse que a *zona* comportava;
+agora é a maior que a *banda* comporta, e a cadeia preserva o sinal: `wiggle ∝ band = W/N` e
+`W = inner·(slack − 1)`, logo `e ≈ (slack − 1)/(8N)` — proporcional à mesma folga de janela.
+
+Ela também varia **entre as luas do mesmo corpo** sem hash nenhum: a excursão radial é igual em
+todas as bandas, então a lua interna, com `a` menor, fica mais excêntrica que a externa.
+
+Medido: 40 corpos, **278 luas**, 6 seções sem espaço, `e` de **0,00181 a 0,01057**.
+
+| correlação | r |
+|---|---|
+| idade do pai × `e` média — global | 0,732 |
+| idem, **controlando o nº de seções** (n=5, n=9, n=12) | **1,000 · 0,999 · 1,000** |
+| nº de seções × `e` média | −0,328 |
+
+⚠️ **O confundidor, que o modelo co-orbital não tinha:** o `N` no denominador. Documento com mais
+seções tem bandas mais estreitas e portanto luas menos excêntricas na mesma idade — o modelo antigo
+escapava disso só porque colapsava todas as luas numa órbita só. Dentro de uma contagem fixa de
+seções o gradiente é exato; entre contagens diferentes, ele é uma tendência. A amplitude também
+caiu uma ordem de grandeza (0,050–0,231 → 0,002–0,011): é o preço de cada lua ter órbita própria.
 
 **Alcance do anel: MEDIDO E RECUSADO.** Seria a outra metade da frase, e não sobrevive à medida. O
 alcance em raios do corpo é `∝ m^(1/3)/R(m)`, e com a lei log de tamanho isso espalha só **1,54×**
