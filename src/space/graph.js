@@ -265,6 +265,34 @@ export function hash01(text, salt = 0) {
 // Vetor de rascunho: a distância do nó à câmera é calculada por anel, por quadro.
 const TEMP = new THREE.Vector3();
 
+/**
+ * O material do sprite de astro — o MESMO da cena, para quem precisar desenhar um.
+ *
+ * Existe exportado por causa da bancada: um espécime que reimplementasse este shader passaria a
+ * mentir na primeira divergência, que é justamente o instante em que ele seria útil. A regra é do
+ * `sandbox/specs.js` ("todo espécime IMPORTA o módulo real"), e ela obriga uma porta.
+ *
+ * Cada chamada devolve material NOVO: `uSize`, `uReveal` e `uPulse` são estado, e compartilhar um
+ * material entre a cena e a bancada faria o slider de uma mexer no céu da outra.
+ */
+export function createPointMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uSize: { value: 4.6 },
+      uTime: { value: 0 },
+      uReveal: { value: 1 },
+      uRevealBand: { value: REVEAL_BAND },
+      uRevealDim: { value: REVEAL_DIM },
+      uPulse: { value: motion.isReduced() ? 0 : 1 },
+    },
+    vertexShader: VERTEX,
+    fragmentShader: FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+}
+
 export function createGraph() {
   const group = new THREE.Group();
   let nodes = [];
@@ -323,21 +351,7 @@ export function createGraph() {
   // Alvo e valor corrente da janela: 1 = tudo revelado, que é como o céu nasce.
   const window = { target: 1, current: 1 };
 
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      uSize: { value: 4.6 },
-      uTime: { value: 0 },
-      uReveal: { value: 1 },
-      uRevealBand: { value: REVEAL_BAND },
-      uRevealDim: { value: REVEAL_DIM },
-      uPulse: { value: motion.isReduced() ? 0 : 1 },
-    },
-    vertexShader: VERTEX,
-    fragmentShader: FRAGMENT,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
+  const material = createPointMaterial();
 
   /**
    * A MESMA atenuação da janela temporal que o vertex shader calcula em `vReveal`, em JS.

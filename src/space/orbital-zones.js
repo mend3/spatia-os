@@ -112,8 +112,49 @@ const BAND_MOONS = 4;
  * Saturno. Abaixo disso a lua deixa de ser corpo e vira poeira — e o corte tem de existir porque a
  * janela Roche→Hill é estreita (folga medida: 1,10 a 1,60), então sem piso um documento de 40
  * seções pediria 40 bandas de espessura nula.
+ *
+ * ⚠️ Ele NÃO é o piso que decide se a lua aparece — ver `MOON_MIN_OVER_OUTER`, que mede contra a
+ * grandeza certa e é, na prática, sempre o mais apertado dos dois. Este continua aqui porque
+ * protege de outra degeneração (lua do tamanho do pai), e não porque ainda esteja mandando.
  */
 const MOON_MIN_FRACTION = 0.01;
+
+/**
+ * O piso que DECIDE SE A LUA APARECE: raio da lua por raio da órbita externa.
+ *
+ * ## Por que a régua é a órbita, e não o pai
+ *
+ * `MOON_MIN_FRACTION` compara a lua com o raio do PAI, e medido na cena viva isso não prevê nada:
+ * quem fixa a distância da câmera é a ÓRBITA EXTERNA, porque é ela que tem de caber na tela para o
+ * sistema ser visto como sistema. A lua tem ~1,8% do raio da estrela e orbita a ~7,4 raios dela —
+ * proporção fiel (Io: 2,6% e 5,9 raios de Júpiter) — e o preço é uma razão órbita/lua de ~410:
+ * aproximar para ver a lua tira o sistema da tela, enquadrar o sistema apaga a lua. **Existe um
+ * enquadramento só**, e é nele que o piso tem de valer.
+ *
+ * ## O número, e de onde ele sai
+ *
+ * Escolhido na bancada (`sandbox/moon-rig.js`, espécime SISTEMA DE LUAS), vendo, com o
+ * enquadramento canônico imposto. Antes dele, o disco visível da lua media **1,42 px** no corpo do
+ * handoff e 1,27 px de mediana nos 40 sistemas do corpus — o piso do shader, indistinguível do
+ * campo de fundo.
+ *
+ * `0,0154` é `4,5 px CSS` convertido pela inversão do vertex shader:
+ * `gl_PointSize = uSize · aSize · 300/z`, e o enquadramento fixa `z = outer/tan(fov/2)`, então o
+ * `outer` cancela e sobra `px = uSize · 300 · tan(fov/2) · (r/outer)`. Com `uSize = 4,6`,
+ * `fov = 46` e DPR 2: `4,5 · 2 / (4,6 · 300 · tan 23°) = 0,0154`.
+ *
+ * O que ele compra, medido: a lua sai de 2,05% para **4,62% do raio do pai** — que é Titã (4,4% de
+ * Saturno), e isso não foi procurado, caiu da conta.
+ *
+ * ⚠️ **O preço é o número de luas**, e não há terceira saída: `raio = W/(N·BAND_MOONS)`, e
+ * `BAND_MOONS` já está quase no mínimo que a prova de não-colisão aceita. Subir este piso encolhe
+ * `N`; o que sobra vira `dropped`, que a HUD anuncia.
+ *
+ * ⚠️ Em DPR 1 a lua ocupa o DOBRO de pixels CSS — `gl_PointSize` é framebuffer e não escala com a
+ * resolução. É o comportamento que todo o campo de estrelas já tem; corrigir aqui só para a lua
+ * criaria a segunda régua que este arquivo inteiro existe para não ter.
+ */
+const MOON_MIN_OVER_OUTER = 0.0154;
 
 /**
  * Dispersão da inclinação entre as luas de um mesmo sistema, em radianos (~±10°).
@@ -190,8 +231,11 @@ export function moonZone(mass, orbitalRadius, centralMass) {
  * @param {number} centralMass  massa do corpus inteiro, em chunks.
  * @param {(text: string, salt: number) => number} hash  o MESMO hash do céu — a lua tem de cair
  *   sempre no mesmo lugar, pela mesma promessa que vale para a estrela.
+ * @param {{minRadiusOverOuter?: number}} [options]  sobrepõe o piso de legibilidade
+ *   (`MOON_MIN_OVER_OUTER`). Existe para a bancada varrer o parâmetro sem tocar na cena; zero
+ *   desliga o piso e devolve o modelo anterior, que é o controle do experimento.
  */
-export function moonsOf(node, centralMass, hash) {
+export function moonsOf(node, centralMass, hash, { minRadiusOverOuter = MOON_MIN_OVER_OUTER } = {}) {
   const sections = node.sections || [];
   const mass = node.chunks || 0;
   if (sections.length < MU_MIN || mass <= 0) return { moons: [], dropped: 0 };
@@ -249,7 +293,16 @@ export function moonsOf(node, centralMass, hash) {
    * (2,6%), que é a faixa em que satélites reais efetivamente vivem.
    */
   const minBand = BAND_MOONS * MOON_MIN_FRACTION * parentPhysical;
-  const count = Math.max(1, Math.min(sections.length, Math.floor(window / minBand)));
+  // O piso que decide se a lua aparece — ver `MOON_MIN_OVER_OUTER`. Zero desliga (é o que a
+  // bancada passa para reproduzir o modelo anterior).
+  const legibilityCap =
+    minRadiusOverOuter > 0
+      ? Math.floor(window / (BAND_MOONS * minRadiusOverOuter * zone.outer))
+      : Number.POSITIVE_INFINITY;
+  const count = Math.max(
+    1,
+    Math.min(sections.length, Math.floor(window / minBand), legibilityCap)
+  );
 
   const band = window / count;
   /*
@@ -311,4 +364,10 @@ export function moonsOf(node, centralMass, hash) {
   return { moons, dropped: sections.length - count };
 }
 
-export const ZONE_CONSTANTS = Object.freeze({ ROCHE_FLUID, DENSITY_K, MU_MIN, MU_CORE });
+export const ZONE_CONSTANTS = Object.freeze({
+  ROCHE_FLUID,
+  DENSITY_K,
+  MU_MIN,
+  MU_CORE,
+  MOON_MIN_OVER_OUTER,
+});

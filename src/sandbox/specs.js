@@ -27,6 +27,7 @@ import { createSatellites, createWormholes, TOOL_COLORS } from '../space/satelli
 import { createParticles } from '../space/particles.js';
 import { RING_VARIANTS } from './ring-variants.js';
 import { GALAXY_VARIANTS } from './galaxy-variants.js';
+import { MOON_SPEC } from './moon-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -464,4 +465,12 @@ export const SPECS = [
    * classes lado a lado, que é a única que responde "dá para distinguir a 15px?".
    */
   ...GALAXY_VARIANTS,
+  /*
+   * O sistema de luas entra como DECISÃO EM ABERTO, e não como candidata.
+   *
+   * O modelo já está na cena — 278 luas — e a bancada existe porque olhar a cena provou que ele
+   * não se lê (1,27 px de disco visível, mediana). O que se escolhe aqui é o piso de legibilidade,
+   * e o preço dele é o número de luas. Ver o cabeçalho de `moon-rig.js`.
+   */
+  MOON_SPEC,
 ];

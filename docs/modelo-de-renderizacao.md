@@ -212,6 +212,28 @@ todas as bandas, então a lua interna, com `a` menor, fica mais excêntrica que 
 
 Medido: 40 corpos, **278 luas**, 6 seções sem espaço, `e` de **0,00181 a 0,01057**.
 
+### O piso de legibilidade cortou a contagem — e foi olhando que se descobriu por quê
+
+O modelo acima estava geometricamente correto e **invisível**. Com a câmera travada num sistema, o
+disco da lua media **1,27 px de mediana** no único enquadramento que mostra o sistema inteiro: a
+razão órbita/lua é ~410, então aproximar tira o sistema da tela e enquadrar o sistema apaga a lua.
+
+A causa era a régua. `MOON_MIN_FRACTION` mede a lua contra o raio do **pai**, e quem fixa a
+distância da câmera é a **órbita externa**. `MOON_MIN_OVER_OUTER = 0,0154` (4,5 px CSS, escolhido
+na bancada — espécime SISTEMA DE LUAS) põe o piso na moeda certa. O preço é a contagem, e não há
+terceira saída: `raio = W/(N·BAND_MOONS)`.
+
+| | antes | agora |
+|---|---|---|
+| corpos com sistema | 40 | **40 — nenhum perdeu o sistema** |
+| luas · seções sem espaço | 278 · 6 | **106 · 178** |
+| disco da lua, px CSS (mín · mediana · máx) | 1,06 · 2,06 · 4,35 | **4,73 · 5,25 · 7,32** |
+| luas por corpo | 5 a 12 | **1 a 6** |
+| lua ÷ raio do pai | 0,85% a 3,96% | **3,39% a 5,65%** (Titã: 4,4%) |
+
+⚠️ Aberto: a lua virou corpo, mas o sistema ainda não lê como **bandas** — a ordenação radial some
+na perspectiva somada ao `INCLINATION_SPREAD`. É a próxima pergunta deste estágio.
+
 | correlação | r |
 |---|---|
 | idade do pai × `e` média — global | 0,732 |
