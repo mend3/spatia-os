@@ -72,6 +72,18 @@ export const DEFAULTS = Object.freeze({
   'sky.backdropFade': true,
   'sky.backdropQuality': 'high', // 'high' (3200×1800) | 'low' (1280×720)
 
+  /*
+   * O ASTRO EM FOCO atravessa o refresh, e isso é feature, não persistência acidental.
+   *
+   * F5 devolve o operador ao corpo que ele estava inspecionando — é o que torna o ciclo de
+   * depurar/inspecionar documento suportável, porque senão cada recarga custa achar o astro de
+   * novo no céu. Guarda o `source` do nó; vazio significa nenhum.
+   *
+   * ⚠️ É entrada NÃO CONFIÁVEL como qualquer coisa vinda do storage: o astro pode ter sumido da
+   * topologia entre uma sessão e outra. Quem restaura confere no `graph` antes de pedir foco.
+   */
+  'camera.focus': '',
+
   'camera.azimuth': 0,
   'camera.polar': 1.36,
   'camera.distance': 88,

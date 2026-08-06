@@ -181,6 +181,13 @@ const PARALLAX_SCALE = 0.015;
 // 3 casas ≈ 0.06° de azimute. Abaixo disso é ruído de float, e ruído de float faria a guarda
 // de "só se mudou" do `prefs` disparar uma escrita a cada tique, para sempre.
 const ORBIT_STEP = 1e3;
+/**
+ * Segundos que o foco salvo espera o astro aparecer antes de ser esquecido.
+ *
+ * Generoso porque a topologia pode demorar a assentar, e curto o bastante para o pedido não
+ * ressuscitar depois que o operador já escolheu olhar outra coisa.
+ */
+const FOCO_PRAZO_S = 8;
 const ZERO = new THREE.Vector3();
 
 /**
@@ -404,6 +411,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * é levantada nos gestos reais (arrasto, roda) e no foco de um app.
    */
   let orbitMoved = false;
+  /** O foco só se restaura UMA vez: recarga de topologia não deve arrastar a câmera de volta. */
+  let focoRestaurado = false;
+  /** O astro salvo esperando posição resolver. Ver `aplicarFocoPendente`. */
+  let focoPendente = null;
   /*
    * O enquadramento "em casa" — para onde `focusBody(null)` volta.
    *
@@ -858,6 +869,15 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       orbit.distance = orbit.targetDistance;
       orbit.polar = orbit.targetPolar;
     }
+    /*
+     * O FOCO SE GRAVA SOZINHO, aqui, e não no atalho.
+     *
+     * Este é o ponto ÚNICO por onde o foco muda — `ui.node-focus` já sai daqui e já tem três
+     * assinantes. Gravar junto não acrescenta evento, estado nem caminho: quem travou num astro
+     * acabou de dizer o que quer ver, e depender de o operador lembrar do `⌘S` é perder a
+     * informação no caso mais comum, que é fechar a aba sem gravar nada.
+     */
+    prefs.set('camera.focus', source ?? '');
     ui('node-focus', { source: source ?? null });
   }
 
@@ -930,21 +950,105 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     if (!force && !orbitMoved) return false;
     orbitMoved = false;
     /*
-     * Dentro de um app o enquadramento é DERIVADO (o `focusBody` escolhe distância e polar para
-     * emoldurar o corpo), não escolhido — gravá-lo faria a próxima sessão nascer com a moldura
-     * de um app que talvez nem esteja aberto. Só o azimute, que continua sendo do operador,
-     * atravessa. `HOME` guarda o resto, e é ele que vai para o disco.
+     * O ASTRO EM FOCO **não** é gravado aqui — ele se grava sozinho em `focusNode`, no instante em
+     * que o operador trava. Depender do atalho perderia a informação no caso mais comum, que é
+     * fechar a aba sem gravar nada.
      */
-    if (focusedBody) {
-      prefs.set('camera.azimuth', quantize(orbit.targetAzimuth));
-      return true;
-    }
-    HOME.polar = orbit.targetPolar;
-    HOME.distance = orbit.targetDistance;
     prefs.set('camera.azimuth', quantize(orbit.targetAzimuth));
+
+    /*
+     * Dentro de um app o enquadramento é DERIVADO (o `focusBody` escolhe distância e polar para
+     * emoldurar o corpo), não escolhido — gravá-lo faria a próxima sessão nascer com a moldura de
+     * um app que talvez nem esteja aberto. Só o azimute, que continua sendo do operador, atravessa.
+     *
+     * ⚠️ Isto vale para corpo de APP (`focusedBody`), não para astro (`focusedNode`). São coisas
+     * diferentes e a distinção é a que faltava: o zoom que o operador deu SOBRE um astro é escolha
+     * dele, e agora atravessa junto com o próprio astro.
+     */
+    if (focusedBody) return true;
+
+    // `HOME` é o enquadramento do CÉU. Com um astro travado a distância corrente é a dele, não a
+    // de casa — sobrescrever `HOME` aqui faria destravar cair num zoom que ninguém escolheu.
+    if (!focusedNode) {
+      HOME.polar = orbit.targetPolar;
+      HOME.distance = orbit.targetDistance;
+    }
     prefs.set('camera.polar', quantize(orbit.targetPolar));
     prefs.set('camera.distance', quantize(orbit.targetDistance));
     return true;
+  }
+
+  /**
+   * Devolve o operador ao astro da sessão anterior. Roda uma vez, quando a topologia chega.
+   *
+   * ⚠️ Antes da topologia é cedo: `focusNode` registra se o céu conhece o astro, e pedir foco com o
+   * grafo vazio marcaria `conhecido: false` para um nó perfeitamente válido — o diagnóstico passaria
+   * a mentir. Depois de `graph.load` o céu já sabe responder.
+   */
+  function agendarFoco() {
+    if (focoRestaurado) return;
+    focoRestaurado = true;
+    const alvo = prefs.get('camera.focus');
+    /*
+     * O TRAÇO FICA, e não é sobra de depuração.
+     *
+     * Esta restauração falhou QUATRO vezes seguidas com todos os elos parecendo corretos na
+     * leitura — gravação, índice do grafo, ordem de carga, escopo do relógio, guarda do router.
+     * Cada tentativa custou uma rodada inteira porque o caminho falhava em SILÊNCIO: o foco era
+     * pedido, apagado no quadro seguinte, e nada em lugar nenhum dizia isso.
+     *
+     * É a mesma disciplina que a sonda do planeta já segue — "diagnóstico que só existe no caminho
+     * feliz não é diagnóstico". `conhecido: false` aqui aponta direto para a armadilha do prefixo
+     * do repo no id, que o handoff registra e que já mordeu antes.
+     */
+    trace('foco-restaura', () => ({
+      etapa: 'agendar',
+      salvo: alvo || '(vazio)',
+      conhecido: alvo ? Boolean(graph.nodeAt(alvo)) : null,
+    }));
+    // Storage é entrada não confiável: o astro pode ter saído da topologia entre as sessões.
+    if (!alvo || !graph.nodeAt(alvo)) return;
+    focoPendente = alvo;
+  }
+
+  /**
+   * Aplica o foco salvo no primeiro quadro em que o astro TEM POSIÇÃO. Chamada pelo laço.
+   *
+   * ⚠️ **Aplicar direto no `loadGraph` NÃO funciona, e essa foi a primeira versão.** O laço de
+   * quadro solta o foco de quem não tem posição resolvida (`if (focusedNode && !nodeAt)`), e logo
+   * depois de `graph.load` as posições ainda não foram computadas — então o foco restaurado era
+   * apagado no quadro seguinte, em silêncio. A câmera voltava (ela vem de `startOrbit`, por outro
+   * caminho) e o astro não, que é exatamente o sintoma relatado.
+   *
+   * O prazo existe para o pedido não ressuscitar minutos depois: se o astro nunca resolve — filtro
+   * de tipo escondendo o `kind` dele, nó fora da janela de recência — ele é esquecido em vez de
+   * puxar a câmera quando o operador já estiver olhando outra coisa.
+   */
+  function aplicarFocoPendente(elapsed) {
+    if (!focoPendente) return;
+    if (!graph.worldPositionOf(focoPendente)) {
+      if (elapsed > FOCO_PRAZO_S) {
+        trace('foco-restaura', () => ({ etapa: 'desistiu', alvo: focoPendente, apos: `${elapsed.toFixed(1)}s` }));
+        focoPendente = null;
+      }
+      return;
+    }
+    const alvo = focoPendente;
+    focoPendente = null;
+    trace('foco-restaura', () => ({ etapa: 'aplicou', alvo, em: `${elapsed.toFixed(2)}s` }));
+    focusNode(alvo);
+    /*
+     * O ENQUADRAMENTO SALVO VENCE O AUTOMÁTICO.
+     *
+     * `focusNode` mira `NODE_FOCUS_DISTANCE` e liga `fitPending`, que no quadro seguinte recalcula
+     * a distância para dar `FOCUS_FIT_PX`. Isso é o certo para um foco NOVO — e é errado aqui, onde
+     * o operador já escolheu o zoom e gravou. Sem desligar o `fitPending`, a câmera restauraria a
+     * pose salva e seria puxada para longe dela no quadro seguinte, o que lê como a cena corrigindo
+     * o operador.
+     */
+    orbit.polar = orbit.targetPolar = startOrbit.polar;
+    orbit.distance = orbit.targetDistance = startOrbit.distance;
+    fitPending = false;
   }
 
   setInterval(() => saveOrbit(), ORBIT_SAVE_MS);
@@ -988,6 +1092,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * escapando do centro em segundos. É o mesmo mecanismo do corpo de app, e por isso ele
      * está aqui e não num segundo caminho.
      */
+    // Antes de qualquer coisa que leia o foco: o astro da sessão anterior entra aqui, no
+    // primeiro quadro em que ele tem posição.
+    aplicarFocoPendente(elapsed);
     const nodeAt = focusedNode ? graph.worldPositionOf(focusedNode) : null;
     // Astro que saiu do céu (recarga da topologia) solta o foco em vez de prender a câmera
     // apontando para o vazio.
@@ -1522,6 +1629,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     loadGraph: (payload) => {
       const count = graph.load(payload);
       hubs = buildHubs(payload);
+      // Só agora o céu sabe responder se conhece o astro salvo. Ver `aplicarFocoPendente`.
+      agendarFoco();
       return count;
     },
     /** Janela temporal do céu, em espaço de recência — o mesmo eixo que já define o raio. */

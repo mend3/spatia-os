@@ -700,8 +700,19 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
    * casos, dizendo qual foi.
    */
   keys.bind({ code: 'KeyS', meta: true, whileTyping: true, label: 'GRAVAR ÓRBITA', group: 'CENA' }, () => {
+    /*
+     * A nota diz o que FOI gravado, e antes ela dizia menos do que o atalho fazia.
+     *
+     * "ÓRBITA DA CÂMERA" descrevia só metade: o astro travado também atravessa o refresh agora, e
+     * é ele que devolve o operador ao corpo que estava inspecionando. Nomear os dois é o que separa
+     * "gravei" de "gravei o quê".
+     */
     const saved = scene.saveOrbit();
-    streams.note(saved ? 'ÓRBITA DA CÂMERA GRAVADA' : 'ÓRBITA JÁ ESTAVA GRAVADA', 'good');
+    // `focusedNode()` já existia e o Esc a usa (main.js:631). Um segundo acessor para a
+    // mesma coisa seria a duplicata que esta base já pagou quatro vezes.
+    const astro = scene.focusedNode?.();
+    const oQue = astro ? 'CÂMERA E ASTRO EM FOCO' : 'CÂMERA';
+    streams.note(saved ? `${oQue} — GRAVADO` : 'NADA MUDOU DESDE A ÚLTIMA GRAVAÇÃO', 'good');
     audio.click({ frequency: 660, gain: 0.045, decay: 0.35 });
   });
 }
