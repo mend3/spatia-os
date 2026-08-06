@@ -1626,6 +1626,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           for (let i = 0; i < samples; i++) desenhar();
           gl.endQuery(ext.TIME_ELAPSED_EXT);
 
+          /*
+           * A ESPERA PELO RESULTADO NÃO PODE DEPENDER DO `requestAnimationFrame`.
+           *
+           * Dependia, e isso pendurava a medição para sempre: basta a janela ir para trás no meio
+           * da amostra e o rAF para de disparar — a promessa nunca resolve, e o sintoma que chega
+           * a quem está medindo é "o script travou", que lê como cena travada e não é. Justo no
+           * instrumento que existe para medir desempenho, e justo na hora em que alguém olha para
+           * outra janela enquanto espera.
+           *
+           * Nada aqui precisa de vsync: é uma pergunta ao driver, não um desenho. `setTimeout`
+           * continua disparando em aba oculta (estrangulado a ~1s, o que só torna a espera lenta),
+           * e o teto de tentativas garante que ela TERMINA mesmo se o resultado nunca vier.
+           */
+          let tentativas = 0;
           const colher = () => {
             // `GPU_DISJOINT` marca que o relógio da GPU foi perturbado (troca de contexto,
             // throttling): a amostra inteira vira lixo e não pode ser reportada como medida.
@@ -1635,14 +1649,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
               return;
             }
             if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) {
-              requestAnimationFrame(colher);
+              if ((tentativas += 1) > 600) {
+                gl.deleteQuery(query);
+                resolve(null);
+                return;
+              }
+              setTimeout(colher, 8);
               return;
             }
             const nanos = gl.getQueryParameter(query, gl.QUERY_RESULT);
             gl.deleteQuery(query);
             resolve(nanos / 1e6 / samples);
           };
-          requestAnimationFrame(colher);
+          setTimeout(colher, 8);
         });
 
       const comCadeia = await medir(() => composer.render());
@@ -1657,6 +1676,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         fracao: +((1 - semCadeia / comCadeia) * 100).toFixed(1),
         pixelRatio: renderer.getPixelRatio(),
         buffer: [canvas.width, canvas.height],
+        /*
+         * O ESTADO SOB O QUAL A AMOSTRA FOI TIRADA — sem ele o número não é reproduzível.
+         *
+         * O custo do pós é dominado pelo raymarch da lente, e o orçamento de passos varia com o
+         * tamanho da sombra na tela (18 longe, 64 em cima dela). Dois números diferentes tirados
+         * em poses diferentes leriam como regressão, e dois iguais leriam como "não mudou nada".
+         * A distância entra junto porque é ela que escolhe os passos.
+         */
+        passos: Math.round(lensing.pass.uniforms.uSteps.value),
+        // O portão de profundidade da lente. `uHasDepth` 0 significa que ela trata TUDO como se
+        // estivesse atrás da massa — o modo de falha que o handoff registra como silencioso.
+        temProfundidade: lensing.pass.uniforms.uHasDepth.value,
+        distanciaDaMassa: +lensing.pass.uniforms.uBhDist.value.toFixed(1),
+        fov: camera.fov,
+        distanciaAoNucleo: +camera.position.length().toFixed(1),
       };
     },
 
