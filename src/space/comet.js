@@ -20,14 +20,19 @@
  * | **coma** | a atmosfera de gás que ele solta | `churn` — script mexido está ativo |
  * | **cauda** | o gás varrido para longe da fonte | comprimento por `churn`, direção pela órbita |
  *
+ * E a cauda ESCOA: as partículas saem do núcleo, aceleram e esgarçam na ponta, num ciclo em que o
+ * íon corre o dobro da poeira (`MOTION.cometOutflow`). Sem isso ela era uma forma parada com uma
+ * ondulação por cima — e o que faz um cometa parecer vivo não é a onda, é a perda de massa.
+ *
  * Núcleo real de cometa tem albedo ~0,04 (mais escuro que carvão): o que se vê da Terra é a coma,
  * não o corpo. Por isso o núcleo aqui é pequeno e opaco e o brilho todo está no gás.
  *
- * ⚠️ Cauda e coma são BILLBOARD aditivo, não geometria de volume. Cauda real é rarefeita a ponto
- * de ser transparente em qualquer direção; uma malha sólida daria a ela uma borda, e borda é o que
- * o `envelope()` do remanescente foi reescrito duas vezes para não ter.
+ * ⚠️ Nada aqui é geometria de volume: a coma é billboard aditivo e a cauda é `THREE.Points`. Cauda
+ * real é rarefeita a ponto de ser transparente em qualquer direção; uma malha sólida daria a ela
+ * uma borda, e borda é o que o `envelope()` do remanescente foi reescrito duas vezes para não ter.
  */
 import * as THREE from 'three';
+import { MOTION } from './motion-catalog.js';
 
 /** Onde o cometa começa a aparecer e onde satura, em pixels de raio. */
 export const LOD_FAR_PX = 30;
@@ -68,25 +73,44 @@ const VERTEX = /* glsl */ `
 const TAIL_PARTICLES = 260;
 
 const TAIL_VERTEX = /* glsl */ `
-  attribute float aT;
+  attribute float aPhase;
   attribute vec3 aJitter;
   attribute float aSize;
   uniform float uLength;
   uniform float uSpread;
   uniform float uCurve;
   uniform float uTime;
+  uniform float uFlow;
   uniform float uPixel;
   varying float vT;
+  varying float vBorn;
 
   void main(){
     /*
      * A particula e colocada AQUI, e nao num buffer reescrito por quadro.
      *
-     * O caminho e funcao fechada de aT (a fracao percorrida) e do relogio — a mesma lei do
+     * O caminho e funcao fechada da fase da particula e do relogio — a mesma lei do
      * motion-catalog.js. Sem estado acumulado, a cauda cai sempre igual no mesmo instante e
-     * nenhuma atualizacao de buffer acontece por quadro.
+     * nenhuma atualizacao de buffer acontece por quadro: o escoamento inteiro e UMA uniform.
      */
-    float t = aT;
+
+    // ESCOAMENTO. s e a fracao do ciclo desde que esta particula deixou o nucleo; fract() faz quem
+    // sai pela ponta reaparecer no corpo. As fases nascem uniformes, entao fract() as mantem
+    // uniformes: a cauda escoa sem mudar de forma nem de densidade (ver MOTION.cometOutflow).
+    float s = fract(aPhase + uTime * uFlow);
+
+    /*
+     * Distancia ao QUADRADO do tempo desde a soltura, que e aceleracao constante — e e o que a
+     * pressao de radiacao faz com o gas: ele sai devagar do nucleo e ganha velocidade indo embora.
+     *
+     * De quebra devolve a densidade que a versao estatica ja tinha (perto do nucleo denso, ponta
+     * esgarcada), porque com uTime = 0 isto e exatamente o aT = ((i+0.5)/N)^2 de antes.
+     */
+    float t = s * s;
+
+    // Nasce no nucleo em vez de PISCAR ali. Sem esta rampa, a particula que morreu na ponta
+    // (opacidade ~0) reaparece com brilho maximo no quadro seguinte.
+    vBorn = smoothstep(0.0, 0.05, s);
 
     // Ao longo do eixo. A poeira fica para tras (uCurve > 0 encurva), o ion vai reto.
     vec3 p = vec3(t * uLength, 0.0, 0.0);
@@ -96,12 +120,20 @@ const TAIL_VERTEX = /* glsl */ `
     float abre = uSpread * t;
     p += aJitter * abre;
 
-    // TURBULENCIA: nunca perfeitamente reta. Duas frequencias, deslizando devagar para longe do
-    // nucleo — e o que separa rastro de gas de uma linha desenhada.
-    float onda = sin(t * 7.0 + aJitter.y * 6.28 + uTime * 0.5) * 0.5
-               + sin(t * 17.0 + aJitter.z * 6.28 - uTime * 0.8) * 0.22;
+    /*
+     * TURBULENCIA: nunca perfeitamente reta. Duas frequencias, e agora um campo FIXO no espaco que
+     * a particula ATRAVESSA, em vez de uma onda que desliza sozinha.
+     *
+     * Deslizar era o unico movimento que a cauda tinha antes do escoamento existir, e por isso ela
+     * ondulava como bandeira presa ao mastro: o gas nao ia a lugar nenhum. Com a particula andando,
+     * o termo de tempo aqui viraria um tremor por cima do transporte — duas leituras de movimento
+     * competindo. Sem ele, o rastro serpenteia porque o gas percorre um canal torto, que e o que
+     * turbulencia de jato parece vista de fora.
+     */
+    float onda = sin(t * 7.0 + aJitter.y * 6.28) * 0.5
+               + sin(t * 17.0 + aJitter.z * 6.28) * 0.22;
     p.y += onda * abre * 0.55;
-    p.z += cos(t * 9.0 + aJitter.x * 6.28 + uTime * 0.4) * abre * 0.4;
+    p.z += cos(t * 9.0 + aJitter.x * 6.28) * abre * 0.4;
 
     // A cauda de POEIRA fica para tras da de ions: as particulas sao pesadas e conservam parte do
     // momento orbital, entao ela ARQUEIA. E a diferenca visivel entre as duas.
@@ -120,13 +152,15 @@ const TAIL_FRAGMENT = /* glsl */ `
   uniform vec3 uColor;
   uniform float uAmount;
   varying float vT;
+  varying float vBorn;
   void main(){
     // Disco macio: particula com borda dura le como confete.
     float d = length(gl_PointCoord - 0.5) * 2.0;
     float disco = pow(max(1.0 - d, 0.0), 1.8);
     // Densidade cai ao longo do rastro. Quadratica, nao linear — cauda que termina reta lia como
-    // faixa desenhada.
-    float fill = disco * pow(1.0 - vT, 1.7) * uAmount;
+    // faixa desenhada. E a mesma queda APAGA a particula antes de ela reciclar: quem chega na ponta
+    // ja esta invisivel, entao o salto de volta ao nucleo nao tem o que mostrar.
+    float fill = disco * pow(1.0 - vT, 1.7) * vBorn * uAmount;
     if (fill < 0.004) discard;
     gl_FragColor = vec4(uColor * fill, fill);
   }
@@ -198,9 +232,30 @@ export function cometParams(node = {}, color = 0xffffff) {
      * conserva parte do momento orbital e fica para trás, o que a arqueia, e ela só reflete a luz
      * da estrela — branca-amarelada. Ver as duas ao mesmo tempo é o que torna um cometa
      * inconfundível, e é por isso que uma cauda só nunca ia bastar.
+     *
+     * ⚠️ A diferença mais visível entre elas agora é a VELOCIDADE, não a curvatura: o íon escoa em
+     * 2,2 s e a poeira em 4,6 s (`MOTION.cometOutflow.periods`), porque uma é empurrada pelo vento
+     * estelar e a outra só pela pressão de radiação sobre grão pesado. Ver as duas correndo em
+     * ritmos diferentes é o que finalmente as separa a olho — parada, a curvatura sozinha lia como
+     * uma cauda grossa e torta.
      */
-    ion: Object.freeze({ color: 0x74d8ff, spread: 0.12, curve: 0, size: 260 }),
-    dust: Object.freeze({ color: 0xffe9b8, spread: 0.3, curve: 1.5 + seed * 1.6, size: 340 }),
+    ion: Object.freeze({
+      color: 0x74d8ff, spread: 0.12, curve: 0, size: 260,
+      flow: 1 / MOTION.cometOutflow.periods.ion,
+    }),
+    dust: Object.freeze({
+      color: 0xffe9b8, spread: 0.3, curve: 1.5 + seed * 1.6, size: 340,
+      flow: 1 / MOTION.cometOutflow.periods.dust,
+    }),
+    /*
+     * Rotação do núcleo pela LEI do catálogo, e ela estava escrita à mão aqui (`elapsed · 0,07`).
+     *
+     * `MOTION.spin` já lista `comet` entre quem pode girar e já define a lei — `(hash − retrógrado)
+     * · span`, que põe a taxa em [−0,056, +0,104] rad/s e faz retrógrado existir mas devagar. Um
+     * literal solto ao lado disso é a duplicata de sempre: o catálogo dizia uma coisa e a tela
+     * fazia outra, com todo cometa girando na mesma velocidade e no mesmo sentido.
+     */
+    spin: (hash01(path, 79) - MOTION.spin.retrograde) * MOTION.spin.span,
     color,
   });
 }
@@ -235,28 +290,31 @@ export function createComet() {
   /**
    * Uma cauda: `THREE.Points` com o caminho inteiro resolvido no vertex shader.
    *
-   * Os atributos são gerados UMA vez e nunca reescritos — `aT` é a fração percorrida, `aJitter` é
-   * a direção de espalhamento daquela partícula e `aSize` o tamanho dela. Tudo que depende do
-   * tempo é função fechada do relógio lá dentro, que é a mesma lei do `motion-catalog.js`: sem
-   * estado acumulado, o rastro cai igual no mesmo instante em qualquer sessão e a qualquer taxa
-   * de quadros — e não há upload de buffer por quadro.
+   * Os atributos são gerados UMA vez e nunca reescritos — `aPhase` é onde a partícula está no
+   * CICLO de escoamento, `aJitter` é a direção de espalhamento dela e `aSize` o tamanho. Tudo que
+   * depende do tempo é função fechada do relógio lá dentro, que é a mesma lei do
+   * `motion-catalog.js`: sem estado acumulado, o rastro cai igual no mesmo instante em qualquer
+   * sessão e a qualquer taxa de quadros — e não há upload de buffer por quadro, nem com a cauda
+   * escoando.
    */
   function criarCauda(ordem) {
     const geometry = new THREE.BufferGeometry();
-    const t = new Float32Array(TAIL_PARTICLES);
+    const fase = new Float32Array(TAIL_PARTICLES);
     const jitter = new Float32Array(TAIL_PARTICLES * 3);
     const size = new Float32Array(TAIL_PARTICLES);
     const posicoes = new Float32Array(TAIL_PARTICLES * 3);
     for (let i = 0; i < TAIL_PARTICLES; i += 1) {
       /*
-       * `t` ao QUADRADO, e a primeira versão usou raiz — que é o inverso do que se quer.
+       * FASE uniforme, e o quadrado que dá a densidade mudou de lugar: ele é aplicado no shader.
        *
        * A densidade tem de ser maior PERTO do núcleo, que é de onde o gás está saindo; ela rareia
-       * conforme o material se dispersa. Com raiz, as partículas se acumulavam longe, onde a queda
-       * de opacidade já as apaga: o rastro sumia e sobrava um punhado de pontos soltos. Ao
-       * quadrado, o miolo é denso e a ponta esgarça, que é a forma de um rastro.
+       * conforme o material se dispersa. (Com raiz — a primeira versão — as partículas se
+       * acumulavam longe, onde a queda de opacidade já as apaga: o rastro sumia e sobrava um punhado
+       * de pontos soltos.) Aqui a fase é uniforme e o shader faz `t = fract(fase + tempo)²`: como
+       * `fract` preserva a uniformidade, a distribuição em `t` é a MESMA em todo instante. É o que
+       * deixa a cauda escoar sem inchar nem esvaziar — ver `MOTION.cometOutflow`.
        */
-      t[i] = ((i + 0.5) / TAIL_PARTICLES) ** 2;
+      fase[i] = (i + 0.5) / TAIL_PARTICLES;
       // Direção de espalhamento numa casca esférica: sem isso o jitter concentra no centro do cubo
       // e a cauda ganha um miolo denso que não existe.
       const u = hash01(`${ordem}-${i}`, 61) * 2 - 1;
@@ -266,7 +324,7 @@ export function createComet() {
       size[i] = 0.55 + hash01(`${ordem}-${i}`, 73) * 0.9;
     }
     geometry.setAttribute('position', new THREE.BufferAttribute(posicoes, 3));
-    geometry.setAttribute('aT', new THREE.BufferAttribute(t, 1));
+    geometry.setAttribute('aPhase', new THREE.BufferAttribute(fase, 1));
     geometry.setAttribute('aJitter', new THREE.BufferAttribute(jitter, 3));
     geometry.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
 
@@ -278,6 +336,7 @@ export function createComet() {
         uSpread: { value: 0.2 },
         uCurve: { value: 0 },
         uTime: { value: 0 },
+        uFlow: { value: 0 },
         uPixel: { value: 300 },
       },
       vertexShader: TAIL_VERTEX,
@@ -321,15 +380,25 @@ export function createComet() {
      * @param {THREE.Camera} camera
      * @param {number} px        raio aparente do corpo
      * @param {number} elapsed
+     * @param {boolean} reduced  `prefers-reduced-motion` — congela escoamento e rotação
      * @returns {number} nível de detalhe aplicado, 0…1
      */
-    update(params, position, camera, px, elapsed) {
+    update(params, position, camera, px, elapsed, reduced = false) {
+      /*
+       * O MESMO PORTÃO DA GERAÇÃO PROCEDURAL vale para o escoamento, e ele já está aqui.
+       *
+       * A pele só existe para o astro EM FOCO, e abaixo de `LOD_FAR_PX` a função devolve antes de
+       * escrever uniform nenhuma. Então a cauda só escoa quando o zoom alcança — de longe não há
+       * nem partícula desenhada nem relógio avançando, e mesmo perto o custo do movimento é uma
+       * uniform por cauda, porque o caminho inteiro é resolvido no vertex shader.
+       */
       const level = THREE.MathUtils.clamp((px - LOD_FAR_PX) / (LOD_NEAR_PX - LOD_FAR_PX), 0, 1);
       group.visible = level > 0.002;
       if (!group.visible) return 0;
 
+      const relogio = reduced ? 0 : elapsed;
       nucleo.scale.setScalar(params.nucleus);
-      nucleo.rotation.set(params.seed * 6.28, elapsed * 0.07, 0);
+      nucleo.rotation.set(params.seed * 6.28, relogio * params.spin, 0);
 
       comaMat.uniforms.uColor.value.set(params.color);
       comaMat.uniforms.uAmount.value = params.amount * level;
@@ -359,7 +428,8 @@ export function createComet() {
         u.uLength.value = params.tail * (cfg.curve > 0 ? 0.78 : 1);
         u.uSpread.value = cfg.spread * params.coma;
         u.uCurve.value = cfg.curve;
-        u.uTime.value = elapsed;
+        u.uTime.value = relogio;
+        u.uFlow.value = cfg.flow;
         /*
          * ⚠️ `gl_PointSize` é pixel de FRAMEBUFFER e a conta é `tamanho/z` — a mesma régua do
          * sprite de astro (`graph.js`, onde o fator é `uSize·300`). Na primeira versão este valor

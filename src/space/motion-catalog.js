@@ -317,6 +317,75 @@ export const MOTION = Object.freeze({
   }),
 
   /**
+   * O gás DEIXANDO o núcleo de um cometa. Transporte de matéria, e é o que o separa do resto.
+   *
+   * ## Por que a cauda parada era um defeito, e não uma escolha
+   *
+   * A primeira cauda já tinha `uTime`: duas senoides deslizando ao longo do eixo. Isso ondula a
+   * cauda — e ondular não é escoar. Cada partícula ficava presa à sua própria posição no eixo,
+   * então o rastro inteiro se mexia como uma bandeira presa ao mastro. Um cometa não faz isso: o
+   * que se vê é MATERIAL saindo, e a cauda existe só porque o núcleo não para de perder massa.
+   *
+   * É a mesma distinção que `patternSpin` foi escrito para marcar, do outro lado: lá o padrão gira
+   * SEM transportar matéria e por isso não enrola; aqui a matéria é transportada de verdade, e a
+   * cauda só não enrola porque ela não é uma órbita — é um jato radial.
+   *
+   * ## O ensemble é ESTACIONÁRIO, e essa é a propriedade que faz a conta fechar
+   *
+   * Cada partícula carrega uma fase; a fração percorrida é `fract(fase + t·fluxo)`. Quem sai pela
+   * ponta reaparece no núcleo. Como as fases nascem uniformes em [0,1), `fract` as mantém uniformes
+   * para sempre: a cauda escoa sem mudar de forma nem de densidade, e não há um só quadro em que
+   * ela pareça mais cheia ou mais vazia. Sem isso o rastro pulsaria no período do ciclo.
+   *
+   * Nada disso é estado acumulado — continua sendo `f(relógio)`, a lei deste catálogo, e por isso
+   * nenhum buffer é reescrito por quadro: o escoamento inteiro é UMA uniform.
+   */
+  cometOutflow: Object.freeze({
+    id: 'cometOutflow',
+    status: 'applied',
+    law: 'distância ao núcleo cresce com o QUADRADO do tempo desde a soltura; o ensemble é estacionário',
+    /*
+     * Segundos para uma partícula atravessar a cauda inteira, e o ÍON é o rápido.
+     *
+     * A razão real entre as duas é brutal: a cauda de íons é empurrada pelo vento estelar a
+     * centenas de km/s, e a de poeira só pela pressão de radiação sobre grãos pesados — dezenas de
+     * vezes mais devagar. Reproduzida fiel, a poeira ficaria parada na tela enquanto o íon
+     * estouraria, e o par deixaria de ler como duas caudas do mesmo corpo. 2× é o que separa as
+     * duas a olho mantendo as duas visivelmente vivas — a mesma licença declarada que a escala de
+     * tempo das luas e a esfera de Hill cheia.
+     *
+     * MEDIDO na tela, em `deploy/daimon/bootstrap-loop.sh` (churn 13, a cauda mais longa do corpus)
+     * no enquadramento em que ela cabe inteira: o rastro de poeira ocupa ~410 px. Uma travessia em
+     * 4,6 s dá ~89 px/s de MÉDIA, e o íon (rastro maior, ciclo menor) fica em ~240. Como a partícula
+     * acelera, a velocidade vale a média no meio do rastro e o dobro dela na ponta.
+     *
+     * Para comparar, `patternSpin` foi calibrado em ~21 px/s no mesmo tipo de enquadramento — e a
+     * ordem é a certa: braço de galáxia tem de ser majestoso, jato de gás tem de ser jato.
+     *
+     * ⚠️ Os dois números dependem do enquadramento e o `px` do corpo não é exposto por nenhuma
+     * sonda; o que está calibrado aqui é o TEMPO DE TRAVESSIA, que não depende. Se um dia a sonda
+     * publicar o `px`, a conta vira medida direta em vez de derivada de um span lido na imagem.
+     *
+     * ⚠️ O período é FIXO e o comprimento varia com a atividade, então cometa mais ativo escoa mais
+     * RÁPIDO. É o certo pela física — a cauda é longa justamente porque o gás foi mais longe no
+     * mesmo tempo — e sai de graça de calibrar por período em vez de por velocidade.
+     */
+    periods: Object.freeze({ ion: 2.2, dust: 4.6 }),
+    allowed: ['comet'],
+    forbids: Object.freeze({
+      envelope: 'remanescente é evento com fim — escoamento contínuo afirmaria uma fonte ainda alimentando a casca',
+      photosphere: 'a superfície ferve no LUGAR; transporte líquido para fora seria perda de massa, não convecção',
+    }),
+    /*
+     * `freeze`, e a checagem é a de sempre: o que a cauda informa é DIREÇÃO (para longe da fonte) e
+     * ATIVIDADE (comprimento e brilho, vindos do `churn`). Nenhuma das duas depende do escoamento —
+     * parada, a cauda continua dizendo as duas coisas. E com `uTime = 0` a distribuição cai
+     * exatamente onde a versão estática caía, então o quadro congelado é o desenho antigo.
+     */
+    reduced: 'freeze',
+  }),
+
+  /**
    * A body turning on its own axis.
    */
   spin: Object.freeze({

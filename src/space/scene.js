@@ -1251,7 +1251,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       if (decisao.surface === SURFACE.STATION) level = station.update(morphParams, pouso.px, elapsed);
       else station.object.visible = false;
       if (decisao.surface === SURFACE.COMET) {
-        level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed);
+        level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());
       } else comet.object.visible = false;
       if (decisao.surface === SURFACE.PULSAR) {
         level = pulsar.update(morphParams, pouso.px, elapsed, motion.isReduced());
