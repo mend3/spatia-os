@@ -250,8 +250,19 @@ export const CELESTIAL = [
      * pretendida é "grupo co-móvel", a aresta tem de ser PADRÃO (mesma fase, mesma cor), não
      * segmento permanente.
      */
-    from: '`node.type !== "file"` (repo, diretório) e, futuramente, `git_root`',
-    test: (node) => node.type !== 'file',
+    from: '`node.type` em (`repo`, `dir`) e, futuramente, `git_root`',
+    /*
+     * ⚠️ Era `node.type !== 'file'` — classificação por EXCLUSÃO, e ela já mordeu uma vez.
+     *
+     * A lua escapava só porque a classe `lua` tem prioridade maior; qualquer tipo de nó novo caía
+     * aqui em silêncio e virava galáxia. O solver tinha o mesmo teste e o consertou primeiro
+     * (a lua em foco resolvia como GALÁXIA); esta é a outra metade do mesmo defeito, no lugar onde
+     * a CLASSE é decidida.
+     *
+     * Nomear os dois tipos faz o tipo novo nascer FORA daqui, que é o comportamento certo: ele cai
+     * no `desconhecido` abaixo e a tela diz que não sabe, em vez de afirmar um continente.
+     */
+    test: (node) => node.type === 'repo' || node.type === 'dir',
     features: { aggregate: 'tamanho pela soma dos filhos; sem janela temporal própria' },
     forbids: {
       supernova: 'agregado não tem história própria, tem a dos filhos',
@@ -265,9 +276,17 @@ export const CELESTIAL = [
     name: 'ESTRELA',
     priority: 0,
     status: 'rendered',
-    /** A classe padrão: arquivo indexado, sem nenhum fato extra. */
+    /** A classe padrão: ARQUIVO indexado, sem nenhum fato extra. */
     from: null,
-    test: () => true,
+    /*
+     * ⚠️ Era `() => true` — pega-tudo, e com o `galaxia` deixando de classificar por exclusão isso
+     * passaria a varrer todo tipo de nó novo para cá. Um tipo que não é arquivo desenhado como
+     * estrela é a mesma mentira que a galáxia era, com outro corpo.
+     *
+     * O pega-tudo agora é `desconhecido`, logo abaixo, e ele não desenha nada — o que é o certo:
+     * a tela não sabe o que é aquilo, e dizer isso é mais barato que inventar.
+     */
+    test: (node) => node?.type === 'file',
     features: {
       core: 'sprite emissivo; raio por log2(chunks), cor por kind, órbita por recência',
       corona: 'só em nó aceso pela busca — evento, e ele passa',
@@ -311,8 +330,31 @@ const BY_PRIORITY = [...CELESTIAL].sort((a, b) => b.priority - a.priority);
  * @param {{dirty?: string|null}} [facts]
  * @returns {object} a entrada do catálogo
  */
+/**
+ * O PEGA-TUDO, e ele existe para não desenhar nada.
+ *
+ * Toda outra classe agora nomeia os tipos que aceita, em vez de excluir os que não aceita — a
+ * classificação por exclusão já produziu dois defeitos (lua virando galáxia no solver, e a mesma
+ * coisa aqui). O preço de nomear é precisar de um fundo de escala explícito: é este.
+ *
+ * `priority: -1` o põe por último, e `forbids` em tudo faz o solver recusar com motivo em vez de
+ * escolher um corpo qualquer. Um tipo de nó novo aparece como ponto e a sonda diz por quê.
+ */
+const UNKNOWN = Object.freeze({
+  id: 'desconhecido',
+  name: 'NÃO CATALOGADO',
+  priority: -1,
+  status: 'declared',
+  from: 'nenhuma outra classe reconheceu o `type` deste nó',
+  test: () => true,
+  features: {},
+  forbids: Object.freeze({
+    surface: 'tipo de nó não catalogado — desenhar um corpo afirmaria saber o que ele é',
+  }),
+});
+
 export function classify(node, facts = {}) {
-  return BY_PRIORITY.find((entry) => entry.test(node, facts)) ?? BY_PRIORITY[BY_PRIORITY.length - 1];
+  return BY_PRIORITY.find((entry) => entry.test(node, facts)) ?? UNKNOWN;
 }
 
 /** A classe deste nó pode carregar esta feição? Consulta o `forbids` declarado. */
