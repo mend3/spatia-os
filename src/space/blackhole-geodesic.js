@@ -39,9 +39,17 @@
  *
  * Lidas em disco (`~/.opensrc`/clone local), não de memória, que é a regra deste projeto:
  *
- * - **`vlwkaos/threejs-blackhole`** (ISC) — a integração leapfrog da geodésica nula exata, com o
+ * - **`vlwkaos/threejs-blackhole`** (⚠️ licença AMBÍGUA — ver abaixo) — a integração leapfrog da
+ *   geodésica nula exata, com o
  *   momento angular conservado: `a = −1,5·h²·p/|p|⁵`, `h² = |p × v|²`. É a forma que este arquivo
  *   usa, porque ela é a equação certa e não custa mais que a aproximação.
+ *   ⚠️ **Este cabeçalho dizia "(ISC)" e era FALSO.** O repositório não tem arquivo de licença e o
+ *   README lista Apache-2.0, MIT e GPL-3.0 sem dizer o que cobre o quê — conferido na fonte, não
+ *   de memória. O que este arquivo usa de lá é a EQUAÇÃO (física publicada, não expressão
+ *   protegida); nenhuma linha de código veio junto, e não pode vir enquanto isso não estiver claro.
+ *   A referência de licença limpa para esta cena é `ebruneton/black_hole_shader` (BSD-3-Clause),
+ *   catalogada em `opensrc` como `black-hole-shader`.
+ *
  * - **`dgreenheck/webgpu-black-hole`** (MIT) — a estrutura do laço prático: 64 passos, corte por
  *   captura/escape, interseção do disco por TROCA DE SINAL em y com interpolação linear até o
  *   cruzamento, e composição front-to-back por alfa. É o que torna o custo viável em tempo real.
