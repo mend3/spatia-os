@@ -124,7 +124,17 @@ export function resolveBody(node, facts = {}) {
       rejected: Object.freeze(rejected),
     });
 
-  if (node?.type && node.type !== 'file') {
+  /*
+   * ⚠️ AGREGADO é repo ou diretório — e este teste era `type !== 'file'`, que varre a LUA junto.
+   *
+   * O `moon` não existia quando esta linha foi escrita, e ela o classificou por exclusão: uma lua
+   * em foco resolvia como GALÁXIA, que é o corpo do continente. Encontrado auditando o `kind`, não
+   * pela tela — a lua raramente é clicada, e quando for o defeito aparece inteiro.
+   *
+   * Nomear os dois tipos em vez de excluir um: a próxima categoria de nó nasce fora deste ramo por
+   * padrão, que é o comportamento certo. Por exclusão, ela nasceria dentro dele em silêncio.
+   */
+  if (node?.type === 'repo' || node?.type === 'dir') {
     /*
      * ⚠️ O solver DECIDE galáxia e a cena ainda não a desenha — `space/galaxy.js` existe e só
      * roda na bancada. A sonda separa `tipo` (o que foi decidido) de `desenhado` (o que a tela

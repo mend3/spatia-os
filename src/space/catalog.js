@@ -218,11 +218,19 @@ export const CELESTIAL = [
     test: (node) => node.type === 'moon',
     features: {
       orbit: 'raio pela esfera de Hill do pai; travada por maré, sem rotação própria',
-      surface: 'nenhuma — a lua é ponto, e a 0,39–0,53 do raio do pai não há superfície a resolver',
     },
     forbids: {
       spin: 'todas as 19 luas arredondadas do Sistema Solar estão travadas por maré',
       moon: 'nenhum satélite de satélite foi observado em lugar nenhum',
+      /*
+       * ⚠️ Isto era `features.surface: 'nenhuma — …'` e NÃO era obedecido.
+       *
+       * `allows()` consulta `forbids`, não `features` — então a frase "a lua é ponto e não há
+       * superfície a resolver" estava escrita e o solver liberava superfície assim mesmo. É a mesma
+       * classe de defeito do slider `edgeOpacity`, que dizia governar o vínculo e nada o lia: a
+       * declaração existia, a aplicação não. Declarar uma invariante não a implementa.
+       */
+      surface: 'a lua é ponto — a 1–5% do raio do pai não há superfície a resolver',
     },
   },
 
