@@ -256,18 +256,43 @@ const COMA_FRAGMENT = /* glsl */ `
   uniform vec3 uColor;
   uniform float uAmount;
   uniform float uCore;
+  uniform vec2 uSun;
   varying vec2 vUv;
   void main(){
+    vec2 p = (vUv - 0.5) * 2.0;
+    float d = length(p);
+
     /*
-     * Coma e NEBLINA, nao bola.
+     * A COMA CAI COM 1/rho, e nao como um polinomio macio. E a lei, nao um ajuste de gosto.
      *
-     * Ela envolve o nucleo e o esconde parcialmente — e o que faz a transicao do corpo para a
-     * cauda ser gradual em vez de abrupta. Com expoente alto (2,4) ela virava um disco solido de
-     * borda quase definida, e o cometa lia como esfera brilhante com pontos ao lado. 1,4 espalha
-     * o mesmo total por uma area maior, que e o que neblina faz.
+     * O nucleo sopra gas radialmente a velocidade quase constante, entao a densidade cai com
+     * 1/r^2 (mesma massa por segundo espalhada numa casca que cresce com r^2). O que a camera ve
+     * e a INTEGRAL disso ao longo da linha de visada, e essa integral da 1/rho — rho sendo a
+     * distancia ao centro na tela. Uma lei em 1/rho tem nucleo estourado e halo extenso: e o
+     * perfil de toda foto de cometa.
+     *
+     * A lei antiga, pow(1 - d, 1.4), nao tem nada disso. Ela e chata no meio e cai a zero numa
+     * borda, entao
+     * lia como bola de gude fosca pintada por tras do corpo — o "glow sem sensacao realista". A
+     * diferenca nao e sutil: em d = 0,3 a lei antiga da 0,60 e a nova da 0,50; em d = 0,05 a
+     * antiga da 0,93 e a nova SATURA. O contraste todo mora perto do nucleo, e era ele que
+     * faltava.
      */
-    float d = length((vUv - 0.5) * 2.0);
-    float fill = pow(max(1.0 - d, 0.0), 1.4) * uAmount * 0.55;
+    vec2 dir = d > 1e-4 ? p / d : vec2(1.0, 0.0);
+    /*
+     * E ela NAO e esferica: comprimida do lado da fonte, alongada no rumo da cauda.
+     *
+     * O gas sublima na face iluminada e o vento estelar o varre para tras na hora. O resultado e
+     * uma parabola com o nucleo no foco, nao um circulo — e e o que LIGA a coma a cauda. Sem
+     * isso ficava uma bola do lado de um risco, duas figuras em vez de um corpo.
+     */
+    float rho = d * (1.0 + 0.42 * dot(dir, uSun));
+    // O piso e o raio do proprio corpo: dentro dele nao ha coluna de gas para integrar, e sem o
+    // piso a lei diverge e o centro vira um pixel branco cravado.
+    float fill = (uCore / max(rho, uCore)) * uAmount * 0.55;
+    // Corte macio na borda do quad. A lei em 1/rho nunca chega a zero sozinha, e sem isto o
+    // retangulo apareceria como uma quina no ceu.
+    fill *= smoothstep(1.0, 0.42, d);
     /*
      * O CORPO OCULTA A COMA ATRAS DELE — e sem isto o nucleo nao existe na tela.
      *
@@ -395,6 +420,8 @@ export function createComet() {
       uColor: { value: new THREE.Color(0xffffff) },
       uAmount: { value: 0 },
       uCore: { value: 0.15 },
+      /** Direção da FONTE, projetada no plano do billboard — é o que assimetriza a coma. */
+      uSun: { value: new THREE.Vector2(1, 0) },
     },
     vertexShader: VERTEX,
     fragmentShader: COMA_FRAGMENT,
@@ -487,6 +514,9 @@ export function createComet() {
   leque.add(ion.object, dust.object);
   group.add(leque);
 
+  const DIREITA = new THREE.Vector3();
+  const CIMA_CAM = new THREE.Vector3();
+  const PARA_FONTE = new THREE.Vector3();
   const PARA_FORA = new THREE.Vector3();
   const OLHAR = new THREE.Vector3();
   const CIMA = new THREE.Vector3();
@@ -542,6 +572,18 @@ export function createComet() {
       comaMat.uniforms.uCore.value = params.nucleus / Math.max(params.coma, 1e-4);
       coma.scale.setScalar(params.coma);
       coma.quaternion.copy(camera.quaternion);
+      /*
+       * A direção da fonte, PROJETADA no plano do billboard.
+       *
+       * O quad copia a orientação da câmera, então o eixo local X é a direita da câmera e o Y é o
+       * cima — as duas colunas da matriz de mundo dela. Projetar nelas leva uma direção de mundo
+       * para o mesmo espaço em que o shader lê `vUv`, e é a única conversão que faz a assimetria
+       * apontar para onde a fonte de fato está em vez de para um lado fixo da tela.
+       */
+      DIREITA.setFromMatrixColumn(camera.matrixWorld, 0);
+      CIMA_CAM.setFromMatrixColumn(camera.matrixWorld, 1);
+      PARA_FONTE.copy(position).normalize().negate();
+      comaMat.uniforms.uSun.value.set(PARA_FONTE.dot(DIREITA), PARA_FONTE.dot(CIMA_CAM)).normalize();
 
       /*
        * AS DUAS CAUDAS APONTAM PARA LONGE DA FONTE — e é isto que faz delas caudas.
