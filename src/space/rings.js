@@ -37,6 +37,8 @@
  * muda um pixel. Sai de graça obedecendo `prefers-reduced-motion` — não há movimento a reduzir.
  */
 import * as THREE from 'three';
+import { GLSL_OPTICAL_DEPTH, ASPECT_FOLHA } from './optical-depth.js';
+import { glslFloat } from './glsl.js';
 import { profileTexture } from './ring-profiles.js';
 import { rockTexture } from './ring-rock.js';
 import { GLSL_PSNOISE } from './ring-noise.js';
@@ -304,6 +306,7 @@ const VERTEX = /* glsl */ `
   const float GRAIN = 0.55;
 
   ${GLSL_PSNOISE}
+  ${GLSL_OPTICAL_DEPTH}
 
   // Banda-limitacao (Quilez): a oitava que oscila mais de uma vez por pixel nao pode ser
   // amostrada. Apaga-la custa um smoothstep; supersampla-la custaria N vezes o shader.
@@ -419,8 +422,14 @@ const VERTEX = /* glsl */ `
      * clareiam e as densas SATURAM. O perfil achata sozinho no tombo raso, e essa e a
      * assinatura que separa uma laje de uma pintura.
      */
-    float mu = max(uCosTilt, 0.05);
-    float seen = 1.0 - exp(-DEPTH * density / mu);
+    /*
+     * ⚠️ ESTA LEI NASCEU AQUI e agora mora em optical-depth.js — o anel foi o primeiro objeto
+     * desta cena a ter profundidade óptica, e a fórmula ficou trancada dentro dele por meses
+     * enquanto o disco do quasar e o da galáxia continuavam chapados. O usuário pediu "o mesmo
+     * efeito de densidade e profundidade" para todos, e o certo não era copiá-la duas vezes: era
+     * tirá-la daqui. Comportamento IDÊNTICO — mesma exponencial, mesmo piso de 0,05.
+     */
+    float seen = saidaDaLaje(DEPTH * density, uCosTilt, ${glslFloat(ASPECT_FOLHA)});
 
     float intensity = (seen * lit + sparkle * uNear) * phaseTerm(p.y) * uOpacity;
     if (intensity < 0.004) discard;

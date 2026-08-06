@@ -128,6 +128,8 @@
  * now no evidence at all.
  */
 import * as THREE from 'three';
+import { GLSL_OPTICAL_DEPTH, ASPECT_FOLHA } from './optical-depth.js';
+import { glslFloat } from './glsl.js';
 import { hash01, KIND_COLORS } from './graph.js';
 import { GLSL_PSNOISE } from './ring-noise.js';
 import { armsFor, classForConcentration, GALAXY_CLASSES, MIN_ARMS } from './galaxy-classes.js';
@@ -451,6 +453,7 @@ const FRAGMENT = /* glsl */ `
   const vec3 W = vec3(${W_AXIS[0].toFixed(4)}, ${W_AXIS[1].toFixed(4)}, ${W_AXIS[2].toFixed(4)});
 
   ${GLSL_PSNOISE}
+  ${GLSL_OPTICAL_DEPTH}
 
   // Integer lacunarity in EVERY octave. The classic 2.01 (used against visible repetition)
   // would reopen the azimuthal seam at +-pi — the point ring-rig.js:63-65 already makes.
@@ -614,7 +617,23 @@ const FRAGMENT = /* glsl */ `
 
     // max(0) only ever bites when the bench pushes ARM CONTRAST past its design range; at
     // ARM_AMP the factor bottoms out near 0.33 and the invariant above is untouched.
-    float diskLight = disk * vGain.z * max(0.0, 1.0 + armMod);
+    /*
+     * A COLUNA DE POEIRA, e ela e a razao de uma espiral de perfil mostrar a faixa escura.
+     *
+     * A luz do disco atravessa uma COLUNA de gas e poeira, nao um ponto, e a coluna cresce com
+     * 1/cos(i). De frente o disco e o mais fino que pode ser; de perfil ele satura e vira uma
+     * barra densa. Sem isso um disco inclinado e so a mesma pintura comprimida — o efeito chapado
+     * que o usuario pediu para tirar de TODOS os discos da cena. A lei mora em optical-depth.js,
+     * a mesma do anel e a mesma do quasar.
+     *
+     * ⚠️ NORMALIZADA PELA VISTA DE FRENTE, e isto nao e detalhe: aplicar a lei crua multiplicaria
+     * cada uma das 213 galaxias por 0,5 e o ceu inteiro escureceria de uma vez. Dividindo pelo
+     * valor de frente, a pose que ja foi aprovada continua identica e o que ENTRA e so o ganho de
+     * densidade ao inclinar — que era o pedido.
+     */
+    float colunaDisco = saidaDaLaje(0.7, cosInc, ${glslFloat(ASPECT_FOLHA)})
+                      / saidaDaLaje(0.7, 1.0, ${glslFloat(ASPECT_FOLHA)});
+    float diskLight = disk * vGain.z * max(0.0, 1.0 + armMod) * colunaDisco;
 
     vec3 color = (vWarm * (bulge + bar) + diskTint * diskLight) * uGain;
     if (max(max(color.r, color.g), color.b) < 0.0015) discard;
