@@ -36,9 +36,23 @@ import { glslFloat } from './glsl.js';
 
 const DRIFT = MOTION.nebulaDrift;
 
-/** Onde a nebulosa começa a aparecer e onde satura, em pixels de raio do corpo. */
+/**
+ * Onde a nebulosa começa a aparecer e onde satura, em pixels de raio do corpo.
+ *
+ * ⚠️ **O teto era 95 e o enquadramento nunca chegava lá** — corrigido em 2026-08-07, quando o
+ * `chegaPleno` do `budget()` deixou de ser um campo calculado e virou invariante obrigada.
+ * `SKIN_EXTENT.nebula` é 3,4, então a chegada entrega `260/3,4 = 76` px de raio de CORPO: a pele
+ * nascia em `level` 0,74 (medido na cena: 0,736) e não havia zoom que ajudasse, porque o chão do
+ * zoom é o mesmo enquadramento.
+ *
+ * A régua estava apertada demais por um motivo específico: ela mede o CORPO, e aqui o corpo não
+ * existe — a figura é a nuvem, que vale `span` (3,0–5,3) vezes esse raio. Exigir 95 px de corpo é
+ * exigir ~400 px de nuvem, mais da metade da meia-altura desta tela. Em 70 a nuvem chega cheia com
+ * 210–370 px, que é a faixa onde a bancada mostra os filamentos e a cavidade (escada medida no
+ * espécime `COROA SOB A PELE`: 55 é um nó apagado, 76 lê fraco, 99 lê cheio).
+ */
 export const LOD_FAR_PX = 22;
-export const LOD_NEAR_PX = 95;
+export const LOD_NEAR_PX = 70;
 
 /**
  * Quanto do raio de referência o CORPO ocupa — nada: a nebulosa não tem corpo.
@@ -193,10 +207,29 @@ export function createNebula() {
     blending: THREE.AdditiveBlending,
   });
 
-  const object = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  /*
+   * ⚠️ A NUVEM É FILHA, e até 2026-08-07 ela era o próprio `object` — o que apagava o raio do corpo.
+   *
+   * `scene.js` escala esta pele por `pouso.radius`, como faz com as outras quatro. Escalando o
+   * MESMO objeto por `params.span` aqui dentro, o `setScalar` de lá era sobrescrito todo quadro: a
+   * nebulosa tinha tamanho ABSOLUTO em unidades de mundo e o astro que a nomeia não entrava na
+   * conta. O arquivo inteiro documenta `span` "em raios do corpo" (ver `SPAN`), e ela não era.
+   *
+   * Foi a bancada que pegou: no espécime `COROA SOB A PELE`, varrer o RAIO DE REFERÊNCIA de 0,89 a
+   * 0,19 mudava o `px` do corpo (259 → 55) e a nuvem ficava do mesmo tamanho na tela, quadro a
+   * quadro. As outras três peles nunca tiveram isto porque escalam FILHOS (`nucleo`, `coma`,
+   * `montagem`, `core`), que multiplicam com o pai em vez de substituí-lo.
+   *
+   * O billboard fica na filha, e é seguro porque o grupo pai não gira — `scene.js` só lhe escreve
+   * posição e escala. Se algum dia ele girar, esta cópia de quaternion passa a ser local e mente.
+   */
+  const nuvem = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  nuvem.frustumCulled = false;
+  // `renderOrder` é por objeto e não desce do grupo: ele mora na malha, que é quem desenha.
+  nuvem.renderOrder = 8;
+  const object = new THREE.Group();
+  object.add(nuvem);
   object.visible = false;
-  object.frustumCulled = false;
-  object.renderOrder = 8;
 
   return {
     object,
@@ -223,13 +256,15 @@ export function createNebula() {
       // Congela o RELÓGIO, não o parâmetro: parada, ela fica num instante legítimo do escoamento.
       // Zerar a amplitude alinharia a cavidade e apagaria a estrutura que ela existe para dar.
       u.uTime.value = reduced ? 0 : elapsed;
-      object.scale.setScalar(params.span);
-      object.quaternion.copy(camera.quaternion);
+      // Na FILHA: multiplica o raio do corpo que `scene.js` pôs no grupo, em vez de apagá-lo.
+      nuvem.scale.setScalar(params.span);
+      nuvem.quaternion.copy(camera.quaternion);
       return level;
     },
 
     dispose() {
-      object.geometry.dispose();
+      // A geometria é da NUVEM desde que ela virou filha — `object` é um grupo e não tem nenhuma.
+      nuvem.geometry.dispose();
       material.dispose();
     },
   };

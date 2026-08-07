@@ -136,7 +136,23 @@ export const FOCUS_FLOOR_RADII = 3.4;
  * O teto de cada pele está em `budget()`, e ele é obrigado na carga deste módulo. O teto do pulsar
  * é 10 (`260/26`) e o de detalhe pleno é 2,6 (`260/100`) — 1,2 passa nos dois com folga.
  */
-export const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 1.2, station: 1.15 });
+/*
+ * ⚠️ **E o COMETA foi de 3 a 1,6 em 2026-08-07, pela mesma lição, com a escada medida.**
+ *
+ * A 3 ele chegava com `260/3 = 87` px de corpo (medido: 82–91) — e a bancada responde o que isso
+ * custa, descendo o `px` degrau a degrau no espécime `COROA SOB A PELE`: em 259 e 175 a cauda tem
+ * GRÃO e a coma se separa dela; em 131 o grão some e a cauda vira um borrão liso; em 99, 87 e 76 a
+ * cabeça inteira é um ponto com um risco. O cometa arrivava abaixo do degrau em que ele se lê.
+ *
+ * A figura aqui é a CABEÇA — núcleo (0,14–0,30) mais coma (0,9–2,4), média 1,65. A cauda vai a 9
+ * raios e é ambiente: ela pode e deve sair do quadro, exatamente como o vento do pulsar. 1,6
+ * enquadra a coma média e põe o corpo em 162 px, dentro da faixa que a escada aprova.
+ *
+ * O que se compra e o que se paga: `chegaPleno` passa (teto 2,36 = 260/110) e a cauda de um corpo
+ * ativo cai em `9/1,6 × 260` = 1.463 px, muito além da meia-altura (742) — ou seja, ela sai do
+ * quadro inteira nos cometas mais ativos. Era isso ou continuar enquadrando a extensão.
+ */
+export const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 1.6, pulsar: 1.2, station: 1.15 });
 
 /**
  * O piso e o teto de detalhe de cada pele, ao lado do recuo que a leva até lá.
@@ -279,3 +295,30 @@ for (const linha of budget()) {
   );
 }
 
+/*
+ * A SEGUNDA INVARIANTE, e ela estava CALCULADA aqui sem ninguém obrigá-la.
+ *
+ * `chegaPleno` existia como campo do `budget()` desde que este módulo nasceu — e "existe desenho"
+ * (o laço acima) é um piso baixo demais: o cometa passava nele com folga de 2,9x e mesmo assim
+ * chegava em `level` 0,80, a nebulosa em 0,74. Chegar num corpo e recebê-lo pela metade é o
+ * defeito que o pulsar pagou em 2026-08-07, e ele não era detectável por este arquivo justamente
+ * porque o número certo estava impresso e não lido. Declarar uma invariante não a implementa — a
+ * quarta vez que esta base escreve isso.
+ *
+ * ⚠️ Quem for afrouxar: há DUAS saídas por pele e elas não são intercambiáveis. Baixar
+ * `SKIN_EXTENT` quando a figura cabe mais perto (foi o cometa: a cauda é ambiente) ou baixar
+ * `LOD_NEAR_PX` quando a régua do módulo pede mais corpo do que a figura precisa (foi a nebulosa:
+ * a nuvem vale 3 a 5 raios do corpo, então 95 px de CORPO eram ~400 px de NUVEM). Escolher a
+ * errada some com a figura do quadro ou entrega detalhe que ninguém vê.
+ */
+for (const linha of budget()) {
+  if (linha.chegaPleno) continue;
+  throw new RangeError(
+    `SKIN_EXTENT.${linha.surface} = ${linha.extent} põe o corpo em ` +
+      `${(FOCUS_FIT_PX / linha.extent).toFixed(1)}px na chegada, e ${linha.surface} só fecha o ` +
+      `detalhe em LOD_NEAR_PX = ${linha.near}: a pele nasce em nível ` +
+      `${((FOCUS_FIT_PX / linha.extent - linha.far) / (linha.near - linha.far)).toFixed(2)} e o ` +
+      `chão do zoom não conserta (é o mesmo enquadramento). O teto é ${linha.extentPleno} ` +
+      `(= FOCUS_FIT_PX/LOD_NEAR_PX) — ou baixe o recuo, ou baixe a régua do módulo.`
+  );
+}
