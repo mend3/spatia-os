@@ -1124,11 +1124,16 @@ export function createGraph() {
          * proíbe? o corpo hospeda? Quem não recebe sai com a FRASE da recusa em `rejected`, então
          * "por que este arquivo sujo não tem anel?" tem resposta.
          */
-        if (!resolveBody(nodes[i], { dirty: state }).modifiers.includes(MODIFIER.RING)) continue;
+        const decisao = resolveBody(nodes[i], { dirty: state });
+        const anel = decisao.modifiers.includes(MODIFIER.RING);
+        const detritos = decisao.modifiers.includes(MODIFIER.DEBRIS);
+        if (!anel && !detritos) continue;
         // Corpo escondido não deixa o anel dele para trás: um anel sem estrela no meio lê como
         // defeito de render, e o filtro é justamente o gesto de tirar aquele tipo da tela.
         if (hidden?.[i]) continue;
-        entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency });
+        // `detritos` diz QUAL objeto em órbita — anel planetário ou disco de detritos. Os dois
+        // saem do mesmo módulo porque os dois são material orbital; o que muda é o perfil.
+        entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency, detritos });
         ringed.push(i);
       }
 

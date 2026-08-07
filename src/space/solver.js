@@ -33,7 +33,7 @@
  * probe already writes even the negative case, because *"diagnóstico que só existe no caminho
  * feliz não é diagnóstico"*. Every rejection here travels with the sentence that caused it.
  */
-import { classify, allows, SUPERNOVA_FLOOR, morphologyOf, ringHost } from './catalog.js';
+import { classify, allows, SUPERNOVA_FLOOR, morphologyOf, orbitingOf } from './catalog.js';
 
 /**
  * STATE MODIFIERS — stage 4's candidates, resolved here.
@@ -44,7 +44,7 @@ import { classify, allows, SUPERNOVA_FLOOR, morphologyOf, ringHost } from './cat
  * from the `aSupernova` attribute without consulting any class, so a file that is both dirty and
  * hot drew both at once. Exactly the stacking `catalog.js` opens by describing.
  */
-export const MODIFIER = Object.freeze({ ENVELOPE: 'envelope', RING: 'ring' });
+export const MODIFIER = Object.freeze({ ENVELOPE: 'envelope', RING: 'ring', DEBRIS: 'debris' });
 
 /**
  * The near-view skins. Exactly one per body, and that is structural rather than a rule to enforce:
@@ -115,9 +115,14 @@ export function resolveBody(node, facts = {}) {
    * ⚠️ E ele agora PERGUNTA se o corpo aceita, em dois níveis — o que era impossível enquanto ele
    * substituía o corpo por um planeta:
    *   1. a CLASSE pode proibir (`cometa-extinto`: cauda e anel juntos não descrevem nada);
-   *   2. o CORPO pode não hospedar (`ringHost`: estrela não tem anel planetário).
+   *   2. o CORPO decide QUAL objeto ele hospeda (`orbitingOf`).
    * As duas recusas viajam com a frase que as causou, senão "por que este arquivo sujo não tem
    * anel?" não teria resposta em lugar nenhum.
+   *
+   * ⚠️ E o corpo pode hospedar OUTRA COISA em vez de recusar. A estrela não ganha um anel — ela
+   * ganha um DISCO DE DETRITOS, que é o objeto certo para ela e é a frase que abre o catálogo.
+   * São dois modificadores distintos porque são dois objetos distintos: cavidade dominante e
+   * cinturão estreito de um lado, faixas coladas no corpo do outro.
    */
   /*
    * ⚠️ O CORPO QUE VAI SER DESENHADO, não o da morfologia — e a diferença é real desde que a
@@ -135,11 +140,11 @@ export function resolveBody(node, facts = {}) {
   // indexa hub na tabela de sujos, mas o solver é chamado de mais lugares que aquele laço.
   if (facts.dirty && node?.type === 'file') {
     const proibidoPelaClasse = klass.forbids?.ring;
-    const hospeda = corpo ? ringHost(corpo) : true;
+    const emOrbita = corpo ? orbitingOf(corpo) : 'anel';
     if (proibidoPelaClasse) refuse(MODIFIER.RING, proibidoPelaClasse);
-    else if (hospeda !== true) refuse(MODIFIER.RING, hospeda);
+    else if (typeof emOrbita !== 'string') refuse(MODIFIER.RING, emOrbita.reason);
     else {
-      modifiers.push(MODIFIER.RING);
+      modifiers.push(emOrbita === 'disco-de-detritos' ? MODIFIER.DEBRIS : MODIFIER.RING);
       temAnel = true;
     }
   }

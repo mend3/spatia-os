@@ -445,23 +445,58 @@ export const RING_SPIN = 'kepleriano, ω ∝ r^-1.5: a borda interna gira mais r
  * A recusa NÃO é silenciosa: o `solver.js` a registra com a frase, e a sonda a publica. "Por que
  * este arquivo sujo não tem anel?" tem resposta na tela.
  */
-const RING_HOST = Object.freeze({
-  planeta: true,
+const CIRCUMSTELLAR = Object.freeze({
+  planeta: 'anel',
   /*
-   * Corpo pequeno TEM anel — Chariklo (ocultação de 03/06/2013), Haumea (2017), Quaoar (2022).
-   * O que não tem é estrela: a pressão de radiação e o arrasto de Poynting-Robertson varrem o
-   * material. É a regra que abre o catálogo, e aqui é onde ela finalmente é consultada.
+   * ⚠️ A ESTRELA NÃO GANHA NADA MENOS — ela ganha OUTRA COISA, e é a frase que abre este arquivo:
+   * *estrela tem DISCO DE DETRITOS, não anel*. A pressão de radiação e o arrasto de
+   * Poynting-Robertson varrem o material que um anel planetário precisaria; o que sobra é poeira
+   * reposta por colisões, numa cavidade enorme com um cinturão estreito lá fora.
+   *
+   * Enquanto o disco não existia, esta linha era uma RECUSA, e ela custava o sinal de "sujo" em
+   * 4 dos 17 arquivos alterados. Agora ela é um destino.
    */
-  fotosfera: 'estrela não tem anel planetário — a pressão de radiação varre o material; o que ela tem é DISCO DE DETRITOS, que é outro objeto e ainda não existe',
-  estrela: 'estrela não tem anel planetário — ver `fotosfera`; o disco de detritos é o corpo certo e está por fazer',
+  fotosfera: 'disco-de-detritos',
+  estrela: 'disco-de-detritos',
+  /*
+   * O pulsar é o caso mais interessante das recusas, e ele NÃO é preguiça: disco de fallback em
+   * estrela de nêutrons existe de verdade — PSR B1257+12 formou planetas de um. Mas fallback é
+   * material da própria supernova recaindo, não cascata colisional de um sistema planetário, e
+   * desenhar qualquer um dos dois aqui afirmaria um objeto que a cena não modela.
+   */
+  pulsar: null,
+  cometa: null,
+  estação: null,
+  nebulosa: null,
+});
+
+/** Por que este corpo não hospeda nada em órbita. Só para os que recusam. */
+const SEM_ORBITA = Object.freeze({
   cometa: 'cauda e anel juntos não descrevem nada — é o mesmo `forbids` que a classe cometa-extinto já declarava',
-  pulsar: 'estrela de nêutrons pode ter disco de FALLBACK (PSR B1257+12 formou planetas de um), mas disco não é anel planetário e desenhar um afirmaria o objeto errado',
-  estação: 'anel em volta de um artefato não descreve nada: o anel é material orbital que não se agregou, e uma estação foi construída inteira',
+  pulsar: 'estrela de nêutrons pode ter disco de FALLBACK (PSR B1257+12 formou planetas de um), mas fallback é a supernova recaindo, não cascata colisional — e a cena não modela nenhum dos dois',
+  'estação': 'anel em volta de um artefato não descreve nada: material orbital é o que NÃO se agregou, e uma estação foi construída inteira',
   nebulosa: 'não há corpo central a anelar — a nebulosa é difusa por definição',
 });
 
-/** Este corpo aceita anel? `true`, ou a FRASE da recusa. */
-export const ringHost = (body) => RING_HOST[body] ?? true;
+/**
+ * Que objeto EM ÓRBITA este corpo hospeda quando o arquivo está sujo — ou a frase da recusa.
+ *
+ * ⚠️ Esta tabela é a metade que faltava quando o anel era classe. Como classe, ele nunca
+ * PERGUNTAVA se o corpo aceitava: ele SUBSTITUÍA o corpo por um planeta, e a regra de abertura
+ * deste arquivo nunca chegava a ser consultada, porque a estrela deixava de existir antes.
+ *
+ * A recusa NÃO é silenciosa: o `solver.js` a registra com a frase, e a sonda a publica. "Por que
+ * este arquivo sujo não tem anel?" tem resposta na tela.
+ *
+ * @returns {'anel'|'disco-de-detritos'|{reason: string}}
+ */
+export const orbitingOf = (body) => {
+  const objeto = CIRCUMSTELLAR[body];
+  if (objeto) return objeto;
+  if (objeto === null) return { reason: SEM_ORBITA[body] ?? `${body} não hospeda material em órbita` };
+  // Corpo que a tabela não conhece ainda: anel é o padrão, como era antes de ela existir.
+  return 'anel';
+};
 
 export const MORPHOLOGY_BY_KIND = Object.freeze({
   config: Object.freeze({ body: 'fotosfera', drawn: true }),

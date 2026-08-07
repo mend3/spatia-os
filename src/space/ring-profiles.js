@@ -94,6 +94,58 @@ export const RING_FAMILIES = {
     gaps: [],
   },
 
+  /*
+   * DISCO DE DETRITOS — e ele NÃO é um anel planetário. É a outra coisa que o catálogo sempre
+   * disse que a estrela tem: *"estrela tem DISCO DE DETRITOS, não anel: radiação e
+   * Poynting-Robertson varrem"*.
+   *
+   * A diferença física, e é ela que a forma abaixo desenha:
+   *
+   * | | anel planetário | disco de detritos |
+   * |---|---|---|
+   * | material | primordial, gelo e rocha | POEIRA reposta por colisões (cascata colisional) |
+   * | profundidade óptica | ~1 (Saturno) | ~1e-3 ou menos — opticamente FINO |
+   * | forma | faixas coladas no corpo | CAVIDADE vazia enorme, cinturão estreito lá fora |
+   * | borda | abrupta (a borda externa do B é famosa) | interna nítida, externa desbotando |
+   *
+   * ⚠️ A DISTÂNCIA REAL NÃO CABE, e é a mesma situação do quasar. O cinturão de Fomalhaut fica a
+   * ~140 UA de uma estrela de ~0,008 UA de raio: são **10^4 raios estelares**, contra os 1–3 de
+   * um anel planetário. Em unidades deste módulo o disco seria dez mil vezes o quad, e o teto de
+   * desenho é `SPAN_CAP = 2,4`. Então aqui a âncora não é a distância — é a MORFOLOGIA e as
+   * RAZÕES, que é a mesma régua que o relevo do planeta e o bojo da galáxia já usam.
+   *
+   * O que é real e está preservado:
+   *   - a CAVIDADE domina. Aqui ela vai do limbo (1,0) até 1,75, num perfil que termina em 2,38:
+   *     `(1,75-1)/(2,38-1)` = **54% do raio desenhado é vazio**, e é essa proporção que faz o olho
+   *     ler "buraco com um aro longe" em vez de "anel". Saturno, para comparar, começa em 1,11 —
+   *     8% de vazio, ou seja colado no corpo.
+   *   - o cinturão é ESTREITO: largura/raio = 0,30/1,90 = 0,16, entre Fomalhaut (~0,10) e
+   *     HR 4796A (~0,06) de um lado e Beta Pictoris (~1) do outro.
+   *   - o halo externo desbotando é real: grãos pequenos são soprados para fora pela pressão de
+   *     radiação e formam uma cauda de poeira além do cinturão.
+   *   - `forward: 1` porque a poeira é sub-micrométrica e espalha para a frente — a mesma física
+   *     que faz o anel de Júpiter ser assim, e é como estes discos são vistos em luz espalhada.
+   *
+   * ⚠️ UMA FAMÍLIA SÓ, para os três estados do git — e é decisão, não esquecimento. As três
+   * famílias de anel são ancoradas em três sistemas REAIS e medidos; inventar três discos de
+   * detritos para casar com a contagem seria decoração com fantasia de dado. O estado continua
+   * legível na cor do nó e na HUD. Se a distinção fizer falta no olho, os candidatos reais
+   * existem e são Fomalhaut, HR 4796A e Beta Pictoris.
+   */
+  debris: {
+    reach: 2.38,
+    /** Sem âncora forte: o disco fica no plano orbital do sistema. ~20°, para não ficar de face. */
+    obliquity: 0.35,
+    // Poeira sub-micrométrica: lobo frontal dominante.
+    forward: 1,
+    sheets: [
+      { from: 1.750, to: 2.050, density: 1.00 }, // o cinturão
+      { from: 2.050, to: 2.380, density: 0.14 }, // halo de grãos soprados para fora
+    ],
+    bands: [],
+    gaps: [],
+  },
+
   jupiter: {
     reach: 3.20,
     /** 3,13° — praticamente no plano orbital, e é o que faz o anel de Júpiter ser sempre de perfil. */

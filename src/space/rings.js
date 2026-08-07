@@ -40,6 +40,7 @@ import * as THREE from 'three';
 import { GLSL_OPTICAL_DEPTH, ASPECT_FOLHA } from './optical-depth.js';
 import { glslFloat } from './glsl.js';
 import { profileTexture } from './ring-profiles.js';
+import { RING_BY_STATE } from './catalog.js';
 import { rockTexture } from './ring-rock.js';
 import { GLSL_PSNOISE } from './ring-noise.js';
 
@@ -60,11 +61,15 @@ export const DIRTY_LABELS = {
   untracked: 'NÃO RASTREADO',
 };
 
-const DIRTY_FAMILIES = {
-  modified: 'saturn',
-  staged: 'uranus',
-  untracked: 'jupiter',
-};
+/*
+ * ⚠️ A tabela estado→família vive no CATÁLOGO, e aqui era uma segunda cópia dela.
+ *
+ * `RING_BY_STATE` já dizia `modified: {family: 'saturn'}` e este módulo repetia o mesmo mapa com
+ * outro nome. Duas cópias que ninguém obriga a concordar é o defeito que este projeto já pagou
+ * quatro vezes (`OMEGA_P`, o pulso, a régua do anel, o piso de aspecto): as duas parecem certas
+ * isoladamente e divergem no dia em que alguém edita uma. Agora há um dono só.
+ */
+const familyOf = (state) => (RING_BY_STATE[state] ?? RING_BY_STATE.modified).family;
 
 /*
  * O raio da estrela NÃO é constante aqui — ele chega por `radiusOf` em `follow`.
@@ -620,7 +625,12 @@ export function createRings() {
       active.length = 0;
       kept.forEach((entry, slot) => {
         const mesh = pool[slot];
-        const family = DIRTY_FAMILIES[entry.state] ?? DIRTY_FAMILIES.modified;
+        // DISCO DE DETRITOS é outra família, não outro módulo: os dois são material em órbita e
+        // o que muda é o PERFIL — cavidade dominante e cinturão estreito de um lado, faixas
+        // coladas no corpo do outro. Quem decide qual é o `solver.js`, por CORPO.
+        const family = entry.detritos
+          ? 'debris'
+          : familyOf(entry.state);
         const profile = profileFor(family);
 
         mesh.visible = true;
