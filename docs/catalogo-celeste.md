@@ -4,24 +4,25 @@
 
 Este documento descreve o **presente**. A pesquisa de taxonomia que deu origem a ele (2026-08-05/06)
 e os dois briefings de refinamento visual (pulsar, buraco negro) já foram absorvidos: o raciocínio
-que sobreviveu virou comentário no código, e é lá que ele mora. O `git log` guarda a história — os
-corpos de commit desta base são longos de propósito, com a medida que decidiu cada número.
+que sobreviveu virou comentário no código, e é lá que ele mora. O `git log` guarda a medida que
+decidiu cada número.
+
+Vocabulário de status, o mesmo do `catalog.js`: `rendered` existe no céu · `partial` parte dela
+desenha · `applied` outro módulo a aplica · `declared` está no modelo e nada a desenha. **Nenhuma
+entrada mente sobre estar pronta.**
 
 > **A fonte da verdade é o código, não este arquivo.** `src/space/catalog.js` classifica,
 > `src/space/solver.js` resolve a pele, `src/space/lod.js` decide o que é desenhável. Quando este
-> documento e eles discordarem, eles estão certos. Rode `node scripts/censo-morfologias.mjs` para
-> ver a distribuição real do corpus atual.
+> documento e eles discordarem, eles estão certos. `node scripts/censo-morfologias.mjs` dá a
+> distribuição real do corpus atual.
 
 ---
 
 ## O princípio: a forma é o fato
 
-Nenhum corpo desta cena é decorativo. Cada feição visual afirma alguma coisa sobre o arquivo, e a
-regra vale nos dois sentidos — **feição sem fato por trás não entra, e fato sem feição não é dado.**
-É por isso que o catálogo tem `forbids`: uma estrela não pode ter crosta porque relevo afirmaria
-corpo sólido, e um cometa não pode ter anel porque cauda e anel juntos não descrevem nada.
-
-Três camadas independentes, e confundi-las é o erro mais comum:
+Nenhum corpo desta cena é decorativo, e a regra vale nos dois sentidos — **feição sem fato por trás
+não entra, e fato sem feição não é dado.** É por isso que o catálogo tem `forbids`, e por isso a
+tabela "O que ficou de fora" é a parte mais densa dele.
 
 | camada | pergunta | onde vive |
 |---|---|---|
@@ -29,41 +30,88 @@ Três camadas independentes, e confundi-las é o erro mais comum:
 | **MORFOLOGIA** | que corpo o **tipo de arquivo** declara | `MORPHOLOGY_BY_KIND` |
 | **PELE** | o que ele **desenha de perto** | `solver.resolveBody` |
 
-Uma classe pode recusar a morfologia declarada (o censo chama isso de **recusa do solver**), e é
-saudável: 87,5% do corpus pede `surface` e leva `photosphere`, porque a classe é estrela e estrela
-não tem crosta.
+Uma classe pode recusar a morfologia declarada — o censo chama isso de **recusa do solver**, e é
+saudável: a classe estrela cobre 87,5% do corpus e recusa `surface`, porque estrela não tem crosta.
+
+⚠️ O texto anterior dizia "87,5% do corpus pede `surface` e leva `photosphere`"; a distribuição de
+peles abaixo diz `photosphere` 35,9%. As duas medidas estão registradas; a conciliação não está.
+
+## O eixo ortogonal: o PAPEL
+
+Antes de "que objeto astronômico é este?" vem **o que este objeto faz no universo?** — independente
+da classe. Duas entradas do mesmo papel podem ser corpos sem parentesco, e a mesma feição pode
+ocupar papéis diferentes (a supernova é modificador aqui e seria fenômeno num modelo que tivesse o
+commit como fato).
+
+| papel | o que é | como se reconhece |
+|---|---|---|
+| **estrutura** | contêiner; não representa arquivo, e a POSIÇÃO dos filhos é o vínculo | não tem superfície própria |
+| **corpo** | um nó do grafo, com massa e órbita | tem pele |
+| **fenômeno** | acontece e passa; não tem massa nem órbita | dura menos que uma sessão |
+| **modificador** | anexa-se a um corpo e não existe sem ele | some quando o fato some |
+
+⚠️ **Dois dos quatro papéis passam pelo `catalog.js`**: ele resolve CORPO por classe e enumera
+MODIFICADOR (`RING_BY_STATE`, envoltório, luas). FENÔMENO é desenhado em outro lugar. ESTRUTURA não
+existe como papel: `galaxia` é estrutura e classe ao mesmo tempo, e é essa acumulação que a infla.
 
 ---
 
 ## Distribuição real — corpus de 1 862 nós (2026-08-07)
 
-**Classe** — o que o corpo é:
+| classe | n | % | | pele | n | % |
+|---|---|---|---|---|---|---|
+| estrela | 1629 | 87,5% | | photosphere | 668 | 35,9% |
+| galáxia | 228 | 12,2% | | station | 459 | 24,7% |
+| cometa-extinto | 5 | 0,3% | | planet | 361 | 19,4% |
+| | | | | galaxy | 228 | 12,2% |
+| | | | | comet | 103 | 5,5% |
+| | | | | nebula | 43 | 2,3% |
 
-    estrela           1629   87,5%
-    galáxia            228   12,2%
-    cometa-extinto       5    0,3%
+Morfologia por tipo de arquivo: `config` → fotosfera 499 · `agent` → estação 414 · `doc` → planeta
+332 · `schema` → fotosfera 159 · `script` → cometa 103 · `infra` → estação 47 · `compose` → nebulosa
+44 · `lock` → estrela 12 · `decision` → planeta 12 · `memory` → planeta 12.
 
-**Pele** — o que ele desenha de perto:
-
-    photosphere        668   35,9%
-    station            459   24,7%
-    planet             361   19,4%
-    galaxy             228   12,2%
-    comet              103    5,5%
-    nebula              43    2,3%
-
-**Morfologia por tipo de arquivo:**
-
-    config   → fotosfera   499      schema  → fotosfera  159
-    agent    → estação     414      script  → cometa     103
-    doc      → planeta     332      infra   → estação      47
-    compose  → nebulosa     44      lock    → estrela      12
-    decision → planeta      12      memory  → planeta      12
+⚠️ `compose` → nebulosa conta 44 arquivos e a pele `nebula` conta 43. A diferença de um não está
+explicada.
 
 ⚠️ **A distribuição é do corpus, não do catálogo.** Um corpus sem `docker-compose.yml` não tem
-nebulosa nenhuma, e isso não é buraco na cobertura — é o céu descrevendo o repositório com
+nebulosa nenhuma, e isso não é buraco de cobertura — é o céu descrevendo o repositório com
 honestidade. A doutrina de cobertura (fixture · fixture paramétrico · corpus real) está em
 [`cobertura.md`](./cobertura.md).
+
+---
+
+# A escada de contenção — o papel ESTRUTURA
+
+O payload tem **três níveis de nó** (`repo` → `dir` → `file`, em `server/graph.py`) e **um só tipo
+de aresta**: as 1 856 são todas pai→filho. Os dois primeiros níveis resolvem para a MESMA classe, e
+é aí que a galáxia deixa de descrever alguma coisa — 228 agregados para 1 629 arquivos são **7,1
+arquivos por agregado**, contando repos e pastas juntos. Uma galáxia de sete estrelas é um
+aglomerado aberto.
+
+| escala | fato no payload | hoje | no modelo | status |
+|---|---|---|---|---|
+| workspace | a cena inteira | universo | universo | `rendered` |
+| repositório | `type === 'repo'` | galáxia | **grupo de galáxias** | `declared` |
+| pasta densa | `type === 'dir'` + nº de filhos | galáxia | galáxia | `partial` |
+| pasta rasa | idem | galáxia | **aglomerado estelar** | `declared` |
+| arquivo | `type === 'file'` | estrela | estrela | `rendered` |
+| seção | `node.sections` | lua | lua | `applied` |
+
+**O fato que separa aglomerado de galáxia já é contado.** `_hierarchy` conta filhos diretos por
+diretório (`dir_children`) e usa a contagem para decidir quem vira hub; `degree()` está marcado
+DISPONÍVEL no estágio 3 de [`modelo-de-renderizacao.md`](./modelo-de-renderizacao.md). Falta o
+limiar — e ele tem de ser **medido** na distribuição de filhos por diretório, como o piso do pulsar
+foi, caindo num afinamento da distribuição e não na parte densa dela.
+
+Grupo de galáxias custa ainda menos: `type` já distingue `repo` de `dir` e o solver já ignora a
+diferença (`node?.type === 'repo' || node?.type === 'dir'` devolve a mesma pele). É o item 6 da
+ordem de adoção do modelo de renderização.
+
+⚠️ **Esta escada discorda de `modelo-de-renderizacao.md`, que mapeia *pasta → sistema estelar*.** O
+motivo é o `sections`: sistema estelar é uma estrela com corpos em órbita, e isso **já é o arquivo
+com suas luas** — 23 corpos e 182 luas medidos na janela Roche→Hill. Uma pasta contém arquivos que
+já são sistemas; logo ela é aglomerado ou galáxia, nunca sistema.
 
 ---
 
@@ -154,9 +202,9 @@ A nuvem cresce com a massa do arquivo. Enquadramento 3,4 (o maior do céu), porq
 
 ## Pulsar — o ritmo
 
-**Representa:** arquivo de infraestrutura com **regularidade ≥ 0,5** — commits em cadência, não em
-rajada. O que o define não é o corpo (uma estrela de nêutrons tem 10 km: em qualquer escala útil é
-um ponto), são os **feixes**.
+**Representa:** arquivo com **regularidade ≥ 0,5** — commits em cadência, não em rajada. O que o
+define não é o corpo (uma estrela de nêutrons tem 10 km: em qualquer escala útil é um ponto), são
+os **feixes**.
 
 Hierarquia de escalas, em raios do corpo:
 
@@ -174,6 +222,11 @@ tem milhares de anos e o pulso tem segundos.
 A cor vem de uma rampa **sincrotron por energia** (branco do polo → azul → roxo da cauda), com o
 tipo do arquivo entrando apenas como tingimento de 28%. Beaming relativístico `0,35 + 2,4·cos³`.
 Lente gravitacional de campo fraco no passe de tela.
+
+⚠️ O piso 0,5 foi medido em ~6.400 caminhos versionados (`catalog.js`): 287 têm regularidade acima
+de zero, ≥0,3 → 110 · ≥0,4 → 67 · ≥0,5 → 27 · ≥0,6 → 17 · ≥0,7 → 7. O salto entre 0,4 e 0,5 é o
+afinamento onde o corte cai. **Medição de 2026-08-07 no corpus indexado: nenhum corpo acima do
+piso, topo em 0,452.** O corpo é `rendered` e a população é zero.
 
 ## Buraco negro — o núcleo cognitivo
 
@@ -219,6 +272,24 @@ Bancada: `espatial.core({ regime: 'thinking', tokens: 120000 })`.
 
 ---
 
+# Fenômenos — o que a SESSÃO desenha
+
+Quatro já estão no céu. Classe é do arquivo, e **fenômeno não é de arquivo nenhum — é da sessão**.
+Todos nascem do stream de [`EVENTS.md`](./EVENTS.md), não do índice, e por isso somem sozinhos.
+
+| fenômeno | evento | o que é | onde |
+|---|---|---|---|
+| **corona de ignição** | `memory` | o nó recuperado acende; passa | `catalog.js`, `features.corona` |
+| **satélite de busca** | `web` | provedor externo em órbita alta (74) e plano inclinado, para ler como "fora do sistema"; sem chave fica APAGADO, não ausente | `space/satellites.js` |
+| **wormhole de ferramenta** | `tool` | anel que abre, gira e fecha, na cor de `tool.kind`. O par `call`/`result` tem começo e fim, e o anel também — **anel que fica aberto é ferramenta que nunca retornou** | idem |
+| **meteoro** | `web.result` | o resultado voltando do satélite para o núcleo | `space/scene.js` |
+
+⚠️ Fenômeno não tem massa nem órbita, e dar-lhe uma seria o erro que a supernova-classe cometeu:
+como classe, ela sequestrava o corpo e tirava dele as duas superfícies possíveis (27 corpos medidos
+em 2026-08-05). Evento que ganha órbita vira corpo, e aí ele não passa mais.
+
+---
+
 # Modificadores — anexáveis a qualquer corpo
 
 ## Anel — o estado do git
@@ -252,6 +323,172 @@ da janela Roche→Hill (`ROCHE_FLUID = 2,44` raios). O piso de legibilidade
 câmera — foi ele que fez a lua virar corpo em vez de um ponto de 1,27 px.
 
 Com o astro em foco, as órbitas ganham traço.
+
+---
+
+# O modelo declarado
+
+⚠️ **Nada desta seção está no céu.** Toda entrada aqui nasce `declared`, e ela existe para que a
+pergunta "de que fato isso nasceria?" tenha resposta antes de alguém escrever shader.
+
+**Um fato ausente explica quase a lista inteira: o grafo não tem aresta que não seja de contenção.**
+As 1 856 arestas são pai→filho. Referência, import, similaridade e dependência não existem no
+payload — os vetores estão no Qdrant e não saem de lá para a topologia. Enquanto isso não mudar,
+toda feição que afirme RELAÇÃO entre dois corpos afirma um fato que ninguém mediu. É a mesma razão
+pela qual `importance()` está AUSENTE no estágio 3 do modelo de renderização: PageRank sobre árvore
+é função degenerada de profundidade e grau.
+
+| papel | entrada | nasceria de | o que falta |
+|---|---|---|---|
+| estrutura | **grupo de galáxias** | `type === 'repo'`, já no payload | só o desenho |
+| estrutura | **aglomerado estelar** | nº de filhos diretos do `dir`, já contado em `_hierarchy` | o limiar, e ele tem de ser medido |
+| corpo | **protoestrela** | arquivo na fila de indexação | **o nó**: a topologia nasce da varredura do Qdrant (`graph.py`, `qdrant.scroll`), e arquivo sem chunk não tem nó. Exige o servidor emitir o que está NA FILA, não só o que está no índice |
+| corpo | **anã branca** | massa alta com `churn` 0, `dormant` 0 e recência no fundo | nada no dado — os quatro campos já chegam no nó; falta o corte e o desenho |
+| corpo | **binária** | duas fontes inseparáveis (parser+lexer, interface+implementação) | **a aresta**: nenhuma relação não-hierárquica existe em `server/graph.py` |
+| corpo | **exoplaneta** | recurso externo referenciado (API, SaaS, URL) | **o nó**: nada de fora do índice entra no grafo |
+| fenômeno | **eclipse** | conflito de merge | o FATO quase existe — `server/dirty.py` já lê `git status`, e hoje `UU` cai em `staged`, ou seja, o conflito é desenhado como anel de Urano dizendo "preparado para commit". Falta a FEIÇÃO: ocultação exige dois corpos alinhados, e a posição no céu vem da recência, não da relação |
+| fenômeno | **chuva** de meteoros | volume de eventos não solicitados (webhooks, journal) | o meteoro único já existe; a chuva exige eventos que hoje não chegam à cena |
+| modificador | **campo gravitacional** | importância no grafo | **a aresta**, de novo: o grafo é árvore |
+| modificador | **satélite artificial** · **entrelaçamento** | teste↔alvo, relação permanente | a MESMA aresta ausente da binária — três feições, um fato |
+
+## As recusas do modelo declarado
+
+`forbids` vale para o que ainda não desenha, senão a colisão só aparece na tela:
+
+| entrada | recusa | motivo |
+|---|---|---|
+| protoestrela | anel `untracked` | os dois dizem "novo" — um pelo git, outro pelo índice. Ganha o anel, pela mesma regra que o faz vencer o envoltório: ele é o sinal perecível |
+| anã branca | classe `cometa-extinto` | `dormant ≥ 2` é mais específico. Ali houve trabalho e ele parou; a anã branca é o arquivo que nunca esquentou |
+| binária | lua | lua é PARTE do corpo (uma seção); binária são dois corpos com massa própria. Desenhar uma como a outra afirma contenção onde há par |
+| exoplaneta | estação | servidor MCP já é ESTAÇÃO, e o motivo é o mesmo que vale para `agent` e `infra`: alguém construiu aquilo. Exoplaneta é o que ninguém aqui construiu |
+| aglomerado estelar | braços espirais | braço é padrão de densidade de disco, e aglomerado aberto não tem disco. A classe de Hubble continua sendo da galáxia |
+| grupo de galáxias | superfície, supernova, recência | é agregado de agregados: herda inteiras as três recusas que a classe `galaxia` já declara |
+| chuva de meteoros | órbita | ver a advertência da seção "Fenômenos" — evento com órbita vira corpo |
+
+---
+
+# A revisão de 2026-08-07 — o objeto como manifestação de eixos
+
+⚠️ **`declared` inteiro.** Nada desta seção existe no código, e algumas medidas que a sustentam
+discordam do resto deste documento — as discordâncias estão marcadas, não resolvidas.
+
+Tese: **o filesystem não é a taxonomia do universo**, é uma das fontes de observação. Hoje o
+catálogo deriva `filesystem → tipo → objeto`. A proposta é `Entidade → (escala · composição ·
+atividade · papel · relações · linguagem · idade · dinâmica) → objeto celeste`: o objeto deixa de
+ser escolhido por regra fixa ("arquivo X vira planeta") e passa a ser a **manifestação** de um
+estado físico multidimensional. Dois objetos só parecem iguais quando compartilham as propriedades
+fundamentais, e diferença importante (linguagem, coedição, autoria, composição) vira visível sem
+abrir menu.
+
+## 1. Linguagem é um eixo cosmológico
+
+Medido: **58% TypeScript · 12% Python · 10% Markdown · 5% JSON**, e **92% das pastas têm uma
+linguagem dominante**. Os eixos em uso hoje (quantidade, churn, recência, tipo) ignoram justamente
+o atributo que melhor explica a composição da galáxia.
+
+⚠️ **Discorda da distribuição por `kind` deste documento**, que não tem categoria de código: 499
+config · 414 agent · 332 doc · 159 schema · 103 script · 47 infra · 44 compose · 12 lock · 12
+decision · 12 memory. Uma medição independente do índice de 2026-08-07 dá **0 arquivos `.ts`/`.py`
+e 46% `.md`**. As duas medidas não podem ser do mesmo corpus.
+
+Proposta: o braço da galáxia deixa de representar grupos (que "quase não existem") e passa a
+representar linguagem — ou, melhor, a galáxia ganha **espectro**: 100% TS → azul, 100% Python →
+amarelo, 100% Markdown → vermelho, mista → gradiente. Reconhece-se o repositório pela cor, como se
+faz com estrelas.
+
+## 2. Galáxias deveriam ser raríssimas
+
+Medido: **1347 pastas → 228 hubs → 7 repositórios**, e **35% das pastas têm 1 arquivo só**. A
+natureza tem bilhões de estrelas, milhões de aglomerados e poucas galáxias; o céu de hoje tem
+praticamente o inverso.
+
+Escada proposta por contagem de arquivos:
+
+| arquivos | objeto |
+|---|---|
+| 1 | corpo |
+| 2–10 | sistema |
+| 10–80 | aglomerado |
+| 80–300 | associação estelar |
+| 300+ | galáxia |
+
+Uma pasta como `src` vira um punhado de estrelas, não uma galáxia. Isto é a mesma escada de
+contenção da seção acima, com o limiar já proposto em números.
+
+## 3. O git é uma fonte de gravidade
+
+Já existem commit, autor, tempo, pares, frequência e co-edição — e isso é física, mais interessante
+que embeddings.
+
+**Binárias:** `cache.ts` ↔ `cache.test.ts` com **J = 1.0** (Jaccard de co-edição). Merece virar
+objeto, não linha: uma estrela binária literal. **Sistema múltiplo:** `en.json` · `pt.json` ·
+`es.json` deixa de ser binária e vira sistema múltiplo, ou pequeno sistema hierárquico — a
+astronomia tem os dois, e comunica "esses arquivos vivem juntos" melhor que qualquer aresta.
+
+⚠️ A binária está listada em "O modelo declarado" como bloqueada pela **aresta ausente**. A
+co-edição do git é uma aresta que o payload ainda não carrega; medi-la não é o mesmo que emiti-la.
+⚠️ O exemplo `cache.ts`/`cache.test.ts` pressupõe TypeScript no corpus — ver a discordância do
+eixo 1.
+
+## 4. Compose deveria deixar de ser um objeto
+
+Hoje `compose.yml` → nebulosa. Mas a medição conta **308 serviços**: a nebulosa está escondendo os
+próprios corpos. Proposta: `Nebulosa → serviços → protoestrelas`, ou `Nebulosa → sistemas`. Cada
+serviço nasce da condensação da nuvem, que é fiel ao processo de formação estelar.
+
+⚠️ Uma contagem independente de 2026-08-07 dá **164 serviços em 44 arquivos compose**. Os dois
+números estão registrados; nenhum foi escolhido.
+
+## 5. Bytes e conhecimento são massas diferentes
+
+Hoje `massa = chunks`. Uma imagem de **7,7 MB** produz **0 chunks**, logo massa 0 — o que claramente
+não deveria. Proposta: separar `PhysicalMass` de `KnowledgeMass`. Um PDF enorme tem massa física
+alta e massa cognitiva baixa; um README tem massa física baixa e massa cognitiva enorme. É o par
+matéria bariônica × matéria escura: uma mede o que é material, a outra a influência gravitacional.
+
+⚠️ **Dentro do índice, bytes e chunks correlacionam a r = 0,980** (medição de 2026-08-07). A
+separação só produz sinal para o que está FORA do índice — que é, por construção, o que não tem nó
+(ver `protoestrela`, no modelo declarado).
+
+## 6. Autoria também é física
+
+**15 autores → estrela muito antiga; 1 autor → estrela isolada.** E: múltiplos autores → mais
+turbulência na fotosfera · autor único → rotação mais estável · troca frequente de autores →
+atividade magnética mais intensa. Dado visualmente rico e praticamente gratuito — o `git log` que
+produz churn e regularidade já passa por ele.
+
+## Os dez eixos
+
+| eixo | origem | efeito |
+|---|---|---|
+| **Escala** | arquivos, chunks, bytes | Lua → Sistema → Aglomerado → Galáxia |
+| **Composição** | kind | Planeta, Estação, Nebulosa, Cometa |
+| **Linguagem** | extensão dominante | espectro, cor, metalicidade |
+| **Atividade** | churn, recency | brilho, ejeções, pulsação |
+| **Gravidade** | centralidade, referências, uso | massa gravitacional e órbitas |
+| **Relações** | git, embeddings, testes | binárias, sistemas múltiplos, entrelaçamentos |
+| **Evolução** | idade, histórico | protoestrela, estrela madura, anã branca |
+| **Estrutura** | sections, serviços | luas, satélites, subcorpos |
+| **Autoria** | git blame, commits | rotação, turbulência, variabilidade |
+| **Matéria** | bytes físicos × conhecimento | densidade, volume, influência |
+
+---
+
+# A segunda cena — `universe`
+
+[`briefings/multi-scene.md`](./briefings/multi-scene.md) pede uma cena sem centro absoluto, em que
+a pasta CONTENHA seus arquivos em vez de puxá-los por uma linha que atravessa a tela. **O papel
+ESTRUTURA é exatamente o eixo que aquela cena consome e a `agentic` não usa.**
+
+Na `agentic` o centro é o buraco negro — o único corpo que não descreve arquivo — e a contenção é
+desenhada como `LineSegments` do arquivo (r≈26–62) até o hub (r≈19–33). O `catalog.js` já registra
+o preço disso na classe `galaxia`: raios diferentes têm ω diferente por `speed = (r/r₀)^-1.5`, então
+o vínculo se torce. Com a contenção virando POSIÇÃO, as 1 856 arestas deixam de ser linha e o
+enrolamento deixa de ser um problema a resolver — filho dentro do pai gira com ele.
+
+A escada de contenção é o que aquela cena precisa que exista antes da câmera: sem separar repo de
+pasta e pasta densa de pasta rasa, "galáxia" continua sendo o mesmo objeto em duas escalas, e uma
+hierarquia navegável por zoom não tem degrau em que parar. Nada de implementação está projetado aqui.
 
 ---
 
@@ -313,6 +550,20 @@ Sondas: `espatial.bloom({ threshold, radius })` · `espatial.core({ regime, toke
 | anel em cometa | cauda e anel juntos não descrevem nada |
 | crosta em estrela | relevo afirmaria corpo sólido |
 | supernova em galáxia | agregado não tem história própria, tem a dos filhos |
+| supernova como FENÔMENO | `node.supernova` é churn acumulado numa janela: continua verdadeiro amanhã, e é a definição de estado. O evento exigiria o commit como fato, e o nó carrega uma data (`changed_at`), não uma série |
+| nova | mesmo fato ausente da supernova-evento, e nada a distinguiria dela na tela |
+| gigante vermelha | massa já é raio contínuo (`log2(1+chunks)`) e idade já é raio orbital — arquivo enorme e antigo JÁ se vê grande e longe. Classe aqui seria degrau onde há contínuo, e o vermelho disputaria com `kind`, que é quem carrega o TIPO |
+| aurora | o processamento contínuo já tem feição: o `cogload` no disco do buraco negro |
+| atmosfera como maturidade | atmosfera já é feição do planeta e sai da massa; dois significados na mesma imagem |
+| magnetosfera como permissão | o nome é da camada de ~7 raios do pulsar — e num workspace de um usuário só, a feição seria idêntica em todo o céu. Feição sem variação não é dado |
+| campo de detritos | `disco-de-detritos` já existe e é a resposta da ESTRELA ao arquivo sujo. "Depreciado mas ainda referenciado" precisaria da aresta que não existe |
+| sistema estelar como estrutura nova | já existe: é o arquivo com suas luas, na janela Roche→Hill |
+| superaglomerado · filamento cósmico | a árvore do payload termina no `repo` e a cena inteira é UM workspace. Dois níveis acima do topo não teriam nó para habitar |
+| asteroide | o papel é o da lua, e `sections` já o alimenta |
+| meteoroide como corpo | é evento, e já desenha como tal |
+| wormhole como corpo | é fenômeno, e já desenha como tal (`space/satellites.js`) |
+| magnetar · blazar | o pulsar já cobre o comportamento e o quasar já é o núcleo ativo; blazar é o mesmo quasar visto de frente |
+| Wolf-Rayet · T-Tauri · cefeida | nenhum fato do nó os separaria da estrela padrão — a cadência já é o pulsar |
 
 ---
 
@@ -323,4 +574,6 @@ Sondas: `espatial.bloom({ threshold, radius })` · `espatial.core({ regime, toke
 - **A distribuição do corpus** — `node scripts/censo-morfologias.mjs`.
 - **Cobertura e o que o fixture exercita** — [`cobertura.md`](./cobertura.md).
 - **Como a cena é desenhada** — [`modelo-de-renderizacao.md`](./modelo-de-renderizacao.md).
+- **Os fenômenos, um a um** — [`EVENTS.md`](./EVENTS.md), que é o contrato de onde eles nascem.
+- **A cena que consome as estruturas** — [`briefings/multi-scene.md`](./briefings/multi-scene.md).
 - **A bancada, um objeto por vez, sem pós-processamento** — `sandbox.html`.
