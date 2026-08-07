@@ -1,4 +1,4 @@
-# espatial-os
+# SpatIA
 
 Um observatório espacial para um cérebro artificial. O centro é um buraco negro; tudo o que
 o agente sabe orbita ele, e tudo o que ele faz é visível como física.
@@ -260,3 +260,13 @@ como estado de React reintroduziria o acoplamento que ele existe para evitar.
   transformou o "anel de fóton" numa gota triangular.
 - **Emitir eventos de uma lista acumulada** em vez de `yield` em tempo real quebra a medição
   de estágio: o histograma passa a medir o loop de emissão, não o trabalho.
+
+## Referencias e Links
+
+- https://github.com/dgreenheck/webgpu-black-hole
+- https://threejsroadmap.com/blog/raytracing-a-black-hole-with-webgpu
+- https://github.com/vlwkaos/threejs-blackhole
+- https://github.com/SoumyaEXE/3d-Solar-System-ThreeJS
+- https://www.astronexus.com/projects/hyg (stars data)
+- https://eyes.nasa.gov/apps/solar-system/#/home
+- https://threejs.org/examples/webgl_shaders_sky.html

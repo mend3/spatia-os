@@ -48,7 +48,7 @@ ROUTE_LABELS = {
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "espatial-os"
+    server_version = "SpatIA"
     protocol_version = "HTTP/1.1"
 
     def send_response(self, code, message=None):  # noqa: N802 — assinatura da stdlib
@@ -486,7 +486,7 @@ def serve() -> None:
             logger.warning(f"sem listener IPv6 (use 127.0.0.1 no browser): {e}")
 
     logger.info(
-        f"espatial-os em http://{host}:{port}"
+        f"SpatIA em http://{host}:{port}"
         f"{' e http://[::1]:%d' % port if secondary else ''}"
         f"  ·  cérebro={config.get('BRAIN')}"
     )

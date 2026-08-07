@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["fastembed"]
 # ///
-"""Entrypoint do espatial-os.
+"""Entrypoint do SpatIA.
 
     ./serve.py            # http://127.0.0.1:8787
 

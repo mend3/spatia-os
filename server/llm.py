@@ -12,7 +12,7 @@ from . import config, net
 logger = logging.getLogger("espatial.llm")
 
 SYSTEM = (
-    "Você é o núcleo cognitivo do espatial-os, um sistema operacional espacial de "
+    "Você é o núcleo cognitivo do SpatIA, um sistema operacional espacial de "
     "conhecimento. Responda em português do Brasil, direto, técnico, sem preâmbulo.\n"
     "Use APENAS o contexto fornecido. Cite as fontes como [1], [2] no meio do texto.\n"
     "Se o contexto não responder, diga exatamente o que falta em uma frase — não invente.\n"

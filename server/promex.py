@@ -1,6 +1,6 @@
 """Primitivas de exposição Prometheus em stdlib — sem `prometheus_client`.
 
-Este módulo não sabe nada do espatial-os: ele sabe Counter, Gauge, Histogram e o formato
+Este módulo não sabe nada do SpatIA: ele sabe Counter, Gauge, Histogram e o formato
 de texto 0.0.4. O catálogo (o que medir) mora em `metrics.py`.
 
 Duas decisões que evitam o problema clássico de instrumentação caseira:

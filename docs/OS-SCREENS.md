@@ -1,6 +1,6 @@
 # Telas do sistema
 
-Arquitetura de informação das telas de sistema do espatial-os: quais existem, que pergunta
+Arquitetura de informação das telas de sistema do SpatIA: quais existem, que pergunta
 cada uma responde, de que widgets é feita e o que fica de fora.
 
 O critério é único e vale para tudo neste documento: **uma tela existe para responder uma
@@ -128,7 +128,7 @@ ensina o operador a ignorar vermelho, que é o começo de toda cegueira operacio
 
 **O que NÃO deve estar aqui:** distribuição de latência (é `#/metrics`); lista de arquivos
 indexados (é `#/storage`); qualquer botão que prometa subir ou reiniciar Qdrant/Ollama/TTS — o
-espatial-os não é dono deles, e um botão que não controla é pior que nenhum. O que cabe é o
+SpatIA não é dono deles, e um botão que não controla é pior que nenhum. O que cabe é o
 *comando* copiável (ver §2.2).
 
 ---
@@ -286,7 +286,7 @@ levanta exceção nenhuma.
 afinação vive no `localStorage` do navegador, não no servidor. **Reset de fábrica tem duas
 metades**, e a tela diz quais.
 
-**A ação honesta:** o espatial-os **não indexa**. Ele lê uma coleção que outro pipeline
+**A ação honesta:** o SpatIA **não indexa**. Ele lê uma coleção que outro pipeline
 escreveu. Portanto não existe botão REINDEXAR — existe o comando de reindexação exibido e
 copiável, mais a data em que o índice mudou pela última vez. Reconstruir a topologia, sim, é
 deste sistema (`/api/graph?force=1` já existe) e esse botão é real.
@@ -472,7 +472,7 @@ Somando o grafo de dependência (`ask → embed → qdrant`, `voz → tts`, `web
 sistema pode desabilitar o botão `VOZ` preventivamente em vez de deixá-lo falhar.
 
 **A decisão de projeto:** uma unidade tem `start_hint` textual, **não** `start()`. O
-espatial-os não é o init desta máquina, não sobe Qdrant nem Ollama, e um painel que finge poder
+SpatIA não é o init desta máquina, não sobe Qdrant nem Ollama, e um painel que finge poder
 é a mesma classe de erro do interruptor que não controla. A diferença entre systemd e um painel
 de estado honesto é essa, e aqui o segundo é a escolha certa.
 
@@ -615,7 +615,7 @@ Três níveis distintos, e nomear a diferença é metade do valor:
 | **reiniciar o núcleo** | contadores do `/metrics`, sessão do agente, execuções em voo | `.cache/*`, diário, índice |
 | **"desligar o sistema"** | não existe — e não deveria | — |
 
-O terceiro merece a decisão explícita: o espatial-os não é dono de Qdrant, Ollama ou TTS, então
+O terceiro merece a decisão explícita: o SpatIA não é dono de Qdrant, Ollama ou TTS, então
 não tem o que desligar. O que existe de verdade e vale implementar é **drenagem**: `SIGTERM` →
 parar de aceitar execuções, esperar as vivas terminarem, gravar no diário um registro de
 encerramento limpo, sair.

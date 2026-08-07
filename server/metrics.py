@@ -1,4 +1,4 @@
-"""Catálogo de métricas do espatial-os — o que se mede, com que dimensão, e por quê.
+"""Catálogo de métricas do SpatIA — o que se mede, com que dimensão, e por quê.
 
 Critério de inclusão: a métrica tem que responder uma pergunta operacional que hoje só se
 responde olhando a tela. Contador que ninguém consultaria não entra.

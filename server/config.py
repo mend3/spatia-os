@@ -1,4 +1,4 @@
-"""Configuração do espatial-os: defaults que casam com a infra local + override por `.env`.
+"""Configuração do SpatIA: defaults que casam com a infra local + override por `.env`.
 
 Este projeto é deliberadamente desacoplado do workspace onde nasceu: ele conhece a infra
 apenas por *convenção de rede* (Qdrant e Ollama em localhost) e por *convenção de payload*

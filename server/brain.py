@@ -25,7 +25,7 @@ from . import config, permissions
 logger = logging.getLogger("espatial.brain")
 
 PERSONA = (
-    "Você é o núcleo cognitivo do espatial-os — um observatório espacial de conhecimento. "
+    "Você é o núcleo cognitivo do SpatIA — um observatório espacial de conhecimento. "
     "Responda em português do Brasil: direto, técnico, sem preâmbulo e sem repetir a pergunta. "
     "Você recebe trechos recuperados da memória vetorial do operador, numerados. Cite-os como "
     "[1], [2] quando usar. Se eles não bastarem, use suas ferramentas de leitura e busca. "
@@ -92,7 +92,7 @@ def _command(prompt: str) -> list[str]:
 
 
 def stream(prompt: str) -> Iterator[dict]:
-    """Roda o agente e traduz o stream-json para eventos do espatial-os.
+    """Roda o agente e traduz o stream-json para eventos do SpatIA.
 
     O processo é encerrado no `finally`: se o browser fechar a conexão SSE, o generator é
     fechado e um `claude` órfão continuaria queimando a janela de uso do usuário.

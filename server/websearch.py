@@ -131,7 +131,7 @@ def _duckduckgo(query: str) -> list[dict]:
     url = "https://html.duckduckgo.com/html/?" + net.encode_query({"q": query})
     try:
         page = net.get_text(
-            "duckduckgo", url, headers={"User-Agent": "Mozilla/5.0 (espatial-os)"}, timeout=15
+            "duckduckgo", url, headers={"User-Agent": "Mozilla/5.0 (SpatIA)"}, timeout=15
         )
     except net.UpstreamError as e:
         logger.warning(f"fallback ddg falhou: {e}")
