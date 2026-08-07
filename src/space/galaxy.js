@@ -113,13 +113,17 @@
  *    conclusion backwards, treating the sky as the risk and the focused body as the cheap case.
  *    Lever (2) below is therefore the FIRST one to pull, not the second.
  *
- * ⚠️ **The whole-sky total is NOT measured and cannot be measured on this bench**, which draws
- * one body. 71 bodies each below the noise floor still sum, and they sum in one draw call, so
- * the per-draw overhead is paid once and the fragment work is what accumulates: at 32 px their
- * combined quad area equals about one 270 px body, which sits between the two measured rows —
- * but on a much cheaper shader path (T0, `detail = 0.024`, no fbm), so that comparison is an
- * upper bound and probably a loose one. `scene.sampleRenderCost()` is the instrument that
- * settles it; run it before and after wiring and replace this paragraph with the two numbers.
+ * ✅ **O TOTAL DO CÉU FOI MEDIDO** — 2026-08-06, na cena viva, com o instrumento que este
+ * parágrafo pedia (`window.espatial.renderCost`, relógio de GPU). Pose de céu, `camera.distance`
+ * 260, **213** instâncias desenhando, framebuffer 3024 × 1484, três amostras de 30 renders:
+ * **`semCadeia` 0,31–0,35 ms** — a cena INTEIRA, 1774 corpos e as 213 galáxias juntas. O pós (a
+ * lente do buraco negro) custa 3,8–5,1 ms na mesma amostra, ou seja **mais de 10× a cena toda**.
+ *
+ * O palpite acima ("uma área combinada equivalente a um corpo de 270 px") era um teto frouxo,
+ * como ele mesmo suspeitava: o céu inteiro custa menos que a estimativa de UM corpo focado. A
+ * conclusão prática, e ela vale para qualquer trabalho futuro neste arquivo: **não existe
+ * "otimizar a galáxia" — o orçamento desta cena está todo na lente.** O lever (4), o teto no
+ * número de galáxias desenhadas, está morto com número em vez de com argumento.
  *
  * Bloom does not get more expensive — its cost is resolution-fixed, so adding bright pixels
  * changes its input, not its work. It does change appearance: the core will exceed the 0.72
@@ -184,10 +188,15 @@ export const LOD_FULL_PX = 200;
 
 /*
  * Half-extent of the billboard quad, in disc radii, and the discard radius — the SAME number on
- * purpose. The drawn region is the ellipse `length(rot(p, -roll) / (1, cosInc)) <= RMAX`, whose
- * bounding box is exactly RMAX in every direction at any roll and any inclination. Letting the
+ * purpose. The drawn region is the ellipse `length(rot(p, -roll) / (1, a)) <= RMAX`, whose
+ * bounding box is exactly RMAX in every direction at any roll and any `a` in (0, 1]. Letting the
  * two drift is how a disc gets clipped into a straight-edged half, which `rings.js:82-98`
  * already paid for once.
+ *
+ * ⚠️ `a` é o achatamento do componente MAIS GORDO, não o do disco — desde que cada componente
+ * ganhou o seu h/R (ver ASPECT_BOJO abaixo). Escrito com o bojo em mente porque é ele o mais
+ * gordo em qualquer pose, e descartar pelo disco fino cortaria o bojo exatamente de perfil, que
+ * é onde ele acabou de virar a coisa mais visível do objeto.
  */
 const QUAD_SPAN = 1.35;
 
@@ -235,6 +244,75 @@ const BAR_FRAC = 0.35;
  * Arm/interarm contrast: 1.42 / 0.58 = 2.45x, inside the measured 1.5-6x grand-design range.
  */
 const ARM_AMP = 0.42;
+
+/*
+ * ## A ESPESSURA — cada componente com o SEU h/R, e é isto que dá VOLUME ao objeto
+ *
+ * O defeito que estes números consertam: até 2026-08-06 TODO componente era avaliado na mesma
+ * coordenada de plano de disco (`q.y /= cosInc`), então todos tinham a mesma espessura, que era
+ * ZERO. Girar só podia comprimir a figura. O núcleo era a prova visível: de perfil o bojo virava
+ * um risco, quando ele é a única peça do objeto que deveria continuar REDONDA.
+ *
+ * Não se conserta isso empilhando fatias com o campo completo — é literalmente o erro que matou a
+ * aba no disco do buraco negro, e aqui seria pior (213 instâncias, ~49% da tela). Além de caro,
+ * seria errado: braço espiral é fenômeno de disco FINO, e fora do plano médio não há estrutura
+ * para copiar — há luz difusa. O que dá espessura a olho é a LUZ fora do plano médio.
+ *
+ * Então o objeto passa a ter TRÊS desprojeções em vez de uma, e o que as separa é só a razão de
+ * aspecto de cada peça:
+ *
+ * - **Bojo, 0,60.** c/a de bojo clássico. Um esferoide oblato de razão `c/a` visto com a normal a
+ *   um ângulo `i` projeta com razão de eixos `sqrt(cos²i + (c/a)²·sin²i)` — exata, não aproximada.
+ *   De frente vale 1 (redondo, como hoje); de perfil vale 0,60 em vez dos 0,05 do disco.
+ * - **Barra, 0,34.** Barras engrossam verticalmente em boxy/peanut; ela é mais gorda que o disco
+ *   e mais fina que o bojo, e é essa ORDEM que o olho lê, não a magnitude.
+ * - **Disco espesso, `3 × ASPECT_FOLHA`.** Gilmore & Reid 1983: a escala de altura do disco
+ *   espesso é ~3× a do fino. A fração de luz (12%) é a razão de densidade superficial local
+ *   medida, sem exagero de legibilidade — ela não precisa de exagero porque o ganho dela aparece
+ *   por SATURAÇÃO de perfil, não por amplitude.
+ *
+ * ⚠️ **A luz do disco espesso SAI DO ORÇAMENTO DO DISCO**, não se soma a ele, e ele desenha com a
+ * cor do disco. Na natureza ele é mais velho e mais vermelho; aqui a invariante de cor integrada
+ * (`BT*warm + (1-BT)*cool = base`) vale mais que esse gradiente no tamanho em que este objeto é
+ * lido. Ele também NÃO recebe o campo de braços, pelo motivo acima.
+ *
+ * ⚠️ **`ASPECT_FOLHA` continua com UM dono: o disco FINO.** Ele é o h/R daquela peça e é o mesmo
+ * número nos dois usos que já tinha — o piso da desprojeção (em `poseDe`) e o `cos(i)` da
+ * profundidade óptica. Os componentes novos não disputam esse número; cada um traz o seu. A regra
+ * geral, e é ela que decide qualquer peça futura:
+ *
+ * > **O piso da desprojeção de um componente É a razão de aspecto daquele componente.**
+ *
+ * Por isso `poseDe` NÃO mudou: o piso dele é o do disco fino, e como todo aspecto aqui é maior que
+ * `ASPECT_FOLHA`, aplicar `max(aspecto, cosInc_já_pisado)` devolve o mesmo que aplicar
+ * `max(aspecto, |cosView|)`. O oráculo `.cache/pose-galaxia.mjs` segue válido no que já cobria.
+ */
+const ASPECT_BOJO = 0.6;
+const ASPECT_BARRA = 0.34;
+const ASPECT_ESPESSO = ASPECT_FOLHA * 3;
+const FRAC_ESPESSO = 0.12;
+
+/*
+ * A profundidade óptica de cada disco, na lei compartilhada de `optical-depth.js`.
+ *
+ * O fino é o 0,7 que já estava escrito no fragmento — matéria que satura ao inclinar (razão entre
+ * os extremos: 1,986). O espesso é RAREFEITO de verdade, e é isso que 0,12 diz: no limite
+ * opticamente fino `1 - exp(-tau)` é linear, então a coluna dele cresce quase como `1/cos` até o
+ * próprio piso, e o fluxo dele NÃO cai ao virar de perfil. É por isso que ele é o componente que
+ * sustenta o objeto quando o disco fino colapsa no plano.
+ */
+const TAU_FINO = 0.7;
+const TAU_ESPESSO = 0.12;
+
+/*
+ * Quanto da luz do BOJO a faixa de poeira come, no lado em que ela passa na FRENTE dele.
+ *
+ * Metade do bojo está atrás do plano médio e é vista ATRAVÉS da poeira do disco; a outra metade
+ * está na frente e não é tocada. É o indicador clássico de qual lado de uma espiral inclinada
+ * está mais perto — e é o que separa "um borrão gordo" de "eu vejo qual lado vem na minha
+ * direção". Só T2, junto com a faixa que o desenha.
+ */
+const EXT_BOJO = 0.5;
 
 /*
  * Pattern speed, rad/s — shared by every galaxy, because the pattern speed of a density wave is a
@@ -417,23 +495,25 @@ const VERTEX = /* glsl */ `
  * (`d73328f`), e ela é a única compatível com esta arquitetura: um desenho instanciado não pode
  * ter uma quaternion por objeto (ver o cabeçalho do módulo), então quem gira não é a malha — é
  * a POSE que a malha desenha. O quad continua billboard, o que também é o que garante que a
- * elipse de mundo nunca é cortada por ele: a região desenhada é uma elipse de semieixos
- * `QUAD_SPAN` e `QUAD_SPAN*cosInc`, sempre dentro da caixa do quad, em qualquer pose.
+ * elipse de mundo nunca é cortada por ele: cada componente é desenhado numa elipse de semieixos
+ * `QUAD_SPAN` e `QUAD_SPAN * aspecto`, e todo aspecto é ≤ 1 — sempre dentro da caixa do quad, em
+ * qualquer pose.
  *
  * O que o shader recebe é a projeção ORTOGRÁFICA do disco de mundo — rotação mais achatamento
- * num eixo, que é exatamente o que `rotate()` + `q.y /= cosInc` sabem fazer, e é EXATO para
+ * num eixo, que é exatamente o que `rotate()` + uma divisão em `y` sabem fazer, e é EXATO para
  * esse modelo. A perspectiva acrescenta um cisalhamento de segunda ordem no ângulo fora de
  * eixo; é a mesma aproximação que o quasar aceitou, no mesmo objeto.
  *
- * ⚠️ **E a pergunta que a lei manda fazer: o ÂNGULO chegou ao shader?** Aqui `cosInc` tem DOIS
- * leitores — o achatamento de tela (`q.y /= cosInc`) e o `cos(i)` FÍSICO da profundidade óptica
- * (`colunaDisco`). Foi por um símbolo com dois donos que o anel falhou em silêncio
- * (`835e749`). Neste módulo os dois donos querem o MESMO número e podem compartilhá-lo, e a
- * razão é estrutural, não sorte: quem achata é o próprio shader, com o ângulo real, em vez de a
- * projeção achatar por fora. No anel a malha já era de mundo, então o achatamento de tela tinha
- * de valer 1 enquanto a física queria `cos(i)`; aqui não existe esse 1. **Se alguém um dia
- * fizer a malha da galáxia virar geometria de mundo, este parágrafo passa a estar errado e os
- * dois têm de se separar em `uCosTilt`/`uCosView`, como no anel.**
+ * ⚠️ **E a pergunta que a lei manda fazer: o ÂNGULO chegou ao shader?** `cosInc` é lido por
+ * VÁRIOS donos — o achatamento de cada componente e o `cos(i)` FÍSICO das duas leis de coluna —
+ * e foi por um símbolo com dois donos que o anel falhou em silêncio (`835e749`). Aqui isso é
+ * seguro, e a razão é estrutural, não sorte: **todos os donos querem o mesmo ÂNGULO e diferem
+ * só na razão de aspecto que aplicam sobre ele**, cada uma nomeada e local ao componente. Quem
+ * achata é o próprio shader, com o ângulo real, em vez de a projeção achatar por fora; no anel a
+ * malha já era de mundo, então o achatamento de tela tinha de valer 1 enquanto a física queria
+ * `cos(i)`, e aqui não existe esse 1. **Se alguém um dia fizer a malha da galáxia virar
+ * geometria de mundo, este parágrafo passa a estar errado e o achatamento tem de se separar do
+ * ângulo em `uCosTilt`/`uCosView`, como no anel.**
  *
  * ## Knots and arms are ONE function, not two objects
  *
@@ -527,12 +607,47 @@ const FRAGMENT = /* glsl */ `
      */
     float cosInc = abs(vPose.x);
     float face = vPose.x < 0.0 ? -1.0 : 1.0;
-    // Rotaciona e achata em y. Fora do foco os dois numeros sao hash (elipse de TELA,
-    // camera-independente); em foco os dois saem da camera (projecao de um disco de MUNDO).
-    vec2 q = rotate(vP, cos(vPose.y), sin(vPose.y));
-    q.y /= cosInc;
+    // A TELA, alinhada ao eixo MAIOR da elipse — e so isso. Rotacionar nao achata nada, entao
+    // daqui saem TRES desprojecoes, uma por componente. Fora do foco o angulo e hash (elipse de
+    // TELA, camera-independente); em foco ele sai da camera (projecao de um disco de MUNDO).
+    vec2 s = rotate(vP, cos(vPose.y), sin(vPose.y));
+
+    /*
+     * AS TRES ESPESSURAS. Cada componente desprojeta com o SEU h/R, e e essa diferenca — nao um
+     * empilhamento de fatias — que o olho le como volume: ao inclinar, o disco fino colapsa no
+     * plano enquanto o bojo continua redondo e o disco espesso so afina ate um terco do caminho.
+     * De frente os tres valem 1 e as tres coordenadas coincidem: a imagem aprovada nao se mexe.
+     *
+     * O esferoide oblato e EXATO, nao aproximado: razao de eixos projetada de um esferoide de
+     * razao c/a visto a um angulo i vale sqrt(cos2 i + (c/a)2 sin2 i).
+     */
+    float cos2 = cosInc * cosInc;
+    float sin2 = 1.0 - cos2;
+    float aBojo = sqrt(cos2 + ${(ASPECT_BOJO * ASPECT_BOJO).toFixed(4)} * sin2);
+    float aBarra = sqrt(cos2 + ${(ASPECT_BARRA * ASPECT_BARRA).toFixed(4)} * sin2);
+    float aEspesso = max(cosInc, ${glslFloat(ASPECT_ESPESSO)});
+
+    vec2 q = vec2(s.x, s.y / cosInc);
     float r = length(q);
-    if (r > ${QUAD_SPAN.toFixed(3)}) discard;
+    float rBojo = length(vec2(s.x, s.y / aBojo));
+    /*
+     * O DESCARTE E DO COMPONENTE MAIS GORDO, e trocar isso foi obrigatorio: com o bojo redondo,
+     * de perfil ele passa MUITO alem da faixa fina do disco, e descartar pelo raio do disco fino
+     * cortaria o bojo em dois no lugar onde ele finalmente aparece. aBojo e sempre o maior dos
+     * tres aspectos, entao rBojo e sempre o menor dos tres raios: descartar por ele nao deixa
+     * componente nenhum de fora. E a caixa do quad continua a mesma — todo aspecto e <= 1, entao
+     * a regiao desenhada continua dentro de QUAD_SPAN em qualquer direcao, em qualquer pose.
+     */
+    if (rBojo > ${QUAD_SPAN.toFixed(3)}) discard;
+    /*
+     * +q.y e o lado do plano medio que esta LONGE do olho, e o sinal vale antes do espelho.
+     *
+     * Vem da construcao de poseDe: V = N x U projeta na tela ao longo de +y com comprimento
+     * |cosView| e aponta para longe da camera (componente -sinView na linha de visada). Guardado
+     * aqui porque o espelho da face abaixo destroi essa informacao, e ela e o que diz qual metade
+     * do bojo a poeira do disco cobre. Conferido por .cache/pose-galaxia.mjs.
+     */
+    float vLonge = q.y;
     // Espelha o PADRAO, nunca o raio: r ja foi lido e e invariante. Daqui para baixo q e a
     // coordenada do disco vista pela face que esta na frente.
     q.y *= face;
@@ -542,18 +657,31 @@ const FRAGMENT = /* glsl */ `
     float th = atan(q.y, q.x) - vPose.z;
 
     // BULGE — projected Plummer, the exact projected surface density of a Plummer sphere.
-    float x = r / vLod.w;
+    // Lido em rBojo, nao em r: um bojo e um ESFEROIDE. Com o r do disco ele achatava junto com a
+    // folha e de perfil virava um risco — a coisa mais visivel do defeito "as galaxias estao
+    // flat". A normalizacao nao muda com isso, e e o que faz o fluxo dele parar de cair ao
+    // inclinar: o fluxo na tela vale aspecto x B/T, entao ele vai a 0,60 de perfil em vez de a
+    // 0,05, e continua exatamente B/T de frente.
+    float x = rBojo / vLod.w;
     float sb = 1.0 / (1.0 + x * x);
     float bulge = sb * sb * vGain.x;
 
     // DISC — exponential, softly truncated. A hard rim reads as geometry.
     float disk = exp(-${DISK_RATE.toFixed(1)} * r) * (1.0 - smoothstep(0.92, 1.28, r));
 
+    // O DISCO ESPESSO — o MESMO perfil, a mesma cor, a mesma luz. So a espessura muda, e e por
+    // isso que de frente ele e indistinguivel do disco fino (as duas coordenadas coincidem) e de
+    // perfil ele e o objeto inteiro: a folha colapsa em 0,05 e ele para em 0,15.
+    float rEspesso = length(vec2(s.x, s.y / aEspesso));
+    float espesso = exp(-${DISK_RATE.toFixed(1)} * rEspesso) * (1.0 - smoothstep(0.92, 1.28, rEspesso));
+
     // BAR — flat-topped in x, gaussian waist in y. At 20 px of disc radius a V2 bar is 15 px
     // long and ~4 px thick (arithmetic: 2*0.38*20 and 2*0.28*0.38*20), which is the only class
     // cue here SHARPER than the bloom veil rather than softer.
+    // Tambem na coordenada dela: uma barra engrossa verticalmente em boxy/peanut, entao ela e
+    // mais gorda que o disco e mais fina que o bojo. E a ORDEM das tres que o olho le.
     float barLen = max(vShape.w, 0.001);
-    vec2 b = rotate(q, cos(vPose.z), sin(vPose.z));
+    vec2 b = rotate(vec2(s.x, s.y * face / aBarra), cos(vPose.z), sin(vPose.z));
     float bx = b.x / barLen;
     float by = b.y / (barLen * ${BAR_AXIS.toFixed(2)});
     float bx2 = bx * bx;
@@ -613,7 +741,18 @@ const FRAGMENT = /* glsl */ `
     // theta-independent, therefore it changes no angular mean and the flux invariant holds.
     float launched = smoothstep(rin * 0.55, rin * 1.3, r);
 
-    float armMod = vGain.w * asym * (sharp - 1.0) * window * visible * launched;
+    /*
+     * ⚠️ O 1/(1-FRAC_ESPESSO) e o que mantem a imagem DE FRENTE algebricamente identica a de
+     * antes do disco espesso existir. Os bracos so modulam o disco FINO, que ficou com (1-f) da
+     * luz; dividindo a amplitude por (1-f), a soma dos dois fecha exata:
+     *
+     *     (1-f)*(1 + A/(1-f)) + f  =  1 + A
+     *
+     * O que ele NAO cancela, e nem deve: de perfil o contraste dos bracos contra o disco fino
+     * sozinho fica 1,14x maior que o de projeto — que e o certo, porque os bracos vivem so nele.
+     */
+    float armMod = vGain.w * ${(1 / (1 - FRAC_ESPESSO)).toFixed(6)}
+                 * asym * (sharp - 1.0) * window * visible * launched;
 
     // ---- TIER 2: dust lane, star-formation ridge, segmentation ---------------------
     vec3 diskTint = vCool;
@@ -671,6 +810,27 @@ const FRAGMENT = /* glsl */ `
       // whatever is behind it in the live composer's float target.
       disk *= max(0.0, 1.0 - 0.45 * uDust * lane * seg * lw * t2);
 
+      /*
+       * A FAIXA PASSA NA FRENTE DE METADE DO BOJO — e e este o cue que diz qual lado vem na sua
+       * direcao. Sem ele o objeto pode ficar gordo e ainda assim nao ter FRENTE e FUNDO.
+       *
+       * A geometria, e ela nao tem escolha nenhuma dentro: a poeira mora no plano medio, entao
+       * ela cobre a luz do bojo que vem de TRAS do plano e nao toca a que vem da frente. Num
+       * ponto da tela em vLonge, a linha de visada cruza o plano a uma profundidade proporcional
+       * a vLonge*sin/cos: para vLonge > 0 (o lado LONGE) o cruzamento cai atras do bojo e quase
+       * toda a coluna esta na frente da poeira; para vLonge < 0 (o lado PERTO) e o contrario.
+       * Dai a regra de livro-texto que este bloco desenha: a faixa aparece deslocada para o lado
+       * PROXIMO e o bojo fica mais brilhante do lado LONGE.
+       *
+       * A largura da transicao nao e escolhida — ela e o tamanho do bojo em profundidade dividido
+       * pela tangente: de perfil a faixa corta o bojo numa linha nitida, e de frente ela se abre
+       * ate cobrir tudo, onde o sin2 zera o efeito inteiro. Por isso a pose de frente continua
+       * intocada, que e a condicao de toda esta entrega.
+       */
+      float meioBojo = vLod.w * cosInc / max(sqrt(sin2), 0.001);
+      float naFrente = smoothstep(-meioBojo, meioBojo, vLonge);
+      bulge *= 1.0 - ${EXT_BOJO.toFixed(3)} * uDust * (1.0 - naFrente) * sin2 * t2;
+
       // Zero-mean weight, so the integrated colour of the disc does not move when the knots
       // appear. Blue on the shock face, warm between: the nested split of the disc's own light.
       diskTint = vCool * (1.0 - ${K_SF.toFixed(3)} * W * ((sf - 1.0) * lw * ${SF_AMOUNT.toFixed(3)} * t2));
@@ -699,11 +859,29 @@ const FRAGMENT = /* glsl */ `
      * fica translucido, de perfil a coluna satura (a razao entre os extremos e 1,986, aritmetica
      * sobre saidaDaLaje com o piso de 0,05) e a espiral vira a barra densa de NGC 891.
      */
-    float colunaDisco = saidaDaLaje(0.7, cosInc, ${glslFloat(ASPECT_FOLHA)})
-                      / saidaDaLaje(0.7, 1.0, ${glslFloat(ASPECT_FOLHA)});
-    float diskLight = disk * vGain.z * max(0.0, 1.0 + armMod) * colunaDisco;
+    float colunaDisco = saidaDaLaje(${glslFloat(TAU_FINO)}, cosInc, ${glslFloat(ASPECT_FOLHA)})
+                      / saidaDaLaje(${glslFloat(TAU_FINO)}, 1.0, ${glslFloat(ASPECT_FOLHA)});
+    /*
+     * A MESMA LEI, com o tau e o aspecto do disco ESPESSO — e e aqui que ele ganha o objeto.
+     *
+     * Ele e opticamente FINO (tau 0,12), entao a coluna dele e quase linear em 1/cos e nao satura
+     * antes do proprio piso: de perfil ela vale ~5,1x, contra 1,986x do disco fino, que satura
+     * cedo porque e denso. Multiplicado pela area de tela (que cai com o aspecto), o resultado e
+     * a diferenca inteira: o disco fino chega de perfil com ~10% do fluxo que tem de frente e o
+     * espesso chega com ~100%. Um esta colapsado no plano, o outro nao — e ver os dois ao mesmo
+     * tempo, um dentro do outro, e o que faz o objeto ter espessura em vez de virar um risco.
+     */
+    float colunaEspessa = saidaDaLaje(${glslFloat(TAU_ESPESSO)}, cosInc, ${glslFloat(ASPECT_ESPESSO)})
+                        / saidaDaLaje(${glslFloat(TAU_ESPESSO)}, 1.0, ${glslFloat(ASPECT_ESPESSO)});
 
-    vec3 color = (vWarm * (bulge + bar) + diskTint * diskLight) * uGain;
+    float luzFina = disk * vGain.z * ${(1 - FRAC_ESPESSO).toFixed(4)}
+                  * max(0.0, 1.0 + armMod) * colunaDisco;
+    // Sem armMod e sem a extincao da faixa, e nenhuma das duas ausencias e economia: braco
+    // espiral e fenomeno de disco fino, e a faixa de poeira mora no plano medio — metade do disco
+    // espesso esta na FRENTE dela.
+    float luzEspessa = espesso * vGain.z * ${FRAC_ESPESSO.toFixed(4)} * colunaEspessa;
+
+    vec3 color = (vWarm * (bulge + bar) + diskTint * (luzFina + luzEspessa)) * uGain;
     if (max(max(color.r, color.g), color.b) < 0.0015) discard;
     // Additive blending in r171 is blendFunc(SRC_ALPHA, ONE) (WebGLState.js:687), so alpha 1 is
     // exactly additive and the colour above is the light this galaxy contributes.
