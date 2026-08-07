@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
+from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, running, speech, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -77,12 +77,12 @@ class Handler(BaseHTTPRequestHandler):
             self._hook(parsed.path[len("/hooks/"):].strip("/"))
             return
 
-        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach"):
+        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
-        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach") and not self._same_site():
+        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill") and not self._same_site():
             metrics.crosssite_refused.inc()
             self._json({"error": "requisição cross-site recusada"}, status=403)
             return
@@ -94,6 +94,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = min(int(self.headers.get("Content-Length") or 0), MAX_BODY_BYTES)
             payload = json.loads(self.rfile.read(length) or b"{}")
+            if parsed.path == "/api/kill":
+                # `False` é "essa execução já acabou", não erro: entre o desenho da tela e o
+                # clique cabe o fim natural dela, e 404 aqui leria como falha do botão.
+                encerrada = running.cancel(str(payload.get("id") or ""))
+                self._json({"cancelled": encerrada, "running": running.snapshot()})
+                return
             if parsed.path == "/api/config":
                 permissions.update(payload)
                 self._json(permissions.describe())
@@ -255,6 +261,8 @@ class Handler(BaseHTTPRequestHandler):
                     "history": webhooks.history(),
                     "providers": websearch.availability(),
                 })
+            elif route == "/api/running":
+                self._json({"running": running.snapshot(), "budget": budget.status()})
             elif route == "/api/journal":
                 # Sem `day` a tela pergunta "o que existe": a lista de dias e o estado do teto
                 # vêm sozinhos, e só o dia escolhido carrega as execuções. Devolver tudo faria a
@@ -455,14 +463,15 @@ class Handler(BaseHTTPRequestHandler):
         try:
             # `instrument` envolve o stream: repassa cada evento intacto e contabiliza de
             # lado, então métrica e tela derivam da mesma fonte — não há como divergirem.
-            with budget.Slot():
-                for event in recorder.instrument(
-                    agent.run(question, web=forced),
-                    config.get("BRAIN"),
-                    question=question,
-                    origin="console",
-                ):
-                    self._sse(event)
+            # A vaga de concorrência não é tomada aqui: quem conta é o registro de execuções
+            # vivas, alimentado pelo `recorder` — e ele cobre exatamente o mesmo intervalo.
+            for event in recorder.instrument(
+                agent.run(question, web=forced),
+                config.get("BRAIN"),
+                question=question,
+                origin="console",
+            ):
+                self._sse(event)
         except (BrokenPipeError, ConnectionResetError):
             logger.info("cliente desconectou; execução abortada")
         finally:

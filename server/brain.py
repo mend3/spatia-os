@@ -115,6 +115,10 @@ def stream(prompt: str) -> Iterator[dict]:
     )
     tool_names: dict[str, str] = {}
     try:
+        # O PID vai para o registro de execuções: a tela de atividade mostra O QUE o botão
+        # ENCERRAR vai atingir, em vez de pedir confiança.
+        yield {"t": "proc", "pid": process.pid}
+
         for raw in process.stdout:
             line = raw.strip()
             if not line:

@@ -8,19 +8,21 @@ O gasto do dia sai do DIÁRIO, em disco, e não de um contador em memória. Um c
 restart, e um teto que se apaga sozinho a cada reinício não é teto — bastaria reiniciar. Custa
 uma leitura do arquivo do dia por pergunta, contra um arquivo que tem uma linha por execução.
 
-A concorrência é contada aqui e não no `metrics.ask_active` porque aquele é observação e este é
-decisão: um gauge que alguém pudesse zerar para consertar um painel abriria a porta.
+A concorrência é contada pelo REGISTRO de execuções vivas (`running`), não por um contador próprio
+nem pelo `metrics.ask_active`: aquele é observação e este é decisão, e dois contadores da mesma
+coisa acabam discordando — normalmente no caminho de exceção, que é justamente quando o teto
+importa.
 """
 import logging
 import threading
 from typing import Optional
 
 from . import config, journal
+from .running import count as running_count
 
 logger = logging.getLogger("espatial.budget")
 
 _lock = threading.Lock()
-_running = 0
 # Encerrando: recusa execução NOVA e deixa a em curso terminar. Um servidor que morre no meio de
 # uma resposta paga o custo e não entrega nada — e o diário registra `aborted` sem que ninguém
 # tenha abortado.
@@ -33,7 +35,7 @@ def drain() -> None:
 
 
 def running() -> int:
-    return _running
+    return running_count()
 
 
 def max_daily_usd() -> float:
@@ -61,7 +63,7 @@ def status() -> dict:
         "spent_today": spent,
         "max_daily_usd": daily,
         "remaining_usd": round(daily - spent, 6) if daily else None,
-        "running": _running,
+        "running": running_count(),
         "max_concurrent": max_concurrent(),
     }
 
@@ -82,26 +84,7 @@ def refusal() -> Optional[str]:
             return f"teto diário atingido: ${spent:.4f} de ${daily:.2f} — a execução não começou"
 
     limite = max_concurrent()
-    if limite and _running >= limite:
-        return f"{_running} execuções em curso, o limite é {limite} — a execução não começou"
+    vivas = running_count()
+    if limite and vivas >= limite:
+        return f"{vivas} execuções em curso, o limite é {limite} — a execução não começou"
     return None
-
-
-class Slot:
-    """Ocupa uma vaga de concorrência enquanto a execução dura.
-
-    Context manager porque a vaga TEM de voltar no caminho de erro: um `finally` esquecido aqui
-    trava o sistema em "cheio" para sempre, e o sintoma seria o servidor recusando tudo sem nada
-    rodando — a mesma classe de vazamento que o `ask_active` já teve.
-    """
-
-    def __enter__(self) -> "Slot":
-        global _running
-        with _lock:
-            _running += 1
-        return self
-
-    def __exit__(self, *_) -> None:
-        global _running
-        with _lock:
-            _running = max(0, _running - 1)

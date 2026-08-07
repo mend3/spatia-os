@@ -17,7 +17,7 @@ import logging
 import time
 from typing import Iterator, Optional
 
-from . import journal, metrics
+from . import journal, metrics, running
 
 logger = logging.getLogger("espatial.recorder")
 
@@ -34,8 +34,11 @@ STATE_TO_STAGE = {
 class Run:
     """Estado de uma execução, vivo apenas durante o stream dela."""
 
-    def __init__(self, brain: str, record: Optional[dict] = None):
+    def __init__(self, brain: str, record: Optional[dict] = None, live=None):
         self.brain = brain
+        # A entrada no registro de execuções vivas. É o MESMO objeto que a tela de atividade lê,
+        # alimentado aqui e em lugar nenhum mais.
+        self.live = live
         # O registro do diário, preenchido ao longo do stream e fechado no `finally`. `None` só
         # em chamador que não abriu registro — o `Run` continua servindo para métrica.
         self.record = record
@@ -79,6 +82,8 @@ class Run:
         elapsed = time.monotonic() - entry[2] if entry else None
         if elapsed is not None:
             metrics.tool_duration.observe(elapsed, kind=kind)
+        if self.live is not None:
+            self.live.tools += 1
         if self.record is not None:
             self.record["tools"].append(
                 {
@@ -108,6 +113,8 @@ def _observe(run: Run, event: dict) -> None:
 
     elif kind == "state":
         stage = STATE_TO_STAGE.get(event.get("state"))
+        if run.live is not None:
+            run.live.stage = stage or event.get("state")
         if stage:
             run.open_stage(stage)
         else:
@@ -147,6 +154,12 @@ def _observe(run: Run, event: dict) -> None:
         if total > previous:
             metrics.agent_thinking_tokens.inc(total - previous)
             run._thinking = total  # noqa: SLF001 — estado privado do próprio Run
+
+    elif kind == "proc":
+        # O PID do subprocesso, para a tela poder mostrar O QUE ela vai encerrar. Vem do `brain`
+        # em vez de ser descoberto por `ps`: quem criou o processo é quem sabe qual é.
+        if run.live is not None:
+            run.live.pid = event.get("pid")
 
     elif kind == "brain":
         run.model = event.get("model") or run.model
@@ -193,6 +206,9 @@ def _observe_web(run: Run, event: dict) -> None:
 def _observe_answer(run: Run, event: dict) -> None:
     run.outcome = "success"
     model = event.get("model") or run.model or "default"
+    if run.live is not None:
+        run.live.cost_usd = float(event.get("cost_usd") or 0.0)
+        run.live.turns = int(event.get("turns") or 0)
     if run.record is not None:
         # O texto FINAL. `token` e `thought` são delta por letra e não são decisão — gravá-los
         # encheria o diário com o caminho até a frase em vez da frase (§1, `#/journal`).
@@ -253,13 +269,23 @@ def instrument(
     `journaled=False` para uma reprise: reencenar não é decidir de novo, e recontar a linha faria
     o custo do dia crescer sem ninguém ter gasto nada.
     """
-    run = Run(brain, journal.begin(question, origin) if journaled else None)
+    live = running.register(question, origin)
+    run = Run(brain, journal.begin(question, origin) if journaled else None, live)
     metrics.ask_active.inc(brain=brain)
     try:
         for event in events:
             observe(run, event)
             yield event
+            # Encerramento pedido pela tela de atividade. Parar de consumir FECHA o generator,
+            # e o `finally` do `brain` mata o subprocesso — o mesmo caminho que fecha a métrica,
+            # o estágio e a linha do diário. Matar o PID por fora faria a execução SUMIR em vez
+            # de terminar.
+            if live.cancelled:
+                run.outcome = "cancelled"
+                yield {"t": "state", "state": "error", "label": "ENCERRADA"}
+                break
     finally:
+        running.unregister(live)
         run.close_stage()
         metrics.ask_active.dec(brain=brain)
         metrics.ask_duration.observe(time.monotonic() - run.started, brain=brain)
