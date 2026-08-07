@@ -69,6 +69,14 @@ const SPIN_PERIOD = { young: 22, old: 78 };
 export const LOD_FAR_PX = 90;
 export const LOD_NEAR_PX = 200;
 
+/**
+ * Quanto do raio de referência esta pele PREENCHE com corpo desenhado — aqui, tudo.
+ *
+ * A malha é uma esfera de raio 1 escalada por `pouso.radius`, então a fotosfera É o corpo. Quem
+ * lê isto é `lod.js` (`BODY_SPAN`), para decidir se a coroa do sprite envolve alguma coisa.
+ */
+export const BODY_SPAN = 1;
+
 /*
  * ## As três referências SOLARES — e por que elas deixaram de ser constantes
  *

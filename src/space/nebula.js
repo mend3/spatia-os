@@ -40,6 +40,15 @@ const DRIFT = MOTION.nebulaDrift;
 export const LOD_FAR_PX = 22;
 export const LOD_NEAR_PX = 95;
 
+/**
+ * Quanto do raio de referência o CORPO ocupa — nada: a nebulosa não tem corpo.
+ *
+ * O arquivo declara serviços e o objeto declara extensão sem borda (ver o cabeçalho). O raio de
+ * referência aqui é só a unidade em que a nuvem mede, e ela vai de 3,0 a 5,3 dele. Quem lê é
+ * `lod.js` (`BODY_SPAN`): não há superfície para a coroa do sprite envolver.
+ */
+export const BODY_SPAN = 0;
+
 /** Extensão do quad, em raios do corpo. A nebulosa é MUITO maior que o objeto que a nomeia. */
 const SPAN = 4.2;
 

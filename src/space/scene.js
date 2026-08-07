@@ -35,7 +35,7 @@ import { createQuasars, quasarParams } from './quasar.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
-import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget } from './lod.js';
+import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown } from './lod.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
@@ -1374,6 +1374,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     probe.classe = classe?.id ?? null;
     probe.tipo = decisao?.surface ?? SURFACE.NONE;
     probe.recusados = decisao?.rejected ?? [];
+    // Qual dos DOIS modos de `haloOf` esta pele pediu. Sem isto, "o sprite sumiu" e "a coroa
+    // cedeu porque devia" seriam a mesma imagem sem jeito de distinguir por sonda.
+    probe.coroa = decisao ? keepsCrown(decisao.surface) : null;
     if (decisao && decisao.surface !== ultimaSuperficie) {
       ultimaSuperficie = decisao.surface;
       trace('solver', {
@@ -1396,7 +1399,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       photosphere.object.position.copy(pouso.position);
       photosphere.object.scale.setScalar(pouso.radius);
       const level = photosphere.update(starParamsCache, camera, pouso.px, elapsed);
-      graph.haloOf(level > 0.002 ? focusedNode : null, level);
+      // A fotosfera É o corpo: a coroa fica, e é ela a atmosfera iluminada por trás. Quem
+      // responde por isso é `keepsCrown` — este bloco não decide, obedece.
+      graph.haloOf(level > 0.002 ? focusedNode : null, level, !keepsCrown(decisao.surface));
       probe.level = level;
       probe.raio = pouso.radius;
       probe.dist = camera.position.distanceTo(pouso.position);
@@ -1447,7 +1452,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         level = nebula.update(morphParams, camera, pouso.px, elapsed, motion.isReduced());
       } else nebula.object.visible = false;
 
-      graph.haloOf(level > 0.002 ? focusedNode : null, level);
+      /*
+       * ⚠️ Destas quatro, só a ESTAÇÃO fica com a coroa — e a diferença não é de recuo, é de
+       * corpo. Cometa (núcleo 0,30 do raio), pulsar (0,16) e nebulosa (nenhum) não têm superfície
+       * sob a coroa: ela viraria um disco chapado da cor do nó por cima da coma/da nuvem. Ver
+       * `keepsCrown` em `lod.js`, que traz a medida.
+       */
+      graph.haloOf(level > 0.002 ? focusedNode : null, level, !keepsCrown(decisao.surface));
       probe.level = level;
       probe.raio = pouso.radius;
       probe.dist = camera.position.distanceTo(pouso.position);
@@ -1479,8 +1490,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         elapsed
       );
       // O sprite cede NA MESMA MEDIDA em que a superfície aparece: sem isso a troca seria seca
-      // e o astro piscaria de ponto para planeta.
-      graph.haloOf(level > 0.002 ? focusedNode : null, level);
+      // e o astro piscaria de ponto para planeta. O planeta é o corpo, então a coroa fica.
+      graph.haloOf(level > 0.002 ? focusedNode : null, level, !keepsCrown(decisao.surface));
       // Sonda de diagnóstico: o planeta é o único objeto cuja ausência não gera erro nenhum —
       // ele simplesmente não desenha. Sem isto, "não apareceu" não distingue LOD baixo de
       // âncora errada de shader mudo.

@@ -30,6 +30,7 @@ import { GALAXY_VARIANTS } from './galaxy-variants.js';
 import { MOON_SPEC } from './moon-rig.js';
 import { QUASAR_SPEC } from './quasar-rig.js';
 import { PULSAR_SPEC } from './pulsar-rig.js';
+import { CROWN_SPEC } from './crown-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -517,6 +518,14 @@ export const SPECS = [
   ...GALAXY_VARIANTS,
   QUASAR_SPEC,
   PULSAR_SPEC,
+  /*
+   * A COROA entra como DECISÃO TOMADA que precisa continuar verificável — não como candidata.
+   *
+   * O portão por pele (`keepsCrown`) está na cena desde 2026-08-07; o que este espécime guarda é o
+   * A/B que o justificou, porque ele não existia em lugar nenhum quando a decisão foi tomada. Ver
+   * o cabeçalho de `crown-rig.js`.
+   */
+  CROWN_SPEC,
   /*
    * O sistema de luas entra como DECISÃO EM ABERTO, e não como candidata.
    *

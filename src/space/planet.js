@@ -84,6 +84,14 @@ const SPIN = MOTION.spin;
 export const LOD_FAR_PX = 90;
 export const LOD_NEAR_PX = 200;
 
+/**
+ * Quanto do raio de referência esta pele PREENCHE com corpo desenhado — aqui, tudo.
+ *
+ * A esfera nasce com raio 1 e é escalada por `pouso.radius`; o relevo vive na normal e a casca de
+ * atmosfera fica `SHELL_MARGIN` acima. Quem lê isto é `lod.js` (`BODY_SPAN`).
+ */
+export const BODY_SPAN = 1;
+
 /*
  * Segmentos da esfera. A referência usa 128×128; 96 basta porque a malha aqui responde só pela
  * SILHUETA — o relevo que se vê na superfície vem da normal reconstruída no fragmento, não dos

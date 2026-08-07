@@ -39,6 +39,18 @@ export const LOD_FAR_PX = 30;
 export const LOD_NEAR_PX = 110;
 
 /**
+ * Quanto do raio de referência o CORPO ocupa — e aqui ele é um caroço perdido dentro do gás.
+ *
+ * É o teto de `params.nucleus` (0,14 + até 0,16), e o valor está baixo de propósito: albedo de
+ * núcleo cometário é ~0,04 e o que se vê da Terra é a coma. Quem lê é `lod.js` (`BODY_SPAN`),
+ * para saber que a coroa do sprite — que vive entre 1,03 e 1,67 raios — não envolve corpo nenhum
+ * aqui, e sim pinta um disco por cima da coma.
+ */
+const NUCLEUS_FLOOR = 0.14;
+const NUCLEUS_GAIN = 0.16;
+export const BODY_SPAN = NUCLEUS_FLOOR + NUCLEUS_GAIN;
+
+/**
  * Comprimento máximo da cauda, em raios do núcleo.
  *
  * Caudas reais chegam a 1 UA — dezenas de milhões de raios do núcleo. Aqui o limite é a tela: 9
@@ -347,7 +359,7 @@ export function cometParams(node = {}, color = 0xffffff) {
      * raios ele dominava a imagem e o cometa lia como pedra com um facho saindo, em vez de gás com
      * um caroço dentro. 0,14–0,3 devolve a proporção: a coma é 3 a 8 vezes o núcleo.
      */
-    nucleus: 0.14 + Math.min(Math.log2(1 + chunks) * 0.028, 0.16),
+    nucleus: NUCLEUS_FLOOR + Math.min(Math.log2(1 + chunks) * 0.028, NUCLEUS_GAIN),
     coma: 0.9 + atividade * 1.5,
     tail: TAIL_MAX * (0.22 + atividade * 0.78),
     amount: 0.25 + atividade * 0.75,

@@ -33,6 +33,16 @@ import * as THREE from 'three';
 export const LOD_FAR_PX = 34;
 export const LOD_NEAR_PX = 120;
 
+/**
+ * Quanto do raio de referência a peça ocupa — e ela para um pouco ANTES dele.
+ *
+ * A montagem é normalizada por este número (ver `createStation`): o farol fica na ponta do casco
+ * e um encaixe exato o poria colado na borda do enquadramento, que lê como corte. Quem lê isto
+ * também é `lod.js` (`BODY_SPAN`): 0,92 é perto o bastante de 1 para a coroa do sprite envolver a
+ * estrutura em vez de boiar dentro dela — foi esta a pose aprovada no olho em 2026-08-07.
+ */
+export const BODY_SPAN = 0.92;
+
 /** Módulos do casco: piso e teto. Menos de 2 não lê como estrutura; mais de 7 vira mancha. */
 const MODULES = { min: 2, max: 7 };
 /** Painéis por lado. Dois é o mínimo que dá simetria; seis satura antes de virar ruído visual. */
@@ -202,9 +212,9 @@ export function createStation() {
     farol.position.y = params.length;
     montagem.add(farol);
 
-    // 0,92 deixa uma folga: o farol fica na ponta e um encaixe exato o poria colado na borda do
-    // enquadramento, que lê como corte.
-    montagem.scale.setScalar(0.92 / params.length);
+    // `BODY_SPAN` deixa uma folga: o farol fica na ponta e um encaixe exato o poria colado na
+    // borda do enquadramento, que lê como corte. O número mora lá porque `lod.js` também o lê.
+    montagem.scale.setScalar(BODY_SPAN / params.length);
     group.rotation.set(params.pitch, params.yaw, 0);
     assinatura = `${params.modules}|${params.panels}|${params.length}|${params.yaw}`;
   }

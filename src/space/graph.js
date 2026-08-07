@@ -214,6 +214,7 @@ export const ENVELOPE_GLSL = /* glsl */ `
 
 const FRAGMENT = /* glsl */ `
   precision highp float;
+  uniform float uHaloYield;
   varying vec3 vColor;
   varying float vIgnition;
   varying float vReveal;
@@ -228,14 +229,27 @@ ${ENVELOPE_GLSL}
     float d = length(pc);
     float core = pow(1.0 - smoothstep(0.0, 1.0, d), 2.2);
     /*
-     * O NUCLEO SE ABRE quando um planeta assume este astro.
+     * O NUCLEO SE ABRE quando uma pele assume este astro — e o quanto sobra depende da PELE.
      *
      * O disco visivel do sprite tem raio VISIBLE_CORE (0,6) e e exatamente onde a esfera do
      * planeta e desenhada. Sem esvaziar o miolo, o ponto ADITIVO continuaria somando brilho por
      * cima da superficie: o terminador — a parte mais legivel do planeta — sumiria num borrao.
      * Esvaziado, sobra a coroa, que e o que uma atmosfera iluminada por tras faz de verdade.
+     *
+     * ⚠️ E ela SO E ATMOSFERA ONDE EXISTE CORPO NO RAIO DE REFERENCIA. Medido em 2026-08-07 na
+     * cena viva: o cometa desenha o nucleo a 0,14–0,30 raios e a nebulosa nao desenha corpo
+     * nenhum, entao a coroa nao envolve coisa alguma — vira um disco chapado da cor do no, com um
+     * furo no meio, por cima da coma. Quem decide e uHaloYield, escrito pelo haloOf a partir do
+     * keepsCrown() de lod.js: em 1 o sprite inteiro cede e a pele fica sozinha.
+     *
+     * ⚠️ Nao adianta crescer o sprite para levar a coroa para fora da pele. Na chegada
+     * px = FOCUS_FIT_PX/SKIN_EXTENT, entao o raio pedido seria FOCUS_FIT_PX/VISIBLE_CORE = 433 px
+     * de framebuffer em QUALQUER pele (o extent cancela) — e gl_PointSize e limitado pelo driver
+     * (medido nesta maquina: ALIASED_POINT_SIZE_RANGE = [1, 511], ou 255,5 px de raio). Falta
+     * 1,70x, em toda pele. Ver o cabecalho de lod.js.
      */
-    core *= mix(1.0, smoothstep(0.0, 0.62, d), vHalo);
+    float aberto = mix(smoothstep(0.0, 0.62, d), 0.0, uHaloYield);
+    core *= mix(1.0, aberto, vHalo);
     /*
      * Corona so em no aceso: da o "volta a brilhar" sem inflar o ceu inteiro.
      *
@@ -428,6 +442,14 @@ export function createPointMaterial() {
       uRevealBand: { value: REVEAL_BAND },
       uRevealDim: { value: REVEAL_DIM },
       uPulse: { value: motion.isReduced() ? 0 : 1 },
+      /**
+       * 0 = o miolo abre e sobra a COROA (pele que é o corpo); 1 = o sprite inteiro CEDE.
+       *
+       * É uniform e não atributo porque só existe UM astro com halo por quadro — a mesma
+       * invariante que `haloOf` já mantém no `aHalo`. Um atributo daria a cada nó um modo próprio
+       * que ninguém escreveria, e um float por corpo para carregar um bit do corpo em foco.
+       */
+      uHaloYield: { value: 0 },
     },
     vertexShader: VERTEX,
     fragmentShader: FRAGMENT,
@@ -1360,11 +1382,25 @@ export function createGraph() {
      * somando brilho por cima da superfície e apagando o terminador — justo o que o planeta tem
      * de mais legível.
      *
+     * ⚠️ E há DOIS modos, porque "abrir o miolo" só descreve pele que é o corpo. Onde a pele não
+     * desenha corpo no raio de referência — cometa (núcleo 0,14–0,30), pulsar (0,10–0,16),
+     * nebulosa (nenhum) — a coroa que sobra não envolve nada e disputa a leitura com a própria
+     * pele. `cede` liga o segundo modo; quem responde por ele é `keepsCrown()` em `lod.js`, e a
+     * cena só obedece. Ver o `FRAGMENT` acima para a medida que decidiu isto.
+     *
      * @param {string|null} source  o astro que virou planeta, ou `null` para devolver todos
      * @param {number} amount       0…1, acompanha o nível de detalhe para a troca não ser seca
+     * @param {boolean} cede        `true` = o sprite inteiro sai; `false` = sobra a coroa
      */
-    haloOf(source, amount = 1) {
+    haloOf(source, amount = 1, cede = false) {
       if (!halo) return;
+      /*
+       * O uniform é escrito ANTES do curto-circuito abaixo, e de propósito: ele é um valor solto
+       * na GPU (não há upload de buffer), e pular a escrita junto com o atributo deixaria o modo
+       * do quadro anterior valendo para o astro deste — o defeito seria a coroa de um cometa
+       * aparecendo por um quadro depois de trocar de foco, que é caro de ver e barato de evitar.
+       */
+      material.uniforms.uHaloYield.value = cede ? 1 : 0;
       const alvo = source === null ? -1 : (index.get(source) ?? -1);
       // Só escreve quando MUDA: `needsUpdate` num atributo de 468 floats por quadro é upload de
       // buffer por quadro, e o valor é o mesmo em 99% deles.

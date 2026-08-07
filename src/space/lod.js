@@ -41,12 +41,12 @@
  * trabalho pisca — foi assim que a superfície do planeta piscou uma vez, por outra causa
  * (`graph.js`, a régua do sprite).
  */
-import { LOD_FAR_PX as PLANET_FAR, LOD_NEAR_PX as PLANET_NEAR } from './planet.js';
-import { LOD_FAR_PX as PHOTO_FAR, LOD_NEAR_PX as PHOTO_NEAR } from './photosphere.js';
-import { LOD_FAR_PX as STATION_FAR, LOD_NEAR_PX as STATION_NEAR } from './station.js';
-import { LOD_FAR_PX as COMET_FAR, LOD_NEAR_PX as COMET_NEAR } from './comet.js';
-import { LOD_FAR_PX as PULSAR_FAR, LOD_NEAR_PX as PULSAR_NEAR } from './pulsar.js';
-import { LOD_FAR_PX as NEBULA_FAR, LOD_NEAR_PX as NEBULA_NEAR } from './nebula.js';
+import { LOD_FAR_PX as PLANET_FAR, LOD_NEAR_PX as PLANET_NEAR, BODY_SPAN as PLANET_BODY } from './planet.js';
+import { LOD_FAR_PX as PHOTO_FAR, LOD_NEAR_PX as PHOTO_NEAR, BODY_SPAN as PHOTO_BODY } from './photosphere.js';
+import { LOD_FAR_PX as STATION_FAR, LOD_NEAR_PX as STATION_NEAR, BODY_SPAN as STATION_BODY } from './station.js';
+import { LOD_FAR_PX as COMET_FAR, LOD_NEAR_PX as COMET_NEAR, BODY_SPAN as COMET_BODY } from './comet.js';
+import { LOD_FAR_PX as PULSAR_FAR, LOD_NEAR_PX as PULSAR_NEAR, BODY_SPAN as PULSAR_BODY } from './pulsar.js';
+import { LOD_FAR_PX as NEBULA_FAR, LOD_NEAR_PX as NEBULA_NEAR, BODY_SPAN as NEBULA_BODY } from './nebula.js';
 import { SURFACE } from './solver.js';
 
 /**
@@ -158,6 +158,57 @@ const THRESHOLD = Object.freeze({
   [SURFACE.NEBULA]: { far: NEBULA_FAR, near: NEBULA_NEAR },
 });
 
+/**
+ * Quanto do raio de referência cada pele preenche com CORPO — importado, nunca copiado.
+ *
+ * ⚠️ **Não confunda com `SKIN_EXTENT`, e a confusão custaria a coroa aprovada.** `SKIN_EXTENT` é o
+ * RECUO do enquadramento; este número é o TAMANHO do que a pele desenha. Eles discordam em quase
+ * toda pele: estação recua 1,15 e desenha 0,92 (menor que o corpo); pulsar recua 1,2 e o vento
+ * vai a 2,28; cometa recua 3 e a cauda vai a 9. Decidir pela coroa por `SKIN_EXTENT > 1` tiraria
+ * a coroa da ESTAÇÃO, que é justamente a pose aprovada no olho em 2026-08-07.
+ */
+export const BODY_SPAN = Object.freeze({
+  [SURFACE.PHOTOSPHERE]: PHOTO_BODY,
+  [SURFACE.PLANET]: PLANET_BODY,
+  [SURFACE.STATION]: STATION_BODY,
+  [SURFACE.COMET]: COMET_BODY,
+  [SURFACE.PULSAR]: PULSAR_BODY,
+  [SURFACE.NEBULA]: NEBULA_BODY,
+});
+
+/**
+ * O PISO DA COROA — abaixo dele o sprite cede inteiro sob a pele.
+ *
+ * ## A medida que o escolheu (2026-08-07, cena viva, fb 3024×1484, driver `[1, 511]`)
+ *
+ * O sprite do astro em foco tem o miolo esvaziado até `d = 0,62` e morre em `d = 1,0`, o que põe a
+ * coroa entre **1,03 e 1,67 raios do corpo** — mas só enquanto o ponto não bate no teto do driver.
+ * Passado ele (`px > 153`), a coroa externa vira `255,5/px` raios, e na chegada isso é
+ * `0,98 × SKIN_EXTENT`. Medido em cada pele: fotosfera `px` 263 → 0,97 (a coroa nem sai de dentro
+ * do corpo: o perfil radial cai de 187 para 10 na silhueta e não há NADA além dela), estação 209
+ * → 1,10–1,22 (a atmosfera aprovada), cometa 82–91 e nebulosa 73–81 → 1,67 cheios.
+ *
+ * A coroa é atmosfera quando há SUPERFÍCIE logo abaixo dela e disputa a leitura quando não há.
+ * `0,8` separa os dois grupos com folga de 3× para os dois lados — estação 0,92 de um lado,
+ * cometa 0,30 do outro — então ele não é um limiar afinado, é um vão.
+ *
+ * ⚠️ **Crescer o sprite não era saída.** Para a coroa cair FORA da pele o raio pedido seria
+ * `SKIN_EXTENT × px/0,6` = `FOCUS_FIT_PX/0,6` = **433 px de framebuffer em qualquer pele** (o
+ * `extent` cancela, pela mesma aritmética do topo deste arquivo), contra os 255,5 que o driver
+ * entrega. Falta 1,70×, e não há botão: o teto é do rasterizador. Crescer por `aSize`/`uSize`
+ * tampouco serve — `starRadius` lê os dois e o CORPO cresceria junto (medido: `px` 191 → 30 ao
+ * mexer no `nodeSize`).
+ */
+const CROWN_FLOOR = 0.8;
+
+/**
+ * Esta pele mantém a coroa do sprite, ou o sprite cede inteiro sob ela?
+ *
+ * @param {string} surface  um valor de `SURFACE`
+ * @returns {boolean} `true` = sobra a coroa (a pele é o corpo); `false` = o sprite sai
+ */
+export const keepsCrown = (surface) => (BODY_SPAN[surface] ?? 0) >= CROWN_FLOOR;
+
 /** `k` da projeção: quantos pixels de framebuffer vale um raio de mundo a uma unidade de distância. */
 const projectionK = (fov, framebufferHeight) =>
   framebufferHeight / (2 * Math.tan((fov * Math.PI) / 360));
@@ -209,6 +260,15 @@ export function budget({ fov, framebufferHeight } = {}) {
  * uma invariante não a implementa. A condição abaixo só depende de constantes, então ela nunca
  * pode disparar para quem está usando a cena: quem a vê é quem acabou de editar um dos números.
  */
+for (const surface of Object.keys(THRESHOLD)) {
+  if (Number.isFinite(BODY_SPAN[surface])) continue;
+  throw new RangeError(
+    `A pele ${surface} tem escada de LOD e não declara BODY_SPAN. Sem ele, keepsCrown() cairia no ` +
+      `padrão silencioso e a coroa do sprite decidiria por omissão — que é o defeito que ` +
+      `SKIN_EXTENT já cometeu ao ser usado como tamanho de pele. Exporte BODY_SPAN no módulo.`
+  );
+}
+
 for (const linha of budget()) {
   if (linha.extent < linha.extentMax) continue;
   throw new RangeError(
@@ -218,3 +278,4 @@ for (const linha of budget()) {
       `(= FOCUS_FIT_PX/LOD_FAR_PX). Enquadra-se a figura, não a extensão.`
   );
 }
+

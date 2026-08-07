@@ -33,6 +33,17 @@ import { GLSL_SIMPLEX3 } from './planet-noise.js';
 export const LOD_FAR_PX = 26;
 export const LOD_NEAR_PX = 100;
 
+/**
+ * Quanto do raio de referência o CORPO ocupa — e uma estrela de nêutrons é um ponto.
+ *
+ * Teto de `params.core` (0,10 + até 0,06). São ~10 km de raio: em qualquer escala em que o vento
+ * (1,23–2,28 raios) caiba, o corpo é o brilho de onde tudo sai, não a figura. Quem lê é `lod.js`
+ * (`BODY_SPAN`) — a coroa do sprite, entre 1,03 e 1,67 raios, cairia dentro do vento.
+ */
+const CORE_FLOOR = 0.1;
+const CORE_GAIN = 0.06;
+export const BODY_SPAN = CORE_FLOOR + CORE_GAIN;
+
 /** Comprimento do feixe, em raios do corpo. Curto demais não lê como feixe; longo demais some da tela. */
 /*
  * ⚠️ ERA 6,5 E ISSO ERA CALIBRAÇÃO DE QUASAR — o item #5 do brief, e o usuário apontou.
@@ -299,7 +310,7 @@ export function pulsarParams(node = {}, color = 0xffffff) {
      * que o feixe caiba, ela é um PONTO. 0,10–0,16 devolve a proporção das referências, em que o
      * corpo é o brilho de onde tudo sai e não a figura principal.
      */
-    core: 0.10 + massa * 0.06,
+    core: CORE_FLOOR + massa * CORE_GAIN,
     /**
      * Período em segundos. INVERSO da massa, ao contrário do resto do céu — e é a física: pulsar
      * jovem e massivo é lento, o de milissegundo é o velho reciclado por acreção.
