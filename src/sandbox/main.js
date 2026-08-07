@@ -15,6 +15,7 @@
  */
 import * as THREE from 'three';
 import { SPECS, NEUTRAL } from './specs.js';
+import { createGlobals } from './globals.js';
 
 const canvas = document.getElementById('stage');
 const rail = document.getElementById('rail');
@@ -29,16 +30,18 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(NEUTRAL.fov, 1, 0.1, 2000);
 
 /*
- * Grade de referência no plano do disco.
+ * Os controles da CENA — grade, esfera de raio 1, fundo e o multiplicador do relógio.
  *
- * Não é enfeite: metade dos defeitos desta sessão foram sobre ALTURA — órbita que nunca cruza o
- * plano, anel que devia tombar, corpo que devia passar atrás. Sem um plano visível, "está no
+ * Eles são declarados em `globals.js` na MESMA forma de `spec.controls`, e desenhados pelo mesmo
+ * `buildControl` — não há interface escrita à mão para um controle global.
+ *
+ * A grade não é enfeite: boa parte do que se revisa aqui é ALTURA — órbita que tem de cruzar o
+ * plano, anel que tem de tombar, corpo que tem de passar atrás. Sem um plano visível, "está no
  * plano?" vira opinião.
  */
-const grid = new THREE.GridHelper(200, 40, 0x2d3648, 0x151b25);
-grid.material.transparent = true;
-grid.material.opacity = 0.35;
-scene.add(grid);
+const globals = createGlobals(scene, renderer);
+const globalValues = Object.fromEntries(globals.controls.map(({ key, value }) => [key, value]));
+globals.apply(globalValues);
 
 /** Órbita manual — o mesmo gesto da cena, sem deriva automática. */
 const orbit = { azimuth: 0.6, polar: 1.15, distance: 10 };
@@ -76,8 +79,20 @@ const values = {};
  *
  * `delta` é fixo e `elapsed` só anda quando o operador manda. Um espécime que integra estado
  * (partículas, portais) continua funcionando; a diferença é que o instante é reproduzível.
+ *
+ * ⚠️ `delta` é o passo BASE; o passo em vigor é ele vezes VELOCIDADE (controle da cena), e é o
+ * segundo que os espécimes recebem. Multiplicar aqui, num lugar só, é o que faz o controle
+ * alcançar espécime nenhum saber que ele existe — o mesmo desenho de `timeScale` na cena de
+ * verdade (`core/tuning.js`, grupo GLOBAL).
  */
-const clock = { elapsed: 0, delta: 1 / 60, playing: false };
+const BASE_DELTA = 1 / 60;
+const clock = { elapsed: 0, delta: BASE_DELTA, playing: false };
+
+/** Reaplica a velocidade ao passo. Chamada antes de cada avanço, e ao mover o slider. */
+const passo = () => {
+  clock.delta = BASE_DELTA * globals.timeScale(globalValues);
+  return clock.delta;
+};
 
 const ctx = {
   report(fields) {
@@ -136,7 +151,7 @@ function drawRail() {
 
   const step = el('button', null, '→ UM QUADRO');
   step.addEventListener('click', () => {
-    clock.elapsed += clock.delta;
+    clock.elapsed += passo();
   });
   rail.append(step);
 
@@ -156,29 +171,41 @@ function drawRail() {
   rail.append(timeRow);
 
   rail.append(el('div', 'group', 'CONTROLES'));
-  for (const control of spec.controls) rail.append(buildControl(control));
+  for (const control of spec.controls) rail.append(buildControl(control, values, onSpecChange));
 
   rail.append(el('div', 'group', 'O QUE OLHAR'));
   for (const line of spec.watch) rail.append(el('div', 'note', `· ${line}`));
 
+  /*
+   * A CENA vem por último e é montada do mesmo jeito que o espécime — mesma lista declarativa,
+   * mesmo `buildControl`. A única diferença é o destino do valor e o que acontece depois dele.
+   */
   rail.append(el('div', 'group', 'CENA'));
-  const gridRow = el('label');
-  gridRow.append(el('span', null, 'GRADE DO PLANO'));
-  const gridToggle = el('input');
-  gridToggle.type = 'checkbox';
-  gridToggle.checked = grid.visible;
-  gridToggle.addEventListener('change', () => {
-    grid.visible = gridToggle.checked;
-  });
-  gridRow.append(gridToggle);
-  rail.append(gridRow);
+  for (const control of globals.controls) {
+    rail.append(buildControl(control, globalValues, onGlobalChange));
+  }
   rail.append(el('div', 'note', 'arraste para orbitar · roda para aproximar'));
 }
 
-function buildControl(control) {
+/** Um controle do espécime mudou. O espécime lê `values` no próximo quadro — nada a fazer. */
+function onSpecChange() {}
+
+/** Um controle da cena mudou: os objetos globais reagem na hora, e o passo do relógio também. */
+function onGlobalChange() {
+  globals.apply(globalValues);
+  passo();
+}
+
+/**
+ * Desenha um controle declarado.
+ *
+ * `store` e `onChange` são parâmetros porque a mesma função serve ao espécime e à cena. Um controle
+ * que custasse um `<label>` a mais aqui é um controle que não se escreve.
+ */
+function buildControl(control, store, onChange) {
   if (control.type === 'action') {
     const button = el('button', null, `⟳ ${control.label}`);
-    button.addEventListener('click', () => live?.onAction?.(control.key, values));
+    button.addEventListener('click', () => live?.onAction?.(control.key, store));
     return button;
   }
 
@@ -188,23 +215,25 @@ function buildControl(control) {
   if (control.type === 'bool') {
     const input = el('input');
     input.type = 'checkbox';
-    input.checked = values[control.key];
+    input.checked = store[control.key];
     input.addEventListener('change', () => {
-      values[control.key] = input.checked;
+      store[control.key] = input.checked;
+      onChange();
     });
     row.append(input);
     return row;
   }
 
   if (control.type === 'enum') {
-    row.append(el('b', null, String(values[control.key])));
+    row.append(el('b', null, String(store[control.key])));
     const strip = el('div');
     strip.style.cssText = 'grid-column:1/-1;display:flex;flex-wrap:wrap;gap:3px;padding-top:3px';
     for (const option of control.options) {
       const button = el('button', null, option);
-      button.setAttribute('aria-pressed', String(option === values[control.key]));
+      button.setAttribute('aria-pressed', String(option === store[control.key]));
       button.addEventListener('click', () => {
-        values[control.key] = option;
+        store[control.key] = option;
+        onChange();
         drawRail();
       });
       strip.append(button);
@@ -213,17 +242,18 @@ function buildControl(control) {
     return row;
   }
 
-  const value = el('b', null, Number(values[control.key]).toFixed(2));
+  const value = el('b', null, Number(store[control.key]).toFixed(2));
   row.append(value);
   const input = el('input');
   input.type = 'range';
   input.min = String(control.min);
   input.max = String(control.max);
   input.step = String(control.step);
-  input.value = String(values[control.key]);
+  input.value = String(store[control.key]);
   input.addEventListener('input', () => {
-    values[control.key] = Number(input.value);
+    store[control.key] = Number(input.value);
     value.textContent = Number(input.value).toFixed(2);
+    onChange();
   });
   row.append(input);
   return row;
@@ -240,6 +270,10 @@ function resize() {
 }
 
 function frame() {
+  // Todo quadro, e não só ao mover o slider: espécimes que integram estado (partículas, o
+  // desvanecimento dos vínculos) leem `clock.delta` mesmo com o tempo congelado, e um passo
+  // desatualizado os faria andar no ritmo da velocidade anterior.
+  passo();
   if (clock.playing) clock.elapsed += clock.delta;
 
   camera.position.set(

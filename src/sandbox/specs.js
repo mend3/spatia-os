@@ -31,6 +31,8 @@ import { MOON_SPEC } from './moon-rig.js';
 import { QUASAR_SPEC } from './quasar-rig.js';
 import { PULSAR_SPEC } from './pulsar-rig.js';
 import { CROWN_SPEC } from './crown-rig.js';
+import { COMET_SPEC, NEBULA_SPEC, STATION_SPEC } from './skin-rigs.js';
+import { REMNANT_SPEC, LINKS_SPEC } from './field-rigs.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -81,11 +83,11 @@ export const SPECS = [
       { key: 'mundo', label: 'ANEL DE MUNDO (foco)', type: 'bool', value: false },
     ],
     watch: [
-      'a metade DISTANTE some atrás da estrela e reaparece — se ela atravessa, a oclusão quebrou',
-      'a metade PRÓXIMA escurece o disco da estrela (extinção); com blending aditivo ela clarearia',
-      'Saturno: a Divisão de Cassini separa duas faixas largas · Urano: aros finos e separados · Júpiter: halo difuso',
-      'gire com o mouse: com ANEL DE MUNDO desligado a elipse mantém a mesma forma (é billboard)',
-      'ligue ANEL DE MUNDO e ORBITE: de perfil o anel tem de SATURAR e ficar espesso (tau/cos i), de frente translúcido — se o peso não muda, a profundidade óptica voltou a ficar pinada',
+      'a metade DISTANTE some atrás da estrela e reaparece — se atravessa, a oclusão quebrou',
+      'a metade PRÓXIMA escurece o disco da estrela (extinção); com aditivo ela clarearia',
+      'Saturno: Cassini separa duas faixas largas · Urano: aros finos · Júpiter: halo difuso',
+      'ANEL DE MUNDO desligado: orbitar não muda a forma da elipse (é billboard)',
+      'ANEL DE MUNDO ligado: de perfil o anel SATURA e engrossa (tau/cos i), de frente translúcido',
     ],
     build(ctx) {
       const group = new THREE.Group();
@@ -327,13 +329,27 @@ export const SPECS = [
       { key: 'intensidade', label: 'INTENSIDADE', type: 'range', min: 0.1, max: 3, step: 0.05, value: 1 },
       { key: 'largura', label: 'LARGURA DO DISCO', type: 'range', min: 0.4, max: 2, step: 0.02, value: 1 },
       { key: 'giro', label: 'ROTAÇÃO', type: 'range', min: 0, max: 4, step: 0.05, value: 1 },
+      /*
+       * ESCALA e RESPIRAÇÃO completam o que `hole.tune` recebe.
+       *
+       * A escala é o parâmetro de maior consequência estrutural da cena inteira: ela vai no GRUPO
+       * (para levar junto o crescente e a lente, que leem o raio do horizonte em MUNDO) e tem teto
+       * duro em `26 × graphSpread / 39` — passar dele põe a primeira órbita de arquivos DENTRO do
+       * disco, e a câmera de foco vai junto. Aqui não há grafo para colidir, então a régua vai até
+       * 2,2 e o que se revisa é a PROPORÇÃO INTERNA: ela tem de ficar idêntica em toda a faixa.
+       */
+      { key: 'escala', label: 'TAMANHO DO NÚCLEO', type: 'range', min: 0.5, max: 2.2, step: 0.05, value: 1 },
+      { key: 'respiracao', label: 'RESPIRAÇÃO', type: 'range', min: 0, max: 3, step: 0.05, value: 1 },
       { key: 'regime', label: 'REGIME', type: 'enum', options: ['idle', 'thinking', 'answering', 'error'], value: 'idle' },
     ],
     watch: [
-      'o crescente do beaming fica PARADO enquanto o disco gira — se ele circula, o tempo voltou para a conta',
+      'o crescente do beaming fica PARADO enquanto o disco gira — se circula, o tempo entrou na conta',
       'orbite até ficar de cima: a assimetria some, porque de frente não há componente radial',
       'gradiente de temperatura: anel interno quase branco, névoa externa âmbar e fraca',
       'nada é desenhado por cima do horizonte',
+      'varra TAMANHO DO NÚCLEO: a proporção horizonte / anel de fóton / disco não pode mudar',
+      'RESPIRAÇÃO pulsa a INTENSIDADE, não a geometria — o horizonte não muda de tamanho',
+      'trocar de REGIME muda cor e intensidade, sem tranco de geometria',
     ],
     build(ctx) {
       const hole = createBlackHole();
@@ -341,10 +357,22 @@ export const SPECS = [
         object: hole.group,
         update(values, camera, clock) {
           hole.setRegime(values.regime);
-          hole.tune({ ...NEUTRAL, diskIntensity: values.intensidade, diskWidth: values.largura, diskSpin: values.giro });
+          hole.tune({
+            ...NEUTRAL,
+            diskIntensity: values.intensidade,
+            diskWidth: values.largura,
+            diskSpin: values.giro,
+            coreScale: values.escala,
+            breath: values.respiracao,
+          });
           hole.update(clock.delta, clock.elapsed);
           hole.syncView(camera);
-          ctx.report({ regime: values.regime, 't': `${clock.elapsed.toFixed(2)}s` });
+          ctx.report({
+            regime: values.regime,
+            'horizonte': `${(hole.horizonRadius * values.escala).toFixed(2)} de mundo`,
+            'intensidade viva': hole.intensity().toFixed(3),
+            't': `${clock.elapsed.toFixed(2)}s`,
+          });
         },
       };
     },
@@ -457,11 +485,25 @@ export const SPECS = [
     controls: [
       { key: 'tamanho', label: 'TAMANHO', type: 'range', min: 0.2, max: 3, step: 0.05, value: 1 },
       { key: 'brilho', label: 'BRILHO', type: 'range', min: 0, max: 2.5, step: 0.05, value: 0.55 },
+      /*
+       * ESPAÇAMENTO e DERIVA completam o que `stars.tune` recebe.
+       *
+       * O espaçamento decide se o campo fica ATRÁS do grafo: o céu vive em 150–400 × este número e
+       * a casca de arquivos chega a 217 no ajuste padrão da cena. Em 0,4 o fundo começa em 60 e o
+       * grafo ATRAVESSA o próprio céu.
+       *
+       * A deriva só existe com o tempo CORRENDO, e é a única coisa desta pele que se move.
+       */
+      { key: 'espalhamento', label: 'ESPAÇAMENTO', type: 'range', min: 0.4, max: 2.5, step: 0.02, value: 1 },
+      { key: 'deriva', label: 'DERIVA', type: 'range', min: 0, max: 6, step: 0.05, value: 0 },
       { key: 'instavel', label: 'INSTÁVEL (erro)', type: 'bool', value: false },
     ],
     watch: [
-      'a maioria é ponto fraco e frio — se o campo estiver dominado por azul, a distribuição espectral inverteu',
+      'a maioria é ponto fraco e frio — campo dominado por azul é distribuição espectral invertida',
       'quase nenhuma estrela é grande: as grandes são a exceção',
+      'ESPAÇAMENTO escala a CASCA: as estrelas afastam-se e encolhem por perspectiva',
+      'DERIVA gira o campo INTEIRO; estrela andando em relação à vizinha é deriva por vértice',
+      'INSTÁVEL cintila FORA DE FASE — piscar em uníssono seria um relógio só',
     ],
     build(ctx) {
       const stars = createStars();
@@ -469,9 +511,22 @@ export const SPECS = [
         object: stars.object,
         update(values, camera, clock) {
           stars.setUnstable(values.instavel);
-          stars.tune({ ...NEUTRAL, starSize: values.tamanho, starBrightness: values.brilho });
+          stars.tune({
+            ...NEUTRAL,
+            starSize: values.tamanho,
+            starBrightness: values.brilho,
+            starSpread: values.espalhamento,
+            starDrift: values.deriva,
+          });
           stars.update(clock.delta, clock.elapsed);
-          ctx.report({ 'tamanho': values.tamanho.toFixed(2), 'brilho': values.brilho.toFixed(2) });
+          ctx.report({
+            'tamanho': values.tamanho.toFixed(2),
+            'brilho': values.brilho.toFixed(2),
+            // A faixa real da casca, que é o número que responde "o grafo cabe dentro?" — ele
+            // chega a 217 no ajuste padrão da cena.
+            'casca': `${(150 * values.espalhamento).toFixed(0)}–${(400 * values.espalhamento).toFixed(0)}`,
+            'deriva': values.deriva > 0 && !clock.playing ? `${values.deriva.toFixed(2)} (tempo parado)` : values.deriva.toFixed(2),
+          });
         },
       };
     },
@@ -507,6 +562,21 @@ export const SPECS = [
       };
     },
   },
+
+  /*
+   * As três peles restantes, cada uma com o eixo que a define aberto — atividade, cavidade, farol.
+   * `COROA SOB A PELE` também as desenha, mas com o nó pinado: lá o objeto em julgamento é a coroa.
+   * Ver o cabeçalho de `skin-rigs.js`.
+   */
+  COMET_SPEC,
+  NEBULA_SPEC,
+  STATION_SPEC,
+  /*
+   * E os dois objetos que não são corpo: um só existe acima de um piso de churn que quase ninguém
+   * cruza, o outro só enquanto o cursor está sobre um astro. Ver o cabeçalho de `field-rigs.js`.
+   */
+  REMNANT_SPEC,
+  LINKS_SPEC,
 
   ...RING_VARIANTS,
   /*
