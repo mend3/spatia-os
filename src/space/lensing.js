@@ -261,8 +261,29 @@ const FRAGMENT = /* glsl */ `
      * chega ao olho. Isto e ocultacao, e nao tem sutileza relativistica nenhuma — nada em campo
      * forte faz um disco de acrecao atravessar um planeta.
      */
+    /*
+     * A POEIRA E O DISCO SO APARECEM CONFORME SE CHEGA PERTO — pedido do usuario em 2026-08-07.
+     *
+     * ⚠️ Isto e COMPOSICAO, e por isso mora AQUI e nao no integrador. A REGRA DA FISICA e explicita:
+     * a simulacao produz o universo, a camera escolhe como observa-lo, e problema que pode ser
+     * resolvido fora da simulacao DEVE ser resolvido fora dela. Um envelope por distancia dentro da
+     * deflexao ja foi escrito e REVERTIDO nesta base (e a invariante 5 do handoff) — a lente
+     * continua valendo a qualquer distancia, e nada aqui a toca.
+     *
+     * O que atenua e so a EMISSAO. A sombra (tracado.a) nao entra: ela e o objeto, e um buraco
+     * negro longe continua sendo um buraco. Atenuar a sombra o faria desaparecer do ceu, que e o
+     * oposto do pedido.
+     *
+     * A REGUA E O TAMANHO APARENTE, nao a distancia em unidades de mundo — e a mesma que decide
+     * nivel de detalhe em todo o resto da cena (ver space/lod.js). uRs/distancia e o raio do horizonte em
+     * radianos; dividido por uTanHalfFov vira a fracao da MEIA-ALTURA da tela que ele ocupa, que
+     * nao depende de monitor, de zoom nem de fov. Os dois limiares em fracao de meia-altura:
+     * abaixo de 0,02 (um risco no ceu) nao ha poeira nenhuma; em 0,22 ela esta cheia.
+     */
+    float aparente = (uRs / max(length(uCamPos - uBhPos), 1e-3)) / max(uTanHalfFov, 1e-3);
+    float poeira = smoothstep(0.02, 0.22, aparente);
     color *= 1.0 - tracado.a * atrasDaMassa;
-    color += tracado.rgb * atrasDaMassa;
+    color += tracado.rgb * atrasDaMassa * poeira;
 
     float vignette = mix(1.0, smoothstep(1.25, 0.35, length(vUv - 0.5) * 1.6), uVignette);
     color *= vignette;
