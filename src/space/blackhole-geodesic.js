@@ -248,9 +248,28 @@ export const GLSL_GEODESIC = /* glsl */ `
     float vazio = smoothstep(0.0, mix(0.10, 0.34, uDiskTurbulence), estria);
     estria = mix(estria, estria * vazio * 1.45, uDiskTurbulence * 0.8);
 
+    /*
+     * ASSIMETRIA — item #12: "tudo parece extremamente simetrico. Deveria existir um lado muito
+     * mais brilhante, outro muito mais frio, pequenas instabilidades."
+     *
+     * O lado brilhante ja existe e e o BEAMING (delta^3, mais abaixo) — ele e relativistico e vem
+     * da velocidade, nao da materia. O que faltava e a assimetria da PROPRIA materia: disco de
+     * acrecao real e desalinhado, com o centro de massa fora do buraco, e o resultado e um modo
+     * m=1 — um lado mais denso e quente que o oposto.
+     *
+     * ⚠️ A PRECESSAO E RIGIDA, e isso nao e detalhe: um padrao cuja fase dependesse do RAIO
+     * enrolaria sem fim (Lin-Shu), que e o defeito que este projeto ja matou quatro vezes — no
+     * campo de arestas, nos bracos da galaxia, no vento do pulsar e no proprio disco. Aqui a fase
+     * e so do tempo, entao o padrao gira inteiro, como um corpo rigido, e a assimetria nunca se
+     * enrola. E o que discos excentricos reais fazem: precessam devagar mantendo a forma.
+     */
+    float assimetria = 1.0 + 0.28 * cos(theta - uDiskTime * uDiskSpin * 0.45);
+
     // Rampa de temperatura de Shakura-Sunyaev: T proporcional a r^(-3/4). O que muda com o raio e
-    // o MATIZ, nao so a luminancia — e por isso que a rampa e de cor e nao de brilho.
-    float temperatura = pow(1.0 - span, 3.4);
+    // o MATIZ, nao so a luminancia — e por isso que a rampa e de cor e nao de brilho. A assimetria
+    // entra AQUI tambem e nao so no brilho: o lado denso e mais QUENTE, e o que o olho le como
+    // "mais frio" do outro lado e o matiz descendo a rampa, nao a luz apagando.
+    float temperatura = pow(1.0 - span, 3.4) * assimetria;
     vec3 cor = mix(uCool, uMid, smoothstep(0.0, 0.55, temperatura));
     cor = mix(cor, uHot, smoothstep(0.5, 1.0, temperatura));
     cor = mix(cor, vec3(0.95, 0.28, 0.22), uErrorMix * 0.7);
@@ -265,7 +284,7 @@ export const GLSL_GEODESIC = /* glsl */ `
      * mapeamento de tela, nao constante do modelo.
      */
     float fluxo = pow(max(r / uDiskInner, 1.0), -3.0);
-    float brilho = borda * estria * pow(fluxo, 0.4) * uDiskIntensity * 1.8;
+    float brilho = borda * estria * pow(fluxo, 0.4) * uDiskIntensity * 1.8 * assimetria;
 
     /*
      * BEAMING RELATIVISTICO, e agora ele e de verdade.
