@@ -62,7 +62,7 @@ export function registerJournal() {
     tagline: 'execuções, permissões em vigor, custo',
     color: COLOR,
     orbit: { radius: 24, inclination: -0.3, phase: 1.2 },
-    widgets: ['context', 'jr-spend', 'jr-denials', 'jr-runs', 'jr-detail', 'jr-replay', 'sky-time', 'timeline'],
+    widgets: ['context', 'jr-spend', 'jr-denials', 'jr-runs', 'jr-detail', 'jr-replay', 'answer', 'sky-time', 'timeline'],
   });
 }
 

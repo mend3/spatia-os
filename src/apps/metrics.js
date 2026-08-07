@@ -206,7 +206,7 @@ export function registerMetrics() {
     tagline: 'demorou onde, custou quanto, a tela aguenta',
     color: COLOR,
     orbit: { radius: 27, inclination: 0.44, phase: 4.6 },
-    widgets: ['context', 'mx-corpus', 'mx-tools', 'mx-stages', 'mx-cost', 'mx-client', 'sky-time', 'timeline'],
+    widgets: ['context', 'mx-corpus', 'mx-tools', 'mx-stages', 'mx-cost', 'mx-client', 'answer', 'sky-time', 'timeline'],
   });
 }
 

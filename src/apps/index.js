@@ -5,6 +5,11 @@
  * de widgets é a ordem visual, e a ordem de registro dos apps é a ordem na dock e nos atalhos
  * numéricos — `1` abre o primeiro.
  *
+ * `answer` entra em TODAS as listas, como `context`, `sky-time` e `timeline`. O compositor é
+ * residente e se pergunta de qualquer rota — se a resposta só tivesse onde aparecer em algumas,
+ * as outras executariam, pagariam e jogariam o texto no sótão. Ele não desenha nada enquanto não
+ * há resposta, então custa zero na tela que não a usa.
+ *
  * A **Ponte MCP** merece uma nota de honestidade: este servidor NÃO é cliente MCP. Os
  * servidores (Slack, Notion, Drive, hub-board) são alcançados pelo agente, não por aqui.
  * Então a ponte mostra o que o agente reporta ter, e agir sobre eles é *pedir ao agente*. Ela
@@ -63,7 +68,7 @@ export function registerApps() {
      * era o mesmo que apagava o painel que ia descrever o astro travado. Widget de rota única para
      * uma superfície que não é de rota nenhuma.
      */
-    widgets: ['context', 'fs-tree', 'fs-shape', 'fs-locate', 'fs-content', 'sky-time', 'timeline'],
+    widgets: ['context', 'fs-tree', 'fs-shape', 'fs-locate', 'fs-content', 'answer', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -72,7 +77,7 @@ export function registerApps() {
     tagline: 'saúde, custo, permissões, afinação',
     color: COLORS.system,
     orbit: { radius: 15.5, inclination: 0.36, phase: 2.1 },
-    widgets: ['context', 'sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'sky-time', 'timeline'],
+    widgets: ['context', 'sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'answer', 'sky-time', 'timeline'],
   });
 
   registerApp({
@@ -90,7 +95,7 @@ export function registerApps() {
     tagline: 'integrações, webhooks, MCP',
     color: COLORS.bridge,
     orbit: { radius: 21, inclination: 0.18, phase: 5.4 },
-    widgets: ['context', 'br-webhooks', 'br-mcp', 'br-deliveries', 'sky-time', 'timeline'],
+    widgets: ['context', 'br-webhooks', 'br-mcp', 'br-deliveries', 'answer', 'sky-time', 'timeline'],
   });
 
   /*

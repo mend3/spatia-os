@@ -78,7 +78,7 @@ export function registerSecurity() {
     orbit: { radius: 17, inclination: 0.52, phase: 0.9 },
     widgets: [
       'context', 'sec-mode', 'sec-tools', 'sec-catalog',
-      'sec-reach', 'sec-exposure', 'sec-effective', 'sky-time',
+      'sec-reach', 'sec-exposure', 'sec-effective', 'answer', 'sky-time',
     ],
   });
 }
