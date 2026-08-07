@@ -708,7 +708,7 @@ export function createPulsar() {
    * `tune({ filamento: 0 })` desliga tudo de novo, e a bancada tem os dois botões separados para
    * a decisão poder ser revista vendo.
    */
-  const ajuste = { filamento: 1, decaimento: 1 };
+  const ajuste = { filamento: 1, decaimento: 1, nebulosa: 1 };
   const group = new THREE.Group();
   group.visible = false;
 
@@ -980,9 +980,12 @@ export function createPulsar() {
     beat: () => ({ ...ultimo }),
 
     /** Afinação viva. `filamento` 0…1 é a amplitude; `decaimento` 0…1, quanto ela alisa ao longo do ciclo. */
-    tune({ filamento = 1, decaimento = 1 } = {}) {
+    tune({ filamento = 1, decaimento = 1, nebulosa: nebula = 1 } = {}) {
       ajuste.filamento = filamento;
       ajuste.decaimento = decaimento;
+      // A nebulosa entra no MESMO ajuste porque é camada nova e a bancada precisa poder apagá-la:
+      // com ela ligada e tênue, um defeito nela lê como fundo sujo. Ver a nota do espécime.
+      ajuste.nebulosa = nebula;
     },
 
     update(params, px, elapsed, reduced = false, camera = null) {
@@ -1053,7 +1056,7 @@ export function createPulsar() {
       // palpite que a bancada refutou: com o realce de limbo valendo 0,25 visto de dentro, o corte
       // do fragmento comia tudo menos os grãos. O ganho é medido contra o que aparece, não contra
       // o receio de que apareça demais.
-      nebulosaMat.uniforms.uAmount.value = level * 1.1;
+      nebulosaMat.uniforms.uAmount.value = level * 1.1 * (ajuste.nebulosa ?? 1);
       nebulosaMat.uniforms.uTime.value = reduced ? 0 : elapsed;
       nebulosaMat.uniforms.uSeed.value = params.seed * 61;
 

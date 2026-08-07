@@ -78,12 +78,19 @@ export const PULSAR_SPEC = {
      * permanentes, que é a ESTRELA DE PONTAS: é esse o par que este controle serve para comparar.
      */
     { key: 'decaimento', label: 'DECAIMENTO DO FILAMENTO', type: 'range', min: 0, max: 1, step: 0.01, value: 1 },
+    /*
+     * NEBULOSA — a camada mais externa, a 7 raios de âncora. O controle existe porque ela é tênue
+     * de propósito: com ela ligada, um defeito NELA lê como fundo sujo, e a única forma de saber
+     * de quem é a sujeira é apagá-la. Foi assim que os três erros dela apareceram.
+     */
+    { key: 'nebulosa', label: 'NEBULOSA DE VENTO', type: 'range', min: 0, max: 2, step: 0.05, value: 1 },
     { key: 'reduzido', label: 'MOVIMENTO REDUZIDO', type: 'bool', value: false },
   ],
   watch: [
     '⚠️ UM BATIMENTO SÓ, e este é o espécime que finalmente permite conferir. Rode o tempo e olhe o readout `batimento`: brilho do núcleo, calota polar, halo e vento têm de subir e descer JUNTOS com ele. Se alguma camada tiver ritmo próprio, o objeto tem várias animações em vez de uma pulsação — e essa é a afirmação central da arquitetura em camadas. ⚠️ Screenshot NÃO julga isto: várias animações e uma pulsação única produzem imagens parecidas em qualquer instante e só divergem ao longo do tempo.',
     'MOVIMENTO REDUZIDO: o batimento tem de CONGELAR em 0,50 e a fervura do núcleo parar. Um campo parado é uma afirmação honesta; um campo animado devagar não é redução de movimento, é movimento mais lento.',
     'RAIO DA ÂNCORA de 2,0 até 0,05: o corpo tem de DESAPARECER suavemente ao cruzar LOD_FAR_PX (26 px de âncora), não sumir de uma vez. O readout `px` e `nível` dizem onde você está na escada.',
+    '⚠️ NEBULOSA em 0 e depois em 2: ela é a única camada que NÃO respira com o batimento, e é assim que se confere. Se ela pulsar junto com o farol, alguém pendurou o batimento nela — e aí a camada de milhares de anos passou a piscar no relógio de segundos.',
     '⚠️ FILAMENTO DO PULSO em 0 (o padrão, e o que a cena faz): a casca do pulso tem de continuar existindo, LISA. Se o pulso SUMIR junto, o portão está multiplicando em vez de misturar com 1 — e aí "sem filamento" virou "sem pulso", que são coisas diferentes.',
     '⚠️ O PAR QUE IMPORTA: com FILAMENTO em 1, leve DECAIMENTO de 1 para 0 e volte. Em 1 as cristas só existem no instante em que a casca nasce e ela chega LISA na borda; em 0 elas são permanentes em todo raio — e aí são ~16 cristas radiais em volta de um ponto brilhante, que leem como ESTRELA DE PONTAS. O defeito nunca foi a crista: era a crista que não envelhece.',
     '⚠️ Duas tentativas de consertar a FORMA foram REFUTADAS e estão registradas em `pulsar-pulse.js`: as facetas do cone não tinham nada a ver (64 segmentos não mudaram nada), e subir o raio do círculo de amostragem só MULTIPLICA as pontas (2,6 → 6,4 deu ~40 em vez de ~16). O conserto não era da forma, era do tempo.',
@@ -126,7 +133,7 @@ export const PULSAR_SPEC = {
         const alturaFb = document.querySelector('canvas')?.height ?? window.innerHeight;
         const px = diskPx(values.raio, camera.position.length(), alturaFb, camera.fov);
 
-        pulsar.tune({ filamento: values.filamento, decaimento: values.decaimento });
+        pulsar.tune({ filamento: values.filamento, decaimento: values.decaimento, nebulosa: values.nebulosa });
         const nivel = pulsar.update(params, px, clock.elapsed, values.reduzido, camera);
         // LIDO do módulo, não recalculado aqui. Uma segunda cópia da fórmula do batimento seria a
         // primeira coisa a divergir — e justamente quando a leitura fosse útil.
@@ -143,6 +150,7 @@ export const PULSAR_SPEC = {
           'núcleo (raios)': params.core.toFixed(3),
           feixe: params.beam.toFixed(2),
           filamento: values.filamento === 0 ? 'desligado' : `${values.filamento.toFixed(2)} · decai ${values.decaimento.toFixed(2)}`,
+          nebulosa: values.nebulosa === 0 ? 'desligada' : `${values.nebulosa.toFixed(2)} · 7,0 R âncora`,
         });
       },
       dispose: () => pulsar.dispose(),
