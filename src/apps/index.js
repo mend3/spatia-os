@@ -46,6 +46,10 @@ export function registerApps() {
     tagline: 'o grafo como sistema de arquivos',
     color: COLORS.files,
     orbit: { radius: 12.5, inclination: -0.24, phase: 0.4 },
+    // Clicking a file or a folder in the sky lands here. Declared in the manifest, the
+    // destination is a property of the app: uninstalling ARQUIVOS leaves the gesture ownerless
+    // instead of leaving the kernel routing to something that is gone.
+    claims: ['ui.select:file', 'ui.select:dir'],
     // A janela do tempo entra aqui também: este é o app sobre o corpus, e navegar o corpus por
     // data é a mesma operação que navegá-lo por pasta.
     /*
@@ -106,10 +110,9 @@ export const SYSTEM_VIEW = [
 /*
  * O leitor central FECHÁVEL, para a cascata do Esc.
  *
- * Ele é um WIDGET no palco, não um painel da `surface` — então `surface.closeTop()` não o
- * conhece, e o Esc caía até o último passo da cadeia, que é voltar para a rota raiz. Voltar de
- * rota DESMONTA o app inteiro: o leitor fechava, sim, mas levando junto a busca e os resultados.
- * Era o gesto certo pelo motivo errado, e destruía muito mais do que "desfazer um passo".
+ * Ele é um WIDGET no palco e não um painel da `surface`, então `surface.closeTop()` não o alcança.
+ * Sem este gancho o Esc desce até o último passo da cadeia, que volta à rota raiz e desmonta o app
+ * inteiro — o leitor fecha levando junto a busca e os resultados.
  *
  * Fica no módulo porque quem monta o widget e quem trata a tecla não se conhecem — a mesma razão
  * de `ui.apply-profile` passar pelo barramento em vez de alcançar a cena.
@@ -129,10 +132,6 @@ function registerFilesWidgets() {
    * O último arquivo que o operador pediu no CÉU, e a porta para abri-lo se o leitor já estiver
    * montado. Vivem no registro e não no widget porque o clique atravessa uma navegação — o
    * evento chega antes de o leitor existir, e um assinante que nasce depois nunca o vê.
-   *
-   * `answer.js` escutava o mesmo `ui.select` para preencher o inspetor da direita; os dois juntos
-   * renderizavam o mesmo arquivo em painéis sobrepostos, com o mesmo título. Aquela assinatura
-   * saiu, e esta entra no lugar — a troca que o comentário de lá já pedia.
    */
   let pedidoDeLeitura = null;
   let abrirAgora = null;
@@ -347,8 +346,8 @@ function registerFilesWidgets() {
    * Revelar um arquivo: CENTRALIZA o astro dele e abre o leitor.
    *
    * São dois gestos que o operador entende como um só — "me mostra este arquivo" quer dizer
-   * onde ele está no céu E o que tem dentro. Antes só o segundo acontecia, e o resultado era
-   * um painel abrindo sobre um céu que não tinha se mexido: nada dizia de onde aquilo veio.
+   * onde ele está no céu E o que tem dentro. Só o segundo abre um painel sobre um céu parado,
+   * sem nada que diga de onde aquilo veio.
    *
    * ⚠️ NÃO emite `ui.select`. A cena escuta esse evento para travar a câmera, mas `answer.js`
    * também o escuta para preencher o inspetor da DIREITA — e o leitor central já vai abrir por
@@ -371,13 +370,9 @@ function registerFilesWidgets() {
       box.placeholder = 'descreva o que procura';
 
       /*
-       * Os resultados têm CONTÊINER PRÓPRIO, e isto é a correção de um defeito real.
-       *
-       * O comentário anterior aqui afirmava que "o input fica FORA da área rolável" — e ele
-       * ficava dentro. `view.set`/`view.empty` substituem os filhos do corpo do widget, então a
-       * primeira busca apagava o próprio campo de busca: ver os resultados custava perder a
-       * possibilidade de buscar outra coisa ou corrigir um termo errado. Com o campo e a lista
-       * em nós irmãos, só a lista é trocada.
+       * Os resultados têm CONTÊINER PRÓPRIO: `view.set`/`view.empty` substituem os filhos do
+       * corpo do widget, e com a lista dentro dele a primeira busca apagaria o próprio campo de
+       * busca. Campo e lista como irmãos, só a lista é trocada.
        */
       const results = el('div', 'fs-results');
       view.set([box, results]);
@@ -413,23 +408,11 @@ function registerFilesWidgets() {
   /*
    * Seção que a página de configuração deve abrir — por evento, vindo da systray.
    *
-   * ⚠️ Só a variável NÃO basta, e o teste pegou: se a rota já estivesse em SISTEMA, `navigate`
-   * não remonta o widget, o pedido nunca era consumido e o atalho da systray não fazia nada. Por
-   * isso há dois caminhos — a variável para quem ainda vai montar, e o `open` para quem já está
-   * montado. O widget registra o seu `open` ao montar e o solta ao sair.
+   * ⚠️ Só a variável NÃO basta: com a rota já em SISTEMA o `navigate` não remonta o widget, o
+   * pedido não é consumido e o atalho da systray não faz nada. Por isso há dois caminhos — a
+   * variável para quem ainda vai montar, o `open` para quem já está montado. O widget registra o
+   * seu `open` ao montar e o solta ao sair.
    */
-  /*
-   * O leitor central FECHÁVEL, para a cascata do Esc.
-   *
-   * Ele é um WIDGET no palco, não um painel da `surface` — então `surface.closeTop()` não o
-   * conhece, e o Esc caía até o fim da cadeia, onde o último passo é voltar para a rota raiz.
-   * Voltar de rota DESMONTA o app inteiro: o leitor fechava, sim, mas levando junto a busca e
-   * os resultados. Era o gesto certo pelo motivo errado, e destruía mais do que devia.
-   *
-   * Registrado ao montar e solto ao sair, como `openSection`. Devolve se HAVIA algo a fechar,
-   * porque é isso que a cadeia precisa para decidir se continua descendo.
-   */
-
   let pendingSection = null;
   let openSection = null;
   on('ui.config-section', ({ id }) => {
@@ -673,15 +656,14 @@ function registerFilesWidgets() {
     title: 'CONTEÚDO',
     slot: 'stage',
     surface: true,
-    render(view) {
+    render(view, ctx) {
       /*
        * Lê o ARQUIVO NO DISCO, com o índice como reserva.
        *
-       * A rota `/api/file` existia, com barreira de raízes em `server/files.py`, cliente em
-       * `core/api.js` — e ZERO chamadores. O leitor usava `/api/node`, que devolve os chunks
-       * INDEXADOS: a foto do último `reindex`. Com os anéis de Saturno na cena, isso virou
-       * contradição visível — o anel ao lado da estrela dizendo "este arquivo mudou" enquanto
-       * o painel mostrava o texto de antes da mudança.
+       * `/api/node` devolve os chunks INDEXADOS, que são a foto do último `reindex`: com os anéis
+       * de Saturno na cena isso é contradição visível — o anel ao lado da estrela diz "este
+       * arquivo mudou" enquanto o painel mostra o texto de antes da mudança. `/api/file` lê o
+       * disco, com a barreira de raízes em `server/files.py`.
        *
        * O índice continua servindo, e não como enfeite: ele é o que existe quando o arquivo
        * saiu do disco (renomeado, removido, fora da raiz permitida). Nesse caso a tela DIZ que
@@ -695,6 +677,9 @@ function registerFilesWidgets() {
 
       const handler = async ({ source }) => {
         lendo = true;
+        // The address follows the reader: this widget is the one that knows which file is open,
+        // so it is the one that writes the sub-route. Re-entering the same address is a no-op.
+        ctx.navigate(ctx.route, source);
         view.empty('lendo…');
         try {
           const blocks = [el('div', 'fs-title', source)];
@@ -776,47 +761,24 @@ function registerFilesWidgets() {
        */
       abrirAgora = (source) => handler({ source });
 
-      /*
-       * O leitor vazio é a superfície de HOVER do céu.
-       *
-       * O nome do astro sob o cursor vivia num balão colado no rodapé, onde o dock do sistema
-       * operacional passava por cima. Em vez de procurar uma posição livre na tela — que muda
-       * com o SO, com o tamanho da janela e com o que mais estiver aberto — o retorno veio para
-       * cá: uma área grande, estável, no centro, e que está vazia exatamente enquanto ninguém
-       * abriu nada.
-       *
-       * ⚠️ Só sobrescreve o VAZIO. Com um arquivo aberto, passar o cursor pelo céu apagaria a
-       * leitura em curso — o hover é um gesto de passagem e não pode desfazer uma escolha.
-       */
-      /*
-       * O LEITOR NÃO LEGENDA MAIS O ASTRO SOB ATENÇÃO — e isso é remoção de duplicata, não de
-       * informação.
-       *
-       * O rótulo de hover veio parar aqui quando não havia outro lugar: o balão nascia colado no
-       * rodapé, onde o dock passava por cima. Hoje o painel CONTEXTO existe em TODA rota e diz
-       * mais — classe celeste, massa, último commit, seções e os vínculos nomeados. Com os dois
-       * na tela o mesmo caminho aparecia quatro vezes ao travar um astro (faixa do topo, este
-       * cartão, o painel da direita e o leitor), e o cartão ainda convidava a "clique para travar
-       * a câmera neste astro" com a câmera JÁ travada nele — a única linha nova que ele
-       * acrescentava estava errada.
-       *
-       * O palco central volta a ter uma função só: LER o arquivo. Vazio quando não há leitura.
-       */
-
-
-      /*
-       * O repouso é uma INSTRUÇÃO, e agora é só isso.
-       *
-       * Ele já foi uma mentira — dizia "escolha um arquivo" com um astro travado na câmera — e a
-       * correção da vez tinha sido restaurar aqui a legenda do corpo sob atenção. Com o painel
-       * CONTEXTO em toda rota essa restauração virou a própria duplicata: o palco central voltava
-       * a dizer o que o trilho da direita já dizia melhor. O leitor não afirma mais nada sobre o
-       * céu; ele espera um arquivo.
-       */
+      // O palco tem uma função só: LER o arquivo. Quem descreve o astro sob atenção é o painel
+      // CONTEXTO, que existe em toda rota — afirmar aqui também daria duas vozes sobre o céu.
       view.empty(REPOUSO);
 
-      /* O pedido pendente: o clique que aconteceu ANTES desta montagem. */
-      if (pedidoDeLeitura) handler({ source: pedidoDeLeitura });
+      /*
+       * O pedido pendente: o clique que aconteceu ANTES desta montagem. Consumido, como
+       * `pendingSection` — um pedido que sobrevivesse venceria o endereço em toda montagem
+       * seguinte, e `#/files/<outro>` abriria o arquivo clicado no céu horas antes.
+       */
+      if (pedidoDeLeitura) {
+        const pendente = pedidoDeLeitura;
+        pedidoDeLeitura = null;
+        handler({ source: pendente });
+      } else if (ctx.arg) {
+        // Nothing pending: the address IS the request. This is what makes `#/files/<caminho>`
+        // survive F5 and travel in a link, instead of being decoration on the hash.
+        handler({ source: ctx.arg });
+      }
 
       return {
         destroy: () => {
@@ -956,10 +918,9 @@ function registerWebWidgets() {
   /*
    * Campo de busca PRÓPRIO do app, que sempre pesquisa na internet.
    *
-   * Estar no app Web não mudava nada: a única entrada era o compositor do rodapé, que respeita
-   * o toggle global. Perguntar na "página de web" e receber "o workspace não tem resposta" é a
-   * expectativa sendo violada — o app Web tem que buscar na web, sem depender de um toggle em
-   * outro canto da tela.
+   * O compositor do rodapé respeita o toggle global; perguntar na "página de web" e receber "o
+   * workspace não tem resposta" viola a expectativa. Este campo busca na web sem depender de um
+   * toggle em outro canto da tela.
    */
   listWidget({
     id: 'web-search',
@@ -1077,11 +1038,9 @@ function registerBridgeWidgets() {
   /*
    * Servidores MCP — DUAS listas, de propósito.
    *
-   * A versão anterior mostrava só o que o agente reporta no evento `brain`, e por isso não
-   * tinha como explicar uma ausência: `hub-board` não aparecia e a tela não dizia nada. O
-   * defeito não era a ausência do servidor, era a omissão silenciosa.
+   * Só o que o agente reporta no evento `brain` não explica uma AUSÊNCIA — um servidor que não
+   * aparece não diz por quê, e a omissão silenciosa é pior que a falta.
    *
-   * Agora:
    *   DECLARADO  — o que existe em arquivo, por escopo, com o escopo desligado marcado como
    *                fora e o motivo escrito. Vem de `/api/mcp` e existe antes de perguntar nada.
    *   REPORTADO  — o que o agente de fato recebeu na sessão. É a verdade, e é maior que a
@@ -1136,12 +1095,9 @@ function registerBridgeWidgets() {
             blocks.push(el('div', 'unit-sub', `⚠ ${item.name} fora: ${item.reason}`));
           }
           /*
-           * `partial` do servidor — a promessa que estava escrita e a tela não cumpria.
-           *
-           * `server/mcp_scopes.py` marca `partial: true` com o comentário "a tela precisa saber
-           * que esta lista não é o total, senão volta a omitir em silêncio". Nenhuma linha lia o
-           * campo: a lista aparecia com cara de completa. Uma lista que se apresenta como total
-           * sem ser é pior que uma lista curta com aviso.
+           * `partial` do servidor: `server/mcp_scopes.py` o marca quando há fonte que ele não
+           * conseguiu ler. Uma lista que se apresenta como total sem ser é pior que uma lista
+           * curta com aviso.
            */
           if (inventory.partial) {
             blocks.push(

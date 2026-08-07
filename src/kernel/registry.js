@@ -26,6 +26,14 @@ export const ROUTE_ROOT = 'core';
 const apps = new Map();
 const widgets = new Map();
 
+/*
+ * Gestos reivindicados por app: `claim -> app id`.
+ *
+ * The kernel dispatches, it never decides — a destination written into the router is one app's
+ * policy inside the mechanism that routes for every app.
+ */
+const claims = new Map();
+
 /** As fendas do layout. `stage` é o centro, onde a resposta nasce. */
 export const SLOTS = ['left', 'right', 'stage', 'strip'];
 
@@ -37,6 +45,7 @@ export const SLOTS = ['left', 'right', 'stage', 'strip'];
  * @param {number} manifest.color         cor do corpo no espaço e do acento na HUD
  * @param {object} manifest.orbit         {radius, inclination, phase} — posição do corpo
  * @param {string[]} manifest.widgets     ids de widget, na ordem de montagem
+ * @param {string[]} [manifest.claims]    gestos que o app reivindica (`ui.select:file`)
  * @param {Function} [manifest.onEnter]   efeito colateral ao entrar (ex.: carregar dados)
  * @param {Function} [manifest.onLeave]   limpeza ao sair
  */
@@ -54,7 +63,15 @@ export function registerApp(manifest) {
     throw new Error(`app ${manifest.id} pede widget inexistente: ${unknown.join(', ')}`);
   }
 
-  apps.set(manifest.id, Object.freeze({ tagline: '', widgets: [], ...manifest }));
+  for (const claim of manifest.claims || []) {
+    const owner = claims.get(claim);
+    // Two apps answering the same gesture is a coin toss decided by registration order, and the
+    // operator reads it as the click landing somewhere different each install.
+    if (owner) throw new Error(`app ${manifest.id}: gesto ${claim} já é de ${owner}`);
+  }
+
+  apps.set(manifest.id, Object.freeze({ tagline: '', widgets: [], claims: [], ...manifest }));
+  for (const claim of manifest.claims || []) claims.set(claim, manifest.id);
   return manifest.id;
 }
 
@@ -84,3 +101,5 @@ export const getWidget = (id) => widgets.get(id) ?? null;
 export const listApps = () => [...apps.values()];
 export const listWidgets = () => [...widgets.values()];
 export const hasApp = (id) => apps.has(id);
+/** Which app claims a gesture, or `null` — the router resolves, it does not choose. */
+export const appClaiming = (claim) => claims.get(claim) ?? null;

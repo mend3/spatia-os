@@ -16,8 +16,9 @@
  *
  * `ROUTE_ROOT` é o sistema — a vista sem app, com o núcleo centrado.
  */
-import { emit, on } from '../core/bus.js';
-import { ROUTE_ROOT, getApp, hasApp, listApps } from './registry.js';
+import * as bus from '../core/bus.js';
+import * as api from '../core/api.js';
+import { ROUTE_ROOT, getApp, hasApp, listApps, appClaiming } from './registry.js';
 import { bind } from '../core/keys.js';
 import * as motion from '../core/motion.js';
 
@@ -34,22 +35,66 @@ const WIDGETS_IN_MS = 520;
 const flightMs = () => (motion.isReduced() ? 0 : FLIGHT_MS);
 const widgetsInMs = () => (motion.isReduced() ? 0 : WIDGETS_IN_MS);
 
+// A slash in the arg is structure (it is a path) and has to survive; everything else is escaped,
+// or a name with a space comes back out of the hash different from how it went in.
+const encodeArg = (arg) => arg.split('/').map(encodeURIComponent).join('/');
+
+// A malformed escape (`%zz`) throws instead of decoding, and it can only come from an address bar
+// edited by hand. Routing to the literal text loses less than dropping the navigation.
+const decodeArg = (arg) =>
+  arg
+    .split('/')
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    })
+    .join('/');
+
 export function createRouter({ host, scene, chrome }) {
   let current = null;
+  let currentArg = '';
   let flying = null;
 
+  /**
+   * The address carries the app AND what the app is showing: `#/files/docs/EVENTS.md`.
+   *
+   * Everything after the first slash belongs to the app; the kernel hands it over in the ctx and
+   * never reads it.
+   */
   function parse() {
     const hash = window.location.hash.replace(/^#\/?/, '').trim();
-    return hash && hasApp(hash) ? hash : ROUTE_ROOT;
+    const cut = hash.indexOf('/');
+    const id = cut === -1 ? hash : hash.slice(0, cut);
+    if (!hasApp(id)) return { app: ROUTE_ROOT, arg: '' };
+    return { app: id, arg: cut === -1 ? '' : decodeArg(hash.slice(cut + 1)) };
   }
 
-  function ctxFor(id) {
-    return { app: id === ROUTE_ROOT ? null : getApp(id), route: id, navigate };
+  /*
+   * `api` and `bus` travel in the ctx instead of being imported by the widget: a widget that
+   * reaches into this module graph on its own is welded to this tree and cannot ship as a
+   * package (§2.3 de OS-SCREENS).
+   */
+  function ctxFor(id, arg) {
+    return { app: id === ROUTE_ROOT ? null : getApp(id), route: id, arg, navigate, api, bus };
   }
 
-  async function activate(id) {
-    if (id === current) return;
+  async function activate({ app: id, arg = '' }) {
+    if (id === current) {
+      if (arg === currentArg) return;
+      /*
+       * Same app, new sub-route: no flight, no remount. The arg addresses state INSIDE a mounted
+       * widget, so rebuilding would destroy what the address exists to bring back. Whoever cares
+       * reads it off `ui.route`.
+       */
+      currentArg = arg;
+      bus.emit({ t: 'ui.route', route: id, app: id === ROUTE_ROOT ? null : id, arg });
+      return;
+    }
     const previous = current;
+    const previousArg = currentArg;
     const app = id === ROUTE_ROOT ? null : getApp(id);
 
     // Cancela um voo em andamento: navegar duas vezes rápido não pode montar dois grids.
@@ -60,7 +105,7 @@ export function createRouter({ host, scene, chrome }) {
 
     if (previous && previous !== ROUTE_ROOT) {
       try {
-        getApp(previous)?.onLeave?.(ctxFor(previous));
+        getApp(previous)?.onLeave?.(ctxFor(previous, previousArg));
       } catch (error) {
         console.error(`[router] onLeave de ${previous} falhou`, error);
       }
@@ -71,12 +116,13 @@ export function createRouter({ host, scene, chrome }) {
     document.body.classList.add('in-flight');
 
     current = id;
-    emit({ t: 'ui.route', route: id, app: app?.id ?? null });
+    currentArg = arg;
+    bus.emit({ t: 'ui.route', route: id, app: app?.id ?? null, arg });
 
     flying = setTimeout(() => {
-      host.apply(app ? app.widgets : rootWidgets(), ctxFor(id));
+      host.apply(app ? app.widgets : rootWidgets(), ctxFor(id, arg));
       try {
-        app?.onEnter?.(ctxFor(id));
+        app?.onEnter?.(ctxFor(id, arg));
       } catch (error) {
         console.error(`[router] onEnter de ${id} falhou`, error);
       }
@@ -87,12 +133,16 @@ export function createRouter({ host, scene, chrome }) {
   /** Widgets da vista de sistema. Declarado aqui porque o sistema não é um app do registro. */
   let rootWidgets = () => [];
 
-  function navigate(id) {
+  // The root takes no arg: it is the view without an app, so there is no app state to address.
+  function navigate(id, arg = '') {
     const target = id && hasApp(id) ? id : ROUTE_ROOT;
     // Escreve no hash e deixa o `hashchange` ativar: um caminho só para entrar num app, seja
     // por clique, por tecla, por link ou pelo botão voltar.
-    const next = target === ROUTE_ROOT ? '#/' : `#/${target}`;
-    if (window.location.hash === next) activate(target);
+    const suffix = target === ROUTE_ROOT || !arg ? '' : `/${encodeArg(arg)}`;
+    const next = target === ROUTE_ROOT ? '#/' : `#/${target}${suffix}`;
+    // Re-reads through `parse` instead of rebuilding the pair: one decoder, so what the address
+    // means never depends on which door the navigation came through.
+    if (window.location.hash === next) activate(parse());
     else window.location.hash = next;
   }
 
@@ -107,15 +157,19 @@ export function createRouter({ host, scene, chrome }) {
   bind({ key: 'Home', label: 'RAIZ', group: 'NAVEGAÇÃO' }, () => navigate(ROUTE_ROOT));
 
   /**
-   * Clicar num corpo do céu leva ao app de arquivos, no nó clicado.
+   * Clicar num corpo do céu leva ao app que reivindica aquele gesto, no nó clicado.
    *
-   * O gesto já existia e só abria um inspetor. Num ambiente com apps ele precisa ter destino,
-   * senão o céu e os apps são dois sistemas que não se falam. O app de arquivos escuta o
-   * mesmo `ui.select` para navegar até o nó — aqui mora só a decisão de trocar de rota.
+   * The destination is not named here on purpose: a route written into the kernel is one app's
+   * policy inside the mechanism that dispatches for every app. The manifest declares
+   * `claims: ['ui.select:file']` and the router only resolves it.
+   *
+   * The node's `source` rides along as the sub-route; an app that claims the gesture and ignores
+   * the arg lands on its own root.
    */
-  on('ui.select', ({ node }) => {
-    if (!node || current === 'files') return;
-    if (node.type === 'file' || node.type === 'dir') navigate('files');
+  bus.on('ui.select', ({ node }) => {
+    if (!node?.type) return;
+    const target = appClaiming(`ui.select:${node.type}`);
+    if (target && target !== current) navigate(target, node.source);
   });
 
   return {
