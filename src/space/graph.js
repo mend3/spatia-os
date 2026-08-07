@@ -11,7 +11,11 @@
  * cena parecer um sistema em vez de duas animações sobrepostas.
  *
  * Posições são calculadas na CPU, não no vertex shader. Custa ~468 sin/cos por quadro
- * (irrelevante) e mantém o raycast do three funcionando — sem isso, clicar num nó exigiria
+ * (MEDIDO em 2026-08-07, e a palavra "irrelevante" agora tem número: `update()` inteiro custa
+ * 0,017 ms a 468 nós, 0,049 a 1.843, 0,137 a 5.000 e 0,278 a 10.000 — linear, ~28 ns por nó, e a
+ * 5.000 são 0,8% de um quadro de 60 Hz contra os 0,45 ms de GPU da cena inteira. A escala em que
+ * isso passaria a doer não é alcançável por este corpus) e mantém o raycast do three funcionando —
+ * sem isso, clicar num nó exigiria
  * reimplementar picking à mão.
  */
 import * as THREE from 'three';

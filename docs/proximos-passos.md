@@ -42,9 +42,19 @@ Três medidas que NÃO respondem, todas tentadas antes: comparar FPS (a 105 FPS 
 no vsync), zerar `bloomStrength` (o passe continua rodando) e `gl.finish()` com relógio de parede
 (neste driver não sincroniza — reportou 0,1ms para 4,5 megapixels, o que não é crível).
 
-**Continua sem medida:** `advance()` com um corpus grande. O cabeçalho de `graph.js` chama ~468
-sin/cos de "irrelevante" — agora com número, eles cabem dentro dos 0,45ms a 468 nós, mas ninguém
-mediu a 5 000.
+~~**Continua sem medida:** `advance()` com um corpus grande.~~ → **MEDIDO em 2026-08-07**, com
+`createGraph()` fora da cena e corpus sintético (média de 120 quadros, após 30 de aquecimento):
+
+| nós | `update()` por quadro |
+|---|---|
+| 468 | 0,017 ms |
+| 1 843 (corpus real) | 0,049 ms |
+| 5 000 | 0,137 ms |
+| 10 000 | 0,278 ms |
+
+Linear, ~28 ns por nó. A 5 000 são **0,8% de um quadro de 60 Hz**, contra os 0,45 ms de GPU da cena
+inteira e os 3,5–4,3 ms do pós-processamento. "Irrelevante" era a palavra certa, e agora tem
+número.
 
 ## 3. Dado que ainda chega ao browser e é descartado
 
