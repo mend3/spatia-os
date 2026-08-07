@@ -96,6 +96,15 @@ const FRAGMENT = /* glsl */ `
   uniform vec3 uCamRight, uCamUp, uCamFwd;
   uniform float uTanHalfFov;
   uniform mat4 uViewProj;
+  /*
+   * A SEGUNDA MASSA — o corpo em foco que dobra o espaco em campo fraco. uLensRs em 0 desliga.
+   *
+   * ⚠️ Declarar no JS e esquecer AQUI custou um canvas inteiro preto: identificador nao declarado e
+   * erro de compilacao, o passe nao linka e o composer devolve preto — sem excecao, sem nada na
+   * tela alem do HUD, que e desenhado fora dele.
+   */
+  uniform vec3 uLensPos;
+  uniform float uLensRs;
   varying vec2 vUv;
 
   ${GLSL_GEODESIC}
@@ -165,6 +174,43 @@ const FRAGMENT = /* glsl */ `
 
     vec3 dirFinal = dir;
     vec4 tracado = tracarGeodesica(uCamPos, dir, dirFinal);
+
+    /*
+     * O CORPO EM FOCO TAMBEM DOBRA O ESPACO — item #10 do brief do pulsar.
+     *
+     * ⚠️ NAO ENTRA NO INTEGRADOR, e isso e a invariante 5 respeitada e nao contornada: o tracado
+     * acima e do BURACO NEGRO e continua intocado (mesma massa, mesma cauda, mesma sombra), e o
+     * oraculo campo.mjs mede exatamente aquele perfil. Aqui e outra massa, muito menor, com o
+     * tratamento de CAMPO FRACO: a deflexao de Einstein 2Rs/b como desvio da direcao, sem sombra,
+     * sem disco, sem captura.
+     *
+     * ⚠️ O PISO E O Rs E NAO O RAIO DO CORPO, e essa escolha foi DO USUARIO contra a minha.
+     *
+     * Com o piso no Rs a deflexao alcanca o interior da silhueta e desloca tambem a emissao do
+     * PROPRIO corpo — a emissao e aditiva, nao escreve profundidade, e por isso o teste que protege
+     * o buraco negro nao a alcanca. O resultado e um anel brilhante com o miolo escuro. Eu chamei
+     * isso de defeito e revertei; o usuario olhou e disse que tinha ficado bom, e o olho dele e o
+     * juiz de aparencia nesta base.
+     *
+     * E ha leitura fisica para o que se ve: uma estrela de neutrons TEM Rs/R ~ 0,4, dobra a propria
+     * luz com forca e mostra parte do lado de tras. Anel de Einstein em volta de um objeto compacto
+     * nao e invencao — e o que a razao massa/raio dela produz.
+     *
+     * Quem quiser a versao sutil (sem anel, so o fundo curvando) troca o piso por uLensR com uma
+     * rampa em smoothstep: uma linha, e ela apaga o efeito que foi aprovado.
+     */
+    if (uLensRs > 0.0) {
+      vec3 aoCorpo = uLensPos - uCamPos;
+      float distCorpo = length(aoCorpo);
+      vec3 versor = aoCorpo / max(distCorpo, 1e-4);
+      float cosAng = dot(dir, versor);
+      if (cosAng > 0.0) {
+        float b = distCorpo * sqrt(max(1.0 - cosAng * cosAng, 0.0));
+        float alfa = 2.0 * uLensRs / max(b, uLensRs * 1.5);
+        vec3 perp = normalize(dir - versor * cosAng + vec3(1e-6));
+        dirFinal = normalize(dirFinal - perp * alfa);
+      }
+    }
     /*
      * uStrength e um BOTAO, nao fisica — ele sobrevive por compatibilidade com quem ja afinou o
      * painel. atrasDaMassa e que e fisica: a luz de quem esta na frente segue reta, e por isso a
@@ -315,6 +361,9 @@ export function createLensingPass() {
       // O buraco negro e o disco, em unidades de MUNDO — vêm de `blackHole.geometry()`.
       uBhPos: { value: new THREE.Vector3() },
       uRs: { value: 1 },
+      /** A segunda massa: posição e raio de Schwarzschild do corpo em foco. `uLensRs` 0 desliga. */
+      uLensPos: { value: new THREE.Vector3() },
+      uLensRs: { value: 0 },
       uDiskInner: { value: 4 },
       uDiskOuter: { value: 39 },
       uDiskSpin: { value: 0.18 },
@@ -350,7 +399,7 @@ export function createLensingPass() {
      * Projeta o horizonte para coordenadas de tela a cada quadro. Fixar o centro em (0.5,
      * 0.5) quebraria assim que a câmera orbitasse: a lente descolaria do objeto.
      */
-    sync(camera, blackHole, size, { glitch = 0 } = {}) {
+    sync(camera, blackHole, size, { glitch = 0, lente = null } = {}) {
       const uniforms = pass.uniforms;
 
       /*
@@ -384,6 +433,9 @@ export function createLensingPass() {
       const distancia = Math.max(camera.position.distanceTo(bh.center), 1e-4);
       uniforms.uBhPos.value.copy(bh.center);
       uniforms.uRs.value = bh.rs;
+      // A segunda massa é ligada por quem sabe o que está em foco (`scene.js`), não por aqui.
+      uniforms.uLensRs.value = lente ? lente.rs : 0;
+      if (lente) uniforms.uLensPos.value.copy(lente.center);
       uniforms.uDiskInner.value = bh.inner;
       uniforms.uDiskOuter.value = bh.outer;
       uniforms.uDiskSpin.value = bh.spin;

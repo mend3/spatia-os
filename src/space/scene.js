@@ -35,7 +35,7 @@ import { createQuasars, quasarParams } from './quasar.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
-import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown } from './lod.js';
+import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown, BODY_SPAN } from './lod.js';
 import { createPhotosphere, photosphereParams } from './photosphere.js';
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
@@ -1646,7 +1646,23 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     }
 
     glitch = smooth(glitch, 0, 3.2, delta);
-    lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch });
+    /*
+     * A LENTE DO CORPO EM FOCO — item #10 do brief, e quem decide é AQUI.
+     *
+     * `lensing.js` não conhece o catálogo e não deve conhecer: ele recebe uma massa e a aplica.
+     * Quem sabe que um pulsar dobra o espaço e uma fotosfera não é o solver, e a decisão passa pelo
+     * mesmo lugar que já decide pele e coroa. `null` desliga o termo inteiro no shader, que é o
+     * estado da esmagadora maioria dos quadros.
+     *
+     * O Rs sai do raio DESENHADO do corpo: uma estrela de nêutrons tem ~10 km contra ~4 km de raio
+     * de Schwarzschild para 1,4 massas solares, e é essa razão de 0,4 que faz a deflexão dela ser
+     * forte de perto e invisível de longe. Ela alcança o interior da silhueta de propósito — ver o
+     * bloco em `lensing.js`, e a escolha foi do usuário.
+     */
+    const corpoDaLente = pouso && decisao?.surface === SURFACE.PULSAR
+      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SURFACE.PULSAR] * 0.4 }
+      : null;
+    lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente });
     lensing.setTime(elapsed);
 
     composer.render();
