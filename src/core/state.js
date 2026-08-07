@@ -85,11 +85,17 @@ export function install() {
     commit({ tools: tools.slice(-MAX_TOOLS) });
   });
 
+  /*
+   * `replay` reencena a resposta mas NÃO soma o custo.
+   *
+   * Reencenar uma execução de ontem não gasta nada; contar de novo faria o gasto da sessão subir
+   * por ter olhado o diário, e o número que a HUD mostra deixaria de ser o que se pagou.
+   */
   on('answer', (e) =>
     commit({
       answer: e.text || current.answer,
-      cost: current.cost + (e.cost_usd || 0),
-      turns: e.turns || current.turns,
+      cost: e.replay ? current.cost : current.cost + (e.cost_usd || 0),
+      turns: e.replay ? current.turns : e.turns || current.turns,
       sources: e.sources || current.sources,
     })
   );

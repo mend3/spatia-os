@@ -748,13 +748,18 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 
 ## 4. Ordem de construção
 
-> **Estado.** Fechados: **1** (`ROUTE_ROOT = 'core'`), **6** (`#/system`) e **12** (o fail-open da
-> §2.8 — `permissions.load()` cai em `RECOVERY_MODE` e marca `recovered`). Parciais: **3** (órbita
-> vem do manifesto, mas é literal por app e ainda pode colidir; a tecla sai da posição em
-> `listApps()`), **17** (HMAC e tradução em `server/webhooks.py`; falta a política por endpoint e a
-> fila EM DISCO) e **19** (`#/bridge` mostra webhooks, MCP e entregas; sem credenciais, que
-> dependem do 18). Os outros catorze estão abertos. O que está aberto fora daqui está em
-> [`proximos-passos.md`](proximos-passos.md).
+> **Estado** (conferido contra o código em 2026-08-07). Fechados: **1** (`ROUTE_ROOT = 'core'`),
+> **2** (`parse()` devolve `{app, arg}`; `#/files/<caminho>` e `#/journal/<id>` sobrevivem ao F5),
+> **4** (`ctx` = `{app, route, arg, navigate, api, bus}`), **5** (o gesto sai do kernel: o
+> manifesto declara `claims`, o registro recusa dois donos), **6** (`#/system`), **9** (diário
+> JSONL em `.cache/journal/`, encadeado, com as flags do disparo — `server/journal.py`) e **12**
+> (o fail-open da §2.8). Parciais: **3** (órbita vem do manifesto, mas é literal por app e ainda
+> pode colidir; a tecla sai da posição em `listApps()`), **10** (`#/journal` com `jr.runs`,
+> `jr.detail`, `jr.replay`, `jr.spend`; `jr.denials` só enxerga ferramenta — 403 cross-site e
+> arquivo fora da raiz acontecem fora de uma execução e ainda não viram registro), **17** (HMAC e
+> tradução em `server/webhooks.py`; falta a política por endpoint e a fila EM DISCO) e **19**
+> (`#/bridge` sem credenciais, que dependem do 18). Os outros nove estão abertos. O que está
+> aberto fora daqui está em [`proximos-passos.md`](proximos-passos.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue
 existir sem), depois **valor visível por esforço**.

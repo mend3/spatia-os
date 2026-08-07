@@ -15,6 +15,7 @@ import { registerApp } from '../kernel/registry.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
 import { registerContextWidget } from './context.js';
+import { registerJournal } from './journal.js';
 import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
@@ -89,6 +90,15 @@ export function registerApps() {
     orbit: { radius: 21, inclination: 0.18, phase: 5.4 },
     widgets: ['context', 'br-webhooks', 'br-mcp', 'br-deliveries', 'sky-time', 'timeline'],
   });
+
+  /*
+   * O DIÁRIO se registra inteiro (widgets + manifesto) no próprio módulo: ele tem estado comum
+   * aos cinco widgets, e esse estado não pertence a este arquivo.
+   *
+   * Por ÚLTIMO porque a ordem de registro é a ordem da dock e dos atalhos numéricos — registrar
+   * antes remapearia o `1`–`4` que o operador já decorou.
+   */
+  registerJournal();
 }
 
 /** Widgets da vista de sistema (a rota raiz). */
