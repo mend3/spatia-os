@@ -35,23 +35,22 @@ export const PULSAR_SPEC = {
   id: 'pulsar',
   name: 'PULSAR',
   /*
-   * 13, e o primeiro número que eu pus aqui (6) estava ERRADO pela regra que este mesmo espécime
-   * manda conferir: **enquadra-se a FIGURA, não a extensão.**
+   * 6, e o número passou por 6 → 13 → 6 de novo — a viagem toda vale registrar.
    *
-   * A conta que eu fiz era do raio de ÂNCORA (1) e dava ~200 px, confortável. Só que o objeto não
-   * tem 1 raio: `beam = BEAM_LENGTH * (0,7 + seed*0,6)` vale **4,55 a 8,45** raios, e com a câmera
-   * a 6 ela nascia DENTRO dos feixes — a tela abria num clarão radial de ponta a ponta. Terceira
-   * ocorrência desta regra no projeto (cometa, pulsar na cena, e agora eu de novo).
+   * Eu abri com 6, calculado do raio de ÂNCORA (1), e a câmera nasceu DENTRO do objeto: o corpo
+   * não tem 1 raio. Corrigi para 13, que enquadrava o feixe de então. E foi ao medir POR QUE 13
+   * era necessário que o item #5 apareceu com número — o vento chegava a 35 raios contra os 2,6
+   * do enquadramento da cena, 13,7x além.
    *
-   * 13 enquadra o feixe mediano (6,5 raios): `k·6,5/13` com k ≈ 951 dá ~475 px de meia-altura,
-   * dentro dos ~600 da janela. O preço é que a âncora abre em ~73 px, na RAMPA do LOD e não no
-   * pleno — e o preço é o certo de pagar, porque é o RAIO DA ÂNCORA que resolve isso com um
-   * arrasto, enquanto uma câmera dentro do objeto não se resolve com nada.
+   * Com as proporções consertadas (`BEAM_LENGTH` 6,5 → 1,3) o objeto inteiro cabe em 2,28 raios, e
+   * 6 volta a ser o valor certo: `k·2,28/6` com k ≈ 951 dá ~360 px de meia-altura, dentro dos
+   * ~600 da janela, e a âncora abre em ~158 px, acima de `LOD_NEAR_PX` — o espécime nasce no
+   * detalhe PLENO, que é o que ele precisa fazer.
    *
-   * ⚠️ E essa tensão não é da bancada: ela é do OBJETO, e o espécime existiu justamente para
-   * medi-la. Ver a linha sobre `SKIN_EXTENT` em "O QUE OLHAR".
+   * ⚠️ A lição não é sobre o número: **a bancada errada apontou para o objeto errado.** Eu quase
+   * ajustei a distância uma segunda vez em vez de perguntar por que ela precisava ser tão grande.
    */
-  distance: 13,
+  distance: 6,
   controls: [
     /*
      * MASSA governa três coisas de uma vez, e é isso que a torna o botão interessante: o tamanho
@@ -72,7 +71,10 @@ export const PULSAR_SPEC = {
     '⚠️ UM BATIMENTO SÓ, e este é o espécime que finalmente permite conferir. Rode o tempo e olhe o readout `batimento`: brilho do núcleo, calota polar, halo e vento têm de subir e descer JUNTOS com ele. Se alguma camada tiver ritmo próprio, o objeto tem várias animações em vez de uma pulsação — e essa é a afirmação central da arquitetura em camadas. ⚠️ Screenshot NÃO julga isto: várias animações e uma pulsação única produzem imagens parecidas em qualquer instante e só divergem ao longo do tempo.',
     'MOVIMENTO REDUZIDO: o batimento tem de CONGELAR em 0,50 e a fervura do núcleo parar. Um campo parado é uma afirmação honesta; um campo animado devagar não é redução de movimento, é movimento mais lento.',
     'RAIO DA ÂNCORA de 2,0 até 0,05: o corpo tem de DESAPARECER suavemente ao cruzar LOD_FAR_PX (26 px de âncora), não sumir de uma vez. O readout `px` e `nível` dizem onde você está na escada.',
-    '⚠️ A TENSÃO MEDIDA POR ESTE ESPÉCIME, e ela é do objeto: o feixe mede 4,55 a 8,45 raios de âncora (BEAM_LENGTH 6,5 com dispersão), mas `SKIN_EXTENT.pulsar` é 2,6 — o foco da cena enquadra 2,6 raios. Os feixes são CORTADOS pela moldura, entre 1,75x e 3,25x além do que cabe. E o recuo não pode simplesmente crescer: `pxNaChegada = 260/extent`, então enquadrar o feixe inteiro derruba a âncora para 40 px, nível 0,19 — o corpo aparece sem detalhe nenhum. ⚠️ As duas pontas só se encontram se o FEIXE encolher, que é o item #5: o jato longo e colimado é de QUASAR, e um pulsar não tem isso.',
+    '⚠️ CABE NO ENQUADRAMENTO, e isto é o item #5 fechado. As três feições medem, em raios de âncora: lobo 0,41–0,76 · jato 0,86–1,61 · vento 1,23–2,28, e `SKIN_EXTENT.pulsar` é 2,6. Antes eram 3,5 / 16,1 / 35,5 — o vento estendia 13,7x ALÉM do que o foco enquadra, e a câmera em foco ficava dentro da nuvem. Se alguma feição voltar a sair do quadro, a calibração de QUASAR voltou.',
+    '⚠️ A ORDEM das três é a afirmação do objeto: VENTO > JATO > LOBO. Num pulsar quem domina é o vento — o Caranguejo é um toro com dois jatos modestos. Se o jato voltar a dominar, o corpo virou um núcleo ativo com nome de pulsar, que era exatamente o defeito.',
+    '⚠️ O VENTO É UM TORO, não um ouriço. Olhe de vários ângulos: tem de haver CINTURA (concentração equatorial) e rarefação nos polos. Se ele for uma bola isotrópica de raias radiais, ou a amostragem por sin²θ voltou a ser uniforme, ou a espiral sumiu — e eram esses dois defeitos juntos que faziam o corpo ler como fogo de artifício.',
+    '⚠️ E as raias radiais não podem voltar. Cada partícula percorria uma RETA a partir do centro, e com 900 direções fixas havia 900 raias simultâneas. Agora a trajetória é uma espiral de Arquimedes cujo ângulo sai do RAIO, nunca do relógio — se ele vier do tempo, o padrão enrola sem fim (Lin-Shu, cinco mortes neste projeto).',
     '⚠️ E confira que ele DESENHA em algum lugar da escada. `SKIN_EXTENT.pulsar = 4` uma vez travou o chão do zoom em px = 26,4, o valor EXATO de LOD_FAR_PX — o corpo não era desenhável em distância nenhuma, e ninguém percebeu porque não havia bancada. É a regra "enquadra-se a FIGURA, não a extensão".',
     'MASSA 0 → 1: o período tem de AUMENTAR (o readout diz em segundos) e o corpo crescer pouco. É o inverso do resto do céu, e é a física: o pulsar de milissegundo é o velho reciclado por acreção, não o jovem.',
     'ORBITE: o `alinhamento` no readout é |eixo magnético · linha de visada|, e é ele que governa o beaming (0,35 + 2,4·cos³). Com o feixe apontando para você o brilho tem de subir MUITO — potência 3 é quase um interruptor, e é o que faz um pulsar ser um farol e não uma lâmpada.',

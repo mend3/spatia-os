@@ -34,7 +34,24 @@ export const LOD_FAR_PX = 26;
 export const LOD_NEAR_PX = 100;
 
 /** Comprimento do feixe, em raios do corpo. Curto demais não lê como feixe; longo demais some da tela. */
-const BEAM_LENGTH = 6.5;
+/*
+ * ⚠️ ERA 6,5 E ISSO ERA CALIBRAÇÃO DE QUASAR — o item #5 do brief, e o usuário apontou.
+ *
+ * Tudo neste corpo mede em `beam`, e `SKIN_EXTENT.pulsar` é 2,6: o foco da cena enquadra 2,6
+ * raios de âncora. Com 6,5 as três feições ficavam assim, em raios de âncora:
+ *
+ *     lobo   1,9 a  3,5    1,4x além do enquadramento
+ *     jato   8,6 a 16,1    6,2x além
+ *     vento 19,1 a 35,5   13,7x além
+ *
+ * A câmera em foco ficava DENTRO da nuvem de vento por mais de treze vezes, e o que chegava à
+ * tela era um ouriço de raias radiais sem núcleo e sem estrutura bipolar. Não era um pulsar
+ * grande demais: era um AGN com nome de pulsar.
+ *
+ * 1,3 põe o objeto inteiro em 2,28 raios no pior caso — dentro do enquadramento — e, mais
+ * importante, INVERTE A ORDEM das três feições. Ver `SCALE`.
+ */
+const BEAM_LENGTH = 1.3;
 /** Período de rotação, em segundos: rápido para o corpo leve, lento para o pesado. */
 const SPIN_PERIOD = { fast: 0.9, slow: 4.2 };
 
@@ -317,7 +334,22 @@ const QUAT = new THREE.Quaternion();
  * hierarquia espacial em cima dele. Mexer numa camada aqui não move as outras, que era exatamente
  * o problema de tudo sair do mesmo número.
  */
-const SCALE = Object.freeze({ lobe: 0.42, jet: 1.9, wind: 4.2 });
+/*
+ * A ORDEM destes três é a afirmação do objeto, e ela estava invertida.
+ *
+ * Era `{ lobe: 0.42, jet: 1.9, wind: 4.2 }` — mas a razão que importa não é o valor absoluto, é
+ * qual feição DOMINA. Com o jato em 1,9 e o vento espalhado por 4,2, o que se via era a agulha
+ * e um borrão isotrópico atrás dela: a silhueta de um núcleo ativo.
+ *
+ * Num pulsar quem domina é o VENTO. A Nebulosa do Caranguejo é um toro equatorial com filamentos
+ * e dois jatos polares MODESTOS — os jatos existem (Crab e Vela mostram os dois), mas eles são
+ * comparáveis ao toro, não dez vezes ele. Cygnus A é a referência do quasar; o Caranguejo é a
+ * deste corpo, e a diferença entre as duas é exatamente o que o item #5 pedia.
+ *
+ * Agora, em raios de âncora: lobo 0,41–0,76 · jato 0,86–1,61 · vento 1,23–2,28. Vento > jato >
+ * lobo, tudo dentro dos 2,6 do enquadramento.
+ */
+const SCALE = Object.freeze({ lobe: 0.45, jet: 0.95, wind: 1.35 });
 
 export function createPulsar() {
   /** Leitura do último quadro. Ver `beat()`. */

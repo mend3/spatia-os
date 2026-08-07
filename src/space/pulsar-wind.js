@@ -32,12 +32,28 @@ import * as THREE from 'three';
  */
 const COUNT = 900;
 
+/*
+ * Quanto a espiral fecha por raio, em rad por raio de alcance, e quanto cada partícula se desvia
+ * dela.
+ *
+ * `PITCH` 2,1 dá cerca de um terço de volta ao longo do alcance: curva o bastante para a raia
+ * radial deixar de existir, pouco o bastante para não virar um redemoinho — que seria a forma
+ * errada, porque o escoamento É radial no referencial que gira.
+ *
+ * `TWIST_SPREAD` é o que transforma 900 espirais limpas numa nuvem. Sem ele o ouriço só ficaria
+ * torcido.
+ */
+const PITCH = 2.1;
+const TWIST_SPREAD = 1.6;
+
 const VERTEX = /* glsl */ `
   attribute vec3 aDir;
   attribute float aPhase;
   attribute float aSize;
+  attribute float aTwist;
   uniform float uTime;
   uniform float uReach;
+  uniform float uPitch;
   uniform float uBeat;
   uniform float uPixel;
   varying float vT;
@@ -61,8 +77,43 @@ const VERTEX = /* glsl */ `
      * eixo magnetico, no referencial deste grupo) e a aproximacao barata dessa forma, e e o que
      * da a cintura que se ve nas imagens.
      */
-    vec3 p = aDir * r;
-    p.y *= 1.0 + 0.55 * (1.0 - abs(aDir.y));
+    /*
+     * ⚠️ ESPIRAL, NAO RETA — e era a reta que fazia o objeto virar um OURICO.
+     *
+     * p = aDir * r com aDir fixo por particula significa que cada uma percorre uma RETA
+     * radial saindo do centro. Sao 900 direcoes fixas e 900 fases distintas, entao a qualquer
+     * instante existem 900 raias radiais simultaneas: o corpo lia como fogo de artificio, sem
+     * nucleo e sem estrutura bipolar.
+     *
+     * A fisica ja dizia qual e a forma: o rotador magnetico gira enquanto o plasma escoa, e o
+     * resultado e uma espiral de Arquimedes (o "vento listrado"). O escoamento e radial no
+     * referencial que gira; no nosso ele curva.
+     *
+     * ⚠️ E O ANGULO SAI DE r, NUNCA DO RELOGIO. Com giro = uTime * omega o padrao enrolaria
+     * sem fim — e o enrolamento de Lin-Shu ja matou cinco campos neste projeto. Aqui a FORMA e
+     * congelada e a materia atravessa ela, que e exatamente a distincao que MOTION.patternSpin
+     * existe para manter.
+     *
+     * aTwist desalinha cada particula um pouco: sem ele seriam 900 espirais limpas, o que e um
+     * ouriço torcido. Com ele a nuvem e difusa, que e o que o item #5 do brief pede.
+     */
+    float giro = r * uPitch + aTwist;
+    float cg = cos(giro);
+    float sg = sin(giro);
+    vec3 d = vec3(aDir.x * cg - aDir.z * sg, aDir.y, aDir.x * sg + aDir.z * cg);
+    vec3 p = d * r;
+    /*
+     * ⚠️ O ACHATAMENTO AGORA ACONTECE, e a linha anterior nao fazia NADA.
+     *
+     * Era p.y *= 1.0 + 0.55 * (1.0 - abs(aDir.y)), e o comentario dizia que aquilo dava "a
+     * cintura que se ve nas imagens". Medido: no equador p.y ja vale 0, entao o fator 1,55 nao
+     * tem o que multiplicar; no polo o fator vale 1. So o meio era afetado, e ELE ERA EMPURRADO
+     * PARA O POLO — a nuvem ficava alongada no eixo, o oposto de uma cintura.
+     *
+     * Multiplicar por menos que 1 e o que achata. A concentracao equatorial de verdade vem da
+     * AMOSTRAGEM (ver createWind); isto aqui so termina de fechar o toro.
+     */
+    p.y *= 0.42;
 
     // A nuvem RESPIRA junto com o resto: uBeat e o mesmo batimento que pulsa o nucleo e o halo.
     p *= mix(0.94, 1.06, uBeat);
@@ -118,28 +169,47 @@ export function createWind() {
   const dir = new Float32Array(COUNT * 3);
   const phase = new Float32Array(COUNT);
   const size = new Float32Array(COUNT);
+  const twist = new Float32Array(COUNT);
   const posicoes = new Float32Array(COUNT * 3);
 
   for (let i = 0; i < COUNT; i += 1) {
     /*
-     * Direção uniforme na ESFERA, e a amostragem importa.
+     * Direção na esfera com densidade ∝ sin²θ — o EQUADOR, não a esfera inteira.
      *
-     * `z = 2u − 1` seguido de `ρ = √(1 − z²)` distribui igual por área; sortear os três eixos
-     * independentes concentraria nos vértices de um cubo, e a nuvem ganharia oito bicos que
-     * nenhuma física explica. É o mesmo cuidado que o jitter da cauda do cometa tomou.
+     * ⚠️ Era uniforme por área, e uniforme é a forma errada: o fluxo de energia de um vento de
+     * pulsar vai como `sin²θ` a partir do eixo, porque as linhas de campo fechadas seguram o
+     * plasma perto do plano equatorial. É daí que vem o TORO — a feição que define a Nebulosa do
+     * Caranguejo e que este objeto não tinha. Uma nuvem isotrópica não é um vento de pulsar; é
+     * uma explosão.
+     *
+     * ⚠️ A anisotropia ESTAVA declarada no shader e não acontecia (ver `p.y` no VERTEX). Ela
+     * pertence aqui, na amostragem, porque com partículas a densidade É a contagem — nenhuma
+     * multiplicação de posição cria concentração onde não há partícula.
+     *
+     * Amostragem por REJEIÇÃO: `1 − z²` é exatamente `sin²θ` e o máximo é 1, então aceitar com
+     * probabilidade `1 − z²` dá a distribuição certa sem inverter uma cúbica. O laço é limitado
+     * porque um `while` com hash determinístico que nunca aceite travaria a carga do módulo — o
+     * teto cai no valor cru, que é o pior caso e ainda é uma direção válida.
      */
-    const z = hash(i * 3 + 1) * 2 - 1;
+    let z = 0;
+    for (let tentativa = 0; tentativa < 8; tentativa += 1) {
+      z = hash(i * 7 + tentativa * 2 + 1) * 2 - 1;
+      if (hash(i * 7 + tentativa * 2 + 2) <= 1 - z * z) break;
+    }
     const fi = hash(i * 3 + 2) * Math.PI * 2;
     const rho = Math.sqrt(Math.max(1 - z * z, 0));
     dir.set([rho * Math.cos(fi), z, rho * Math.sin(fi)], i * 3);
     phase[i] = (i + 0.5) / COUNT;
     size[i] = 0.4 + hash(i * 3 + 3) * 0.9;
+    // Desalinhamento por partícula: é o que separa uma nuvem difusa de 900 espirais limpas.
+    twist[i] = (hash(i * 3 + 5) - 0.5) * TWIST_SPREAD;
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(posicoes, 3));
   geometry.setAttribute('aDir', new THREE.BufferAttribute(dir, 3));
   geometry.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
   geometry.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  geometry.setAttribute('aTwist', new THREE.BufferAttribute(twist, 1));
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -148,6 +218,7 @@ export function createWind() {
       uAmount: { value: 0 },
       uTime: { value: 0 },
       uReach: { value: 1 },
+      uPitch: { value: 0 },
       uBeat: { value: 0.5 },
       // Pixel de FRAMEBUFFER sobre z, a mesma régua do sprite de astro e da cauda do cometa. É a
       // quinta vez que este projeto escreve esta linha, e a quinta vez que ela é a mesma conta.
@@ -188,6 +259,13 @@ export function createWind() {
       material.uniforms.uAmount.value = 0.5 * forca;
       material.uniforms.uTime.value = reduced ? 0 : elapsed;
       material.uniforms.uReach.value = reach;
+      /*
+       * ⚠️ O passo da espiral é POR RAIO DE ALCANCE, não por unidade de mundo — senão um pulsar
+       * grande enrolaria mais que um pequeno e a forma deixaria de ser uma propriedade do objeto
+       * para virar uma do tamanho dele. Dividindo pelo alcance, os dois fecham a mesma fração de
+       * volta ao longo da própria nuvem.
+       */
+      material.uniforms.uPitch.value = PITCH / Math.max(reach, 1e-4);
       material.uniforms.uBeat.value = reduced ? 0.5 : beat;
     },
 
