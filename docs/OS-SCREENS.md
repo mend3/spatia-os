@@ -753,13 +753,13 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > **4** (`ctx` = `{app, route, arg, navigate, api, bus}`), **5** (o gesto sai do kernel: o
 > manifesto declara `claims`, o registro recusa dois donos), **6** (`#/system`), **9** (diário
 > JSONL em `.cache/journal/`, encadeado, com as flags do disparo — `server/journal.py`), **12**
-> (o fail-open da §2.8) **13** (teto de custo diário e concorrência — `server/budget.py`) e **14**
-> (drenagem no `SIGTERM` + `boot`/`shutdown` na mesma cadeia do diário). Parciais: **3** (órbita vem do manifesto, mas é literal por app e ainda
+> (o fail-open da §2.8) **13** (teto de custo diário e concorrência — `server/budget.py`) **8** (`#/metrics` — parser em `src/core/promtext.js`, cinco
+> widgets, zero backend novo) e **14** (drenagem no `SIGTERM` + `boot`/`shutdown` na mesma cadeia do diário). Parciais: **3** (órbita vem do manifesto, mas é literal por app e ainda
 > pode colidir; a tecla sai da posição em `listApps()`), **10** (`#/journal` com `jr.runs`,
 > `jr.detail`, `jr.replay`, `jr.spend`; `jr.denials` só enxerga ferramenta — 403 cross-site e
 > arquivo fora da raiz acontecem fora de uma execução e ainda não viram registro), **17** (HMAC e
 > tradução em `server/webhooks.py`; falta a política por endpoint e a fila EM DISCO) e **19**
-> (`#/bridge` sem credenciais, que dependem do 18). Os outros sete estão abertos. O que está
+> (`#/bridge` sem credenciais, que dependem do 18). Os outros seis estão abertos. O que está
 > aberto fora daqui está em [`proximos-passos.md`](proximos-passos.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue

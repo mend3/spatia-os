@@ -16,6 +16,7 @@ import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
 import { registerContextWidget } from './context.js';
 import { registerJournal } from './journal.js';
+import { registerMetrics } from './metrics.js';
 import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
@@ -99,6 +100,7 @@ export function registerApps() {
    * antes remapearia o `1`–`4` que o operador já decorou.
    */
   registerJournal();
+  registerMetrics();
 }
 
 /** Widgets da vista de sistema (a rota raiz). */
