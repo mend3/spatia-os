@@ -81,6 +81,7 @@ const VERTEX = /* glsl */ `
   uniform float uCone;
   varying float vAlong;
   varying float vRadial;
+
   void main(){
     // A geometria poe a base em y=0 (no corpo) e a ponta em y=1. vAlong e a fracao percorrida.
     vAlong = position.y;
@@ -98,6 +99,7 @@ const VERTEX = /* glsl */ `
 
 const FRAGMENT = /* glsl */ `
   precision highp float;
+  ${GLSL_SIMPLEX3}
   uniform vec3 uColor;
   uniform float uAmount;
   uniform float uFall;
@@ -105,8 +107,37 @@ const FRAGMENT = /* glsl */ `
   uniform float uSpine;
   uniform float uSharp;
   uniform float uAlign;
+  uniform float uTime;
+  uniform float uSeed;
+  uniform float uPlasma;
   varying float vAlong;
   varying float vRadial;
+
+  /*
+   * O FEIXE E PLASMA, NAO MATERIAL — item #4 do brief, e a queixa era exata: "mesmo usando shader
+   * aditivo ainda percebemos a malha".
+   *
+   * O que denunciava a geometria era a densidade CONSTANTE: um cone com queda suave e liso demais
+   * para ser gas, e o olho le a superficie regular como objeto. Duas oitavas de ruido correndo AO
+   * LONGO do eixo quebram isso — a estrutura sobe pelo feixe como a materia sobe de verdade.
+   *
+   * ⚠️ ORCAMENTO CONTADO ANTES, que e a regra que a espessura do disco do buraco negro ensinou:
+   * sao DUAS amostras por fragmento, so dentro do cone (o descarte por fill continua na frente), e
+   * nenhuma fatia nova. O cone ocupa ~200x600 px no enquadramento de foco contra os megapixels do
+   * disco de acrecao com cinco fatias — duas ordens de grandeza abaixo do que matou a aba.
+   *
+   * A coordenada e (raio, altura) e nao o mundo: o feixe gira com o eixo magnetico, e ruido em
+   * espaco de mundo faria a textura escorregar por dentro dele a cada varredura.
+   */
+  float plasma(float aoLongo, float doEixo){
+    vec3 q = vec3(doEixo * 3.1, aoLongo * 5.2 - uTime * 0.85, uSeed);
+    float grande = simplex3(q);
+    float fino = simplex3(q * 2.7 + vec3(0.0, uTime * 0.4, 11.0));
+    // 1 + ruido centrado: a media continua 1, entao o brilho total do feixe nao muda — o que muda
+    // e a DISTRIBUICAO. Sem isso o item viraria "o feixe ficou mais fraco", que e outra coisa.
+    return 1.0 + (grande * 0.62 + fino * 0.28) * uPlasma;
+  }
+
   void main(){
     // A emissao cai ao longo do feixe. uFall separa as duas pecas: o LOBO difuso morre depressa
     // (expoente alto) e o JATO colimado quase nao perde brilho no comprimento (expoente ~1), que
@@ -144,7 +175,7 @@ const FRAGMENT = /* glsl */ `
      * apagaria a informacao em vez de so escurece-la.
      */
     float doppler = 0.35 + 2.4 * pow(clamp(uAlign, 0.0, 1.0), 3.0);
-    float fill = (doEixo + espinha) * aoLongo * uAmount * doppler;
+    float fill = (doEixo + espinha) * aoLongo * uAmount * doppler * plasma(vAlong, vRadial);
     if (fill < 0.004) discard;
     /*
      * Branco no fio, SINCROTRON no halo — item #12, e a regra e a mesma do nucleo e da casca.
@@ -549,7 +580,7 @@ export function createPulsar() {
    * o mesmo fenômeno em escalas diferentes (o plasma sai largo e é colimado pelo campo), e é por
    * isso que elas dividem o eixo e o shader: o que muda são três expoentes e o comprimento.
    */
-  function criarMaterial({ fall, edge, spine, sharp, gain, cone }) {
+  function criarMaterial({ fall, edge, spine, sharp, gain, cone, plasma }) {
     return new THREE.ShaderMaterial({
       uniforms: {
         uColor: { value: new THREE.Color(0xffffff) },
@@ -560,6 +591,11 @@ export function createPulsar() {
         uSharp: { value: sharp },
         uCone: { value: cone },
         uAlign: { value: 0 },
+        uTime: { value: 0 },
+        uSeed: { value: 0 },
+        // O JATO e colimado e quase homogeneo; o LOBO e difuso e e onde a turbulencia se ve. Um
+        // valor por peca, no mesmo lugar em que `gain` ja mora.
+        uPlasma: { value: plasma },
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
@@ -573,9 +609,9 @@ export function createPulsar() {
     });
   }
   // Jato: quase não perde brilho no comprimento, miolo apertado, espinha branca acesa.
-  const jatoMat = criarMaterial({ fall: 0.9, edge: 3.2, spine: 1, sharp: 17, gain: 1.5, cone: 0 });
+  const jatoMat = criarMaterial({ fall: 0.9, edge: 3.2, spine: 1, sharp: 17, gain: 1.5, cone: 0, plasma: 0.45 });
   // Lobo: morre depressa, borda larga e macia, sem espinha — ele é o halo, não o fio.
-  const loboMat = criarMaterial({ fall: 2.2, edge: 1.8, spine: 0, sharp: 1, gain: 0.85, cone: 1 });
+  const loboMat = criarMaterial({ fall: 2.2, edge: 1.8, spine: 0, sharp: 1, gain: 0.85, cone: 1, plasma: 0.85 });
 
   /*
    * O EIXO MAGNÉTICO é um grupo próprio, inclinado dentro do eixo de ROTAÇÃO.
@@ -746,6 +782,10 @@ export function createPulsar() {
       for (const mat of [jatoMat, loboMat]) {
         mat.uniforms.uColor.value.set(params.color);
         mat.uniforms.uAmount.value = 0.55 * level * mat.userData.gain;
+        // O plasma sobe pelo feixe. Congela com movimento reduzido, como a fervura do núcleo: um
+        // campo parado é um instante legítimo, um campo lento é movimento disfarçado.
+        mat.uniforms.uTime.value = reduced ? 0 : elapsed;
+        mat.uniforms.uSeed.value = params.seed * 23;
       }
       /*
        * ESCALAS DESACOPLADAS — e antes tudo saía do mesmo `beam`, o que prendia o corpo inteiro
