@@ -16,7 +16,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, brain, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
+from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -328,6 +328,9 @@ class Handler(BaseHTTPRequestHandler):
             "providers": websearch.availability(),
             "claude_cli": bool(brain.available()),
             "agent_cwd": config.get("AGENT_CWD") or str(config.ROOT),
+            # O teto viaja no health porque a pergunta "posso perguntar?" é de saúde, não de
+            # diário: quem abre a tela precisa ver a folga ANTES de gastar, não depois.
+            "budget": budget.status(),
         }
         try:
             health["qdrant"] = {"online": True, **qdrant.info()}
@@ -417,6 +420,13 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        # Teto de custo e concorrência: a recusa vem ANTES do 200 e do stream, senão o operador
+        # veria uma execução começar para morrer no primeiro evento.
+        recusa = budget.refusal()
+        if recusa:
+            self._json({"error": recusa, "budget": budget.status()}, status=429)
+            return
+
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache, no-transform")
@@ -426,13 +436,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             # `instrument` envolve o stream: repassa cada evento intacto e contabiliza de
             # lado, então métrica e tela derivam da mesma fonte — não há como divergirem.
-            for event in recorder.instrument(
-                agent.run(question, web=forced),
-                config.get("BRAIN"),
-                question=question,
-                origin="console",
-            ):
-                self._sse(event)
+            with budget.Slot():
+                for event in recorder.instrument(
+                    agent.run(question, web=forced),
+                    config.get("BRAIN"),
+                    question=question,
+                    origin="console",
+                ):
+                    self._sse(event)
         except (BrokenPipeError, ConnectionResetError):
             logger.info("cliente desconectou; execução abortada")
         finally:

@@ -894,7 +894,15 @@ function registerSystemWidgets() {
     title: 'QUOTAS',
     hint: 'CUSTO E JANELA',
     slot: 'left',
-    render(view) {
+    render(view, ctx) {
+      /*
+       * O teto vem do servidor e a sessão vem do estado local, e são grandezas diferentes: a
+       * sessão é esta aba, o teto é o dia inteiro em disco. Misturá-las num número só faria
+       * duas abas abertas parecerem ter gasto metade do que gastaram.
+       */
+      let budget = null;
+      ctx.api.health().then((payload) => { budget = payload.budget; draw(); }).catch(() => {});
+
       function draw() {
         const store = snapshot();
         const rows = [
@@ -902,6 +910,20 @@ function registerSystemWidgets() {
           ['TURNOS', String(store.turns || '—')],
           ['CARGA COGNITIVA', store.cogTokens ? `${store.cogTokens.toLocaleString('pt-BR')} tk` : '—'],
         ];
+        if (budget) {
+          // Teto 0 é ausência de teto, e a tela tem de DIZER isso: um limite ausente e um limite
+          // folgado parecem iguais num número solto.
+          rows.push(['GASTO HOJE', money(budget.spent_today)]);
+          rows.push([
+            'TETO DIÁRIO',
+            budget.max_daily_usd
+              ? `${money(budget.max_daily_usd)} · resta ${money(budget.remaining_usd)}`
+              : 'sem teto (AGENT_MAX_DAILY_USD)',
+          ]);
+          if (budget.max_concurrent) {
+            rows.push(['SIMULTÂNEAS', `${budget.running} de ${budget.max_concurrent}`]);
+          }
+        }
         if (store.limit?.resets_at) {
           const remaining = Math.max(0, store.limit.resets_at * 1000 - Date.now());
           rows.push([

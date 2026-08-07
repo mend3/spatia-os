@@ -39,6 +39,11 @@ DEFAULTS = {
     "AGENT_CWD": "",
     "AGENT_MODEL": "",
     "AGENT_MAX_TURNS": "10",
+    # Teto de custo por dia e execuções simultâneas. `0` = sem teto, e é o default porque um
+    # limite inventado aqui apareceria como recusa sem ninguém ter pedido. O gasto vem do
+    # diário, em disco: um contador em memória zeraria no restart e o teto se apagaria sozinho.
+    "AGENT_MAX_DAILY_USD": "0",
+    "AGENT_MAX_CONCURRENT": "0",
     # Só leitura por default: a UI é um observatório, não um editor.
     "AGENT_ALLOWED_TOOLS": "Read Glob Grep WebSearch WebFetch",
     "AGENT_PERMISSION_MODE": "dontAsk",
