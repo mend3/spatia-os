@@ -461,6 +461,29 @@ export const GLSL_GEODESIC = /* glsl */ `
         float rd = length(hit.xz);
         if (rd > uDiskInner && rd < uDiskOuter) {
           vec4 amostra = emissaoDoDisco(hit, v);
+          /*
+           * ESPESSURA SEM CUSTO DE AMOSTRA — item #3 do brief, e a lei ja existia neste projeto.
+           *
+           * A laje gaussiana foi tentada aqui e REVERTIDA (ver o bloco acima): ela custava uma
+           * amostra POR PASSO e refino dentro da travessia, e o orcamento de passos e o que da
+           * sombra e lente. O que sobrou daquela tentativa foi a pergunta certa com a resposta
+           * errada.
+           *
+           * A resposta certa e a mesma que o anel planetario usa desde 2026-08-06: a profundidade
+           * optica de uma laje depende do ANGULO com que se atravessa ela, tau/cos(i). O caminho
+           * dentro de uma camada de espessura h vale h/|cos(i)| — de perfil o raio atravessa muito
+           * material e a camada satura; de frente ele atravessa pouco e ela fica translucida.
+           *
+           * |v.y| normalizado E o cosseno com a normal do disco, e ele ja esta calculado: nao ha
+           * amostra nova, nao ha passo novo, nao ha refino. Uma divisao por cruzamento.
+           *
+           * O teto de 4x existe porque o caso rasante tende ao infinito e o disco viraria uma
+           * parede opaca no exato instante em que ele deveria ficar mais bonito.
+           */
+          float cosI = clamp(abs(normalize(v).y), 0.06, 1.0);
+          float caminho = min(1.0 / cosI, 4.0);
+          amostra.rgb *= caminho;
+          amostra.a = 1.0 - pow(1.0 - clamp(amostra.a, 0.0, 1.0), caminho);
           // Composicao front-to-back: o que ja esta na frente atenua o que vem atras. E o que faz
           // o disco tapar o proprio lado distante quando ele fica espesso.
           float resto = 1.0 - alfa;
