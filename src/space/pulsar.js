@@ -450,6 +450,89 @@ const CAMPO_FRAGMENT = /* glsl */ `
  * e desenham no máximo 2,8 raios do corpo, que na chegada do foco são ~600 px de raio contra os
  * 742 da meia-altura. Não é o disco de acreção enchendo a tela com cinco fatias de ruído.
  */
+/*
+ * A NEBULOSA DE VENTO — o ultimo item do #13, e a camada mais externa da hierarquia do brief:
+ * "nebulosa (LOD alto): >50 raios, desaparecendo em transparencia".
+ *
+ * ⚠️ 50 RAIOS DO CORPO, NAO DA ANCORA, e confundir os dois quase matou o item. Com o corpo em
+ * 0,10-0,16 de ancora, 50 raios do corpo sao ~7 de ancora contra um quadro de 2,6 — a MESMA razao
+ * da cauda do cometa, que ja passou pelo olho do usuario. Lida como raios de ancora, ela daria 19x
+ * o quadro e viraria nevoa sobre o ceu inteiro, que foi a conclusao errada de uma primeira leitura.
+ *
+ * Ela e o que sobra do vento depois do choque de terminacao: eletrons relativisticos presos no
+ * campo, irradiando sincrotron. Tres coisas a distinguem do halo, e as tres sao fisica:
+ *
+ *   1. Ela e BRILHANTE NO LIMBO, nao no meio. O halo usa (1 - b) porque e coluna de gas vista de
+ *      fora; a nebulosa e uma CASCA fina e oca, e casca fina tem mais caminho na borda — o mesmo
+ *      1/cos(i) do disco do buraco negro, aqui como funcao do parametro de impacto.
+ *   2. Ela e FILAMENTAR. A do Caranguejo e uma teia, nao uma bolha: o ruido entra multiplicando, e
+ *      com contraste alto o bastante para abrir vazio, senao le como bolha esfumada.
+ *   3. Ela e ACHATADA no equador do eixo de ROTACAO, porque o vento sai concentrado no plano
+ *      equatorial — a mesma assimetria que `pulsar-wind.js` ja desenha nas particulas.
+ */
+const NEBULA_FRAGMENT = /* glsl */ `
+  precision highp float;
+  ${GLSL_SIMPLEX3}
+  uniform vec3 uColor;
+  uniform float uAmount;
+  uniform float uTime;
+  uniform float uSeed;
+  varying vec3 vNormal;
+  varying vec3 vPos;
+
+  // Mesma familia de cor do halo e do nucleo: a rampa sincrotron manda, o tipo do arquivo tinge.
+  // Aqui a energia e a MAIS BAIXA das camadas — eletrons ja resfriados, longe do polo —, entao o
+  // ponto de partida e o roxo-magenta da cauda da rampa e nao o azul do halo.
+  const vec3 ROXO = vec3(0.52, 0.20, 0.66);
+
+  void main(){
+    vec3 n = normalize(vNormal);
+    float mu = abs(n.z);
+    float b = sqrt(max(1.0 - mu * mu, 0.0));
+    /*
+     * Casca fina: o caminho dentro dela cresce para o limbo, com teto para o caso rasante — o
+     * mesmo teto do disco do buraco negro, e pelo mesmo motivo.
+     *
+     * ⚠️ ELE SO EXISTE VISTO DE FORA, e a primeira versao dependia dele para tudo. Com 7 raios de
+     * ancora e a camera enquadrando 2,6, o observador esta DENTRO da casca na maior parte do tempo:
+     * ali mu ~ 1 em toda a tela, o realce vale 0,25 constante, e o que sobrava depois do corte eram
+     * so os graos mais brilhantes do ruido — chuvisco azul, nao teia. Medido na bancada.
+     *
+     * Entao ele entra como MODULACAO com piso, e nao como porta: de dentro a nebulosa e um brilho
+     * difuso que a teia recorta (que e o que se ve estando dentro de uma), e de fora ela ganha a
+     * borda acesa. Os dois regimes existem porque a camera pode estar nos dois lugares.
+     */
+    float limbo = 0.55 + min(1.0 / max(sqrt(max(1.0 - b * b, 0.0)), 0.16), 4.0) * 0.22;
+
+    // Achatamento equatorial: o vento sai concentrado no plano do equador de rotacao (Y local).
+    float doEixo = abs(normalize(vPos).y);
+    float equador = 1.0 - doEixo * doEixo * 0.72;
+
+    /*
+     * TEIA, e ela precisa de CONTRASTE e nao so de ruido. Duas oitavas com o limiar por baixo:
+     * sem o limiar o campo le como bolha esfumada, que e o defeito que o disco do buraco negro
+     * ja pagou no item #4. A deriva no tempo e LENTA e RIGIDA (soma, nao multiplica pelo raio):
+     * um padrao cuja fase dependesse do raio enrolaria sem fim, que e o Lin-Shu que este projeto
+     * ja matou cinco vezes.
+     */
+    vec3 q = normalize(vPos) * 1.4 + uSeed;
+    float teia = snoise(q + vec3(0.0, uTime * 0.03, 0.0)) * 0.5 + 0.5;
+    teia += (snoise(q * 2.3 - vec3(0.0, uTime * 0.05, 0.0)) * 0.5 + 0.5) * 0.5;
+    // ⚠️ A ESCALA DO RUIDO E A DIFERENCA ENTRE TEIA E CHUVISCO. Em 2,6 a celula cai perto de um
+    // pixel quando a casca cobre a tela, e ruido do tamanho de um pixel nao e estrutura: e grao.
+    // 1,4 da filamento com largura visivel. O limiar abre vazio; o expoente abaixo de 2 evita
+    // esmagar o meio da distribuicao, que e onde o filamento vive.
+    teia = clamp((teia / 1.5 - 0.30) / 0.70, 0.0, 1.0);
+    teia = pow(teia, 1.5);
+
+    float brilho = limbo * equador * teia * uAmount;
+    // Corte alto de proposito: esta casca tem 7 raios de ancora e desenha a tela inteira quando a
+    // camera se aproxima. O que nao chega a um bit de cor nao paga a mistura.
+    if (brilho < 0.004) discard;
+    gl_FragColor = vec4(mix(ROXO, uColor, 0.24) * brilho, brilho);
+  }
+`;
+
 const HALO_VERTEX = /* glsl */ `
   varying vec3 vNormal;
   varying vec3 vPos;
@@ -709,6 +792,51 @@ export function createPulsar() {
   group.add(campo);
 
   /*
+   * A NEBULOSA DE VENTO — ver `NEBULA_FRAGMENT`. A camada mais externa da hierarquia do #13, e a
+   * única do pulsar que fica FORA do quadro de propósito: 7 raios de âncora contra `SKIN_EXTENT`
+   * 2,6. É a mesma licença que o cometa tem, e pelo mesmo motivo — enquadra-se a FIGURA, não a
+   * extensão. Ela mora no grupo (eixo de ROTAÇÃO), não no eixo magnético: o vento sai do equador
+   * de rotação, e pendurá-la no eixo magnético a faria oscilar junto com o farol.
+   */
+  const nebulosaMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(0xffffff) },
+      uAmount: { value: 0 },
+      uTime: { value: 0 },
+      uSeed: { value: 0 },
+    },
+    vertexShader: HALO_VERTEX,
+    fragmentShader: NEBULA_FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    /*
+     * ⚠️ DOUBLE SIDE E SEM TESTE DE PROFUNDIDADE, e as duas coisas por medida e nao por gosto.
+     *
+     * As outras cascas deste arquivo usam BackSide, que e o certo para elas: sao pequenas, a camera
+     * fica fora, e desenhar so a face de tras da o aro sem a frente lavar o corpo. Copiei o padrao
+     * e a nebulosa ficou quase invisivel na bancada, com a conta dizendo que o brilho minimo era
+     * 0,08 — bem acima do corte. Quando a aritmetica e a tela discordam, o defeito nao esta no
+     * brilho.
+     *
+     * Com 7 raios de ancora, o hemisferio DISTANTE cai alem do plano distante da camera e e
+     * recortado inteiro; sobra um arco na borda, que era exatamente o que se via. DoubleSide poe o
+     * hemisferio de ca de volta, e isso tambem e mais correto: nebulosa e opticamente fina, olha-se
+     * ATRAVES dela, entao somar as duas travessias e a fisica e nao um remendo.
+     *
+     * `depthTest: false` pela mesma razao que a magnetosfera o desliga — ela envolve tudo o que o
+     * pulsar tem, e testar profundidade contra o proprio corpo a recortaria em volta dele.
+     */
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+  });
+  const nebulosa = new THREE.Mesh(cascaGeo, nebulosaMat);
+  // Desenha ANTES de tudo: ela e o fundo do sistema, e sem ordem explicita a ordenacao por
+  // transparencia do three a intercala com o feixe conforme a camera gira.
+  nebulosa.renderOrder = -1;
+  group.add(nebulosa);
+
+  /*
    * DUAS PEÇAS POR POLO, e é a diferença entre "cone" e "pulsar".
    *
    * As referências mostram duas coisas que um cone só não faz ao mesmo tempo. O Crab é um par de
@@ -909,6 +1037,26 @@ export function createPulsar() {
       campoMat.uniforms.uSeed.value = params.seed * 53;
       campoMat.uniforms.uBeat.value = 0.5 + batimento * 0.85;
 
+      /*
+       * A nebulosa NÃO respira no batimento, e é a única camada que não respira.
+       *
+       * O #11 pede que o pulso afete tudo, e ele afeta tudo o que é magnetosférico — o que responde
+       * ao campo responde ao giro. A nebulosa não: ela tem milhares de anos de idade e o pulso tem
+       * segundos. Um plasma que levou séculos para se depositar piscando no relógio do farol seria
+       * a animação contradizendo a escala que o próprio #13 acabou de estabelecer.
+       *
+       * Ela também não escala com o corpo: é do SISTEMA, como a magnetosfera. 7 raios de âncora.
+       */
+      nebulosa.scale.setScalar(7.0);
+      nebulosaMat.uniforms.uColor.value.set(params.color);
+      // ⚠️ 0,42 DEIXAVA A CAMADA INVISÍVEL, e "névoa que se lê já está brilhante demais" era um
+      // palpite que a bancada refutou: com o realce de limbo valendo 0,25 visto de dentro, o corte
+      // do fragmento comia tudo menos os grãos. O ganho é medido contra o que aparece, não contra
+      // o receio de que apareça demais.
+      nebulosaMat.uniforms.uAmount.value = level * 1.1;
+      nebulosaMat.uniforms.uTime.value = reduced ? 0 : elapsed;
+      nebulosaMat.uniforms.uSeed.value = params.seed * 61;
+
       for (const casca of halos) {
         casca.scale.setScalar(params.core * casca.material.userData.raio);
         casca.material.uniforms.uColor.value.set(params.color);
@@ -1011,6 +1159,7 @@ export function createPulsar() {
       cascaGeo.dispose();
       campoMat.dispose();
       for (const casca of halos) casca.material.dispose();
+      nebulosaMat.dispose();
       core.geometry.dispose();
       coreMat.dispose();
       for (const feixe of [...jatos, ...lobos]) feixe.geometry.dispose();
