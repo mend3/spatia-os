@@ -270,7 +270,19 @@ ${ENVELOPE_GLSL}
      * de brinde e sqrt, mais barato que pow. A corona continua mais larga que o nucleo, que e o
      * trabalho dela; o que ela perde e so a saia que estava sendo cortada em reta.
      */
-    float corona = sqrt(max(1.0 - smoothstep(0.0, 1.0, d), 0.0)) * vIgnition * 0.55;
+    /*
+     * ⚠️ E ELA CEDE JUNTO onde a pele nao desenha corpo — a brecha que ficou aberta em efe13fa.
+     *
+     * O nucleo passou a ceder sob cometa, pulsar e nebulosa; a corona nao, e entao um cometa aceso
+     * pela busca e em foco recebia de volta o mesmo disco chapado da cor do no, por cima da coma,
+     * enquanto o evento durasse. Meia lei aplicada e o defeito que este arquivo mais registra.
+     *
+     * Cede SO pelo uHaloYield, e nao pelo buraco do miolo: onde a coroa fica (fotosfera, planeta,
+     * estacao) a corona da ignicao continua inteira, que e a pose aprovada no olho. O evento
+     * continua legivel — ele so deixa de ser desenhado por cima de uma pele que nao e o corpo.
+     */
+    float corona = sqrt(max(1.0 - smoothstep(0.0, 1.0, d), 0.0)) * vIgnition * 0.55
+                 * mix(1.0, 1.0 - uHaloYield, vHalo);
     /*
      * A NEBULOSIDADE CEDE junto com o nucleo, pelo mesmo vHalo e pelo mesmo motivo.
      *
