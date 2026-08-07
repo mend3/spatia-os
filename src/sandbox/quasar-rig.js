@@ -19,6 +19,17 @@ function hubFalso(values) {
     path: `bancada/quasar/${values.seed.toFixed(3)}`,
     mass: values.bojo / Math.max(values.conc, 0.01),
     concentration: values.conc,
+    /*
+     * ⚠️ A ACREÇÃO É O SEGUNDO PORTÃO, e a falta dela aqui APAGOU o espécime.
+     *
+     * Quando `isActive` passou a exigir gás caindo agora, este hub falso continuou só com massa —
+     * e `quasarParams` passou a devolver `null` para qualquer ajuste dos sliders. A bancada ficou
+     * vazia e a causa não estava em lugar nenhum da tela.
+     *
+     * É a lição do espécime que falta, outra vez: fato novo no portão precisa de controle novo na
+     * bancada NO MESMO passo, senão o caminho onde a decisão mora deixa de ser desenhável.
+     */
+    accretion: values.acrecao,
     base: new THREE.Color(0.92, 0.68, 0.42),
   };
 }
@@ -67,6 +78,13 @@ export const QUASAR_SPEC = {
      */
     { key: 'bojo', label: 'MASSA DE BOJO', type: 'range', min: 0, max: 300, step: 1, value: 120 },
     { key: 'conc', label: 'CONCENTRAÇÃO', type: 'range', min: 0.05, max: 0.95, step: 0.01, value: 0.5 },
+    /*
+     * ACREÇÃO — commits nos filhos na janela de churn. É o segundo portão e o mais importante:
+     * bojo diz que o buraco negro EXISTE, acreção diz que há gás caindo AGORA. Em 0 o quasar
+     * APAGA por mais massivo que seja, e é o caso que prova que o portão não é decoração —
+     * uma galáxia massiva congelada há um ano não é um quasar, é um buraco negro quieto.
+     */
+    { key: 'acrecao', label: 'ACREÇÃO (commits)', type: 'range', min: 0, max: 40, step: 1, value: 8 },
     // O portão de animação, que na cena vem do perfil de qualidade. 0 congela sem apagar nada.
     { key: 'flow', label: 'FLUXO (perfil) ×', type: 'range', min: 0, max: 2, step: 0.01, value: 1 },
     { key: 'gain', label: 'GANHO ×', type: 'range', min: 0, max: 3, step: 0.01, value: 1 },
@@ -80,7 +98,9 @@ export const QUASAR_SPEC = {
     'ORBITE ATÉ O EIXO APONTAR PARA VOCÊ: o jato tem de ficar CURTO e MUITO brilhante ao mesmo tempo (é um blazar), não longo e brilhante. O par "estoura e encurta" sai do mesmo cosseno; se ele estourar sem encurtar, o beaming está lendo um ângulo e o comprimento outro.',
     'O TORO NÃO ACHATA COM O DISCO. Leve a INCLINAÇÃO a 0: o disco vira um risco e o toro TEM de continuar uma faixa grossa. Os dois virando linha juntos significa que o piso de razão de aspecto (h/r ~ 0,5) sumiu — e sem espessura o toro não tem como esconder o núcleo, que é a razão de ele existir.',
     'BORDA NENHUMA, EM CANTO NENHUM. Nem faixa reta (a caixa do jato cortando o lóbulo), nem círculo (a caixa do núcleo cortando o toro). Este arquivo já pagou as duas: cada corte usa a cauda da PRÓPRIA gaussiana que ele corta, e a caixa segue a feição mais externa.',
-    'MASSA DE BOJO abaixo de 50: a bancada fica VAZIA e o relatório diz `apagado`. O portão não é decoração — 35 dos 213 hubs do corpus real dependem dele.',
+    'MASSA DE BOJO abaixo de 50: a bancada fica VAZIA e o relatório diz `apagado`. O portão não é decoração.',
+    '⚠️ ACREÇÃO = 0 com MASSA DE BOJO no máximo: tem de APAGAR do mesmo jeito, e o relatório tem de dizer QUAL portão barrou. É a metade que faltava — o que separa uma galáxia massiva de um quasar não é o buraco negro (toda galáxia massiva tem um), é gás caindo AGORA. Um diretório grande e concentrado congelado há um ano não é um quasar.',
+    '⚠️ O NÚCLEO É UM PONTO, não o objeto. `CORE_RADIUS` é 0,016 raios do disco da galáxia, então o toro morre em 0,216 e o disco de acreção em 0,067 — um quinto e um quinze avos da hospedeira. Se o AGN ocupar boa parte do quadro, a escala regrediu: era 0,16 e o toro chegava a 2,16, o DOBRO da galáxia inteira. Os JATOS continuam longos de propósito (5 raios do disco), e é isso que torna o objeto reconhecível.',
     'FLUXO = 0 CONGELA SEM APAGAR: os nós do jato e as faixas do toro continuam desenhados, só param de andar. Se alguma feição SOME ao congelar, ela estava sendo gerada pelo relógio em vez de ser atravessada por ele — e o perfil mínimo passaria a esconder informação em vez de só economizar.',
     'RAIO DA ÂNCORA no menor valor: o núcleo continua um borrão liso, sem cintilar. É o piso de pixel, e é ele que impede o quasar de serrilhar quando a galáxia é um ponto no céu.',
   ],
@@ -100,7 +120,9 @@ export const QUASAR_SPEC = {
           quasars.update([], camera, 1, clock.elapsed, diskPx, { far: LOD_ARM_PX, near: LOD_FULL_PX });
           ctx.report({
             estado: 'apagado',
-            'massa de bojo': `${bulgeMassOf(hub).toFixed(0)} < ${QUASAR_BULGE_FLOOR}`,
+            // Diz QUAL dos dois portões barrou. Sem isto, "apagado" com massa alta é um mistério.
+            'massa de bojo': `${bulgeMassOf(hub).toFixed(0)} ${bulgeMassOf(hub) < QUASAR_BULGE_FLOOR ? `< ${QUASAR_BULGE_FLOOR} ✗` : '✓'}`,
+            'acreção': `${values.acrecao} ${values.acrecao > 0 ? '✓' : '= 0 ✗ (buraco negro quieto)'}`,
           });
           return;
         }
@@ -122,6 +144,7 @@ export const QUASAR_SPEC = {
         ctx.report({
           estado: acesos ? 'aceso' : 'abaixo do piso de LOD',
           'massa de bojo': bulgeMassOf(hub).toFixed(0),
+          'acreção': `${values.acrecao} commits`,
           'cosView': values.view.toFixed(2),
           'inclinação': `${((Math.acos(Math.min(values.view, 1)) * 180) / Math.PI).toFixed(0)}°`,
           'disco na tela': `${px.toFixed(0)} px`,
