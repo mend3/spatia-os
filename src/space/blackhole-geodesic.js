@@ -555,6 +555,36 @@ export const GLSL_GEODESIC = /* glsl */ `
           // atravessando o ceu, que e a mesma borda geometrica que o disco evita com smoothstep nas
           // duas pontas. A nevoa tem de chegar a zero ONDE ela acaba.
           float nevoa = exp(-longe * 3.2) * smoothstep(1.0, 0.55, longe) * (1.0 - alfa);
+          /*
+           * EJECAO — item #15: "o disco deveria pulsar, lancar pequenas ejecoes, produzir pequenas
+           * variacoes. Nao explosoes. RESPIRACAO."
+           *
+           * Os outros dois pedidos do item ja existiam: o pulso (uIntensity leva 0,9 + pulse·0,14,
+           * de uma fonte de respiracao unica) e as pequenas variacoes (o campo de estrias advecta,
+           * radial = span·9 - tempo·spin·0,35, e a turbulencia rasga o disco). Faltava a ejecao.
+           *
+           * Ela mora na CORONA e nao no disco, e isso e a fisica escolhendo o lugar: ejecao e
+           * materia que SAI DO PLANO, e a corona e exatamente a componente acima e abaixo dele. No
+           * disco ela seria uma mancha girando dentro da laje, que e outra coisa.
+           *
+           * Uma bolha por ciclo, com azimute sorteado pelo indice do ciclo — nao ha ruido novo, e
+           * o sorteio por indice INTEIRO garante que a bolha nao deriva em azimute no meio do voo.
+           * Ela nasce na borda e sobe ate 1,2x enquanto apaga: 0,07 Hz da uma a cada 14 s, que e
+           * respiracao e nao explosao. A amplitude segue a turbulencia porque disco agitado ejeta
+           * mais — e no regime de erro isso vira o unico movimento vertical que a cena tem.
+           */
+          float cicloIdx = floor(uDiskTime * 0.07);
+          float ciclo = fract(uDiskTime * 0.07);
+          float azimuteEjecao = fract(sin(cicloIdx * 12.9898) * 43758.5453) * 6.2831853;
+          float dTheta = atan(hit.z, hit.x) - azimuteEjecao;
+          // Diferenca angular no ramo curto: sem isto a bolha se parte em duas na linha de corte
+          // do atan, que e a mesma pedra do ruido periodico deste arquivo.
+          dTheta = atan(sin(dTheta), cos(dTheta));
+          float subida = mix(uDiskOuter * 0.88, uDiskOuter * 1.18, ciclo);
+          float bolha = exp(-dTheta * dTheta * 4.0)
+                      * exp(-pow((rd - subida) / (uDiskOuter * 0.10), 2.0))
+                      * (1.0 - ciclo) * (1.0 - alfa);
+          nevoa += bolha * (0.6 + uDiskTurbulence * 0.5);
           // Mais quente que o disco: corona e a componente de raio-X, e na tela isso e o ambar
           // puxado para o branco-azulado.
           cor += mix(uHot, vec3(0.86, 0.93, 1.0), 0.45) * (nevoa * 0.14 * caminhoPlano * uDiskIntensity);
