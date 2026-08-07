@@ -581,7 +581,25 @@ const QUAT = new THREE.Quaternion();
  * 2026-08-07 o recuo é 1,2 e o vento SAI do círculo de ajuste (sem sair do quadro — ver `lod.js`),
  * porque conter o vento custava o corpo: a 2,6 ele chegava com 87 px medidos e não se lia.
  */
-const SCALE = Object.freeze({ lobe: 0.45, jet: 0.95, wind: 1.35 });
+/*
+ * ⚠️ O VENTO FOI DE 1,35 A 3,6 EM 2026-08-07 — item #13, e o que autorizou foi o COMETA.
+ *
+ * O brief pede uma hierarquia grande (magnetosfera 2–5, cone 8–15, vento 20–40 raios) e ela foi
+ * refutada uma vez: a 35 raios o `SKIN_EXTENT` teve de ir a 4, e a 4 o corpo chegava abaixo do
+ * próprio `LOD_FAR_PX` — o pulsar não era desenhável em distância nenhuma. A lição que saiu dali
+ * foi "enquadra-se a FIGURA, não a extensão", e ela ficou aplicada pela metade: as três feições
+ * encolheram JUNTAS, então o vento virou uma casca colada no corpo em vez de ambiente.
+ *
+ * A outra metade chegou com o cometa em 07/08 e foi aprovada no olho: `SKIN_EXTENT.comet` caiu
+ * para 1,6 enquadrando a CABEÇA, e a cauda de 9 raios sai do quadro de propósito — ambiente pode e
+ * deve sair. O vento do pulsar é a mesma categoria de coisa que a cauda.
+ *
+ * Então o recuo NÃO muda (1,2, o corpo continua chegando a 217 px, legível) e o vento cresce:
+ * 3,6 × beam põe o pior caso em 6,1 raios de âncora contra os 3,7 que o quadro cobre — ele
+ * transborda em ~1,6×, na mesma ordem em que a cauda do cometa transborda. O jato e o lobo NÃO
+ * mudam: eles são a figura, e é ela que tem de caber.
+ */
+const SCALE = Object.freeze({ lobe: 0.45, jet: 0.95, wind: 3.6 });
 
 export function createPulsar() {
   /** Leitura do último quadro. Ver `beat()`. */
