@@ -632,7 +632,7 @@ export function createGraph() {
      * Derivar `world` do valor com teto importava a mentira para o mundo: batido o teto, `world`
      * virava proporcional à distância da câmera, então o corpo encolhia no mundo na mesma taxa em
      * que a câmera se aproximava. O tamanho aparente travava em `511 × 0,6 / 2 = 153,3px`, para
-     * sempre, em todo corpo — medido com `window.espatial.planet()` em três corpos de 1 a 103
+     * sempre, em todo corpo — medido com `window.spatia.planet()` em três corpos de 1 a 103
      * chunks: os três reportaram px 153 e nível 0,61, a qualquer distância. `planet.js` só fecha o
      * detalhe em `LOD_NEAR_PX = 200`, acima de 153,3: a superfície não estava escondida, era
      * aritmeticamente impossível.

@@ -1,5 +1,23 @@
 # SpatIA
 
+**The Spatial Operating System for AI.**
+
+> **Knowledge has gravity.**
+>
+> Information shouldn't live in folders, tabs or endless chats.
+>
+> It should exist as a living universe.
+>
+> Every memory has a place.
+>
+> Every idea has an orbit.
+>
+> Every connection has gravity.
+>
+> SpatIA transforms AI into something you can explore, understand and control.
+
+---
+
 Um observatório espacial para um cérebro artificial. O centro é um buraco negro; tudo o que
 o agente sabe orbita ele, e tudo o que ele faz é visível como física.
 

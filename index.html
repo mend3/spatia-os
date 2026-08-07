@@ -1125,7 +1125,16 @@
     transition: opacity 1.2s ease, filter 1.2s ease;
   }
   #boot.gone { opacity: 0; filter: blur(14px); pointer-events: none; }
-  #boot h1 { color: var(--amber); letter-spacing: 0.7em; font-size: 20px; }
+  /*
+   * ⚠️ O ESPACEJAMENTO ERA 0,7em, e ele tinha de cair com a mudança de nome.
+   *
+   * Aquele valor servia a `ESPATIAL` em caixa alta, que é um RÓTULO — texto espaçado lê como
+   * inscrição, e é assim que se compõe uma palavra em versalete. `SpatIA` é uma MARCA, e marca é
+   * uma palavra só: com 0,7em as seis letras viram seis objetos separados e o `IA` deixa de ser
+   * lido como unidade, que é a única razão de a identidade ter escolhido essa caixa
+   * (`docs/README.md`). Espacejamento apertado e corpo maior é o que a referência da marca pede.
+   */
+  #boot h1.marca { color: var(--amber); letter-spacing: 0.02em; font-size: 34px; font-weight: 300; }
   #boot .sub { color: var(--ink-faint); font-size: 9px; letter-spacing: 0.32em; }
   .boot-log { display: flex; flex-direction: column; gap: 3px; width: min(560px, 84vw); margin-top: 8px; }
   .boot-line { display: grid; grid-template-columns: 1fr auto; gap: 14px; font-size: 9.5px;
@@ -1419,8 +1428,13 @@
 </div>
 
 <div id="boot">
-  <h1>ESPATIAL</h1>
-  <span class="sub">SISTEMA OPERACIONAL ESPACIAL DE CONHECIMENTO</span>
+  <!--
+    ⚠️ A GRAFIA É `SpatIA`, com IA em maiúsculo, e ela NÃO é estilo — é o que faz o componente de
+    Inteligência Artificial aparecer no nome. `SPATIA` em versalete perderia exatamente isso, que é
+    a razão de a identidade escolher essa forma. Ver `docs/README.md`.
+  -->
+  <h1 class="marca">SpatIA</h1>
+  <span class="sub">The Spatial Operating System for AI</span>
   <div class="boot-log" data-boot-log></div>
   <div class="boot-status" data-boot-status>verificando subsistemas…</div>
   <!--

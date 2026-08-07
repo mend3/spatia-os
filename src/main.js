@@ -272,10 +272,10 @@ async function main() {
    *
    * Instrumentação que não dá para inspecionar é instrumentação que ninguém confere — e store
    * que ninguém confere diverge da tela em silêncio, que é exatamente o defeito que ele existe
-   * para impedir. Uma leitura só, sem estado escrito: `espatial.session()` e `espatial.state()`.
+   * para impedir. Uma leitura só, sem estado escrito: `spatia.session()` e `spatia.state()`.
    * Não é API pública; é a janela de quem está depurando.
    */
-  window.espatial = Object.freeze({
+  window.spatia = Object.freeze({
     session: () => session.snapshot(),
     state: () => state.snapshot(),
     /** Custo da cadeia de pós-processamento, medido na hora. Ver `scene.sampleRenderCost`. */
@@ -297,7 +297,7 @@ async function main() {
     moons: () => scene.moonReport?.(),
     /** Lê — e, com argumento, força — a força do bloom. O teste do item #9. Ver `scene.bloomProbe`. */
     bloom: (ajuste) => scene.bloomProbe(ajuste),
-    /** Bancada da camada 4: `espatial.core({ regime: 'thinking', tokens: 120000 })`. */
+    /** Bancada da camada 4: `spatia.core({ regime: 'thinking', tokens: 120000 })`. */
     core: (opcoes) => scene.blackHoleProbe(opcoes),
   });
 
@@ -792,7 +792,7 @@ function createDock(root, apps) {
 }
 
 main().catch((error) => {
-  console.error('[espatial] falha na inicialização', error);
+  console.error('[spatia] falha na inicialização', error);
   api.reportClient({ boot: 'error' });
   /*
    * Diga na TELA, não só no console.

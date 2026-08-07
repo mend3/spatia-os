@@ -57,7 +57,7 @@ import { SURFACE } from './solver.js';
  * FARTHER than the distance focus itself flies to (7), so the first notch of the wheel pushed the
  * camera away from the very thing it had just locked onto.
  *
- * Measured on this machine before the change, with `window.espatial.planet()`:
+ * Measured on this machine before the change, with `window.spatia.planet()`:
  *
  * | body | distance | apparent radius | detail level |
  * |---|---|---|---|

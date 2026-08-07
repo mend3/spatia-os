@@ -114,7 +114,7 @@
  *    Lever (2) below is therefore the FIRST one to pull, not the second.
  *
  * ✅ **O TOTAL DO CÉU FOI MEDIDO** — 2026-08-06, na cena viva, com o instrumento que este
- * parágrafo pedia (`window.espatial.renderCost`, relógio de GPU). Pose de céu, `camera.distance`
+ * parágrafo pedia (`window.spatia.renderCost`, relógio de GPU). Pose de céu, `camera.distance`
  * 260, **213** instâncias desenhando, framebuffer 3024 × 1484, três amostras de 30 renders:
  * **`semCadeia` 0,31–0,35 ms** — a cena INTEIRA, 1774 corpos e as 213 galáxias juntas. O pós (a
  * lente do buraco negro) custa 3,8–5,1 ms na mesma amostra, ou seja **mais de 10× a cena toda**.

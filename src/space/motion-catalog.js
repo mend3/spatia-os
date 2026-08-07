@@ -356,7 +356,7 @@ export const MOTION = Object.freeze({
      *
      * O que está calibrado é o TEMPO DE TRAVESSIA, e é de propósito: ele não depende do
      * enquadramento. A velocidade na tela sai dele com `comprimento_em_raios · px / período`, e o
-     * `px` do corpo em foco é publicado por `window.espatial.planet()`.
+     * `px` do corpo em foco é publicado por `window.spatia.planet()`.
      *
      * MEDIDO assim em `deploy/daimon/bootstrap-loop.sh` (churn 13, a cauda mais longa do corpus),
      * com o LOD saturado (`px` 261, `level` 1): a cauda tem 7,54 raios, então o íon corre ~896 px/s

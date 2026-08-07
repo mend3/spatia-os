@@ -14,6 +14,18 @@
  * e erro, e perder isso num reload torna o painel inútil na prática.
  */
 
+/*
+ * ⚠️ A CHAVE MANTÉM O NOME ANTIGO, e isso é decisão e não esquecimento.
+ *
+ * O produto virou `SpatIA` e o nome antigo saiu de tudo o que é TEXTO. Chave de armazenamento não
+ * é texto: é FORMATO DE FIO. Renomeá-la não migra nada — ela simplesmente deixa de encontrar o que
+ * está gravado, e toda afinação que o operador fez à mão evapora em silêncio, junto com o
+ * histórico que `SUPERSEDED` usa para distinguir "nunca mexi" de "escolhi este valor". Marca não
+ * vale uma perda de dados.
+ *
+ * O mesmo vale para `espatial.prefs.v1`, `espatial.collapsed.v1`, `espatial.trace` e os nomes de
+ * métrica `espatial_*` do servidor, que alimentam dashboards fora deste repositório.
+ */
 const STORAGE_KEY = 'espatial.tuning.v1';
 
 /**
@@ -40,8 +52,6 @@ const SUPERSEDED = Object.freeze({
   cameraDrift: [1, 0.4],
   fov: [80, 46],
   lensStrength: [0.28],
-  bloomStrength: [0.58, 0.45],
-  bloomThreshold: [0.72],
   aberration: [1],
   grain: [0.03],
   vignette: [1],
@@ -62,7 +72,7 @@ const SUPERSEDED = Object.freeze({
    *
    * Medido no vivo, mesma câmera: em 0,54 a galáxia é núcleo branco com braços lavados; em 0,92 a
    * cor e os braços voltam e o núcleo grande ainda estoura; em 1,15–1,40 aparecem braços, faixas
-   * de poeira e núcleo estruturado. Ver `espatial.bloom({ threshold, radius })`.
+   * de poeira e núcleo estruturado. Ver `spatia.bloom({ threshold, radius })`.
    */
   bloomStrength: [0.58, 0.45, 0.5, 0.36],
   bloomThreshold: [0.72, 0.8, 0.54],

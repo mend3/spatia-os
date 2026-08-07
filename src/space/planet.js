@@ -13,7 +13,7 @@
  *
  * ## Custo
  *
- * **NÃO MEDIDO.** Não há navegador nesta sessão, então `window.espatial.renderCost()` não foi
+ * **NÃO MEDIDO.** Não há navegador nesta sessão, então `window.spatia.renderCost()` não foi
  * executado — e ele não teria o que medir, porque o módulo ainda não está ligado ao `scene.js`.
  * O que dá para afirmar é a conta: o fragmento avalia `terrainHeight` três vezes (a altura e as
  * duas amostras deslocadas que reconstroem a normal), cada uma com até 8 oitavas de simplex 3D,

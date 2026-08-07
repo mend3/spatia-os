@@ -1,6 +1,6 @@
 # Catálogo celeste
 
-**O que existe no céu do Espatial OS**, de que fato cada corpo nasce, como ele varia e o que se vê.
+**O que existe no céu do SpatIA**, de que fato cada corpo nasce, como ele varia e o que se vê.
 
 Este documento descreve o **presente**. A pesquisa de taxonomia que deu origem a ele (2026-08-05/06)
 e os dois briefings de refinamento visual (pulsar, buraco negro) já foram absorvidos: o raciocínio
