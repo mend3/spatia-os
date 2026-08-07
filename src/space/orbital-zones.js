@@ -96,7 +96,28 @@ const ROCHE_FLUID = 2.44;
  * somem; é comportamento correto (mais massa central = Hill menor), mas quem dobrar o corpus tem
  * de conferir que ainda sobra alguém. `moonZone` devolve a folga para isso ser mensurável.
  */
-const DENSITY_K = 0.70;
+/*
+ * ⚠️ **0,70 → 0,50 em 2026-08-07, e a advertência acima é que disparou: o céu estava SEM NENHUMA
+ * LUA.** Não é ajuste de gosto — é a correção de uma regressão silenciosa.
+ *
+ * O corpus passou de **3 644 para 20 308 chunks (5,6×)** desde que `k = 0,70` foi derivado. Como
+ * `a_corte = ROCHE_FLUID · k · (3·M)^(1/3)`, ele subiu de **37,9 para 67,2** — acima do raio
+ * orbital MÁXIMO do céu, que é 62. Medido na cena viva: `spatia.moons()` devolvia
+ * `{shown: 0, dropped: 0}`, com 527 arquivos de 5+ seções elegíveis e nenhum servido. `dropped`
+ * também zero, porque a recusa acontece antes de qualquer lua ser considerada.
+ *
+ * 0,50 devolve `a_corte = 48,0` e reproduz o critério que escolheu o 0,70: **39% dos elegíveis
+ * seguram lua** (o alvo declarado era 38%), com `e_max = 0,127` no corpo mais antigo — dentro da
+ * faixa 0,050–0,231 que a nota acima exige para a elipse ser distinguível de um círculo.
+ *
+ * A derivação assume raio orbital ~uniforme em [26, 62], e isso não é chute: o raio É a recência,
+ * que `recency.py` define como POSIÇÃO NO RANKING justamente para ficar uniforme.
+ *
+ * **Este número expira de novo.** Ele é função de `M_total`, e o corpus cresce. A conta está
+ * fechada logo acima — quem reindexar um corpus muito maior refaz `a_corte` e confere contra 62,
+ * ou as luas somem outra vez sem erro nenhum.
+ */
+const DENSITY_K = 0.50;
 
 /**
  * Largura de uma banda orbital, em RAIOS de lua. Substituiu o antigo `SPACING_SAFETY`.
@@ -224,12 +245,25 @@ export function moonZone(mass, orbitalRadius, centralMass) {
 }
 
 /**
+ * As PARTES NOMEADAS de um arquivo — o que vira lua.
+ *
+ * Duas fontes respondem à mesma pergunta e nunca coexistem no mesmo nó: `sections` são os
+ * cabeçalhos de um documento e chegam do Qdrant; `services` são os serviços de um compose e
+ * chegam de `server/services.py`, que lê o arquivo. Um `.md` não tem serviço e um compose não
+ * tem seção indexada — a alternativa é exclusiva no dado, não uma precedência arbitrária.
+ *
+ * ⚠️ A ORDEM é a de declaração nos dois casos, e ela é consumida como DISTÂNCIA orbital lá
+ * embaixo. Ordenar aqui embaralharia o sistema sem que o arquivo tivesse mudado.
+ */
+const partsOf = (node) => (node.sections?.length ? node.sections : node.services || []);
+
+/**
  * As luas de um corpo, ou lista vazia se ele não pode ter nenhuma.
  *
- * Três recusas, e cada uma tem um motivo físico em vez de um teto de desempenho: seções de menos
+ * Três recusas, e cada uma tem um motivo físico em vez de um teto de desempenho: partes de menos
  * (é binário, não lua), janela fechada (o corpo está perto demais do núcleo) e massa zero.
  *
- * @param {{sections?: string[], chunks?: number, radius: number, id: string}} node  nó de arquivo
+ * @param {{sections?: string[], services?: string[], chunks?: number, radius: number, id: string}} node  nó de arquivo
  *   já com órbita resolvida (`radius` é o raio orbital dele, não o desenhado).
  * @param {number} centralMass  massa do corpus inteiro, em chunks.
  * @param {(text: string, salt: number) => number} hash  o MESMO hash do céu — a lua tem de cair
@@ -239,7 +273,7 @@ export function moonZone(mass, orbitalRadius, centralMass) {
  *   desliga o piso e devolve o modelo anterior, que é o controle do experimento.
  */
 export function moonsOf(node, centralMass, hash, { minRadiusOverOuter = MOON_MIN_OVER_OUTER } = {}) {
-  const sections = node.sections || [];
+  const sections = partsOf(node);
   const mass = node.chunks || 0;
   if (sections.length < MU_MIN || mass <= 0) return { moons: [], dropped: 0 };
 

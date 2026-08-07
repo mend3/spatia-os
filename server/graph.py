@@ -14,7 +14,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, metrics, qdrant, recency
+from . import config, metrics, qdrant, recency, services
 
 logger = logging.getLogger("espatial.graph")
 
@@ -26,7 +26,10 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # 5: `regularity` (ritmo de commits) chega em cada nó de arquivo — é o fato de que o PULSAR
 #    passou a depender. Campo novo em nó não muda o fingerprint do corpus, então sem este bump a
 #    feature nasceria morta em qualquer clone que já tivesse `.cache/graph.json`.
-SCHEMA_VERSION = 6
+# 7: `services` (as partes nomeadas de um compose) chega no nó de compose — 164 deles em 44
+#    arquivos, medido em 2026-08-07. Mesmo motivo do bump 5: campo novo não muda o fingerprint
+#    do corpus, e sem ele a nebulosa continuaria sem luas em qualquer clone com cache.
+SCHEMA_VERSION = 7
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -113,6 +116,10 @@ def build() -> dict:
     # reindexação dá a mesma data a todos os 397 arquivos) e mtime também não (reflete a hora
     # do clone). Ambos foram medidos — ver o docstring de `recency.py`.
     recency.annotate(nodes)
+    # Serviços do compose: as partes nomeadas do arquivo, como `sections` é para o documento.
+    # Lê disco, então vem depois da recência (que também lê) e antes da hierarquia, que só
+    # agrega. Arquivo ilegível sai sem o campo — a nebulosa fica como era.
+    services.annotate(nodes)
     hubs, edges = _hierarchy(nodes)
     payload = {
         "nodes": hubs + nodes,
@@ -131,7 +138,56 @@ def build() -> dict:
         f"topologia: {payload['stats']['files']} arquivos, "
         f"{payload['stats']['chunks']} chunks, {len(hubs)} hubs"
     )
+    _warn_if_class_empty(nodes)
     return payload
+
+
+# Piso de regularidade do PULSAR. ⚠️ A SSOT é `src/space/catalog.js`
+# (`PULSAR_REGULARITY_FLOOR`); esta é uma CÓPIA, e ela existe só para o aviso abaixo poder
+# existir — o servidor não classifica nada. Se os dois divergirem, o cliente está certo, e o
+# único prejuízo é o aviso disparar na hora errada.
+PULSAR_FLOOR = 0.5
+
+
+def _warn_if_class_empty(nodes: list[dict]) -> None:
+    """Avisa quando um limiar deixa de selecionar QUALQUER corpo do corpus.
+
+    ## Por que isto existe
+
+    Três constantes deste projeto degradaram em silêncio até 2026-08-07, todas pelo mesmo
+    mecanismo: **foram calibradas contra um corpus e continuaram sendo aplicadas depois que ele
+    mudou de tamanho ou de escopo.**
+
+    - `DENSITY_K` (`orbital-zones.js`) — corpus 5,6× maior empurrou `a_corte` de 37,9 para 67,2,
+      acima do raio orbital máximo (62). **297 luas viraram 0**, e nada acusou.
+    - `SPAN` (`galaxy.js`) — derivado contra 71 hubs, aplicado em 228: a cobertura de tinta foi de
+      49% para ~157%.
+    - `PULSAR_REGULARITY_FLOOR` (`catalog.js`) — medido em ~6 400 caminhos do git e aplicado sobre
+      os ~1 600 INDEXADOS. Medido: 287 caminhos do git têm ritmo, **27 cruzam o piso, e só 11 dos
+      287 estão no índice — nenhum acima do piso.** O piso não está errado; 22 dos 27 pulsares
+      reais são `.ts`/`.tsx`/`.py`, e o indexador não ingere código.
+
+    O padrão é sempre o mesmo e é o pior modo de falha possível: a feição some, o shader continua
+    lá, e a tela não mente nem acusa — ela simplesmente deixa de afirmar. É o oposto do que a
+    filosofia deste projeto pede (*degradar com elegância > falhar silenciosamente*).
+
+    ⚠️ Aviso de POPULAÇÃO ZERO, não de população baixa. Um corpus sem `docker-compose.yml` não tem
+    nebulosa, e isso é honestidade, não defeito — a régua está em `docs/catalogo-celeste.md`. O que
+    NÃO é honesto é um limiar que nenhum corpo alcança: aí a classe não descreve o corpus, ela só
+    não encontra ninguém.
+    """
+    ritmados = [node.get("regularity") or 0.0 for node in nodes if (node.get("regularity") or 0) > 0]
+    if not ritmados:
+        return
+    acima = sum(1 for value in ritmados if value >= PULSAR_FLOOR)
+    if acima:
+        return
+    logger.warning(
+        f"PULSAR sem população: {len(ritmados)} arquivos têm ritmo, nenhum cruza o piso "
+        f"{PULSAR_FLOOR} (máximo {max(ritmados):.3f}). O shader existe e não desenha nada. "
+        "Ou o piso foi medido em outra população, ou o corpus indexado não contém os arquivos "
+        "ritmados — ver o docstring desta função."
+    )
 
 
 def _warn_if_container_root(nodes: list[dict]) -> None:
