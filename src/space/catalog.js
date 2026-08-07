@@ -112,61 +112,24 @@ export const CELESTIAL = [
    * Quem decide o que coexiste com a casca agora é o `solver.js`.
    */
 
-  {
-    id: 'planeta-anelado',
-    name: 'PLANETA COM ANEL',
-    /*
-     * ⚠️ Vence a supernova de propósito. Os dois fatos podem ser verdade no mesmo arquivo — e é
-     * o caso mais comum, porque o arquivo que você está editando agora costuma ser o mesmo que
-     * você mais editou no mês. Ganha o EVENTO EM ABERTO: ele é acionável agora e some sozinho no
-     * commit, enquanto o churn continua lá amanhã. Perder o anel para mostrar a supernova seria
-     * trocar o sinal perecível pelo permanente.
-     */
-    priority: 40,
-    status: 'rendered',
-    /*
-     * Alteração não commitada no disco. É EVENTO, não estado: existe enquanto o trabalho está em
-     * aberto e some no commit.
-     */
-    from: 'arquivo sujo no git (`/api/dirty`)',
-    test: (node, facts) => Boolean(facts.dirty),
-    features: {
-      /*
-       * Família por estado do git. Não é decoração: as três têm assinaturas fotométricas opostas
-       * e é isso que as distingue de longe, mais do que a cor.
-       */
-      ring: {
-        modified: { family: 'saturn', reach: 2.45, scatter: 'retro' },
-        staged: { family: 'uranus', reach: 2.2, scatter: 'retro' },
-        untracked: { family: 'jupiter', reach: 3.2, scatter: 'forward' },
-      },
-      span: 'min(reach, 2.4) raios do astro — o teto existe porque a câmera fica dentro da casca',
-      spin: 'kepleriano, ω ∝ r^-1.5: a borda interna gira mais rápido que a externa',
-      /*
-       * SUPERFÍCIE PROCEDURAL — o nível de PERTO deste corpo, em `space/planet.js`.
-       *
-       * Ela mora aqui e não na estrela porque a estrela não tem superfície para ter: relevo,
-       * linha de costa e atmosfera afirmam crosta, e crosta é o que separa as duas classes. É a
-       * mesma disciplina que separou anel de envoltório — a feição pertence a UMA classe.
-       *
-       * As duas regras do catálogo governam o que se vê: `chunks` (a massa) decide relevo, mar e
-       * se o corpo retém atmosfera; `kind` (a composição) decide a paleta, derivada da mesma
-       * `KIND_COLORS` que pinta o ponto — um ponto verde não pode virar um mundo azul quando a
-       * câmera chega perto.
-       *
-       * ⚠️ Custo: 460 malhas com ruído por fragmento não cabem nos 0,45 ms medidos da cena. Ela
-       * existe por NÍVEL DE DETALHE, como a rocha do anel: nasce só acima de 90px de raio na
-       * tela, que é a marca em que a câmera está travada num astro.
-       *
-       * ⚠️ Estado real: desenhada na BANCADA (`sandbox.html`, espécime `planeta`). O céu ainda
-       * não a chama — falta `scene.js` instanciar o `createPlanet` no nó de `focusNode`.
-       */
-      surface: 'planeta procedural por semente do caminho; só acima de 90px de raio na tela',
-    },
-    forbids: {
-      envelope: 'anel e envoltório à volta do mesmo núcleo é o empilhamento que criou o catálogo',
-    },
-  },
+  /*
+   * ⚠️ `planeta-anelado` SAIU DAQUI — o ANEL virou MODIFICADOR, como a supernova já era.
+   *
+   * Era uma CLASSE de prioridade 40, e como classe é exclusiva ela SEQUESTRAVA o corpo: todo
+   * arquivo sujo virava um planeta, qualquer que fosse a morfologia dele. Medido no corpus de
+   * teste: dos 17 arquivos sujos, só 7 eram planetas — os outros 10 eram 2 cometas, 2 estações,
+   * 2 nebulosas, 2 fotosferas e 2 estrelas, todos redesenhados como planeta anelado.
+   *
+   * É o MESMO erro que esta seção já corrigiu na supernova, com as mesmas palavras: "churn alto
+   * não muda o que um arquivo É". Editar um arquivo também não. Um cometa sujo é um cometa que
+   * está sendo editado, não um planeta.
+   *
+   * O anel é objeto SEPARADO e ANEXÁVEL — quem o desenha nunca precisou de classe: `rings.js` é
+   * um módulo próprio, e o que ele pendura num corpo é uma feição, não uma identidade. A tabela
+   * de famílias por estado do git virou `RING_BY_STATE`, logo abaixo, e quem pode HOSPEDAR um
+   * anel está declarado em `MORPHOLOGY_BY_KIND`. O conflito anel × envoltório continua valendo e
+   * agora é resolvido entre dois modificadores, no `solver.js`, que é onde ele sempre pertenceu.
+   */
 
   {
     id: 'cometa-extinto',
@@ -209,7 +172,7 @@ export const CELESTIAL = [
        * e encerra a atividade. O mesmo `space/planet.js` serve — a massa baixa já produz sozinha
        * o corpo cristado e sem atmosfera, que é a aparência certa para um núcleo esgotado.
        */
-      surface: 'a mesma de `planeta-anelado`; massa baixa dá o corpo irregular e sem ar',
+      surface: 'a mesma do planeta; massa baixa dá o corpo irregular e sem ar',
     },
     forbids: { ring: 'corpo pequeno pode ter anel, mas cauda e anel juntos não descrevem nada' },
   },
@@ -366,7 +329,20 @@ export const CELESTIAL = [
       photosphere: 'granulação que ferve, escurecimento de limbo, manchas frias e fáculas no limbo',
     },
     forbids: {
-      ring: 'estrela tem DISCO DE DETRITOS, não anel: radiação e Poynting–Robertson varrem',
+      /*
+       * ⚠️ O `ring` SAIU DAQUI, e o motivo é que ele estava no nível errado.
+       *
+       * A frase continua verdadeira — estrela tem disco de detritos, não anel — mas ela é sobre
+       * o CORPO, e esta é a classe PADRÃO: ela cobre quase todo o corpus, inclusive os arquivos
+       * cuja morfologia é PLANETA. Enquanto o anel era classe isso nunca aparecia, porque um
+       * arquivo sujo virava `planeta-anelado` e jamais caía aqui. Assim que o anel virou
+       * modificador, este `forbids` passou a recusar TODOS os anéis do céu — medido: 17 sujos,
+       * 0 anéis.
+       *
+       * A regra tem um dono só agora, e é `RING_HOST`, indexado por CORPO. Duas cópias da mesma
+       * proibição em níveis diferentes é exatamente o defeito que este catálogo existe para
+       * impedir.
+       */
       /*
        * ⚠️ Este é o `forbids` que mais vai ser testado, porque a classe padrão é a que cobre
        * quase todo o corpus — e a tentação de dar um planeta bonito a todo arquivo é grande.
@@ -425,6 +401,28 @@ export function classify(node, facts = {}) {
 export const allows = (entry, feature) => !(entry.forbids && feature in entry.forbids);
 
 /**
+ * O ANEL, por estado do git — a feição que se ANEXA a um corpo, não uma classe dele.
+ *
+ * Família não é decoração: as três têm assinaturas fotométricas opostas, e é isso que as
+ * distingue de longe, mais do que a cor.
+ *
+ * ⚠️ Ele é EVENTO, não estado: existe enquanto o trabalho está em aberto e some no commit. É por
+ * isso que ele vence o envoltório de supernova quando os dois cabem no mesmo corpo — o caso mais
+ * comum, porque o arquivo que você está editando agora costuma ser o mesmo que você mais editou
+ * no mês. Ganha o sinal PERECÍVEL: ele é acionável agora e se limpa sozinho, enquanto o churn
+ * continua lá amanhã. A regra é aplicada em `solver.js`.
+ */
+export const RING_BY_STATE = Object.freeze({
+  modified: Object.freeze({ family: 'saturn', reach: 2.45, scatter: 'retro' }),
+  staged: Object.freeze({ family: 'uranus', reach: 2.2, scatter: 'retro' }),
+  untracked: Object.freeze({ family: 'jupiter', reach: 3.2, scatter: 'forward' }),
+});
+
+/** Geometria do anel, igual para as três famílias. */
+export const RING_SPAN = 'min(reach, 2.4) raios do astro — o teto existe porque a câmera entra na casca';
+export const RING_SPIN = 'kepleriano, ω ∝ r^-1.5: a borda interna gira mais rápido que a externa';
+
+/**
  * Que corpo celeste cada TIPO de arquivo é — a tabela de morfologias por `kind`.
  *
  * Ela era INTENÇÃO DECLARADA e virou o que a cena desenha: `solver.js` roteia a superfície por esta
@@ -436,6 +434,35 @@ export const allows = (entry, feature) => !(entry.forbids && feature in entry.fo
  * → cometa extinto. A morfologia decide o corpo PADRÃO, não o corpo em todo caso — quem quiser a
  * ordem inteira leia `solver.js`, que é onde as duas se compõem.
  */
+/**
+ * Quem pode HOSPEDAR um anel, por corpo — e o porquê de cada recusa.
+ *
+ * ⚠️ Esta tabela é a metade que faltava quando o anel era classe. Como classe, ele nunca
+ * PERGUNTAVA se o corpo aceitava: ele SUBSTITUÍA o corpo por um planeta, e a regra de abertura
+ * deste arquivo — *estrela não tem anel planetário; tem disco de detritos* — nunca chegava a ser
+ * consultada, porque a estrela deixava de existir antes disso.
+ *
+ * A recusa NÃO é silenciosa: o `solver.js` a registra com a frase, e a sonda a publica. "Por que
+ * este arquivo sujo não tem anel?" tem resposta na tela.
+ */
+const RING_HOST = Object.freeze({
+  planeta: true,
+  /*
+   * Corpo pequeno TEM anel — Chariklo (ocultação de 03/06/2013), Haumea (2017), Quaoar (2022).
+   * O que não tem é estrela: a pressão de radiação e o arrasto de Poynting-Robertson varrem o
+   * material. É a regra que abre o catálogo, e aqui é onde ela finalmente é consultada.
+   */
+  fotosfera: 'estrela não tem anel planetário — a pressão de radiação varre o material; o que ela tem é DISCO DE DETRITOS, que é outro objeto e ainda não existe',
+  estrela: 'estrela não tem anel planetário — ver `fotosfera`; o disco de detritos é o corpo certo e está por fazer',
+  cometa: 'cauda e anel juntos não descrevem nada — é o mesmo `forbids` que a classe cometa-extinto já declarava',
+  pulsar: 'estrela de nêutrons pode ter disco de FALLBACK (PSR B1257+12 formou planetas de um), mas disco não é anel planetário e desenhar um afirmaria o objeto errado',
+  estação: 'anel em volta de um artefato não descreve nada: o anel é material orbital que não se agregou, e uma estação foi construída inteira',
+  nebulosa: 'não há corpo central a anelar — a nebulosa é difusa por definição',
+});
+
+/** Este corpo aceita anel? `true`, ou a FRASE da recusa. */
+export const ringHost = (body) => RING_HOST[body] ?? true;
+
 export const MORPHOLOGY_BY_KIND = Object.freeze({
   config: Object.freeze({ body: 'fotosfera', drawn: true }),
   schema: Object.freeze({ body: 'fotosfera', drawn: true }),

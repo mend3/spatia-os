@@ -33,7 +33,7 @@
  * probe already writes even the negative case, because *"diagnóstico que só existe no caminho
  * feliz não é diagnóstico"*. Every rejection here travels with the sentence that caused it.
  */
-import { classify, allows, SUPERNOVA_FLOOR, morphologyOf } from './catalog.js';
+import { classify, allows, SUPERNOVA_FLOOR, morphologyOf, ringHost } from './catalog.js';
 
 /**
  * STATE MODIFIERS — stage 4's candidates, resolved here.
@@ -44,7 +44,7 @@ import { classify, allows, SUPERNOVA_FLOOR, morphologyOf } from './catalog.js';
  * from the `aSupernova` attribute without consulting any class, so a file that is both dirty and
  * hot drew both at once. Exactly the stacking `catalog.js` opens by describing.
  */
-export const MODIFIER = Object.freeze({ ENVELOPE: 'envelope' });
+export const MODIFIER = Object.freeze({ ENVELOPE: 'envelope', RING: 'ring' });
 
 /**
  * The near-view skins. Exactly one per body, and that is structural rather than a rule to enforce:
@@ -106,14 +106,56 @@ export function resolveBody(node, facts = {}) {
   const refuse = (feature, reason) => rejected.push(Object.freeze({ feature, reason }));
 
   /*
-   * The shell is a candidate, not a fact of the body. It loses to the ring, and the sentence is
-   * the catalog's own — the priority behind it is written there too: the open edit is actionable
-   * now and clears itself on commit, while the churn is still there tomorrow.
+   * O ANEL — e ele é MODIFICADOR, não classe. Ver o bloco que o tirou de `CELESTIAL`.
+   *
+   * A ordem aqui importa e é a do catálogo: o anel é resolvido ANTES do envoltório porque, quando
+   * os dois cabem no mesmo corpo, quem ganha é o sinal PERECÍVEL. A edição em aberto é acionável
+   * agora e some sozinha no commit; o churn continua lá amanhã.
+   *
+   * ⚠️ E ele agora PERGUNTA se o corpo aceita, em dois níveis — o que era impossível enquanto ele
+   * substituía o corpo por um planeta:
+   *   1. a CLASSE pode proibir (`cometa-extinto`: cauda e anel juntos não descrevem nada);
+   *   2. o CORPO pode não hospedar (`ringHost`: estrela não tem anel planetário).
+   * As duas recusas viajam com a frase que as causou, senão "por que este arquivo sujo não tem
+   * anel?" não teria resposta em lugar nenhum.
+   */
+  /*
+   * ⚠️ O CORPO QUE VAI SER DESENHADO, não o da morfologia — e a diferença é real desde que a
+   * classe passou a poder declarar `features.body`.
+   *
+   * Pegando só a morfologia, um arquivo `doc` com ritmo regular e sujo perguntava "planeta aceita
+   * anel?" (sim) enquanto a tela desenhava um PULSAR, que não aceita. A pergunta tem de ser feita
+   * sobre o corpo que o olho vai ver, senão a recusa protege o objeto errado.
+   */
+  const corpo =
+    node?.type === 'file' ? klass.features?.body ?? morphologyOf(node?.kind).body : null;
+  let temAnel = false;
+  // Só ARQUIVO usa anel. Agregado não tem corpo — é o continente, e a mesma frase que o catálogo
+  // usa para negar crosta a um diretório nega material orbital a ele. Na prática o `graph.js` nem
+  // indexa hub na tabela de sujos, mas o solver é chamado de mais lugares que aquele laço.
+  if (facts.dirty && node?.type === 'file') {
+    const proibidoPelaClasse = klass.forbids?.ring;
+    const hospeda = corpo ? ringHost(corpo) : true;
+    if (proibidoPelaClasse) refuse(MODIFIER.RING, proibidoPelaClasse);
+    else if (hospeda !== true) refuse(MODIFIER.RING, hospeda);
+    else {
+      modifiers.push(MODIFIER.RING);
+      temAnel = true;
+    }
+  }
+
+  /*
+   * The shell is a candidate, not a fact of the body. Ele perde para o ANEL, e a frase é a do
+   * catálogo: anel e envoltório à volta do mesmo núcleo é o empilhamento que criou o catálogo.
    */
   if (node?.type === 'file' && (node.supernova || 0) > SUPERNOVA_FLOOR) {
-    const ringed = klass.forbids?.envelope;
-    if (ringed) refuse(MODIFIER.ENVELOPE, ringed);
-    else modifiers.push(MODIFIER.ENVELOPE);
+    if (temAnel) {
+      refuse(MODIFIER.ENVELOPE, 'anel e envoltório à volta do mesmo núcleo é o empilhamento que criou o catálogo');
+    } else {
+      const proibido = klass.forbids?.envelope;
+      if (proibido) refuse(MODIFIER.ENVELOPE, proibido);
+      else modifiers.push(MODIFIER.ENVELOPE);
+    }
   }
 
   const done = (surface) =>

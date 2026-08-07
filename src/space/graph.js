@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
-import { classify } from './catalog.js';
+import { resolveBody, MODIFIER } from './solver.js';
 import { moonsOf, physicalRadius } from './orbital-zones.js';
 import { MOTION, meanMotion, rateOf } from './motion-catalog.js';
 import { glslFloat } from './glsl.js';
@@ -1113,13 +1113,18 @@ export function createGraph() {
         if (i === undefined) continue;
         dirtyState.set(nodes[i].source, state);
         /*
-         * O CATÁLOGO decide se este corpo pode ter anel — não este laço.
+         * O SOLVER decide se este corpo pode ter anel — não este laço.
          *
-         * Antes, sujo bastava, e um arquivo que também era supernova saía com anel E casca: duas
-         * classes no mesmo objeto. `classify` devolve UMA classe, e só a de planeta anelado
-         * desenha anel. Regra em `space/catalog.js`, com o porquê da prioridade.
+         * ⚠️ Era `classify(...).id !== 'planeta-anelado'`, e isso amarrava o anel a uma CLASSE.
+         * Como classe é exclusiva, todo arquivo sujo virava planeta e o teste dava certo por
+         * construção — o anel nunca perguntava se o corpo o aceitava, porque ele TROCAVA o corpo.
+         * Medido: dos 17 sujos do corpus de teste, só 7 eram planetas.
+         *
+         * Agora o anel é MODIFICADOR e o solver responde as duas perguntas que faltavam: a classe
+         * proíbe? o corpo hospeda? Quem não recebe sai com a FRASE da recusa em `rejected`, então
+         * "por que este arquivo sujo não tem anel?" tem resposta.
          */
-        if (classify(nodes[i], { dirty: state }).id !== 'planeta-anelado') continue;
+        if (!resolveBody(nodes[i], { dirty: state }).modifiers.includes(MODIFIER.RING)) continue;
         // Corpo escondido não deixa o anel dele para trás: um anel sem estrela no meio lê como
         // defeito de render, e o filtro é justamente o gesto de tirar aquele tipo da tela.
         if (hidden?.[i]) continue;
@@ -1130,11 +1135,12 @@ export function createGraph() {
       /*
        * O ENVOLTÓRIO CEDE AO ANEL — e até aqui essa regra era só declarada.
        *
-       * `catalog.js` proíbe `envelope` em `planeta-anelado` desde que existe ("anel e envoltório
-       * à volta do mesmo núcleo é o empilhamento que criou o catálogo"), mas nada aplicava: o
-       * anel nasce de `classify` e a casca vem direto deste atributo, sem consultar classe. Um
-       * arquivo sujo E muito reescrito — o caso mais comum, porque o que você edita hoje costuma
-       * ser o que mais editou no mês — desenhava os dois ao mesmo tempo.
+       * O catálogo proíbe anel e envoltório à volta do mesmo núcleo desde que existe, mas nada
+       * aplicava: o anel nascia de `classify` e a casca vem direto deste atributo, sem consultar
+       * classe. Um arquivo sujo E muito reescrito — o caso mais comum, porque o que você edita
+       * hoje costuma ser o que mais editou no mês — desenhava os dois ao mesmo tempo. Hoje os
+       * dois são modificadores e o `solver.js` resolve o conflito entre iguais; este laço só
+       * espelha a decisão dele no atributo.
        *
        * A resolução é reescrita a cada varredura do disco porque o fato que a decide é
        * perecível: some no commit, e a casca volta sozinha.
