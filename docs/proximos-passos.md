@@ -58,6 +58,19 @@ O que já foi ligado saiu da lista. Continua vindo no fio e morrendo:
 | ~~`tokens.in` / `cache_read`~~ | `brain.py` | **LIGADO em 2026-08-07.** A linha de metadados passou a ler `9,1k → 450 tokens · 21,4k de cache` em vez de "450 tokens" — o `out` sozinho é o menor dos três numa execução com contexto, e sem entrada e cache o `$` ao lado não se explica. `compact()` em `hud/dom.js` encurta os milhares. |
 | `depth`, `parent` | `graph.py` | o que sobra do payload da topologia sem consumidor — `sections`, `indexed_at` e `changed_at` foram para o painel `context` em 2026-08-05 |
 
+## 3b. Fixture paramétrico — o espaço de parâmetros não é coberto
+
+O fixture cobre TODO tipo de corpo e quase nenhuma variação deles: cometa com coma e cauda no
+piso, farol da estação em zero nas quatro, manchas da fotosfera em zero na mediana, cavidade da
+nebulosa saturada no teto nas duas. E quatro sistemas inteiros nunca entram em cena — atividade do
+cometa, farol, envoltório de supernova e o sistema de luas Roche→Hill.
+
+A causa é comum e o conserto é barato: **dois knobs** — número de commits por arquivo (que vira
+`node.churn`) e número de títulos no corpo (que vira `node.sections`) — destravam os quatro. A
+tabela de causa e o alvo de cobertura estão em [`cobertura.md`](cobertura.md).
+
+⚠️ Regenerar o fixture destrói o corpus de teste em uso; avise antes.
+
 ## 4. i18n
 
 Só o passo que não se desfaz foi dado: `plural()` em `hud/dom.js`, aplicado nos dois pontos que
