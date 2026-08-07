@@ -51,8 +51,10 @@ Duas coisas convivem no sistema — painéis sobrepostos (afinação, `` ` ``) e
 > **Painel** quando a mudança precisa ser vista no mesmo instante, na mesma tela.
 > **Destino** quando o efeito da mudança acontece em outro lugar ou depois.
 
-A afinação é painel: 22 parâmetros de física e óptica que só fazem sentido ajustados olhando
-o buraco negro reagir. Tirar isso do lugar destruiria a única razão de existir.
+A afinação é painel: 33 parâmetros de física e óptica que só fazem sentido ajustados olhando
+o buraco negro reagir — abrindo no grupo GLOBAL (velocidade, volume, brilho, contraste,
+saturação), que é o que atravessa a cena inteira. Tirar isso do lugar destruiria a única razão
+de existir.
 
 As permissões são **destino**, e hoje são painel — o que está errado. Nenhum toggle de
 permissão tem efeito na execução em curso: ele vira flag de `claude -p` na *próxima*
@@ -66,13 +68,13 @@ tecla `P` continua existindo, apenas navegando em vez de sobrepondo (uma verdade
 | Rota | Nome | A pergunta que responde | Existe hoje |
 |---|---|---|---|
 | `#/` | Núcleo | — (é a ponte: perguntar e ver responder) | sim |
-| `#/system` | Sistema | *que instalação é essa, e o que ela está rodando agora?* | não |
+| `#/system` | Sistema | *que instalação é essa, e o que ela está rodando agora?* | sim |
 | `#/activity` | Atividade | *o que está executando neste instante, e como eu paro?* | não |
 | `#/journal` | Diário | *o que aconteceu enquanto eu não olhava — e prove* | não |
 | `#/metrics` | Instrumentos | *demorou onde? custou quanto? a tela aguenta?* | só em `/metrics` |
 | `#/storage` | Armazenamento | *o índice está atual e íntegro? o que ocupa disco?* | não |
 | `#/security` | Permissões | *o que este agente pode fazer agora, e com que prova?* | painel `P` |
-| `#/integrations` | Integrações | *que porta externa está aberta, com qual credencial?* | não |
+| `#/integrations` | Integrações | *que porta externa está aberta, com qual credencial?* | `#/bridge`, sem credenciais |
 | `#/files` | Memória | *o que o núcleo sabe sobre X?* | 1ª leva |
 | `#/web` | Web | *o que o mundo externo respondeu, e por qual provedor?* | 1ª leva |
 | `#/mcp` | Ponte MCP | *que capacidades externas o núcleo alcança?* | 1ª leva |
@@ -383,8 +385,8 @@ entrando, glitch na interferência. Uma caixinha com sino seria a primeira anima
 do projeto — algo se movendo porque a UI decidiu, não porque um evento aconteceu — e é assim
 que a regra de ouro começa a morrer. O mecanismo que eu recomendo em vez da tela está em §2.5.
 
-**Aparência e temas.** O painel de afinação já é isso, e é melhor: 22 parâmetros de física e
-óptica em vez de "cor de destaque".
+**Aparência e temas.** O painel de afinação já é isso, e é melhor: 33 parâmetros de física e
+óptica — inclusive brilho, contraste e saturação da imagem — em vez de "cor de destaque".
 
 **Contas, perfis, multiusuário.** Ver `#/security`.
 
@@ -583,19 +585,16 @@ Faltam quatro, e a primeira é a que dói:
 A divisão entre telas evita duplicação: os **medidores** (o que resta agora) ficam em
 `#/activity`; as **políticas** (o que está configurado) ficam em `#/system`.
 
-### 2.8 Recuperação de falha — e um fail-open que existe hoje
+### 2.8 Recuperação de falha
 
 Muita coisa já está certa: falha é evento e o ciclo continua; o subprocesso morre no `finally`
 se o browser desconectar; `ask_active` não vaza.
 
-Um problema concreto no código atual: `permissions.load()` trata `.cache/config.json` ilegível
-com um `logger.warning` e cai em `_defaults()`, cujo modo é `AGENT_PERMISSION_MODE` — que nesta
-instalação, no `.env`, é `bypassPermissions`. **O caminho de recuperação herda o modo mais
-permissivo configurado**, em silêncio, com uma linha de log que ninguém está lendo. Recuperação
-de falha não pode ser o caminho que devolve mais autoridade que o estado perdido: o
-comportamento certo é cair em `default` (o modo que pede confirmação), emitir `notice` de
-severidade `error` e dizer na tela que a configuração foi perdida — o operador reabilita o que
-quiser depois de saber.
+**Config ilegível degrada para o MENOR privilégio.** `permissions.load()` cai em `RECOVERY_MODE`
+— não em `_defaults()`, cujo modo é `AGENT_PERMISSION_MODE` e nesta instalação é
+`bypassPermissions` — e marca `recovered`, que o painel de permissões mostra. A regra que isso
+implementa: recuperação de falha não pode ser o caminho que devolve mais autoridade que o estado
+perdido. Primeira execução e config corrompida não são a mesma situação.
 
 Os outros três:
 
@@ -749,11 +748,12 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 
 ## 4. Ordem de construção
 
-> **Estado em 2026-08-05.** Da Fase 3, o item 12 (fail-safe da config corrompida) teve a metade
-> de INTERFACE entregue: `state.recovered` agora aparece no painel de permissões, que era a
-> promessa que o servidor fazia e a tela não cumpria. O fail-open que a §2.8 descreve continua
-> aberto. Nada mais desta ordem foi construído — as entregas desta sessão foram conserto e
-> ambientação da cena, não mecanismos de sistema. O que está aberto fora daqui está em
+> **Estado.** Fechados: **1** (`ROUTE_ROOT = 'core'`), **6** (`#/system`) e **12** (o fail-open da
+> §2.8 — `permissions.load()` cai em `RECOVERY_MODE` e marca `recovered`). Parciais: **3** (órbita
+> vem do manifesto, mas é literal por app e ainda pode colidir; a tecla sai da posição em
+> `listApps()`), **17** (HMAC e tradução em `server/webhooks.py`; falta a política por endpoint e a
+> fila EM DISCO) e **19** (`#/bridge` mostra webhooks, MCP e entregas; sem credenciais, que
+> dependem do 18). Os outros catorze estão abertos. O que está aberto fora daqui está em
 > [`proximos-passos.md`](proximos-passos.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue

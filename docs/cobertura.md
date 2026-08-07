@@ -15,6 +15,11 @@ pulsar não aparecem lá por construção).
 | **Corpus real** | *o universo parece vivo?* | a diversidade emerge da distribuição do conhecimento, sem ninguém plantar |
 | **Bancada** (`sandbox.html`) | *este parâmetro faz o que diz?* | cada eixo tem slider, e o `watch` do espécime nomeia o defeito que ele pega |
 
+Todo objeto do `space/` tem espécime na bancada, e cada um declara os próprios controles na spec
+(`src/sandbox/specs.js` e os `*-rig.js`/`*-rigs.js` que ela agrega). A cena da bancada tem os seus
+em `src/sandbox/globals.js` — velocidade, grade, esfera de raio 1 e fundo. Único fora: `backdrop.js`
+(quad em espaço de recorte), cujos controles vivem no app SISTEMA, seção `fundo`.
+
 O fixture mede **cobertura**, não qualidade. Qualidade se julga na bancada (um eixo por vez, tempo
 congelado) ou no corpus real (distribuição de verdade). Confundir os dois é a armadilha.
 
@@ -37,6 +42,10 @@ de detritos 4. Todos os quatro estados do git presentes.
 
 E **três sistemas inteiros nunca entravam em cena**: a atividade do cometa (logo, cauda dupla,
 curvatura e comprimento), o farol da estação e o envoltório filamentar da supernova.
+
+⚠️ O critério da bancada é do PARÂMETRO, não do objeto: *desenhar o objeto não basta se o número
+que o caracteriza não tem régua*. Os três eixos acima têm slider próprio em `COMETA`, `NEBULOSA` e
+`ESTAÇÃO` — `churn` e `sections` entram como fato do nó e `*Params` deriva o resto.
 
 ⚠️ **Um quarto foi acusado por engano, e o erro era do censo.** O sistema de luas Roche→Hill
 parecia morto (zero luas) porque a medição chamava `moonsOf` no nó CRU do servidor — e ele precisa

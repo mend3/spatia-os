@@ -77,7 +77,7 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 | botão `VOZ` | lê a resposta em voz alta pelo TTS do oracle, frase por frase |
 | `Esc` | aborta o ciclo |
 | `Tab` | modo cinematográfico — a HUD desaparece, sobra o núcleo e o texto |
-| `` ` `` (ou botão AFINAR) | painel de afinação visual (22 parâmetros, persistidos neste navegador) |
+| `` ` `` (ou botão AFINAR) | painel de afinação visual (33 parâmetros, persistidos neste navegador). O grupo GLOBAL é o que atravessa a cena toda: velocidade, volume, brilho, contraste e saturação |
 | `P` (ou botão PERMISSÕES) | permissões, skills e agentes — ativar/desativar o que existe no repo |
 | `Alt+R` | devolve a câmera à deriva automática |
 | `⌘M` | mudo |
@@ -254,7 +254,13 @@ Isso **não** substitui o bind em `127.0.0.1`, e não protege de nada rodando lo
 no `hud/`. O `recorder.py` é o único lugar que precisa saber contá-lo.
 
 **Um parâmetro visual novo** = uma linha no `SPEC` do `core/tuning.js` + o módulo que o
-consome. O painel se constrói sozinho a partir da tabela.
+consome. O painel se constrói sozinho a partir da tabela. Se ele vale para a cena inteira, entra
+no grupo `GLOBAL` e o consumidor é um só: o relógio dos objetos (`space/scene.js`) ou o passe de
+gradação (`space/lensing.js`).
+
+**Um objeto 3D novo** = o módulo em `space/` + um espécime na bancada (`sandbox.html`). O espécime
+declara os próprios controles e o que OLHAR; a bancada os desenha sozinha. É a REGRA DA INSPEÇÃO:
+camada sem controle é camada que ninguém confere.
 
 **Ligar o Neo4j** (relações de verdade, em vez da hierarquia de diretórios): um módulo
 `server/neo4j.py` que devolve `{nodes, edges}` no mesmo formato de `graph.load()`. A cena não
