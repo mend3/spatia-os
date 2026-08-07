@@ -146,8 +146,16 @@ const FRAGMENT = /* glsl */ `
     float doppler = 0.35 + 2.4 * pow(clamp(uAlign, 0.0, 1.0), 3.0);
     float fill = (doEixo + espinha) * aoLongo * uAmount * doppler;
     if (fill < 0.004) discard;
-    // Branco no fio, cor do corpo no halo.
-    gl_FragColor = vec4(mix(uColor, vec3(1.0), clamp(espinha, 0.0, 1.0)) * fill, fill);
+    /*
+     * Branco no fio, SINCROTRON no halo — item #12, e a regra e a mesma do nucleo e da casca.
+     *
+     * A cor do halo do feixe era o uColor cru, ou seja o tipo do arquivo pintando emissao
+     * relativistica: um .tf ficava com halo laranja porque o tipo infra e laranja. O feixe polar e
+     * emissao de energia ALTA, entao ele vive na ponta azul-clara da rampa; o tipo entra com o
+     * mesmo peso de tingimento que o corpo usa (0,28), e nao mandando na cor.
+     */
+    vec3 halo = mix(vec3(0.42, 0.78, 1.0), uColor, 0.28);
+    gl_FragColor = vec4(mix(halo, vec3(1.0), clamp(espinha, 0.0, 1.0)) * fill, fill);
   }
 `;
 
