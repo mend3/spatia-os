@@ -1946,9 +1946,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       };
     },
 
-    bloomProbe: (forca) => {
-      if (forca !== undefined) bloom.strength = forca;
-      return { strength: bloom.strength, threshold: bloom.threshold, doStore: tune?.bloomStrength };
+    bloomProbe: (ajuste) => {
+      // Número solto continua valendo como força — é a chamada que já existia.
+      if (typeof ajuste === 'number') bloom.strength = ajuste;
+      else if (ajuste) {
+        if (ajuste.strength !== undefined) bloom.strength = ajuste.strength;
+        if (ajuste.threshold !== undefined) bloom.threshold = ajuste.threshold;
+        if (ajuste.radius !== undefined) bloom.radius = ajuste.radius;
+      }
+      return {
+        strength: bloom.strength,
+        threshold: bloom.threshold,
+        radius: bloom.radius,
+        doStore: tune?.bloomStrength,
+      };
     },
 
     /** Devolve o controle da câmera à deriva automática. */
