@@ -1008,6 +1008,22 @@ export function galaxyParams(node = {}, children = [], overrideClassId = null) {
   const totalMass = masses.reduce((sum, mass) => sum + mass, 0);
   const concentration = totalMass > 0 ? Math.max(...masses) / totalMass : NaN;
 
+  /*
+   * ACREÇÃO — commits nos filhos dentro da janela de churn do servidor (30 dias).
+   *
+   * A galáxia não usa este número para nada: ela é ESTRUTURA, e estrutura não pisca com commit.
+   * Ele viaja aqui porque o quasar precisa dele e porque esta é a única varredura dos filhos que
+   * já existe — recontá-la em `quasar.js` seria a quarta duplicata de contagem deste projeto.
+   *
+   * ⚠️ Somar, e não tirar média: o que acende um núcleo é o gás que CAI, e dois arquivos quentes
+   * caem mais que um. Média faria um diretório grande e morno parecer tão ativo quanto um
+   * pequeno e quente, que é o oposto do que a grandeza significa.
+   */
+  const accretion = sources.reduce((soma, child) => {
+    const churn = typeof child === 'object' && child ? Number(child.churn) : NaN;
+    return soma + (Number.isFinite(churn) && churn > 0 ? churn : 0);
+  }, 0);
+
   const auto = classForConcentration(concentration);
   const klass = overrideClassId
     ? GALAXY_CLASSES.find((entry) => entry.id === overrideClassId || entry.label === overrideClassId) ?? auto
@@ -1087,6 +1103,8 @@ export function galaxyParams(node = {}, children = [], overrideClassId = null) {
     // readable anywhere is indistinguishable from a random one.
     mass: totalMass,
     concentration,
+    /** Commits nos filhos na janela de churn. Quem lê é o quasar — ver acima. */
+    accretion,
     class: klass,
     arms,
     counts: Object.freeze(counts),

@@ -113,8 +113,38 @@ export const bulgeMassOf = (params) =>
   (Number.isFinite(params?.mass) ? params.mass : 0) *
   (Number.isFinite(params?.concentration) ? params.concentration : 0);
 
-/** Este hub acende? */
-export const isActive = (params) => bulgeMassOf(params) >= QUASAR_BULGE_FLOOR;
+/**
+ * Este hub acende?
+ *
+ * ## ⚠️ O QUE MUDOU, E É A FRASE DA PESQUISA QUE MANDA
+ *
+ * > *"Todo quasar está dentro de uma galáxia. Mas nem toda galáxia possui um quasar ativo."*
+ * > (`docs/catalogo-celeste.md`, seção 2)
+ *
+ * Até 2026-08-06 o portão era SÓ massa de bojo, e isso é a afirmação errada: o que separa uma
+ * galáxia massiva de um quasar **não é o buraco negro** — toda galáxia massiva tem um. É **gás
+ * caindo AGORA**. Um diretório grande e concentrado acendia mesmo estando congelado há um ano,
+ * que é exatamente o oposto do que o objeto significa.
+ *
+ * As duas condições, e cada uma responde a uma pergunta diferente:
+ *
+ *     bojo alto   → o buraco negro EXISTE       (a relação M-sigma, e ela estava certa)
+ *     acreção > 0 → há gás caindo AGORA          (o que ACENDE, e faltava)
+ *
+ * ⚠️ **E isso conserta um defeito de calibração que o limiar sozinho não tinha como consertar.**
+ * O 50 foi medido num corpus de 72 hubs (7 acesos, 9,7%) e o corpus triplicou: dava 35 de 213,
+ * 16,4%. Pior, ele pousou na parte DENSA da distribuição — os bojos em volta do corte eram
+ * `51 · 51 · 49 · 45`, dois entrando por uma unidade e dois ficando de fora por outra, então a
+ * resposta mudava a cada commit no corpus. Com a acreção no portão a fração deixa de ser um
+ * número calibrado à mão e passa a ser **quanto do corpus está quente agora** — que é
+ * precisamente o que os ~10% de núcleos ativos significam na natureza.
+ *
+ * O limiar de massa CONTINUA, e continua por um motivo: ele é o pré-requisito físico. Um
+ * diretório pequeno e muito mexido é formação estelar, não AGN — não há buraco negro
+ * supermassivo ali para acender.
+ */
+export const isActive = (params) =>
+  bulgeMassOf(params) >= QUASAR_BULGE_FLOOR && (Number(params?.accretion) || 0) > 0;
 
 /**
  * Alcance do jato, em raios do disco da galáxia.
@@ -373,7 +403,34 @@ const STATIC_LAYOUT = Object.freeze([
 
 /** Largura do jato e raio do núcleo, em raios do disco. Ver o cálculo da espinha no FRAGMENT. */
 const JET_WIDTH = 0.085;
-const CORE_RADIUS = 0.16;
+/*
+ * ⚠️ O NÚCLEO É UM PONTO DENTRO DA CIDADE, e até 2026-08-06 ele era do tamanho dela.
+ *
+ * Queixa do usuário sobre `dir:nucleo` em foco: o objeto não parecia uma galáxia hospedando um
+ * quasar, parecia uma galáxia QUE ERA um quasar — dois discos concorrentes na mesma imagem, tão
+ * confuso que ele leu um terceiro objeto ali dentro.
+ *
+ * E a aritmética confirma a leitura. Tudo que é AGN mede em raios de NÚCLEO: o disco de acreção
+ * morre em ~4,2 e o toro de poeira em 13,5 (ver `spanToro` no FRAGMENT). Com `CORE_RADIUS = 0,16`
+ * isso punha o toro em **2,16 raios do disco da galáxia** — o núcleo ativo era mais que o DOBRO
+ * da galáxia inteira.
+ *
+ * A tabela de escala do catálogo dá a razão real: galáxia ~100.000 anos-luz, região emissora do
+ * quasar ~1. São 10^-5, e 10^-5 não se desenha — sairia sub-pixel em qualquer pose. O que dá para
+ * preservar é a ORDEM, que é a régua que este projeto já usa para o relevo do planeta e para o
+ * bojo da galáxia: o AGN tem de ser inequivocamente MENOR que o hospedeiro e ler como ponto.
+ *
+ * 0,016 põe o toro em `13,5 x 0,016 = 0,216` raios de disco — cerca de um quinto da galáxia — e o
+ * disco de acreção em 0,067, que é o ponto brilhante. Dez vezes menor que antes.
+ *
+ * ⚠️ **Os JATOS não encolhem, e isso é o ponto.** `JET_REACH` e `LOBE_REACH` medem em raios do
+ * DISCO, não do núcleo, então continuam em 5,0 e 0,8. É o que a natureza faz — em Cygnus A os
+ * lóbulos passam de 500 mil anos-luz contra 100 mil da hospedeira — e é o que torna um quasar
+ * reconhecível: um PONTO no centro com dois jatos que saem muito da galáxia. O que se perde ao
+ * encolher é o detalhe do disco de acreção (bandas e beaming), e perder é o certo: essa
+ * estrutura é irresolvível de verdade. Ela continua inspecionável na bancada.
+ */
+const CORE_RADIUS = 0.016;
 
 const VERTEX = /* glsl */ `
   attribute vec3 aCenter;

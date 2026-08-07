@@ -871,7 +871,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       const node = byId.get(child);
       if (node?.type !== 'file') continue;
       if (!kids.has(parent)) kids.set(parent, []);
-      kids.get(parent).push({ source: node.source, chunks: node.chunks });
+      // `churn` viaja junto com a massa porque o quasar acende por ACREÇÃO, não por tamanho:
+      // `chunks` diz que o buraco negro EXISTE, `churn` diz que há gás caindo AGORA. Ver
+      // `quasar.isActive` e `docs/catalogo-celeste.md`, seção "2. O quasar tem de acender por
+      // ACREÇÃO, não por massa".
+      kids.get(parent).push({ source: node.source, chunks: node.chunks, churn: node.churn });
     }
     return nodes
       .filter((node) => node.type === 'dir' || node.type === 'repo')
