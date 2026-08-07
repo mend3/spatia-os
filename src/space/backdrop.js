@@ -233,10 +233,29 @@ export function createBackdrop() {
        * Paralaxe pela direção da câmera. Sem ele o fundo é um adesivo: a cena inteira gira e a
        * nebulosa fica pregada na tela, o que denuncia que ela não está no mundo. Com 2% ela
        * responde ao gesto sem virar movimento próprio.
+       *
+       * ⚠️ O AZIMUTE ENTRA COMO SENO, NÃO COMO ÂNGULO — e isso conserta dois erros de uma vez.
+       *
+       * A conta era `Math.atan2(x, z) * PARALLAX * 0.16`, usada LINEARMENTE no deslocamento de
+       * UV. `orbit.azimuth` é ilimitado (`scene.js:354`), então a câmera atravessa o corte de
+       * ramo do `atan2` ao dar uma volta, e ali o termo saltava `2π × 0,0032 = 0,0201` de UV num
+       * quadro só — que é a excursão INTEIRA da paralaxe. O fundo deslizava 2% ao longo da volta
+       * e desfazia tudo de uma vez. É a mesma família da costura do disco do buraco negro:
+       * coordenada cíclica consumida por algo que não é periódico nela.
+       *
+       * E a forma linear estava errada mesmo sem o salto. Paralaxe de um fundo distante é
+       * PERIÓDICA no azimute: uma volta completa tem de voltar ao ponto de partida, e uma imagem
+       * chapada não tem como deslizar para sempre. `sin` é a forma certa, e `x / hypot(x, z)` É
+       * o seno daquele azimute — sem trigonometria, sem corte, contínuo em toda a órbita. O `π`
+       * na amplitude preserva a excursão máxima que o `atan2` tinha nos extremos.
+       *
+       * A latitude não tem esse problema e não foi tocada: `asin` de um valor grampeado varre
+       * [-π/2, π/2] sem dar a volta, então não há corte a fechar ali.
        */
       if (camera) {
+        const horizonte = Math.hypot(camera.position.x, camera.position.z) || 1;
         material.uniforms.uShift.value.set(
-          -camera.position.x * 0 + Math.atan2(camera.position.x, camera.position.z) * PARALLAX * 0.16,
+          (camera.position.x / horizonte) * Math.PI * PARALLAX * 0.16,
           -Math.asin(THREE.MathUtils.clamp(camera.position.y / camera.position.length(), -1, 1)) * PARALLAX * 0.16
         );
       }

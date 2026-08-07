@@ -460,7 +460,30 @@ const VERTEX = /* glsl */ `
     float grainFar = 1.0;
     if (uNear < 0.999) {
       vec2 q = wakeCoords(ang + twist * TAU, r);
-      float w = max(fwidth(q.x), fwidth(q.y));
+      /*
+       * ⚠️ A PEGADA DO FRAGMENTO NAO PODE SER MEDIDA ATRAVES DO CORTE DE atan.
+       *
+       * q.x e linear em ang, e ang vem de atan(p.y, p.x). No pixel onde atan salta de +pi para
+       * -pi, fwidth(q.x) le esse salto como se fosse derivada: ~CELLS (96) de uma vez, quando o
+       * campo nao mudou nada. A banda-limitacao de fnoise multiplica por smoothstep(1.0, 0.5, w),
+       * que zera para w >= 1 — entao o grao SUMIA numa coluna de 1px e grainFar caia para 1,0.
+       *
+       * ⚠️ Isto NAO era a costura do buraco negro, e a diferenca importa para nao consertar a
+       * coisa errada: o campo aqui ja e exatamente periodico (CELLS inteiro, lacunaridade 2,0),
+       * entao os dois lados do corte davam o MESMO valor. O que aparecia era uma linha radial de
+       * detalhe amputado, nao uma descontinuidade de dado. E a variante fwidth-sobre-atan que
+       * ring-noise.js ja nomeia no proprio cabecalho.
+       *
+       * O conserto e o mesmo padrao que o ramo de ROCHA ja usa logo acima: uma segunda leitura
+       * com o corte deslocado de meia volta. Os dois nunca saltam no mesmo pixel, e o MENOR dos
+       * dois e sempre a derivada verdadeira — o salto so sabe inflar. Feito assim, e nao pela
+       * derivada analitica do angulo, porque q.x tambem carrega o cisalhamento (twist varia com
+       * o raio): a forma fechada teria de reproduzir esse termo tambem, e duplicar a conta e
+       * exatamente como as duas se desencontram depois.
+       */
+      float angAlt = ang + (ang < 0.0 ? TAU * 0.5 : -TAU * 0.5);
+      float qxAlt = wakeCoords(angAlt + twist * TAU, r).x;
+      float w = max(min(fwidth(q.x), fwidth(qxAlt)), fwidth(q.y));
       grainFar = max(1.0 + 0.5 * fbmWake(q, CELLS, w), 0.0);
     }
 
