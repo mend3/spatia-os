@@ -65,12 +65,21 @@ export const PULSAR_SPEC = {
      * em 1,0 ele está no detalhe pleno.
      */
     { key: 'raio', label: 'RAIO DA ÂNCORA', type: 'range', min: 0.05, max: 2, step: 0.01, value: 1 },
+    /*
+     * FILAMENTO do pulso. Entra em 0 porque é assim que a CENA está — o usuário pediu para tirar
+     * os espinhos, e o espécime tem de abrir mostrando o que a cena mostra, não uma versão
+     * embelezada dela. Subir para 1 mostra o DEFEITO, que é o que torna o controle útil: ele deixa
+     * a decisão de religar ser tomada VENDO, e deixa quem for consertar o campo ter um antes.
+     */
+    { key: 'filamento', label: 'FILAMENTO DO PULSO', type: 'range', min: 0, max: 1, step: 0.01, value: 0 },
     { key: 'reduzido', label: 'MOVIMENTO REDUZIDO', type: 'bool', value: false },
   ],
   watch: [
     '⚠️ UM BATIMENTO SÓ, e este é o espécime que finalmente permite conferir. Rode o tempo e olhe o readout `batimento`: brilho do núcleo, calota polar, halo e vento têm de subir e descer JUNTOS com ele. Se alguma camada tiver ritmo próprio, o objeto tem várias animações em vez de uma pulsação — e essa é a afirmação central da arquitetura em camadas. ⚠️ Screenshot NÃO julga isto: várias animações e uma pulsação única produzem imagens parecidas em qualquer instante e só divergem ao longo do tempo.',
     'MOVIMENTO REDUZIDO: o batimento tem de CONGELAR em 0,50 e a fervura do núcleo parar. Um campo parado é uma afirmação honesta; um campo animado devagar não é redução de movimento, é movimento mais lento.',
     'RAIO DA ÂNCORA de 2,0 até 0,05: o corpo tem de DESAPARECER suavemente ao cruzar LOD_FAR_PX (26 px de âncora), não sumir de uma vez. O readout `px` e `nível` dizem onde você está na escada.',
+    '⚠️ FILAMENTO DO PULSO em 0 (o padrão, e o que a cena faz): a casca do pulso tem de continuar existindo, LISA. Se o pulso SUMIR junto, o portão está multiplicando em vez de misturar com 1 — e aí "sem filamento" virou "sem pulso", que são coisas diferentes.',
+    '⚠️ FILAMENTO em 1 mostra o DEFEITO, não uma alternativa: ~16 cristas radiais em volta de um ponto brilhante, que leem como ESTRELA DE PONTAS. É por isso que ele entra em 0. Duas tentativas de consertar foram REFUTADAS e estão registradas em `pulsar-pulse.js` — subir o raio do círculo de amostragem só multiplica as pontas, e as facetas do cone não têm nada a ver. Quem for consertar de verdade tem de mexer na RAZÃO entre a taxa angular e a radial do ruído.',
     '⚠️ CABE NO ENQUADRAMENTO, e isto é o item #5 fechado. As três feições medem, em raios de âncora: lobo 0,41–0,76 · jato 0,86–1,61 · vento 1,23–2,28, e `SKIN_EXTENT.pulsar` é 2,6. Antes eram 3,5 / 16,1 / 35,5 — o vento estendia 13,7x ALÉM do que o foco enquadra, e a câmera em foco ficava dentro da nuvem. Se alguma feição voltar a sair do quadro, a calibração de QUASAR voltou.',
     '⚠️ A ORDEM das três é a afirmação do objeto: VENTO > JATO > LOBO. Num pulsar quem domina é o vento — o Caranguejo é um toro com dois jatos modestos. Se o jato voltar a dominar, o corpo virou um núcleo ativo com nome de pulsar, que era exatamente o defeito.',
     '⚠️ O VENTO É UM TORO, não um ouriço. Olhe de vários ângulos: tem de haver CINTURA (concentração equatorial) e rarefação nos polos. Se ele for uma bola isotrópica de raias radiais, ou a amostragem por sin²θ voltou a ser uniforme, ou a espiral sumiu — e eram esses dois defeitos juntos que faziam o corpo ler como fogo de artifício.',
@@ -110,6 +119,7 @@ export const PULSAR_SPEC = {
         const alturaFb = document.querySelector('canvas')?.height ?? window.innerHeight;
         const px = diskPx(values.raio, camera.position.length(), alturaFb, camera.fov);
 
+        pulsar.tune({ filamento: values.filamento });
         const nivel = pulsar.update(params, px, clock.elapsed, values.reduzido, camera);
         // LIDO do módulo, não recalculado aqui. Uma segunda cópia da fórmula do batimento seria a
         // primeira coisa a divergir — e justamente quando a leitura fosse útil.
@@ -125,6 +135,7 @@ export const PULSAR_SPEC = {
           obliquidade: `${((params.obliquity * 180) / Math.PI).toFixed(0)}°`,
           'núcleo (raios)': params.core.toFixed(3),
           feixe: params.beam.toFixed(2),
+          filamento: values.filamento === 0 ? 'desligado (como a cena)' : values.filamento.toFixed(2),
         });
       },
       dispose: () => pulsar.dispose(),

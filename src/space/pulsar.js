@@ -354,6 +354,19 @@ const SCALE = Object.freeze({ lobe: 0.45, jet: 0.95, wind: 1.35 });
 export function createPulsar() {
   /** Leitura do último quadro. Ver `beat()`. */
   const ultimo = { batimento: 0, nivel: 0, alinhamento: 0 };
+  /*
+   * ⚠️ FILAMENTO DO PULSO — 0 por PEDIDO DO USUÁRIO ("pode remover os espinhos do pulsar").
+   *
+   * O campo desenhava ~16 cristas radiais em volta de um ponto brilhante, e dezesseis cristas
+   * radiais não leem como filamento: leem como ESTRELA DE PONTAS. A causa está medida em
+   * `pulsar-pulse.js` (o raio do círculo de amostragem é a contagem de filamentos) e o número foi
+   * corrigido de 2,6 para 6,4 — ~40 filamentos finos em vez de ~16 pontas.
+   *
+   * Mesmo consertado, o padrão entra DESLIGADO: o pedido foi remover, e quem decide se ele volta é
+   * o olho. A bancada tem o controle `FILAMENTO` para essa decisão ser tomada vendo, e é uma linha
+   * aqui para religá-lo na cena.
+   */
+  const ajuste = { filamento: 0 };
   const group = new THREE.Group();
   group.visible = false;
 
@@ -516,6 +529,11 @@ export function createPulsar() {
      */
     beat: () => ({ ...ultimo }),
 
+    /** Afinação viva. `filamento` 0…1 liga a estrutura do pulso — ver `ajuste`, acima. */
+    tune({ filamento = 0 } = {}) {
+      ajuste.filamento = filamento;
+    },
+
     update(params, px, elapsed, reduced = false, camera = null) {
       const level = THREE.MathUtils.clamp((px - LOD_FAR_PX) / (LOD_NEAR_PX - LOD_FAR_PX), 0, 1);
       group.visible = level > 0.002;
@@ -583,7 +601,7 @@ export function createPulsar() {
       for (const lobo of lobos) lobo.scale.set(params.beam * 0.5, params.beam * SCALE.lobe, params.beam * 0.5);
       // O pulso alcança a ponta do LOBO, não a do jato: ele é emissão isotrópica, e ir tão longe
       // quanto a agulha colimada afirmaria que ela não colima nada. Ver `pulsar-pulse.js`.
-      pulso.update(params.beam * SCALE.wind, level, elapsed, params.seed, params.color, camera, reduced);
+      pulso.update(params.beam * SCALE.wind, level, elapsed, params.seed, params.color, camera, reduced, ajuste.filamento);
       vento.update(params.beam * SCALE.wind, level, elapsed, batimento, reduced);
 
       group.rotation.set(params.tilt, params.yaw, 0);

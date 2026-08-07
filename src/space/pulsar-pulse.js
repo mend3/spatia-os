@@ -56,6 +56,7 @@ const FRAGMENT = /* glsl */ `
   ${GLSL_SIMPLEX3}
   uniform vec3 uColor;
   uniform float uAmount;
+  uniform float uFio;
   uniform float uTime;
   uniform float uSeed;
   uniform float uPhase;
@@ -83,10 +84,44 @@ const FRAGMENT = /* glsl */ `
      * passando na frente de um papel de parede.
      */
     float ang = atan(vPc.y, vPc.x);
+    /*
+     * ⚠️ O RAIO DESTE CIRCULO E A CONTAGEM DE VINCOS RADIAIS — e subi-lo NAO conserta.
+     *
+     * Amostrar o angulo como um circulo no dominio do ruido fecha a volta sem costura, e essa
+     * parte esta certa. Mas o raio decide quantas feicoes cabem na volta:
+     *
+     *     circunferencia = 2*pi*R, feicao de ordem 1
+     *     R = 2,6  ->  16,3 unidades  ->  ~16 vincos
+     *
+     * Dezesseis cristas radiais em volta de um ponto brilhante leem como ESTRELA DE PONTAS, e era
+     * esse o objeto que aparecia no lugar do pulsar.
+     *
+     * ⚠️ TENTATIVA REFUTADA, e ela esta aqui para ninguem repetir: subi para 6,4 esperando "~40
+     * filamentos finos" no lugar de "~16 pontas". Deu ~40 PONTAS, e pior — os vincos sao radiais
+     * seja qual for a contagem, porque o que os alonga e a razao entre a taxa angular (R por
+     * volta) e a radial (3,0 por unidade de r), nao o numero deles. Mais feicoes angulares so
+     * multiplica a estrela. Medido na bancada, com o controle FILAMENTO em 1.
+     *
+     * ⚠️ E antes dessa, outra hipotese errada: atribui as pontas as facetas de
+     * ConeGeometry(1, 1, 16, ...), que tambem tem dezesseis. Subir para 64 segmentos nao mudou
+     * NADA. A coincidencia dos dois dezesseis quase custou uma reescrita da geometria do feixe.
+     *
+     * O que EXISTE hoje e o portao uFio, e o padrao entra desligado por pedido do usuario. Quem
+     * for consertar de verdade tem de mexer na RAZAO entre as duas taxas, nao no raio.
+     */
     vec3 q = vec3(cos(ang) * 2.6, sin(ang) * 2.6, uSeed * 5.0 + r * 3.0);
     float grande = 1.0 - abs(simplex3(q));
     float fino = 1.0 - abs(simplex3(q * 2.9 + vec3(0.0, 0.0, uTime * 0.35)));
     float fio = pow(grande * mix(1.0, fino, 0.55), 2.0);
+    /*
+     * ⚠️ PORTAO DO FILAMENTO — 0 apaga a estrutura sem apagar a casca.
+     *
+     * mix(1.0, fio, uFio) e nao fio * uFio: multiplicar apagaria o PULSO INTEIRO em 0, porque
+     * fio e um fator do brilho. Misturando com 1, o campo vira constante e o que sobra e a casca
+     * lisa — que e "sem filamento", nao "sem pulso". A distincao e a mesma que o uCheap das
+     * fatias do disco do buraco negro faz.
+     */
+    fio = mix(1.0, fio, uFio);
 
     /*
      * O BRILHO CAI COM O RAIO porque a mesma energia cobre uma casca maior — em 2D, 1/r. E some
@@ -115,6 +150,7 @@ export function createPulse() {
     uniforms: {
       uColor: { value: new THREE.Color(0xffffff) },
       uAmount: { value: 0 },
+      uFio: { value: 0 },
       uTime: { value: 0 },
       uSeed: { value: 0 },
       uPhase: { value: 0 },
@@ -147,11 +183,12 @@ export function createPulse() {
      * @param {THREE.Camera} camera
      * @param {boolean} reduced
      */
-    update(scale, level, elapsed, seed, color, camera, reduced = false) {
+    update(scale, level, elapsed, seed, color, camera, reduced = false, filamento = 0) {
       mesh.visible = level > 0.002;
       if (!mesh.visible) return;
 
       material.uniforms.uColor.value.set(color);
+      material.uniforms.uFio.value = filamento;
       material.uniforms.uAmount.value = level;
       material.uniforms.uSeed.value = seed;
       material.uniforms.uTime.value = reduced ? 0 : elapsed;
