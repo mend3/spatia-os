@@ -23,12 +23,35 @@ const TIMELINE_LABELS = {
   query: () => 'PERGUNTA RECEBIDA',
   plan: (e) => `PLANO · ${e.steps?.length ?? 0} PASSOS`,
   memory: (e) => `MEMÓRIA · ${e.hits?.length ?? 0} CHUNKS`,
-  brain: (e) => `NÚCLEO ONLINE · ${e.tools ?? 0} FERRAMENTAS`,
+  /*
+   * ⚠️ A LINHA DO NÚCLEO CARREGA A SESSÃO, e sem ela não havia como cruzar uma execução da tela
+   * com o log do CLI — o `session_id` viajava desde sempre e morria aqui.
+   *
+   * Oito caracteres bastam para grepar e cabem na régua da HUD; o id inteiro, mais o modelo e o
+   * diretório de trabalho, vão no `title` da linha, que é copiável. O modelo entra visível porque
+   * "qual cérebro respondeu isto" é a segunda pergunta de quem está lendo a timeline.
+   */
+  brain: (e) => [
+    'NÚCLEO ONLINE',
+    e.model,
+    `${e.tools ?? 0} FERRAMENTAS`,
+    e.session ? e.session.slice(0, 8) : null,
+  ].filter(Boolean).join(' · '),
   answer: (e) => `RESPOSTA · ${e.turns ?? 1} TURNO(S)`,
   // A causa entra aqui porque `FALHA · TTS` sozinho não diz se a chave está errada ou se o
   // serviço caiu — e o operador trata os dois de formas diferentes. Ver `core/upstream.js`.
   error: (e) => [`FALHA · ${(e.service || '').toUpperCase()}`, causaDe(e)].filter(Boolean).join(' · '),
   done: () => 'CICLO ENCERRADO',
+};
+
+/** O que a linha não mostra e o hover revela. Vazio = sem `title`. */
+const TIMELINE_TITLES = {
+  brain: (e) => [
+    e.session && `sessão ${e.session}`,
+    e.model && `modelo ${e.model}`,
+    e.cwd && `cwd ${e.cwd}`,
+    e.mcp?.length && `mcp ${e.mcp.join(', ')}`,
+  ].filter(Boolean).join('\n'),
 };
 
 export function createStreams(root, { toolColor }) {
@@ -51,10 +74,14 @@ export function createStreams(root, { toolColor }) {
   on('*', (event) => {
     const label = TIMELINE_LABELS[event.t];
     if (!label) return;
-    stamp(label(event), {
+    const row = stamp(label(event), {
       tone: event.t === 'error' ? 'bad' : event.t === 'answer' ? 'good' : '',
       duration: event.ms ?? null,
     });
+    // O que não cabe na linha vai para o `title`: hover mostra, e dá para copiar. É o único lugar
+    // onde um id de 36 caracteres pode existir sem quebrar a régua da HUD.
+    const detalhe = TIMELINE_TITLES[event.t]?.(event);
+    if (detalhe) row.title = detalhe;
   });
 
   on('state', (event) => stamp(`› ${event.label || event.state}`, { tone: 'dim' }));

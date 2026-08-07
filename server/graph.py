@@ -26,7 +26,7 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # 5: `regularity` (ritmo de commits) chega em cada nó de arquivo — é o fato de que o PULSAR
 #    passou a depender. Campo novo em nó não muda o fingerprint do corpus, então sem este bump a
 #    feature nasceria morta em qualquer clone que já tivesse `.cache/graph.json`.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -91,7 +91,6 @@ def build() -> dict:
                 "source": source,
                 "repo": repo_of(source),
                 "dir": "/".join(segments[:-1]),
-                "depth": len(segments),
                 "kind": classify(source),
                 # Caminho para a ÁRVORE, distinto de `source` (que é a chave no Qdrant).
                 # Fonte absoluta (`/Users/.../memory/x.md`, que o indexador adiciona por
@@ -257,7 +256,6 @@ def _hierarchy(files: list[dict]) -> tuple[list[dict], list[list[str]]]:
             "kind": "repo",
             "repo": repo,
             "dir": "",
-            "depth": 0,
             "chunks": weight,
         })
     for path in sorted(keep_dirs):
@@ -268,14 +266,16 @@ def _hierarchy(files: list[dict]) -> tuple[list[dict], list[list[str]]]:
             "kind": "dir",
             "repo": repo_of(path),
             "dir": path,
-            "depth": len(path.split("/")),
             "chunks": dir_weight[path],
         })
 
     edges: list[list[str]] = []
     for node in files:
         parent = f"dir:{node['dir']}" if node["dir"] in keep_dirs else f"repo:{node['repo']}"
-        node["parent"] = parent
+        # ⚠️ O parentesco vai na ARESTA e não no nó. Ele era escrito nos dois lugares e ninguém lia
+        # o campo — nem cliente nem servidor —, então eram 1.843 cópias de um fato que a aresta já
+        # afirma. Duas fontes para a mesma verdade é o defeito que este projeto mais persegue; aqui
+        # a redundância nem chegou a divergir porque o campo estava morto.
         edges.append([node["id"], parent])
     for path in sorted(keep_dirs):
         parent_path = path.rsplit("/", 1)[0] if "/" in path else ""
