@@ -57,6 +57,7 @@ const FRAGMENT = /* glsl */ `
   uniform vec3 uColor;
   uniform float uAmount;
   uniform float uFio;
+  uniform float uDecai;
   uniform float uTime;
   uniform float uSeed;
   uniform float uPhase;
@@ -121,7 +122,24 @@ const FRAGMENT = /* glsl */ `
      * lisa — que e "sem filamento", nao "sem pulso". A distincao e a mesma que o uCheap das
      * fatias do disco do buraco negro faz.
      */
-    fio = mix(1.0, fio, uFio);
+    /*
+     * DECAIMENTO: o filamento nasce cheio e alisa enquanto a casca cresce.
+     *
+     * r e uPhase, o raio normalizado da casca no ciclo — ele vai de 0 a 1 ao longo da
+     * animacao, entao 1 - r e exatamente "de 1 a 0 conforme a duracao". Com o portao em 1 a
+     * estrutura so existe perto do corpo, no instante em que o pulso nasce, e a casca chega lisa
+     * na borda.
+     *
+     * E isso e o que a fisica de um choque faz: a estrutura e nitida onde a energia acabou de ser
+     * injetada e se dispersa conforme a casca se expande e o material rarefaz. O padrao antigo
+     * afirmava o contrario — cristas igualmente afiadas em todo raio, que e uma casca que nao
+     * envelhece.
+     *
+     * mix e nao um if: com uDecai fracionario o decaimento e parcial, e o controle vira um
+     * botao continuo em vez de dois estados.
+     */
+    float forcaFio = uFio * mix(1.0, 1.0 - r, uDecai);
+    fio = mix(1.0, fio, forcaFio);
 
     /*
      * O BRILHO CAI COM O RAIO porque a mesma energia cobre uma casca maior — em 2D, 1/r. E some
@@ -151,6 +169,7 @@ export function createPulse() {
       uColor: { value: new THREE.Color(0xffffff) },
       uAmount: { value: 0 },
       uFio: { value: 0 },
+      uDecai: { value: 0 },
       uTime: { value: 0 },
       uSeed: { value: 0 },
       uPhase: { value: 0 },
@@ -183,12 +202,13 @@ export function createPulse() {
      * @param {THREE.Camera} camera
      * @param {boolean} reduced
      */
-    update(scale, level, elapsed, seed, color, camera, reduced = false, filamento = 0) {
+    update(scale, level, elapsed, seed, color, camera, reduced = false, filamento = 0, decaimento = 0) {
       mesh.visible = level > 0.002;
       if (!mesh.visible) return;
 
       material.uniforms.uColor.value.set(color);
       material.uniforms.uFio.value = filamento;
+      material.uniforms.uDecai.value = decaimento;
       material.uniforms.uAmount.value = level;
       material.uniforms.uSeed.value = seed;
       material.uniforms.uTime.value = reduced ? 0 : elapsed;

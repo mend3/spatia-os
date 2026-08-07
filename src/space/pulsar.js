@@ -355,18 +355,27 @@ export function createPulsar() {
   /** Leitura do último quadro. Ver `beat()`. */
   const ultimo = { batimento: 0, nivel: 0, alinhamento: 0 };
   /*
-   * ⚠️ FILAMENTO DO PULSO — 0 por PEDIDO DO USUÁRIO ("pode remover os espinhos do pulsar").
+   * FILAMENTO DO PULSO, e ele volta LIGADO — mas com DECAIMENTO.
    *
-   * O campo desenhava ~16 cristas radiais em volta de um ponto brilhante, e dezesseis cristas
-   * radiais não leem como filamento: leem como ESTRELA DE PONTAS. A causa está medida em
-   * `pulsar-pulse.js` (o raio do círculo de amostragem é a contagem de filamentos) e o número foi
-   * corrigido de 2,6 para 6,4 — ~40 filamentos finos em vez de ~16 pontas.
+   * A história em três passos, porque o meio dela é a parte útil:
    *
-   * Mesmo consertado, o padrão entra DESLIGADO: o pedido foi remover, e quem decide se ele volta é
-   * o olho. A bancada tem o controle `FILAMENTO` para essa decisão ser tomada vendo, e é uma linha
-   * aqui para religá-lo na cena.
+   * 1. O campo desenhava ~16 cristas radiais em volta de um ponto brilhante, e dezesseis cristas
+   *    radiais não leem como filamento: leem como ESTRELA DE PONTAS. O usuário pediu para tirar,
+   *    e ele saiu — `filamento: 0`.
+   * 2. Duas tentativas de consertar a FORMA foram refutadas e estão registradas em
+   *    `pulsar-pulse.js`: as facetas do cone não tinham nada a ver, e subir o raio do círculo de
+   *    amostragem só multiplica as pontas.
+   * 3. O conserto não era da forma — era do TEMPO. Com `decaimento`, a estrutura nasce cheia e
+   *    alisa conforme a casca cresce: as cristas só existem no instante em que o pulso nasce,
+   *    perto do corpo, e a casca chega lisa na borda. É a física de um choque (nítido onde a
+   *    energia foi injetada, disperso conforme o material rarefaz) e resolve a estrela de pontas
+   *    sem apagar a estrutura.
+   *
+   * Por isso os dois entram em 1: o que fazia mal era a crista PERMANENTE, não a crista.
+   * `tune({ filamento: 0 })` desliga tudo de novo, e a bancada tem os dois botões separados para
+   * a decisão poder ser revista vendo.
    */
-  const ajuste = { filamento: 0 };
+  const ajuste = { filamento: 1, decaimento: 1 };
   const group = new THREE.Group();
   group.visible = false;
 
@@ -529,9 +538,10 @@ export function createPulsar() {
      */
     beat: () => ({ ...ultimo }),
 
-    /** Afinação viva. `filamento` 0…1 liga a estrutura do pulso — ver `ajuste`, acima. */
-    tune({ filamento = 0 } = {}) {
+    /** Afinação viva. `filamento` 0…1 é a amplitude; `decaimento` 0…1, quanto ela alisa ao longo do ciclo. */
+    tune({ filamento = 1, decaimento = 1 } = {}) {
       ajuste.filamento = filamento;
+      ajuste.decaimento = decaimento;
     },
 
     update(params, px, elapsed, reduced = false, camera = null) {
@@ -601,7 +611,7 @@ export function createPulsar() {
       for (const lobo of lobos) lobo.scale.set(params.beam * 0.5, params.beam * SCALE.lobe, params.beam * 0.5);
       // O pulso alcança a ponta do LOBO, não a do jato: ele é emissão isotrópica, e ir tão longe
       // quanto a agulha colimada afirmaria que ela não colima nada. Ver `pulsar-pulse.js`.
-      pulso.update(params.beam * SCALE.wind, level, elapsed, params.seed, params.color, camera, reduced, ajuste.filamento);
+      pulso.update(params.beam * SCALE.wind, level, elapsed, params.seed, params.color, camera, reduced, ajuste.filamento, ajuste.decaimento);
       vento.update(params.beam * SCALE.wind, level, elapsed, batimento, reduced);
 
       group.rotation.set(params.tilt, params.yaw, 0);
