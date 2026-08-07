@@ -23,6 +23,7 @@ import * as api from '../core/api.js';
 import * as keys from '../core/keys.js';
 import * as prefs from '../core/prefs.js';
 import { PROFILES } from '../core/profiles.js';
+import { SPEC as TUNING_SPEC } from '../core/tuning.js';
 import { PLATES } from '../space/backdrop.js';
 import { DIRTY_LABELS } from '../space/rings.js';
 import { KIND_COLORS as SKY_COLORS } from '../space/graph.js';
@@ -507,7 +508,8 @@ function registerFilesWidgets() {
           el(
             'div',
             'widget-hint',
-            'o perfil reescreve os 22 parâmetros da afinação · ajustar um slider depois não muda o nome'
+            // A contagem vem do SPEC: um número copiado não acompanha uma tabela que cresce.
+            `o perfil reescreve os ${TUNING_SPEC.length} parâmetros da afinação · ajustar um slider depois não muda o nome`
           )
         );
         into.replaceChildren(...blocks);

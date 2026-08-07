@@ -388,6 +388,15 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const pointer = new THREE.Vector2(-2, -2);
   const raycaster = new THREE.Raycaster();
   const clock = new THREE.Clock();
+  /*
+   * O RELÓGIO DOS OBJETOS, separado do relógio da parede.
+   *
+   * `clock.elapsedTime` anda sempre; este acumula `delta × timeScale`. Precisa ser acumulado e não
+   * derivado (`elapsedTime × escala`) porque a escala muda no meio: multiplicar o total daria um
+   * SALTO no instante em que o operador move o slider — todo shader que lê `elapsed` como fase
+   * pularia de posição, e a cena inteira daria um tranco a cada passo de 0,05.
+   */
+  let sceneTime = 0;
   const focusTarget = new THREE.Vector3();
 
   let dragging = false;
@@ -1073,8 +1082,24 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   window.addEventListener('pagehide', () => saveOrbit());
 
   function frame() {
-    const delta = Math.min(clock.getDelta(), 0.1);
-    const elapsed = clock.elapsedTime;
+    /*
+     * DOIS RELÓGIOS, e a divisão entre eles é a regra inteira do multiplicador global.
+     *
+     * `real` é o tempo da parede: RESPOSTA a gesto (suavização de órbita, zoom, âncora, decaimento
+     * do glitch) e PRAZO em segundos (a janela do foco pendente). `delta`/`elapsed` são o tempo dos
+     * OBJETOS, multiplicado por `tune.timeScale` — é o que chega em todo `update` daqui para baixo.
+     *
+     * Misturar os dois quebra os dois extremos do slider: em 0 a câmera pararia de responder ao
+     * mouse (e a cena congelada é exatamente quando se quer orbitar para olhar), e em 4 o prazo de
+     * 8s do foco pendente viraria 2s sem que nada tivesse mudado na rede.
+     *
+     * A DERIVA da câmera fica do lado dos objetos de propósito: ela é movimento ambiente da cena,
+     * não resposta a um gesto — quem congela a cena espera que ela também pare.
+     */
+    const real = Math.min(clock.getDelta(), 0.1);
+    const delta = real * (tune.timeScale ?? 1);
+    sceneTime += delta;
+    const elapsed = sceneTime;
     const started = performance.now();
 
     // Deriva automática é movimento contínuo sem evento por trás — o primeiro a sair.
@@ -1082,9 +1107,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     if (!dragging && !userControlled) orbit.targetAzimuth += delta * drift;
     if (cinematic) orbit.targetAzimuth += delta * drift * 1.6;
 
-    orbit.azimuth = smooth(orbit.azimuth, orbit.targetAzimuth, tune.cameraEase, delta);
-    orbit.polar = smooth(orbit.polar, orbit.targetPolar, tune.cameraEase, delta);
-    orbit.distance = smooth(orbit.distance, orbit.targetDistance, RATE.zoom, delta);
+    orbit.azimuth = smooth(orbit.azimuth, orbit.targetAzimuth, tune.cameraEase, real);
+    orbit.polar = smooth(orbit.polar, orbit.targetPolar, tune.cameraEase, real);
+    orbit.distance = smooth(orbit.distance, orbit.targetDistance, RATE.zoom, real);
 
     // Âncora da órbita: origem no sistema, posição do corpo dentro de um app.
     /*
@@ -1096,18 +1121,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     // Antes de qualquer coisa que leia o foco: o astro da sessão anterior entra aqui, no
     // primeiro quadro em que ele tem posição.
-    aplicarFocoPendente(elapsed);
+    // ⚠️ TEMPO REAL: `FOCO_PRAZO_S` é um prazo de rede em segundos, não uma fase de animação.
+    aplicarFocoPendente(clock.elapsedTime);
     const nodeAt = focusedNode ? graph.worldPositionOf(focusedNode) : null;
     // Astro que saiu do céu (recarga da topologia) solta o foco em vez de prender a câmera
     // apontando para o vazio.
     if (focusedNode && !nodeAt) focusedNode = null;
     const bodyAt = nodeAt || (focusedBody ? bodies.positionOf(focusedBody) : null);
     anchorTarget.copy(bodyAt || ZERO);
-    anchor.lerp(anchorTarget, 1 - Math.exp(-2.6 * delta));
+    anchor.lerp(anchorTarget, 1 - Math.exp(-2.6 * real));
 
     // A câmera olha para o núcleo, mas se inclina na direção do que foi recuperado: o
     // sistema aponta a atenção para onde a memória acendeu, e depois relaxa de volta.
-    focusWeight = smooth(focusWeight, 0, RATE.focus, delta);
+    focusWeight = smooth(focusWeight, 0, RATE.focus, real);
     const lookAt = focusTarget.clone().multiplyScalar(focusWeight * 0.28);
 
     camera.position.set(
@@ -1198,7 +1224,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * ordem correta sai de graca da translacao; nao precisei escolher valor por camada.
      */
     if (!motion.isReduced()) {
-      PARALLAX_AIM.lerp(pointer, 1 - Math.exp(-3.4 * delta));
+      // Tempo REAL: perseguir o cursor é resposta a gesto, e ela não desacelera com a cena.
+      PARALLAX_AIM.lerp(pointer, 1 - Math.exp(-3.4 * real));
       camera.getWorldDirection(PARALLAX_FWD);
       PARALLAX_RIGHT.crossVectors(PARALLAX_FWD, camera.up).normalize();
       PARALLAX_UP.crossVectors(PARALLAX_RIGHT, PARALLAX_FWD).normalize();
@@ -1656,7 +1683,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       );
     }
 
-    glitch = smooth(glitch, 0, 3.2, delta);
+    // Tempo REAL: o glitch é o decaimento de um EVENTO de erro, e ele tem de morrer mesmo com a
+    // cena congelada — senão um erro deixa a tela suja até alguém mexer no slider.
+    glitch = smooth(glitch, 0, 3.2, real);
     /*
      * A LENTE DO CORPO EM FOCO — item #10 do brief, e quem decide é AQUI.
      *

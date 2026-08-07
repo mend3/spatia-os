@@ -42,7 +42,7 @@ const STORAGE_KEY = 'espatial.tuning.v1';
  * é o que o mecanismo sempre precisou; ele só não tinha sido pedido duas vezes ainda.
  *
  * ⚠️ Persistir é TUDO OU NADA: `persist()` grava o objeto inteiro, então quem mexeu em UM slider
- * tem as 28 chaves no storage. Por isso não basta olhar "a chave está lá?" — tem de ser o valor.
+ * tem a tabela INTEIRA no storage. Por isso não basta olhar "a chave está lá?" — tem de ser o valor.
  */
 const SUPERSEDED = Object.freeze({
   // Primeira revisão de ambientação (manhã de 2026-08-05).
@@ -101,6 +101,40 @@ const SUPERSEDED = Object.freeze({
  */
 export const SPEC = [
   // grupo, chave, rótulo, min, max, passo, default
+
+  /*
+   * ## GLOBAL — o que vale para a CENA INTEIRA, e não para um objeto dela
+   *
+   * Os outros grupos afinam UM sistema (o disco, o céu, o grafo). Estes quatro atravessam todos:
+   * qualquer objeto novo já nasce obedecendo, porque nenhum deles é aplicado no objeto — o tempo é
+   * multiplicado UMA vez no laço (`space/scene.js`) e a gradação é um passe sobre a imagem pronta
+   * (`space/lensing.js`). É o que os torna globais de verdade em vez de "aplicados em todo mundo".
+   *
+   * ⚠️ `timeScale` multiplica o relógio dos OBJETOS, não o da câmera. Suavização de órbita, zoom e
+   * âncora continuam no tempo real, e a razão é dura: com o multiplicador em 0 — que é um estado
+   * legítimo, é o "congelar" — a câmera presa ao mesmo relógio deixaria de responder ao mouse, e a
+   * cena congelada é justamente quando se quer orbitar para olhar.
+   */
+  ['GLOBAL', 'timeScale', 'VELOCIDADE', 0, 4, 0.05, 1],
+  /*
+   * O VOLUME mora aqui, e não em ÁUDIO, porque ele é o mestre: `ambient` e `timbre` escalam o
+   * ambiente DENTRO do que este número deixa passar. Os dois vizinhos afinam o som; este decide
+   * quanto dele existe.
+   */
+  ['GLOBAL', 'volume', 'VOLUME', 0, 1, 0.02, 0.42],
+  /*
+   * BRILHO · CONTRASTE · SATURAÇÃO — gradação da imagem, aplicada no passe da lente.
+   *
+   * ⚠️ Eles entram ANTES do bloom, e isso é decisão. O bloom corta por LIMIAR: subir o brilho faz
+   * mais coisa cruzar o corte e a cena passa a florescer mais, que é o comportamento de um
+   * instrumento óptico real (cena mais luminosa, mais glare). Aplicar a gradação depois do bloom
+   * daria uma imagem mais previsível e menos verdadeira — e deixaria o par BRILHO/LIMIAR DO BLOOM
+   * brigando pelo mesmo efeito sem se enxergarem.
+   */
+  ['GLOBAL', 'exposure', 'BRILHO', 0.2, 2.5, 0.02, 1],
+  ['GLOBAL', 'contrast', 'CONTRASTE', 0.4, 2, 0.02, 1],
+  ['GLOBAL', 'saturation', 'SATURAÇÃO', 0, 2, 0.02, 1],
+
   ['NÚCLEO', 'diskSpin', 'ROTAÇÃO DO DISCO', 0, 4, 0.05, 1],
   ['NÚCLEO', 'diskIntensity', 'INTENSIDADE DO DISCO', 0.1, 3, 0.05, 1],
   ['NÚCLEO', 'diskWidth', 'LARGURA DO DISCO', 0.4, 2, 0.02, 1],
@@ -202,12 +236,15 @@ export const SPEC = [
   ['LENTE', 'grain', 'GRÃO', 0, 0.12, 0.002, 0.012],
   ['LENTE', 'vignette', 'VINHETA', 0, 2, 0.05, 0.65],
 
-  ['ÁUDIO', 'volume', 'VOLUME', 0, 1, 0.02, 0.42],
   // Conforto sonoro é gosto, não constante. Estes dois existem para você acertar o seu em vez
   // de eu adivinhar: `ambient` é o quanto do ar/ruído rosa se ouve, `brightness` escala a
   // frequência de corte do filtro global (mais baixo = mais abafado e mais quente).
+  //
+  // ⚠️ O rótulo de `brightness` é TIMBRE porque BRILHO já é o da imagem, no grupo GLOBAL. Dois
+  // sliders com o mesmo nome na mesma tela é um controle que se mexe achando que se mexe no outro.
+  // A chave não acompanha o rótulo: ela é formato de fio (ver o aviso no topo).
   ['ÁUDIO', 'ambient', 'AR AMBIENTE', 0, 3, 0.05, 1],
-  ['ÁUDIO', 'brightness', 'BRILHO', 0.3, 2, 0.02, 1],
+  ['ÁUDIO', 'brightness', 'TIMBRE DO AR', 0.3, 2, 0.02, 1],
 ];
 
 const DEFAULTS = Object.fromEntries(SPEC.map(([, key, , , , , value]) => [key, value]));
@@ -266,7 +303,7 @@ export function set(key, value) {
  * completo da cena, e mesclar com o que estava ali faria trocar de perfil deixar resíduo do
  * anterior — trocar de PLENO para MÍNIMO e de volta não devolveria PLENO.
  *
- * Uma notificação só (`notify(null)`), não 22: cada `set` refaz a cadeia de afinação inteira
+ * Uma notificação só (`notify(null)`), não uma por chave: cada `set` refaz a cadeia de afinação inteira
  * na cena, e 22 refazeres seguidos aparecem como um tranco na imagem.
  */
 export function apply(patch) {

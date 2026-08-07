@@ -6,7 +6,7 @@
  * | Onde mora | O que é | Por quê |
  * |---|---|---|
  * | `prefs` (aqui) | estado dos controles da UI: toggles, painéis abertos, cinema, mudo | é do operador NESTE navegador; o servidor não tem opinião |
- * | `tuning` | 22 parâmetros numéricos da cena, com faixa e passo | também localStorage, mas tem contrato próprio (SPEC + subscribe) |
+ * | `tuning` | os parâmetros numéricos da cena, com faixa e passo | também localStorage, mas tem contrato próprio (SPEC + subscribe) |
  * | servidor | permissões, voz | dirige `claude -p` e chama o TTS — a decisão tem que valer para o processo, não para a aba |
  *
  * A régua: se a configuração muda o que o SERVIDOR faz, ela é do servidor. Se muda o que a

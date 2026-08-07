@@ -91,6 +91,15 @@ const FRAGMENT = /* glsl */ `
   uniform float uAberration;
   uniform float uGlitch;
   uniform float uVignette;
+  // Gradacao global da imagem — os tres do grupo GLOBAL do painel. A ordem e o motivo de ela vir
+  // ANTES do bloom estao no bloco GRADACAO GLOBAL, no fim do fragmento.
+  //
+  // ⚠️ Sem crase neste comentario: ele mora DENTRO de um template literal, e uma crase aqui fecha
+  // a string no meio do shader. O erro que sai disso e um SyntaxError de JavaScript apontando para
+  // a primeira palavra depois dela — nada no mundo liga esse erro a um comentario de GLSL.
+  uniform float uExposure;
+  uniform float uContrast;
+  uniform float uSaturation;
   // A câmera, para reconstruir o raio de cada pixel e reprojetar a direção de saída.
   uniform vec3 uCamPos;
   uniform vec3 uCamRight, uCamUp, uCamFwd;
@@ -334,6 +343,26 @@ const FRAGMENT = /* glsl */ `
     float vignette = mix(1.0, smoothstep(1.25, 0.35, length(vUv - 0.5) * 1.6), uVignette);
     color *= vignette;
 
+    /*
+     * GRADACAO GLOBAL — brilho, contraste e saturacao, nesta ordem e depois da vinheta.
+     *
+     * A ordem nao e gosto: vinheta e sombreamento de LENTE (acontece antes do sensor), a gradacao
+     * e revelacao (acontece depois). Invertida, subir o contraste reacenderia as bordas que a
+     * vinheta acabou de entregar para a HUD.
+     *
+     * O contraste pivota em 0,18 — o cinza medio em luz LINEAR, que e o espaco em que este alvo
+     * vive (o tone mapping so entra no OutputPass, depois do bloom). Pivotar em 0,5 escureceria a
+     * cena inteira ao subir o contraste, porque quase todo pixel de um ceu noturno esta abaixo
+     * de 0,5 e o "meio" dele nao e ali.
+     *
+     * A luminancia usa os pesos Rec.709: dessaturar pela media dos canais faria o ambar da HUD e
+     * o ciano dos wormholes irem para cinzas de brilho diferente do que o olho ve.
+     */
+    color = max(vec3(0.0), color * uExposure);
+    color = max(vec3(0.0), (color - 0.18) * uContrast + 0.18);
+    float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    color = max(vec3(0.0), mix(vec3(luma), color, uSaturation));
+
     float grain = (hash(vUv * 900.0 + uTime * 60.0) - 0.5) * uGrain;
     float scanline = 1.0 - 0.025 * step(0.5, fract(vUv.y * 420.0));
     gl_FragColor = vec4((color + grain) * scanline, 1.0);
@@ -351,6 +380,9 @@ export function createLensingPass() {
       uAberration: { value: 1 },
       uGlitch: { value: 0 },
       uVignette: { value: 1 },
+      uExposure: { value: 1 },
+      uContrast: { value: 1 },
+      uSaturation: { value: 1 },
       // A câmera, para o traçado montar o raio de cada pixel.
       uCamPos: { value: new THREE.Vector3() },
       uCamRight: { value: new THREE.Vector3(1, 0, 0) },
@@ -507,6 +539,14 @@ export function createLensingPass() {
       pass.uniforms.uAberration.value = values.aberration;
       pass.uniforms.uGrain.value = values.grain;
       pass.uniforms.uVignette.value = values.vignette;
+      /*
+       * ⚠️ `?? 1` e o que impede um painel antigo (ou a bancada, que monta um `NEUTRAL` proprio)
+       * de apagar a imagem: `undefined` numa uniform float vira 0, e exposicao 0 e tela preta.
+       * Nao e defesa especulativa — `tune()` recebe o objeto INTEIRO de quem chamar.
+       */
+      pass.uniforms.uExposure.value = values.exposure ?? 1;
+      pass.uniforms.uContrast.value = values.contrast ?? 1;
+      pass.uniforms.uSaturation.value = values.saturation ?? 1;
     },
 
     setTime(elapsed) {

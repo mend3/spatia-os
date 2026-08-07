@@ -1,8 +1,8 @@
 /**
- * Perfis de qualidade — três conjuntos nomeados dos 22 parâmetros da cena.
+ * Perfis de qualidade — três conjuntos nomeados dos parâmetros da cena.
  *
- * O painel de afinação tem 22 sliders e nenhum agrupamento por CUSTO. Quem abre numa máquina
- * fraca encontra 22 controles e nenhuma pista de quais três decidem o FPS. Um perfil responde
+ * O painel de afinação tem mais de trinta sliders e nenhum agrupamento por CUSTO. Quem abre numa
+ * máquina fraca encontra a tabela inteira e nenhuma pista de quais três decidem o FPS. Um perfil responde
  * essa pergunta de uma vez: é o mesmo store, com nome.
  *
  * ## O que realmente custa
@@ -39,7 +39,7 @@
  */
 
 /**
- * `tuning` traz só o que o perfil MUDA em relação ao default. Listar os 22 em cada perfil faria
+ * `tuning` traz só o que o perfil MUDA em relação ao default. Listar todos em cada perfil faria
  * três cópias do default, e a próxima mudança de default só chegaria a uma delas.
  */
 export const PROFILES = [
