@@ -51,6 +51,21 @@ const SUPERSEDED = Object.freeze({
   nodeSize: [1.1],
   coreScale: [1.55],
   graphSpeed: [0.2],
+  /*
+   * Terceira revisão (2026-08-07): o BLOOM deixa de ser névoa e vira PSF.
+   *
+   * Motivo, e ele é de fidelidade e não de gosto: glare de instrumento óptico é forte em fonte
+   * PONTUAL e fraca em fonte EXTENSA — a luz de um objeto extenso já está espalhada por muitos
+   * pixels e cada um contribui pouco para a auréola. Com limiar 0,54 quase todo o céu cruzava o
+   * corte, e um halo de raio fixo em tela cobria INTEIRA uma galáxia de 60 px enquanto no buraco
+   * negro de 600 px era só uma borda. O dano era pior justamente no que é mais numeroso.
+   *
+   * Medido no vivo, mesma câmera: em 0,54 a galáxia é núcleo branco com braços lavados; em 0,92 a
+   * cor e os braços voltam e o núcleo grande ainda estoura; em 1,15–1,40 aparecem braços, faixas
+   * de poeira e núcleo estruturado. Ver `espatial.bloom({ threshold, radius })`.
+   */
+  bloomStrength: [0.58, 0.45, 0.5, 0.36],
+  bloomThreshold: [0.72, 0.8, 0.54],
 });
 
 /*
@@ -163,8 +178,16 @@ export const SPEC = [
   ['CÂMERA', 'fov', 'CAMPO DE VISÃO', 28, 80, 1, 80],
 
   ['LENTE', 'lensStrength', 'FORÇA DA LENTE', 0, 2.5, 0.02, 0.18],
-  ['LENTE', 'bloomStrength', 'BLOOM', 0, 2, 0.02, 0.5],
-  ['LENTE', 'bloomThreshold', 'LIMIAR DO BLOOM', 0, 1, 0.02, 0.8],
+  ['LENTE', 'bloomStrength', 'BLOOM', 0, 2, 0.02, 0.62],
+  /*
+   * ⚠️ O TETO ERA 1 e o valor certo está ACIMA dele — o slider não conseguia expressar a correção.
+   * Limiar é linear e a cena tem fonte bem acima de 1; cortar a régua em 1 era decidir, por
+   * acidente de interface, que o bloom sempre pegaria as galáxias.
+   */
+  ['LENTE', 'bloomThreshold', 'LIMIAR DO BLOOM', 0, 2, 0.02, 1.15],
+  // O RAIO nunca teve controle, e é ele o mecanismo do borrão: halo de tamanho fixo em tela cobre
+  // objeto pequeno inteiro. Sem ele, só dava para escurecer o céu inteiro para salvar a galáxia.
+  ['LENTE', 'bloomRadius', 'RAIO DO BLOOM', 0.05, 0.8, 0.01, 0.2],
   ['LENTE', 'aberration', 'ABERRAÇÃO CROMÁTICA', 0, 4, 0.05, 0.4],
   ['LENTE', 'grain', 'GRÃO', 0, 0.12, 0.002, 0.012],
   ['LENTE', 'vignette', 'VINHETA', 0, 2, 0.05, 0.65],

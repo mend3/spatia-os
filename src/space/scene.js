@@ -499,6 +499,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     lensing.tune(values);
     bloom.strength = values.bloomStrength;
     bloom.threshold = values.bloomThreshold;
+    bloom.radius = values.bloomRadius;
     if (camera.fov !== values.fov) {
       camera.fov = values.fov;
       camera.updateProjectionMatrix();
