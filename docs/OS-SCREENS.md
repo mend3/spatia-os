@@ -768,7 +768,11 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > cross-site e arquivo fora da raiz, que acontecem fora de uma execução e de um endpoint ·
 > **15** falta o grafo de dependência que desabilita `VOZ` preventivamente.
 >
-> **Aberto:** **20** capacidades com gate `PreToolUse`. O que está aberto fora daqui está em
+> **20** capacidades com portão `PreToolUse` real (`server/capabilities.py`, `/api/gate`,
+> `--settings` efêmera) — inerte por padrão, ativa-se declarando
+> `AGENT_CWD/.claude/spatia/capabilities.json`.
+>
+> **Nada aberto na lista numerada.** O que está aberto fora daqui está em
 > [`proximos-passos.md`](proximos-passos.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue

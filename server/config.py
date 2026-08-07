@@ -7,6 +7,7 @@ código de outro repo — se o nome da coleção mudar, muda uma linha aqui.
 """
 import os
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -95,6 +96,24 @@ def vector_name(model: str) -> str:
 
 
 SPARSE_VECTOR_NAME = "bm25"
+
+
+def agent_dir() -> Optional[Path]:
+    """`AGENT_CWD/.claude`, quando existe.
+
+    É onde as configurações do agente já moram: `catalog.py` descobre skills e agentes ali, e as
+    `setting_sources` do CLI leem dali. Tudo que este servidor escreve PARA o agente vai para o
+    mesmo lugar — escrever num diretório nosso criaria uma segunda casa de configuração do
+    agente, e o operador teria de saber que existem duas.
+
+    `None` quando o diretório não existe: nesse caso não há convenção a respeitar, e o chamador
+    cai no `.cache/` do próprio servidor.
+    """
+    raiz = get("AGENT_CWD")
+    if not raiz:
+        return None
+    caminho = Path(raiz) / ".claude"
+    return caminho if caminho.is_dir() else None
 
 
 def file_roots() -> list[Path]:

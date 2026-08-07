@@ -20,7 +20,7 @@ import subprocess
 import time
 from typing import Iterator, Optional
 
-from . import config, permissions
+from . import capabilities, config, permissions
 
 logger = logging.getLogger("espatial.brain")
 
@@ -68,7 +68,7 @@ def available() -> Optional[str]:
     return shutil.which("claude")
 
 
-def _command(prompt: str) -> list[str]:
+def _command(prompt: str, gate: Optional[str] = None) -> list[str]:
     argv = [
         "claude", "-p", prompt,
         "--output-format", "stream-json",
@@ -88,6 +88,10 @@ def _command(prompt: str) -> list[str]:
         argv += ["--model", config.get("AGENT_MODEL")]
     if config.get("AGENT_MCP_CONFIG"):
         argv += ["--mcp-config", config.get("AGENT_MCP_CONFIG"), "--strict-mcp-config"]
+    # O portão entra como `--settings` efêmera, não como flag: escopo e limite não existem no
+    # vocabulário do CLI, e o hook `PreToolUse` é o único ponto ANTES da chamada acontecer.
+    if gate:
+        argv += ["--settings", gate]
     return argv
 
 
@@ -101,7 +105,12 @@ def stream(prompt: str) -> Iterator[dict]:
         yield {"t": "error", "service": "claude", "message": "CLI `claude` não encontrado no PATH"}
         return
 
-    argv = _command(prompt)
+    # Uma settings por execução: o `session` é o que separa a contagem de `calls_per_run` de uma
+    # execução da seguinte. `None` quando não há capacidade declarada — hook que sempre permite
+    # é uma requisição por chamada de ferramenta sem nenhuma decisão em troca.
+    session = f"{int(time.time() * 1000)}"
+    gate = capabilities.settings_file(session)
+    argv = _command(prompt, gate)
     logger.info(f"agente: {' '.join(argv[:6])} … ({len(prompt)} chars de prompt)")
     started = time.monotonic()
 
@@ -129,6 +138,8 @@ def stream(prompt: str) -> Iterator[dict]:
                 continue
             yield from _translate(frame, tool_names, started)
     finally:
+        capabilities.drop_settings(gate)
+        capabilities.release(session)
         if process.poll() is None:
             process.terminate()
             try:

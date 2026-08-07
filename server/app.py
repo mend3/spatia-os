@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, bridge, brain, budget, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch
+from . import agent, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -77,7 +77,7 @@ class Handler(BaseHTTPRequestHandler):
             self._hook(parsed.path[len("/hooks/"):].strip("/"))
             return
 
-        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget"):
+        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
@@ -94,6 +94,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = min(int(self.headers.get("Content-Length") or 0), MAX_BODY_BYTES)
             payload = json.loads(self.rfile.read(length) or b"{}")
+            if parsed.path == "/api/gate":
+                self._gate(payload)
+                return
             if parsed.path == "/api/oauth/start":
                 # Devolve SÓ a URL. O `code_verifier` e o `state` ficam no servidor, e a página
                 # não tem como saber nem precisar deles.
@@ -273,6 +276,8 @@ class Handler(BaseHTTPRequestHandler):
                 })
             elif route == "/api/oauth/callback":
                 self._oauth_callback(query)
+            elif route == "/api/capabilities":
+                self._json(capabilities.describe())
             elif route == "/api/credentials":
                 self._json({"store": credentials.describe(), "providers": oauth.providers(),
                             "bridge": bridge.available()})
@@ -436,6 +441,31 @@ class Handler(BaseHTTPRequestHandler):
         if not source:
             return {"error": "parâmetro `source` ausente"}
         return {"source": source, "chunks": qdrant.chunks_of(source)}
+
+    def _gate(self, payload: dict) -> None:
+        """O portão `PreToolUse`. Responde no vocabulário de hook do CLI, não no nosso.
+
+        `permissionDecision: deny` é o que o CLI entende como "não faça"; devolver `{"allow":
+        false}` seria um campo que ninguém do outro lado lê — a quinta linha da tabela da REGRA
+        DO CATÁLOGO, escrita de novo.
+        """
+        decisao = capabilities.decide(
+            str(payload.get("session_id") or ""),
+            str(payload.get("tool") or ""),
+            str(payload.get("target") or ""),
+        )
+        if decisao["allow"]:
+            self._json({"continue": True})
+            return
+        self._json(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": decisao["reason"],
+                }
+            }
+        )
 
     def _oauth_callback(self, query: dict) -> None:
         """Responde uma página mínima que se fecha. NADA útil volta ao JavaScript: o valor do

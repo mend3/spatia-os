@@ -1,0 +1,20 @@
+[
+  {
+    "id": "fs.read",
+    "verb": "Read|Glob|Grep",
+    "scope": ["$AGENT_CWD"],
+    "limit": { "calls_per_run": 40 }
+  },
+  {
+    "id": "net.fetch",
+    "verb": "WebFetch|WebSearch",
+    "scope": [],
+    "limit": { "calls_per_run": 5 }
+  },
+  {
+    "id": "mcp.hub-board",
+    "verb": "mcp__hub-board__*",
+    "scope": [],
+    "limit": { "calls_per_run": 20 }
+  }
+]
