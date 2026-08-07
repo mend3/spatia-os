@@ -117,6 +117,8 @@ const NODE_FOCUS_POLAR = 1.18;
  */
 /** Free-flight range, when nothing is locked. */
 const ZOOM_RANGE = { min: 12, max: 260 };
+/** Caminho de ponteiro, em px CSS, acima do qual o `click` do browser é órbita e não clique. */
+const CLICK_SLOP_PX = 6;
 /**
  * Amplitude da paralaxe, em fração da distância da câmera.
  *
@@ -389,6 +391,15 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const focusTarget = new THREE.Vector3();
 
   let dragging = false;
+  /*
+   * Quantos pixels o ponteiro andou desde o `pointerdown` — a guarda do clique.
+   *
+   * `orbitMoved` não serve para isto: o `pointerdown` já o liga em `true` incondicionalmente,
+   * porque ele responde outra pergunta ("há órbita a gravar?"). Este conta CAMINHO, e é o único
+   * jeito de separar "cliquei" de "orbitei" — o browser dispara `click` depois de qualquer
+   * down+up no mesmo elemento, tenha o ponteiro andado 2 px ou 800.
+   */
+  let pressTravel = 0;
   let userControlled = false;
   let cinematic = false;
   let glitch = 0;
@@ -639,6 +650,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
 
   canvas.addEventListener('pointerdown', (event) => {
     dragging = true;
+    pressTravel = 0;
     userControlled = true;
     orbitMoved = true;
     canvas.setPointerCapture(event.pointerId);
@@ -689,6 +701,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       -((event.clientY - rect.top) / rect.height) * 2 + 1
     );
     if (!dragging) return;
+    pressTravel += Math.hypot(event.movementX, event.movementY);
     // O mouse move o ALVO, não a câmera. Delta de ponteiro é ruidoso e não vem alinhado com
     // o quadro; aplicá-lo direto na câmera transporta esse ruído para a imagem.
     orbitMoved = true;
@@ -709,7 +722,23 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     { passive: false }
   );
 
+  /*
+   * ORBITAR NÃO É CLICAR — e sem esta guarda era, o que quebrava a REGRA DA INSPEÇÃO.
+   *
+   * Medido em 2026-08-07 com `README.md` travado: um arraste horizontal de 350 px emitia
+   * `ui.select` com o source do PRÓPRIO astro travado 56 ms depois de soltar, e `focusNode`
+   * reescrevia `targetPolar`/`targetDistance` e religava `fitPending`. `px` ia de 213 para 260
+   * — `FOCUS_FIT_PX` cravado, que é a assinatura de quem foi remandado para a pose canônica.
+   * Na tela isso lê como "a câmera reseta sozinha depois de 3 ou 4 segundos"; os segundos são o
+   * amortecimento de `cameraEase`, não um temporizador. Soltando sobre um nó VIZINHO, o mesmo
+   * caminho re-focava o vizinho.
+   *
+   * 6 px de folga: `targetAzimuth` anda 0,0042 rad/px, então o que a guarda pode engolir são
+   * 0,025 rad — 1,4°, abaixo do que o olho separa. Acima do tremor de mão de um clique
+   * deliberado e três ordens de grandeza abaixo de um gesto de órbita.
+   */
   canvas.addEventListener('click', () => {
+    if (pressTravel > CLICK_SLOP_PX) return;
     if (hoveredBody) {
       // Corpo de app navega; corpo de controle alterna. A cena não sabe o que cada um faz —
       // ela emite a intenção e quem registrou o controle decide.

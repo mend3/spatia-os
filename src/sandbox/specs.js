@@ -352,7 +352,20 @@ export const SPECS = [
   {
     id: 'corpos',
     name: 'CORPOS DE APP',
-    distance: 9,
+    /*
+     * ⚠️ ERA 9, E COM 9 O ESPÉCIME ESTAVA VAZIO — corrigido em 2026-08-07.
+     *
+     * O spec não passava `type` nem `orbit.radius`, então os dois corpos nasciam `app` e
+     * `bodies.js` lhes dava `ORBIT_BASE + index·2,6` = 12,5 e 15,1. Com `fov` 46 a meia-altura
+     * visível a 9 unidades é `9 · tan(23°)` = 3,8: os dois orbitavam a mais de três vezes a borda
+     * do quadro. `ctx.report({ corpos: 2 })` seguia dizendo "2", que é o relatório correto de uma
+     * cena vazia — e foi por isso que o defeito durou.
+     *
+     * Os raios agora são DECLARADOS e pequenos. Não é aproximar o contrato: a bancada é "um objeto
+     * por vez", e o que ela precisa reproduzir aqui é a FORMA do corpo, não o arranjo orbital da
+     * cena. A 12 unidades o corpo de app chega a ~143px de raio aparente e o de controle a ~63.
+     */
+    distance: 12,
     controls: [
       { key: 'ativo', label: 'ATIVO', type: 'bool', value: false },
       { key: 'hover', label: 'SOB O CURSOR', type: 'bool', value: false },
@@ -361,18 +374,37 @@ export const SPECS = [
       'o giro tem que ser VISÍVEL — foi por isto que o material deixou de ser MeshBasicMaterial',
       'o lado voltado para a origem é o iluminado: a fonte da cena é o núcleo',
       'a borda nunca fica totalmente preta (termo de rim)',
+      'ORBITE O DE CONTROLE: se a silhueta dele virar um QUADRADO chapado em algum ângulo, é o '
+        + 'octaedro visto pelo eixo de dois vértices — a mesma imagem que aparece solta no céu',
     ],
     build(ctx) {
       const bodies = createBodies(document.createElement('div'));
+      /*
+       * OS DOIS MODOS, e o de controle faltava.
+       *
+       * `bodies.js` desenha `app` como `IcosahedronGeometry(0.95, 1)` e `control` como
+       * `OctahedronGeometry(0.42, 0)` — geometrias diferentes, escalas de halo diferentes
+       * (`HALO_SCALE` contra `HALO_SCALE · 0,42`). O espécime só instanciava `app`, então o
+       * octaedro não tinha como ser reprovado aqui. É a REGRA DA INSPEÇÃO: objeto com dois modos
+       * exige os dois na bancada.
+       */
       bodies.install([
-        { id: 'a', name: 'ARQUIVOS', color: 0x7ee0c0, orbit: { phase: 0, inclination: 0.2 } },
-        { id: 'b', name: 'SISTEMA', color: 0xffab54, orbit: { phase: Math.PI, inclination: -0.3 } },
+        { id: 'a', name: 'ARQUIVOS', color: 0x7ee0c0, orbit: { radius: 2.4, phase: 0, inclination: 0.2 } },
+        { id: 'b', name: 'SISTEMA', color: 0xffab54, orbit: { radius: 3.2, phase: Math.PI, inclination: -0.3 } },
+        {
+          id: 'c',
+          name: 'PERMISSÕES',
+          type: 'control',
+          // A cor real do controle na cena (`main.js`, `ctl-perms`) — o creme que aparece no céu.
+          color: 0xffd257,
+          orbit: { radius: 2.0, phase: Math.PI / 2, inclination: 0.1 },
+        },
       ]);
       return {
         object: bodies.group,
         update(values, camera, clock) {
           bodies.update(clock.delta, clock.elapsed, camera, values.ativo ? 'a' : null, values.hover ? 'a' : null);
-          ctx.report({ corpos: 2 });
+          ctx.report({ corpos: 3 });
         },
       };
     },
