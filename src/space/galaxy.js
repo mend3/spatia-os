@@ -285,7 +285,7 @@ const ARM_AMP = 0.42;
  *
  * Por isso `poseDe` NÃO mudou: o piso dele é o do disco fino, e como todo aspecto aqui é maior que
  * `ASPECT_FOLHA`, aplicar `max(aspecto, cosInc_já_pisado)` devolve o mesmo que aplicar
- * `max(aspecto, |cosView|)`. O oráculo `.cache/pose-galaxia.mjs` segue válido no que já cobria.
+ * `max(aspecto, |cosView|)`. O oráculo `scripts/pose-galaxia.mjs` segue válido no que já cobria.
  */
 const ASPECT_BOJO = 0.6;
 const ASPECT_BARRA = 0.34;
@@ -645,7 +645,7 @@ const FRAGMENT = /* glsl */ `
      * Vem da construcao de poseDe: V = N x U projeta na tela ao longo de +y com comprimento
      * |cosView| e aponta para longe da camera (componente -sinView na linha de visada). Guardado
      * aqui porque o espelho da face abaixo destroi essa informacao, e ela e o que diz qual metade
-     * do bojo a poeira do disco cobre. Conferido por .cache/pose-galaxia.mjs.
+     * do bojo a poeira do disco cobre. Conferido por scripts/pose-galaxia.mjs.
      */
     float vLonge = q.y;
     // Espelha o PADRAO, nunca o raio: r ja foi lido e e invariante. Daqui para baixo q e a

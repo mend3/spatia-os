@@ -10,7 +10,7 @@ pulsar não aparecem lá por construção).
 
 | conjunto | responde | critério de sucesso |
 |---|---|---|
-| **Fixture** (`.cache/fixture.py`) | *o código desenha este tipo?* | todo corpo e todo modificador renderiza sem erro, e todo estado do git tem representante |
+| **Fixture** (`scripts/fixture.py`) | *o código desenha este tipo?* | todo corpo e todo modificador renderiza sem erro, e todo estado do git tem representante |
 | **Fixture paramétrico** | *o shader aguenta a faixa inteira?* | cada parâmetro relevante aparece em mínimo, mediano e máximo pelo menos uma vez |
 | **Corpus real** | *o universo parece vivo?* | a diversidade emerge da distribuição do conhecimento, sem ninguém plantar |
 | **Bancada** (`sandbox.html`) | *este parâmetro faz o que diz?* | cada eixo tem slider, e o `watch` do espécime nomeia o defeito que ele pega |
@@ -74,7 +74,7 @@ fixture hoje escreve corpo fixo e um commit por arquivo, então `churn ≈ 0` em
 
 ## O fixture paramétrico entrou em 2026-08-07 — o que ele varre agora
 
-`VARREDURA`, em `.cache/fixture.py`: 14 arquivos que existem só para levar cada eixo aos extremos.
+`VARREDURA`, em `scripts/fixture.py`: 14 arquivos que existem só para levar cada eixo aos extremos.
 O knob novo é `commits` (commits dentro da janela de 30 dias, que é o que vira `node.churn`).
 
 | eixo | antes | agora | faixa do código |

@@ -146,7 +146,7 @@ export const GLSL_GEODESIC = /* glsl */ `
    * enquanto o filamento escoa por cima dela. Foi o que o usuario fotografou, e ele nomeou certo
    * — a divisao entre o comeco e o fim da textura.
    *
-   * MEDIDO em .cache/costura-disco.mjs, que transcreve estas funcoes: o salto no corte valia
+   * MEDIDO em scripts/costura-disco.mjs, que transcreve estas funcoes: o salto no corte valia
    * 0,207 de estria contra 0,010, que e o MAXIMO que o campo anda num pixel de arco em qualquer
    * outro lugar do disco. Vinte vezes — e por isso o olho le uma linha em vez de ruido.
    *
@@ -167,7 +167,7 @@ export const GLSL_GEODESIC = /* glsl */ `
    *    SUBIR CELULAS_VOLTA, nunca voltar a lacunaridade fracionaria.
    *
    * ⚠️ Isto e mudanca de DOMINIO do ruido, nao de fisica. Nao toca o integrador, a cauda, a massa
-   * nem a oclusao: as cinco invariantes seguem intactas e .cache/campo.mjs continua sendo quem
+   * nem a oclusao: as cinco invariantes seguem intactas e scripts/campo.mjs continua sendo quem
    * prova isso.
    */
   float ruido(vec2 p, float periodo){
