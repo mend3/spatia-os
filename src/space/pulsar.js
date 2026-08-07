@@ -277,12 +277,95 @@ const CORE_FRAGMENT = /* glsl */ `
      */
     float superficie = (0.08 + fervura * 0.34 + erupcao * 0.9);
     float energia = clamp(superficie * 0.5 + hotspot * 1.35 + erupcao * 0.6, 0.0, 1.0);
-    float brilho = (superficie + hotspot * 2.6) * borda * uAmount * uBeat;
+    /*
+     * CAMADA 2 do halo — o GLOW, e ele nasce aqui porque nao precisa de geometria.
+     *
+     * Um aro de Fresnel na borda do proprio corpo: a normal ja esta calculada e uCam ja esta no
+     * espaco local, entao sao tres instrucoes. Ele fecha o vao entre o disco da superficie e a
+     * primeira casca (1,8 raios), que sem isso aparecia como um degrau escuro de meio raio.
+     */
+    float glow = pow(1.0 - clamp(abs(dot(n, normalize(uCam - vPos))), 0.0, 1.0), 3.0) * 0.85;
+    float brilho = (superficie + hotspot * 2.6 + glow) * borda * uAmount * uBeat;
     if (brilho < 0.004) discard;
     // A cor vem da ENERGIA pela rampa sincrotron, e uColor do tipo entra so como tingimento:
     // o corpo tem de continuar dizendo "infra" sem que isso apague a fisica da emissao.
     vec3 cor = mix(sincrotron(energia), uColor, 0.28);
     gl_FragColor = vec4(cor * brilho, brilho);
+  }
+`;
+
+/**
+ * O HALO SINCROTRON — item #9 do brief, e ele existia só no pós-processamento.
+ *
+ * O pedido é literal: *"hoje o bloom depende do pós-processamento, mas o shader pode gerar um halo
+ * próprio: núcleo + glow + halo + halo maior. Quatro camadas. Não apenas uma."*
+ *
+ * As quatro, e onde cada uma mora:
+ *   1. NÚCLEO   — a superfície com as calotas, no CORE_FRAGMENT.
+ *   2. GLOW     — o aro de Fresnel na borda do próprio núcleo, no mesmo fragmento. Custa três
+ *                 instruções e não pede geometria: a normal e a câmera já estão lá.
+ *   3. HALO     — esta casca, em 1,8 raios.
+ *   4. HALO MAIOR — a mesma casca em 2,8 raios, mais fraca e mais larga.
+ *
+ * ⚠️ POR QUE NÃO É POST-PROCESSING: bloom de tela borra TUDO o que é brilhante, inclusive o que
+ * está atrás; um halo que nasce no objeto acompanha o batimento, tem a cor da energia dele e some
+ * quando ele some. O pós continua existindo por cima — o que muda é que agora existe halo mesmo
+ * com o bloom em zero, que é o perfil `básico`.
+ *
+ * ⚠️ ORÇAMENTO DE FRAGMENTO, contado ANTES de escrever, porque foi assim que a espessura do disco
+ * do buraco negro matou a aba: este fragmento não tem RUÍDO — são ~10 instruções e nenhuma
+ * amostra. As duas cascas são `BackSide` (só a face de trás é rasterizada, metade dos fragmentos)
+ * e desenham no máximo 2,8 raios do corpo, que na chegada do foco são ~600 px de raio contra os
+ * 742 da meia-altura. Não é o disco de acreção enchendo a tela com cinco fatias de ruído.
+ */
+const HALO_VERTEX = /* glsl */ `
+  varying vec3 vNormal;
+  varying vec3 vPos;
+  void main(){
+    vNormal = normalize(normalMatrix * normal);
+    vPos = position;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const HALO_FRAGMENT = /* glsl */ `
+  precision highp float;
+  uniform vec3 uColor;
+  uniform float uAmount;
+  uniform float uBeat;
+  uniform float uWidth;
+  varying vec3 vNormal;
+  varying vec3 vPos;
+
+  /*
+   * O AZUL DA RAMPA SINCROTRON, e a cor sai daqui e nao do JS de proposito.
+   *
+   * O halo e emissao de energia MEDIA — nem o branco estourado do polo nem o vermelho escuro da
+   * cauda. Calcular isso no JS pediria uma segunda copia da rampa do CORE_FRAGMENT, em outra
+   * linguagem, livre para divergir na primeira vez que alguem mexesse numa das duas. Aqui a regra
+   * e a mesma do nucleo: a fisica da emissao manda, o tipo do arquivo entra so como tingimento.
+   */
+  const vec3 AZUL = vec3(0.16, 0.62, 0.95);
+
+  void main(){
+    /*
+     * PERFIL DE ATMOSFERA, e a primeira escrita usou o INVERSO — vale registrar porque a diferenca
+     * so aparece vendo.
+     *
+     * Numa casca vista de dentro, (1 - mu) acende a SILHUETA e apaga o meio: o resultado sao dois
+     * aros nitidos, concentricos, que leem como anel de vidro em volta do corpo e nao como halo.
+     * Conferido na bancada, que e onde isso aparece limpo por nao ter pos-processamento.
+     *
+     * O que se quer e a coluna vista de fora: brilho no meio caindo para a borda. O parametro de
+     * impacto do raio nesta esfera unitaria e sqrt(1 - mu^2) — 0 no centro do disco, 1 no limbo —,
+     * entao (1 - b) e o perfil cheio. Uma instrucao a mais e a leitura muda de anel para halo.
+     */
+    float mu = abs(normalize(vNormal).z);
+    float b = sqrt(max(1.0 - mu * mu, 0.0));
+    float aro = pow(1.0 - b, uWidth);
+    float brilho = aro * uAmount * uBeat;
+    if (brilho < 0.003) discard;
+    gl_FragColor = vec4(mix(AZUL, uColor, 0.28) * brilho, brilho);
   }
 `;
 
@@ -416,6 +499,38 @@ export function createPulsar() {
   // precisa de silhueta lisa o bastante para o ruído deformá-la.
   const core = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), coreMat);
   group.add(core);
+
+  /*
+   * AS CAMADAS 3 E 4 do halo sincrotron. Ver `HALO_FRAGMENT` para as quatro e o orçamento.
+   *
+   * Uma geometria só, compartilhada: 24×16 basta porque não há deslocamento nenhum — a casca é
+   * lisa e quem faz a forma é o aro no fragmento. `BackSide` desenha só a face de trás, que é o
+   * que dá o aro sem a frente lavar o corpo por cima.
+   */
+  const cascaGeo = new THREE.SphereGeometry(1, 24, 16);
+  const halos = [
+    { raio: 1.8, largura: 1.6, ganho: 0.55 },
+    { raio: 2.8, largura: 1.1, ganho: 0.3 },
+  ].map(({ raio, largura, ganho }) => {
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: new THREE.Color(0xffffff) },
+        uAmount: { value: 0 },
+        uBeat: { value: 1 },
+        uWidth: { value: largura },
+      },
+      vertexShader: HALO_VERTEX,
+      fragmentShader: HALO_FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      userData: { raio, ganho },
+    });
+    const malha = new THREE.Mesh(cascaGeo, material);
+    group.add(malha);
+    return malha;
+  });
 
   /*
    * DUAS PEÇAS POR POLO, e é a diferença entre "cone" e "pulsar".
@@ -595,6 +710,20 @@ export function createPulsar() {
       if (camera) core.worldToLocal(coreMat.uniforms.uCam.value.copy(camera.position));
 
       /*
+       * As duas cascas do halo respiram no MESMO batimento — é a exigência do item #11, e ela vale
+       * para toda camada nova: um halo com relógio próprio faz o corpo ter duas animações.
+       *
+       * O raio delas é em raios do CORPO (`params.core`), não do grupo: o corpo é 0,10–0,16 e as
+       * cascas seriam invisíveis se multiplicassem só a si mesmas.
+       */
+      for (const casca of halos) {
+        casca.scale.setScalar(params.core * casca.material.userData.raio);
+        casca.material.uniforms.uColor.value.set(params.color);
+        casca.material.uniforms.uAmount.value = level * casca.material.userData.ganho;
+        casca.material.uniforms.uBeat.value = 0.45 + batimento * 1.0;
+      }
+
+      /*
        * O raio da base é a ABERTURA e a altura é o ALCANCE, e as duas peças usam razões opostas.
        *
        * O JATO abre 20% e o comprimento vem de `SCALE.jet` — jato relativístico colima em poucos
@@ -677,6 +806,8 @@ export function createPulsar() {
     },
 
     dispose() {
+      cascaGeo.dispose();
+      for (const casca of halos) casca.material.dispose();
       core.geometry.dispose();
       coreMat.dispose();
       for (const feixe of [...jatos, ...lobos]) feixe.geometry.dispose();
