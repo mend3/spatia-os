@@ -54,7 +54,7 @@ export function registerApps() {
     name: 'ARQUIVOS',
     tagline: 'o grafo como sistema de arquivos',
     color: COLORS.files,
-    orbit: { radius: 12.5, inclination: -0.24, phase: 0.4 },
+    key: '1',
     // Clicking a file or a folder in the sky lands here. Declared in the manifest, the
     // destination is a property of the app: uninstalling ARQUIVOS leaves the gesture ownerless
     // instead of leaving the kernel routing to something that is gone.
@@ -77,7 +77,7 @@ export function registerApps() {
     name: 'SISTEMA',
     tagline: 'saúde, custo, permissões, afinação',
     color: COLORS.system,
-    orbit: { radius: 15.5, inclination: 0.36, phase: 2.1 },
+    key: '2',
     widgets: ['context', 'sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'answer', 'sky-time', 'timeline'],
   });
 
@@ -86,7 +86,7 @@ export function registerApps() {
     name: 'WEB',
     tagline: 'provedores, resultados, ingestão',
     color: COLORS.web,
-    orbit: { radius: 18.5, inclination: -0.42, phase: 3.9 },
+    key: '3',
     widgets: ['context', 'web-search', 'web-providers', 'web-results', 'answer', 'sky-time', 'timeline'],
   });
 
@@ -95,7 +95,7 @@ export function registerApps() {
     name: 'PONTE',
     tagline: 'integrações, webhooks, MCP',
     color: COLORS.bridge,
-    orbit: { radius: 21, inclination: 0.18, phase: 5.4 },
+    key: '4',
     widgets: ['context', 'br-webhooks', 'br-mcp', 'br-deliveries', 'answer', 'sky-time', 'timeline'],
   });
 

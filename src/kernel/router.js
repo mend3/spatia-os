@@ -18,7 +18,7 @@
  */
 import * as bus from '../core/bus.js';
 import * as api from '../core/api.js';
-import { ROUTE_ROOT, getApp, hasApp, listApps, appClaiming } from './registry.js';
+import { ROUTE_ROOT, getApp, hasApp, appByKey, appClaiming } from './registry.js';
 import { bind } from '../core/keys.js';
 import * as motion from '../core/motion.js';
 
@@ -148,11 +148,11 @@ export function createRouter({ host, scene, chrome }) {
 
   window.addEventListener('hashchange', () => activate(parse()));
 
-  // Dígito entra no app da posição; Home volta ao sistema. A supressão durante digitação é do
-  // `keys`, não daqui — era `1` na busca de arquivos navegando em vez de escrever.
-  bind({ pattern: /^[1-9]$/, keys: '1–4', label: 'IR AO APP', group: 'NAVEGAÇÃO' }, (event) => {
-    const app = listApps()[Number(event.key) - 1];
-    if (app) navigate(app.id);
+  // Dígito entra no app que DECLAROU aquela tecla; Home volta ao sistema. A supressão durante
+  // digitação é do `keys`, não daqui — era `1` na busca de arquivos navegando em vez de escrever.
+  bind({ pattern: /^[1-9]$/, keys: '1–9', label: 'IR AO APP', group: 'NAVEGAÇÃO' }, (event) => {
+    const id = appByKey(event.key);
+    if (id) navigate(id);
   });
   bind({ key: 'Home', label: 'RAIZ', group: 'NAVEGAÇÃO' }, () => navigate(ROUTE_ROOT));
 

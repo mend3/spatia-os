@@ -748,20 +748,27 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 
 ## 4. Ordem de construção
 
-> **Estado** (conferido contra o código em 2026-08-07). Fechados: **1** (`ROUTE_ROOT = 'core'`),
-> **2** (`parse()` devolve `{app, arg}`; `#/files/<caminho>` e `#/journal/<id>` sobrevivem ao F5),
-> **4** (`ctx` = `{app, route, arg, navigate, api, bus}`), **5** (o gesto sai do kernel: o
-> manifesto declara `claims`, o registro recusa dois donos), **6** (`#/system`), **9** (diário
-> JSONL em `.cache/journal/`, encadeado, com as flags do disparo — `server/journal.py`), **12**
-> (o fail-open da §2.8) **13** (teto de custo diário e concorrência — `server/budget.py`) **7** (`#/security` como destino; a tecla `P` navega), **8** (`#/metrics` — parser em `src/core/promtext.js`, cinco
-> widgets, zero backend novo), **11** (`#/activity` + `POST /api/kill`, com registro de execuções
-> vivas em `server/running.py`) e **14** (drenagem no `SIGTERM` + `boot`/`shutdown` na mesma cadeia do diário). Parciais: **3** (órbita vem do manifesto, mas é literal por app e ainda
-> pode colidir; a tecla sai da posição em `listApps()`), **11** (falta `act.queue`, que depende da fila em disco do 17), **10** (`#/journal` com `jr.runs`,
-> `jr.detail`, `jr.replay`, `jr.spend`; `jr.denials` só enxerga ferramenta — 403 cross-site e
-> arquivo fora da raiz acontecem fora de uma execução e ainda não viram registro), **17** (HMAC e
-> tradução em `server/webhooks.py`; falta a política por endpoint e a fila EM DISCO) e **19**
-> (`#/bridge` sem credenciais, que dependem do 18). Os outros quatro estão abertos. O que está
-> aberto fora daqui está em [`proximos-passos.md`](proximos-passos.md).
+> **Estado** (conferido contra o código em 2026-08-07).
+>
+> **Fechados:** **1** `ROUTE_ROOT = 'core'` · **2** sub-rota (`parse()` devolve `{app, arg}`;
+> `#/files/<caminho>` e `#/journal/<id>` sobrevivem ao F5) · **3** tecla declarada no manifesto,
+> com colisão recusada — a órbita foi REMOVIDA, não tinha leitor desde `7719d4f` · **4** `ctx`
+> completo (`{app, route, arg, navigate, api, bus}`) · **5** gesto fora do kernel (`claims`) ·
+> **6** `#/system` · **7** `#/security` como destino, com a tecla `P` navegando · **8**
+> `#/metrics` (parser em `src/core/promtext.js`, zero backend novo) · **9** diário JSONL
+> encadeado (`server/journal.py`) · **12** fail-safe da config · **13** teto de custo e
+> concorrência (`server/budget.py`) · **14** drenagem no `SIGTERM` com `boot`/`shutdown` na
+> mesma cadeia do diário.
+>
+> **Parciais:** **10** `#/journal` — `jr.denials` só enxerga ferramenta; 403 cross-site e arquivo
+> fora da raiz acontecem fora de uma execução e ainda não viram registro · **11** `#/activity` —
+> falta `act.queue`, que depende da fila em disco do 17 · **17** HMAC e tradução existem em
+> `server/webhooks.py`; falta a política por endpoint e a fila EM DISCO · **19** `#/integrations`
+> sem credenciais, que dependem do 18.
+>
+> **Abertos:** **15** `units.json` · **16** `#/storage` · **18** OAuth + `/api/bridge` · **20**
+> capacidades com gate `PreToolUse`. O que está aberto fora daqui está em
+> [`proximos-passos.md`](proximos-passos.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue
 existir sem), depois **valor visível por esforço**.

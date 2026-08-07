@@ -78,7 +78,7 @@ export function registerActivity() {
     name: 'ATIVIDADE',
     tagline: 'o que roda agora, e como parar',
     color: COLOR,
-    orbit: { radius: 9.5, inclination: -0.15, phase: 2.7 },
+    key: '8',
     widgets: ['context', 'act-running', 'act-throttle', 'act-processes', 'answer', 'sky-time', 'timeline'],
   });
 }

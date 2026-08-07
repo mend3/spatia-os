@@ -61,7 +61,7 @@ export function registerJournal() {
     name: 'DIÁRIO',
     tagline: 'execuções, permissões em vigor, custo',
     color: COLOR,
-    orbit: { radius: 24, inclination: -0.3, phase: 1.2 },
+    key: '5',
     widgets: ['context', 'jr-spend', 'jr-denials', 'jr-runs', 'jr-detail', 'jr-replay', 'answer', 'sky-time', 'timeline'],
   });
 }

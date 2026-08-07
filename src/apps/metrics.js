@@ -205,7 +205,7 @@ export function registerMetrics() {
     name: 'INSTRUMENTOS',
     tagline: 'demorou onde, custou quanto, a tela aguenta',
     color: COLOR,
-    orbit: { radius: 27, inclination: 0.44, phase: 4.6 },
+    key: '6',
     widgets: ['context', 'mx-corpus', 'mx-tools', 'mx-stages', 'mx-cost', 'mx-client', 'answer', 'sky-time', 'timeline'],
   });
 }

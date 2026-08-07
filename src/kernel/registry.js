@@ -1,9 +1,13 @@
 /**
  * Registro do sistema: aplicativos e widgets.
  *
- * Um app aqui não é uma janela — é um **destino no espaço**. Ele declara onde orbita, de que
- * cor é, e quais widgets compõem a vista quando você está dentro dele. Abrir um app é a
- * câmera ir até o corpo dele; a HUD reconfigurar é consequência, não o evento principal.
+ * Um app aqui não é uma janela — é um **destino**. Ele declara de que cor é, por qual dígito se
+ * alcança e quais widgets compõem a vista quando você está dentro dele.
+ *
+ * ⚠️ O manifesto declarava `orbit: {radius, inclination, phase}` e NINGUÉM lia: os corpos de app
+ * saíram do céu em `7719d4f` e o campo ficou, copiado por cada app novo. Enquanto não houver
+ * corpo para posicionar, órbita alocada por hash (§2.3) seria construir o mesmo defeito com mais
+ * cerimônia.
  *
  * Um widget declara em que fenda cabe e de que eventos vive. Ele NÃO sabe em qual app está:
  * o mesmo widget de timeline serve o sistema e o app de arquivos sem uma linha de condicional.
@@ -34,6 +38,15 @@ const widgets = new Map();
  */
 const claims = new Map();
 
+/*
+ * Atalho numérico → app.
+ *
+ * A tecla vinha da POSIÇÃO em `listApps()`, então instalar um app remapeava os atalhos que o
+ * operador já tinha decorado — silenciosamente, e para todos ao mesmo tempo. Declarada no
+ * manifesto, ela é propriedade do app e sobrevive a qualquer ordem de registro.
+ */
+const keys = new Map();
+
 /** As fendas do layout. `stage` é o centro, onde a resposta nasce. */
 export const SLOTS = ['left', 'right', 'stage', 'strip'];
 
@@ -43,7 +56,7 @@ export const SLOTS = ['left', 'right', 'stage', 'strip'];
  * @param {string} manifest.name          rótulo na dock e no cabeçalho
  * @param {string} manifest.tagline       uma linha do que o app é
  * @param {number} manifest.color         cor do corpo no espaço e do acento na HUD
- * @param {object} manifest.orbit         {radius, inclination, phase} — posição do corpo
+ * @param {string} manifest.key           dígito do atalho (1–9), estável e declarado
  * @param {string[]} manifest.widgets     ids de widget, na ordem de montagem
  * @param {string[]} [manifest.claims]    gestos que o app reivindica (`ui.select:file`)
  * @param {Function} [manifest.onEnter]   efeito colateral ao entrar (ex.: carregar dados)
@@ -63,6 +76,16 @@ export function registerApp(manifest) {
     throw new Error(`app ${manifest.id} pede widget inexistente: ${unknown.join(', ')}`);
   }
 
+  if (manifest.key !== undefined) {
+    if (!/^[1-9]$/.test(String(manifest.key))) {
+      throw new Error(`app ${manifest.id}: tecla inválida "${manifest.key}" — só os dígitos 1–9`);
+    }
+    const owner = keys.get(String(manifest.key));
+    // Mesmo motivo dos gestos: duas donas para a mesma tecla seriam resolvidas pela ordem de
+    // registro, e o operador leria como o atalho mudando de destino sozinho.
+    if (owner) throw new Error(`app ${manifest.id}: tecla ${manifest.key} já é de ${owner}`);
+  }
+
   for (const claim of manifest.claims || []) {
     const owner = claims.get(claim);
     // Two apps answering the same gesture is a coin toss decided by registration order, and the
@@ -72,6 +95,7 @@ export function registerApp(manifest) {
 
   apps.set(manifest.id, Object.freeze({ tagline: '', widgets: [], claims: [], ...manifest }));
   for (const claim of manifest.claims || []) claims.set(claim, manifest.id);
+  if (manifest.key !== undefined) keys.set(String(manifest.key), manifest.id);
   return manifest.id;
 }
 
@@ -103,3 +127,5 @@ export const listWidgets = () => [...widgets.values()];
 export const hasApp = (id) => apps.has(id);
 /** Which app claims a gesture, or `null` — the router resolves, it does not choose. */
 export const appClaiming = (claim) => claims.get(claim) ?? null;
+/** Qual app responde por um dígito, ou `null`. */
+export const appByKey = (key) => keys.get(String(key)) ?? null;

@@ -777,7 +777,7 @@ function createDock(root, apps) {
     item.append(
       Object.assign(document.createElement('span'), { className: 'dock-dot' }),
       Object.assign(document.createElement('span'), { textContent: app.name }),
-      Object.assign(document.createElement('span'), { className: 'dock-key', textContent: String(index + 1) })
+      Object.assign(document.createElement('span'), { className: 'dock-key', textContent: app.key ?? '' })
     );
     item.addEventListener('click', () => (window.location.hash = `#/${app.id}`));
     dock.append(item);
