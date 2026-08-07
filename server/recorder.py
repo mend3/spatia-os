@@ -17,7 +17,7 @@ import logging
 import time
 from typing import Iterator, Optional
 
-from . import metrics
+from . import journal, metrics
 
 logger = logging.getLogger("espatial.recorder")
 
@@ -34,8 +34,11 @@ STATE_TO_STAGE = {
 class Run:
     """Estado de uma execução, vivo apenas durante o stream dela."""
 
-    def __init__(self, brain: str):
+    def __init__(self, brain: str, record: Optional[dict] = None):
         self.brain = brain
+        # O registro do diário, preenchido ao longo do stream e fechado no `finally`. `None` só
+        # em chamador que não abriu registro — o `Run` continua servindo para métrica.
+        self.record = record
         self.started = time.monotonic()
         self.stage: Optional[str] = None
         self.stage_started = 0.0
@@ -73,8 +76,19 @@ class Run:
         kind = event.get("kind") or (entry[1] if entry else "other")
         outcome = "success" if event.get("ok", True) else "error"
         metrics.tool_calls.inc(tool=tool, kind=kind, outcome=outcome)
-        if entry:
-            metrics.tool_duration.observe(time.monotonic() - entry[2], kind=kind)
+        elapsed = time.monotonic() - entry[2] if entry else None
+        if elapsed is not None:
+            metrics.tool_duration.observe(elapsed, kind=kind)
+        if self.record is not None:
+            self.record["tools"].append(
+                {
+                    "tool": tool,
+                    "kind": kind,
+                    "detail": event.get("detail") or "",
+                    "ok": bool(event.get("ok", True)),
+                    "ms": round(elapsed * 1000) if elapsed is not None else None,
+                }
+            )
 
 
 def observe(run: Run, event: dict) -> None:
@@ -106,6 +120,10 @@ def _observe(run: Run, event: dict) -> None:
         metrics.retrieval_hits.observe(len(hits))
         if hits and hits[0].get("score") is not None:
             metrics.retrieval_top_score.observe(float(hits[0]["score"]))
+
+    elif kind == "sources":
+        if run.record is not None:
+            run.record["sources"] = event.get("sources") or []
 
     elif kind == "web":
         _observe_web(run, event)
@@ -175,6 +193,15 @@ def _observe_web(run: Run, event: dict) -> None:
 def _observe_answer(run: Run, event: dict) -> None:
     run.outcome = "success"
     model = event.get("model") or run.model or "default"
+    if run.record is not None:
+        # O texto FINAL. `token` e `thought` são delta por letra e não são decisão — gravá-los
+        # encheria o diário com o caminho até a frase em vez da frase (§1, `#/journal`).
+        run.record["answer"] = event.get("text") or ""
+        run.record["cost_usd"] = float(event.get("cost_usd") or 0.0)
+        run.record["tokens"] = event.get("tokens") or {}
+        run.record["turns"] = int(event.get("turns") or 0)
+        if event.get("sources"):
+            run.record["sources"] = event["sources"]
     if event.get("cost_usd"):
         metrics.agent_cost.inc(float(event["cost_usd"]), model=model)
     tokens = event.get("tokens") or {}
@@ -208,13 +235,25 @@ def _reason(message: str) -> str:
     return "other"
 
 
-def instrument(events: Iterator[dict], brain: str) -> Iterator[dict]:
-    """Envolve o stream do agente: repassa cada evento intacto e contabiliza de lado.
+def instrument(
+    events: Iterator[dict],
+    brain: str,
+    *,
+    question: str = "",
+    origin: str = "console",
+    journaled: bool = True,
+) -> Iterator[dict]:
+    """Envolve o stream do agente: repassa cada evento intacto, contabiliza e REGISTRA de lado.
 
-    O `finally` é o que fecha a contabilidade quando o browser desconecta no meio — sem
-    ele, `ask_active` vazaria para sempre e a taxa de abortos ficaria invisível.
+    O `finally` é o que fecha a contabilidade quando o browser desconecta no meio — sem ele,
+    `ask_active` vazaria para sempre e a taxa de abortos ficaria invisível. É também o que grava
+    a execução abortada: uma execução que rodou e não deixou linha é a ausência que o diário
+    existe para acabar, e desconectar não desfaz o que o agente já executou.
+
+    `journaled=False` para uma reprise: reencenar não é decidir de novo, e recontar a linha faria
+    o custo do dia crescer sem ninguém ter gasto nada.
     """
-    run = Run(brain)
+    run = Run(brain, journal.begin(question, origin) if journaled else None)
     metrics.ask_active.inc(brain=brain)
     try:
         for event in events:
@@ -225,3 +264,6 @@ def instrument(events: Iterator[dict], brain: str) -> Iterator[dict]:
         metrics.ask_active.dec(brain=brain)
         metrics.ask_duration.observe(time.monotonic() - run.started, brain=brain)
         metrics.ask_total.inc(brain=brain, outcome=run.outcome)
+        if run.record is not None:
+            run.record["outcome"] = run.outcome
+            journal.append(run.record)

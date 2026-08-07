@@ -16,7 +16,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, brain, config, dirty, embed, files, graph, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
+from . import agent, attach, brain, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, speech, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -250,6 +250,18 @@ class Handler(BaseHTTPRequestHandler):
                     "history": webhooks.history(),
                     "providers": websearch.availability(),
                 })
+            elif route == "/api/journal":
+                # Sem `day` a tela pergunta "o que existe": a lista de dias e o estado do teto
+                # vêm sozinhos, e só o dia escolhido carrega as execuções. Devolver tudo faria a
+                # primeira abertura arrastar o diário inteiro para desenhar uma tabela.
+                day = _first(query, "day")
+                payload = journal.status()
+                payload["chain"] = journal.verify()
+                payload["spend"] = journal.summary()
+                if day:
+                    payload["day"] = day
+                    payload["runs"] = journal.read(day)
+                self._json(payload)
             elif route == "/api/system-events":
                 self._system_events()
             elif route == "/api/graph":
@@ -396,6 +408,15 @@ class Handler(BaseHTTPRequestHandler):
         web_param = _first(query, "web")
         forced = None if web_param in (None, "") else web_param == "1"
 
+        # Teto de disco do diário cruzado: RECUSA a execução em vez de executar sem registrar
+        # (§2.4). É a única recusa do sistema que protege o próprio registro.
+        if not journal.accepting():
+            self._json(
+                {"error": "diário cheio — não aceito execução que não posso registrar"},
+                status=503,
+            )
+            return
+
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache, no-transform")
@@ -405,7 +426,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             # `instrument` envolve o stream: repassa cada evento intacto e contabiliza de
             # lado, então métrica e tela derivam da mesma fonte — não há como divergirem.
-            for event in recorder.instrument(agent.run(question, web=forced), config.get("BRAIN")):
+            for event in recorder.instrument(
+                agent.run(question, web=forced),
+                config.get("BRAIN"),
+                question=question,
+                origin="console",
+            ):
                 self._sse(event)
         except (BrokenPipeError, ConnectionResetError):
             logger.info("cliente desconectou; execução abortada")
