@@ -510,6 +510,41 @@ export const GLSL_GEODESIC = /* glsl */ `
         float t = -anterior.y / (p.y - anterior.y);
         vec3 hit = mix(anterior, p, t);
         float rd = length(hit.xz);
+        float caminhoPlano = min(1.0 / clamp(abs(normalize(v).y), 0.06, 1.0), 4.0);
+        /*
+         * A CORONA — itens #5 e #13, e eles sao a mesma coisa fisica: gas opticamente FINO acima e
+         * abaixo do plano, a milhoes de kelvin. "O disco inteiro ilumina o espaco... o correto seria
+         * haver uma nevoa extremamente fina" / "em torno do disco deveria existir plasma quente".
+         *
+         * A integral da emissao ao longo do raio atraves de uma camada de espessura h e h/|cos(i)| —
+         * a MESMA lei que da espessura ao disco. Uma divisao, nenhuma amostra, nenhum passo novo. E
+         * ela soma SEM alfa: gas fino nao tapa o fundo, e somar sem ocluir e a diferenca entre nevoa
+         * e mais uma superficie.
+         *
+         * ⚠️ ELA VIVE FORA DA BORDA EXTERNA, e essa restricao e o conserto de uma tentativa que foi
+         * revertida no mesmo dia. Estendida para DENTRO (ate 0,45 da borda interna) ela era somada
+         * tambem pelos raios que ainda seriam CAPTURADOS — eles cruzam o plano antes de cair — e o
+         * resultado era uma faixa cinza chapada por cima da sombra: a corona iluminando por dentro
+         * do buraco. Aqui ela nao alcanca o raio de captura por construcao, e nao ha ordem de
+         * composicao a acertar.
+         */
+        /*
+         * ⚠️ O ALCANCE PARA DENTRO DA ESFERA DE INFLUENCIA (1,25x a borda externa), e nao alem.
+         *
+         * A primeira versao ia a 2,0x e o resultado foi um degrau escalonado atravessando o ceu: a
+         * marcha SO acontece dentro da esfera, entao a nevoa era cortada pela borda dela em vez de
+         * cair sozinha. Efeito que depende da marcha nao pode ter alcance maior que a marcha.
+         */
+        if (rd > uDiskOuter * 0.85 && rd < uDiskOuter * 1.2) {
+          float longe = (rd - uDiskOuter * 0.85) / (uDiskOuter * 0.35);
+          // ⚠️ A queda exponencial sozinha vale 0,04 no limite e isso APARECE: um degrau nitido
+          // atravessando o ceu, que e a mesma borda geometrica que o disco evita com smoothstep nas
+          // duas pontas. A nevoa tem de chegar a zero ONDE ela acaba.
+          float nevoa = exp(-longe * 3.2) * smoothstep(1.0, 0.55, longe) * (1.0 - alfa);
+          // Mais quente que o disco: corona e a componente de raio-X, e na tela isso e o ambar
+          // puxado para o branco-azulado.
+          cor += mix(uHot, vec3(0.86, 0.93, 1.0), 0.45) * (nevoa * 0.14 * caminhoPlano * uDiskIntensity);
+        }
         if (rd > uDiskInner && rd < uDiskOuter) {
           vec4 amostra = emissaoDoDisco(hit, v);
           /*
