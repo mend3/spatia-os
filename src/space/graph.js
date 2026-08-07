@@ -236,8 +236,27 @@ ${ENVELOPE_GLSL}
      * Esvaziado, sobra a coroa, que e o que uma atmosfera iluminada por tras faz de verdade.
      */
     core *= mix(1.0, smoothstep(0.0, 0.62, d), vHalo);
-    // Corona só em nó aceso: dá o "volta a brilhar" sem inflar o céu inteiro.
-    float corona = (1.0 - smoothstep(0.0, 1.3, d)) * vIgnition * 0.55;
+    /*
+     * Corona so em no aceso: da o "volta a brilhar" sem inflar o ceu inteiro.
+     *
+     * ⚠️ ELA ZERA NA BORDA DO SPRITE, e ate 2026-08-06 nao zerava — era o QUADRADO que o usuario
+     * fotografou tres vezes (no ceu, sobre o disco do buraco negro, e por cima de um planeta
+     * anelado).
+     *
+     * O raio d dentro do gl_PointCoord vale 1,0 no meio da ARESTA do quad e 1,414 no CANTO.
+     * A conta era smoothstep(0.0, 1.3, d), que so zera em d = 1,3 — ou seja, a corona ainda
+     * valia 0,0744 exatamente onde o quad acaba, e o quad recortava aquilo num quadrado nitido.
+     * Contra o descarte do fragmento (0,004) sao 19x: nao e sutil, e por isso apareceu de longe.
+     *
+     * O nucleo e o envelope sempre zeraram em d = 1,0 — a corona era a UNICA das tres que passava
+     * da borda, e e por isso que so no aceso o quadrado aparecia.
+     *
+     * O expoente 0,5 nao e escolhido por gosto: entre 0,5 / 0,55 / 0,58 / 0,6 ele e o que menos
+     * afasta do perfil antigo em [0, 0,9] (pior desvio 0,058 contra 0,109 do pior candidato), e
+     * de brinde e sqrt, mais barato que pow. A corona continua mais larga que o nucleo, que e o
+     * trabalho dela; o que ela perde e so a saia que estava sendo cortada em reta.
+     */
+    float corona = sqrt(max(1.0 - smoothstep(0.0, 1.0, d), 0.0)) * vIgnition * 0.55;
     /*
      * A NEBULOSIDADE CEDE junto com o nucleo, pelo mesmo vHalo e pelo mesmo motivo.
      *
