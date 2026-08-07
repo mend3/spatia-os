@@ -758,7 +758,8 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > `#/metrics` (parser em `src/core/promtext.js`, zero backend novo) · **9** diário JSONL
 > encadeado (`server/journal.py`) · **12** fail-safe da config · **13** teto de custo e
 > concorrência (`server/budget.py`) · **14** drenagem no `SIGTERM` com `boot`/`shutdown` na
-> mesma cadeia do diário · **15** `config/units.json` — desejado vs real em `server/units.py`.
+> mesma cadeia do diário · **15** `config/units.json` — desejado vs real em `server/units.py` ·
+> **16** `#/storage` — divergência de nome de vetor detectada em `server/storage.py`.
 >
 > **Parciais:** **10** `#/journal` — `jr.denials` só enxerga ferramenta; 403 cross-site e arquivo
 > fora da raiz acontecem fora de uma execução e ainda não viram registro · **11** `#/activity` —

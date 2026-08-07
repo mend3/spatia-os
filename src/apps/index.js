@@ -24,6 +24,7 @@ import { registerJournal } from './journal.js';
 import { registerMetrics } from './metrics.js';
 import { registerSecurity } from './security.js';
 import { registerActivity } from './activity.js';
+import { registerStorage } from './storage.js';
 import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
@@ -110,6 +111,7 @@ export function registerApps() {
   registerMetrics();
   registerSecurity();
   registerActivity();
+  registerStorage();
 }
 
 /** Widgets da vista de sistema (a rota raiz). */
