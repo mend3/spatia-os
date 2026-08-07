@@ -124,21 +124,61 @@ export const GLSL_GEODESIC = /* glsl */ `
   // Ruido barato, so para o disco ter filamento. Tres oitavas bastam: o alongamento em theta ja
   // faz a leitura de fluxo laminar, e cada oitava aqui e paga por CRUZAMENTO de disco, nao por
   // fragmento — um raio que cruza o plano quatro vezes paga quatro.
+  // Quantas celulas de ruido cabem numa volta do disco. INTEIRO, e e disso que a periodicidade
+  // depende — ver o bloco abaixo. A escala azimutal e derivada dele, nunca escolhida a parte.
+  const float CELULAS_VOLTA = 15.0;
+  const float ESCALA_AZIMUTAL = ${(15 / (2 * Math.PI)).toFixed(6)};
+
   vec2 hash2(vec2 p){
     p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
     return fract(sin(p) * 43758.5453) * 2.0 - 1.0;
   }
-  float ruido(vec2 p){
+  /*
+   * ⚠️ O RUIDO E PERIODICO EM X, e sem isso o disco tem uma CICATRIZ.
+   *
+   * A coordenada X deste campo e o ANGULO, e o angulo vem de atan(), que salta de +pi para -pi
+   * numa linha radial. Uma rede de ruido comum nao sabe que os dois lados dessa linha sao o MESMO
+   * lugar: ela amostra celulas sem relacao nenhuma, e o disco ganha uma emenda PARADA no espaco
+   * enquanto o filamento escoa por cima dela. Foi o que o usuario fotografou, e ele nomeou certo
+   * — a divisao entre o comeco e o fim da textura.
+   *
+   * MEDIDO em .cache/costura-disco.mjs, que transcreve estas funcoes: o salto no corte valia
+   * 0,207 de estria contra 0,010, que e o MAXIMO que o campo anda num pixel de arco em qualquer
+   * outro lugar do disco. Vinte vezes — e por isso o olho le uma linha em vez de ruido.
+   *
+   * O conserto embrulha a REDE em vez de trocar o campo: a celula i e a celula i+P passam a ser a
+   * mesma, e a escala azimutal e escolhida para que uma volta inteira caiba num numero INTEIRO de
+   * celulas. Assim theta = +pi e theta = -pi caem na mesma celula por construcao, e o salto vai a
+   * 2e-15 — o zero do float. A imagem aprovada quase nao se mexe: a escala azimutal muda de 2,4
+   * para 2,387, meio por cento.
+   *
+   * Tres detalhes que a forma barata exige:
+   *
+   * 1. So X embrulha. O raio nao e ciclico e nao tem periodo nenhum a respeitar.
+   * 2. So as DUAS COLUNAS da celula embrulham, nao os quatro cantos — metade das contas.
+   * 3. A LACUNARIDADE VIROU 2,0 (era 2,17), e isso NAO e cosmetico: com lacunaridade fracionaria
+   *    a segunda e a terceira oitava teriam periodo 32,6 e 70,6, que nao sao inteiros, e a costura
+   *    voltaria por elas. E o mesmo argumento que ring-noise.js ja faz para a galaxia. O preco e
+   *    que o campo passa a repetir a cada volta/CELULAS_VOLTA; se isso aparecer, o conserto e
+   *    SUBIR CELULAS_VOLTA, nunca voltar a lacunaridade fracionaria.
+   *
+   * ⚠️ Isto e mudanca de DOMINIO do ruido, nao de fisica. Nao toca o integrador, a cauda, a massa
+   * nem a oclusao: as cinco invariantes seguem intactas e .cache/campo.mjs continua sendo quem
+   * prova isso.
+   */
+  float ruido(vec2 p, float periodo){
     vec2 i = floor(p), f = fract(p);
     vec2 u = f * f * (3.0 - 2.0 * f);
+    float x0 = i.x - periodo * floor(i.x / periodo);
+    float x1 = (i.x + 1.0) - periodo * floor((i.x + 1.0) / periodo);
     return mix(
-      mix(dot(hash2(i + vec2(0,0)), f - vec2(0,0)), dot(hash2(i + vec2(1,0)), f - vec2(1,0)), u.x),
-      mix(dot(hash2(i + vec2(0,1)), f - vec2(0,1)), dot(hash2(i + vec2(1,1)), f - vec2(1,1)), u.x),
+      mix(dot(hash2(vec2(x0, i.y)),       f - vec2(0,0)), dot(hash2(vec2(x1, i.y)),       f - vec2(1,0)), u.x),
+      mix(dot(hash2(vec2(x0, i.y + 1.0)), f - vec2(0,1)), dot(hash2(vec2(x1, i.y + 1.0)), f - vec2(1,1)), u.x),
       u.y);
   }
-  float fbm(vec2 p){
+  float fbm(vec2 p, float periodo){
     float s = 0.0, a = 0.5;
-    for (int i = 0; i < 3; i++) { s += a * ruido(p); p *= 2.17; a *= 0.5; }
+    for (int i = 0; i < 3; i++) { s += a * ruido(p, periodo); p *= 2.0; periodo *= 2.0; a *= 0.5; }
     return s;
   }
 
@@ -185,8 +225,9 @@ export const GLSL_GEODESIC = /* glsl */ `
      */
     float estria = 0.72;
     if (uDiskDetail > 0.01) {
-      float estriaA = fbm(vec2((giro + taxa * localA) * 2.4, radial) * vec2(1.0, 2.6)) * 0.5 + 0.5;
-      float estriaB = fbm(vec2((giro + taxa * localB) * 2.4, radial) * vec2(1.0, 2.6)) * 0.5 + 0.5;
+      // ESCALA_AZIMUTAL no lugar do 2,4: 15 celulas por volta, exatas. Ver o bloco do ruido.
+      float estriaA = fbm(vec2((giro + taxa * localA) * ESCALA_AZIMUTAL, radial * 2.6), CELULAS_VOLTA) * 0.5 + 0.5;
+      float estriaB = fbm(vec2((giro + taxa * localB) * ESCALA_AZIMUTAL, radial * 2.6), CELULAS_VOLTA) * 0.5 + 0.5;
       estria = mix(0.72, mix(estriaA, estriaB, peso), uDiskDetail);
     }
     estria = pow(estria, mix(1.4, 3.2, uDiskTurbulence * 0.35));

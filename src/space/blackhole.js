@@ -83,17 +83,35 @@ const NOISE = /* glsl */ `
     p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
     return fract(sin(p) * 43758.5453) * 2.0 - 1.0;
   }
-  float noise(vec2 p){
+  /*
+   * ⚠️ PERIODICO EM X, e a razao inteira esta em blackhole-geodesic.js, no bloco do ruido.
+   *
+   * Em uma frase: X e o angulo, o angulo vem de atan(), atan salta de +pi para -pi numa linha
+   * radial, e uma rede de ruido comum amostra os dois lados dessa linha como se fossem lugares
+   * diferentes — o disco ganha uma cicatriz parada enquanto o filamento escoa por cima.
+   *
+   * ⚠️ ESTE ARQUIVO E O SEGUNDO DONO DO MESMO DEFEITO, e ele so apareceu porque a busca foi por
+   * COMPORTAMENTO (todo fbm alimentado por angulo) em vez de pelo arquivo onde o problema foi
+   * notado. E a licao que o enrolamento do anel ja tinha deixado: a lista de suspeitos e palpite,
+   * a varredura e que e prova. Os dois discos do buraco negro desenham na mesma tela; consertar
+   * so um deixaria a cicatriz viva na metade das poses.
+   */
+  const float CELULAS_VOLTA = 15.0;
+  const float ESCALA_AZIMUTAL = ${(15 / (2 * Math.PI)).toFixed(6)};
+
+  float noise(vec2 p, float periodo){
     vec2 i = floor(p), f = fract(p);
     vec2 u = f * f * (3.0 - 2.0 * f);
+    float x0 = i.x - periodo * floor(i.x / periodo);
+    float x1 = (i.x + 1.0) - periodo * floor((i.x + 1.0) / periodo);
     return mix(
-      mix(dot(hash2(i + vec2(0,0)), f - vec2(0,0)), dot(hash2(i + vec2(1,0)), f - vec2(1,0)), u.x),
-      mix(dot(hash2(i + vec2(0,1)), f - vec2(0,1)), dot(hash2(i + vec2(1,1)), f - vec2(1,1)), u.x),
+      mix(dot(hash2(vec2(x0, i.y)),       f - vec2(0,0)), dot(hash2(vec2(x1, i.y)),       f - vec2(1,0)), u.x),
+      mix(dot(hash2(vec2(x0, i.y + 1.0)), f - vec2(0,1)), dot(hash2(vec2(x1, i.y + 1.0)), f - vec2(1,1)), u.x),
       u.y);
   }
-  float fbm(vec2 p){
+  float fbm(vec2 p, float periodo){
     float sum = 0.0, amp = 0.5;
-    for (int i = 0; i < 3; i++) { sum += amp * noise(p); p *= 2.17; amp *= 0.5; }
+    for (int i = 0; i < 3; i++) { sum += amp * noise(p, periodo); p *= 2.0; periodo *= 2.0; amp *= 0.5; }
     return sum;
   }
 `;
@@ -133,8 +151,10 @@ const DISK_FRAGMENT = /* glsl */ `
   // Uma amostra do campo de filamentos. Extraida em funcao porque agora ela e chamada DUAS vezes,
   // com fases de cisalhamento diferentes — ver a mistura no corpo principal.
   float striacao(float flow, float radial){
-    vec2 filament = vec2(flow * 2.4, radial);
-    return fbm(filament * vec2(1.0, 2.6)) * 0.5 + 0.5;
+    // ESCALA_AZIMUTAL no lugar do 2,4: uma volta cabe em CELULAS_VOLTA celulas exatas, entao
+    // flow = +pi e flow = -pi caem na MESMA celula e a costura nao existe.
+    vec2 filament = vec2(flow * ESCALA_AZIMUTAL, radial * 2.6);
+    return fbm(filament, CELULAS_VOLTA) * 0.5 + 0.5;
   }
 
   void main(){
