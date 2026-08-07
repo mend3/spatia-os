@@ -165,32 +165,25 @@ async function main() {
   const voice = createVoice(document, { onLevel: (level) => terminal.setLevel(level) });
 
   /*
-   * Os interruptores do sistema também são astros.
+   * ⚠️ OS APPS E OS INTERRUPTORES SAEM DO CÉU — decisão do usuário em 2026-08-07.
    *
-   * Eles existiam só como botões no canto do rodapé — descobríveis por quem já sabia que
-   * estavam lá. Num ambiente onde tudo é corpo em órbita, um interruptor escondido num canto é
-   * a única coisa que não obedece à própria metáfora. Os botões continuam (são o caminho
-   * rápido), mas agora têm corpo.
+   * A cena chamava `scene.installApps([...apps, ...controlBodies])` e o argumento era o da
+   * metáfora: "num ambiente onde tudo é corpo em órbita, um interruptor escondido num canto é a
+   * única coisa que não obedece à própria metáfora". A metáfora custava mais do que rendia — o
+   * menu já existe em botões, e um corpo de UI no meio do céu compete por atenção com os astros
+   * que são o conteúdo.
+   *
+   * `space/bodies.js` e o espécime `CORPOS DE APP` da bancada FICAM. Não é código morto por
+   * esquecimento: é o desenho que sai da cena e continua desenhável, e apagá-lo perderia junto o
+   * único lugar onde o octaedro de controle podia ser inspecionado. Voltar a montar é uma linha.
+   *
+   * Os quatro caminhos continuam abertos, conferidos um a um antes de remover: VOZ pelo botão de
+   * microfone (`hud/voice.js:220`), PERMISSÕES e CONFIG VOZ pelos `bind` dos próprios painéis
+   * (`hud/permissions.js:251`, `hud/speech-panel.js:295`) e AFINAR por `⌘G` (`hud/controls.js:117`).
+   * Os apps continuam na dock. Nenhum deles dependia do corpo.
+   *
+   * Some com isto o `ui.toggle-control`: ele só nascia do clique num corpo de controle.
    */
-  const CONTROLS = [
-    { id: 'ctl-voice', name: 'VOZ', key: 'V', color: 0xc59bff, action: () => voice.setEnabled(!voice.isEnabled()) },
-    { id: 'ctl-speech', name: 'CONFIG VOZ', color: 0x9b7fff, action: () => speechPanel.toggle() },
-    { id: 'ctl-perms', name: 'PERMISSÕES', key: 'P', color: 0xffd257, action: () => perms.toggle() },
-    { id: 'ctl-tune', name: 'AFINAR', key: '`', color: 0xffb35c, action: () => controls.toggle() },
-  ];
-  const controlBodies = CONTROLS.map((control, index) => ({
-    ...control,
-    type: 'control',
-    // Fases distribuídas no anel interno; inclinação alternada para não colidirem na projeção.
-    orbit: { phase: (index / CONTROLS.length) * Math.PI * 2, inclination: index % 2 ? 0.5 : -0.34 },
-  }));
-  scene.installApps([...apps, ...controlBodies]);
-
-  on('ui.toggle-control', ({ id }) => {
-    const control = CONTROLS.find((entry) => entry.id === id);
-    control?.action();
-    audio.click({ frequency: 275, gain: 0.045, decay: 0.4 });
-  });
   terminal.resize();
   window.addEventListener('resize', () => terminal.resize());
 
@@ -295,7 +288,8 @@ async function main() {
     lod: () => scene.lodProbe(),
   });
 
-  // Clicar num corpo no espaço abre o app dele — o mesmo caminho do clique na dock.
+  // A intenção de abrir um app, venha de onde vier, vira navegação num lugar só. Desde
+  // 2026-08-07 quem a emite é a dock e o atalho de SISTEMA — os corpos de app saíram do céu.
   on('ui.open-app', ({ id }) => router.navigate(id));
 
   let health = null;
@@ -740,8 +734,9 @@ function restorePrefs(panels, audio) {
 /**
  * A dock: os apps como destinos, com o atalho numérico visível.
  *
- * É o equivalente da barra de tarefas — e como cada item também É um corpo no espaço, clicar
- * aqui e clicar no corpo levam ao mesmo lugar pelo mesmo caminho (`router.navigate`).
+ * É o equivalente da barra de tarefas, e desde 2026-08-07 é o ÚNICO caminho de ponteiro até um
+ * app: os corpos de app saíram do céu (ver o bloco que removia `installApps`). O destino segue
+ * sendo `router.navigate`.
  */
 function createDock(root, apps) {
   const dock = root.querySelector('[data-dock]');
