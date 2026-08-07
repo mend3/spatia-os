@@ -320,6 +320,8 @@ const QUAT = new THREE.Quaternion();
 const SCALE = Object.freeze({ lobe: 0.42, jet: 1.9, wind: 4.2 });
 
 export function createPulsar() {
+  /** Leitura do último quadro. Ver `beat()`. */
+  const ultimo = { batimento: 0, nivel: 0, alinhamento: 0 };
   const group = new THREE.Group();
   group.visible = false;
 
@@ -471,6 +473,17 @@ export function createPulsar() {
      * @param {THREE.Camera} camera  para o ângulo de visada do núcleo
      * @returns {number} nível de detalhe aplicado, 0…1
      */
+    /**
+     * O último quadro, para a bancada e para a sonda — `galaxy.pose()` com outro nome.
+     *
+     * ⚠️ Existe porque a afirmação central desta arquitetura é INVISÍVEL numa foto: "um batimento
+     * só para tudo, como um coração". Várias animações independentes e uma pulsação única
+     * produzem imagens parecidas em qualquer instante e só divergem ao longo do tempo — que é
+     * exatamente o que screenshot não julga. Com o número na mão, o operador confere que brilho,
+     * calota, halo e vento sobem e descem JUNTOS, em vez de precisar acreditar.
+     */
+    beat: () => ({ ...ultimo }),
+
     update(params, px, elapsed, reduced = false, camera = null) {
       const level = THREE.MathUtils.clamp((px - LOD_FAR_PX) / (LOD_NEAR_PX - LOD_FAR_PX), 0, 1);
       group.visible = level > 0.002;
@@ -487,6 +500,8 @@ export function createPulsar() {
        * de um pulso e não de uma respiração.
        */
       const batimento = reduced ? 0.5 : Math.sin((elapsed / params.period) * Math.PI) ** 4;
+      ultimo.batimento = batimento;
+      ultimo.nivel = level;
 
       core.scale.setScalar(params.core);
       coreMat.uniforms.uColor.value.set(params.color);
@@ -576,6 +591,7 @@ export function createPulsar() {
         EIXO.set(0, 1, 0).applyQuaternion(eixoMagnetico.getWorldQuaternion(QUAT)).normalize();
         VISADA.copy(camera.position).sub(group.position).normalize();
         const alinhamento = Math.abs(EIXO.dot(VISADA));
+        ultimo.alinhamento = alinhamento;
         for (const mat of [jatoMat, loboMat]) mat.uniforms.uAlign.value = alinhamento;
         core.updateWorldMatrix(true, false);
         core.worldToLocal(coreMat.uniforms.uMag.value.copy(group.position).addScaledVector(EIXO, 1));

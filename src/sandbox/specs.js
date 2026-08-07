@@ -29,6 +29,7 @@ import { RING_VARIANTS } from './ring-variants.js';
 import { GALAXY_VARIANTS } from './galaxy-variants.js';
 import { MOON_SPEC } from './moon-rig.js';
 import { QUASAR_SPEC } from './quasar-rig.js';
+import { PULSAR_SPEC } from './pulsar-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -483,6 +484,7 @@ export const SPECS = [
    */
   ...GALAXY_VARIANTS,
   QUASAR_SPEC,
+  PULSAR_SPEC,
   /*
    * O sistema de luas entra como DECISÃO EM ABERTO, e não como candidata.
    *
