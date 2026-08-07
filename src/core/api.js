@@ -41,6 +41,20 @@ export const fileBySource = (source) => json(`/api/file?source=${encodeURICompon
 export const dirty = () => json('/api/dirty');
 export const units = () => json('/api/units');
 export const storage = () => json('/api/storage');
+export const credentials = () => json('/api/credentials');
+/** Devolve só a URL de autorização — o `code_verifier` e o `state` ficam no servidor. */
+export const oauthStart = (provider) =>
+  fetch('/api/oauth/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider }),
+  }).then((r) => r.json());
+export const oauthForget = (provider) =>
+  fetch('/api/oauth/forget', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider }),
+  }).then((r) => r.json());
 // Sem `day` vem só o índice (dias, gasto, estado da cadeia); com `day`, as execuções dele.
 export const journal = (day = '') =>
   json(day ? `/api/journal?day=${encodeURIComponent(day)}` : '/api/journal');

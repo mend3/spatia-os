@@ -760,15 +760,15 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > concorrência (`server/budget.py`) · **14** drenagem no `SIGTERM` com `boot`/`shutdown` na
 > mesma cadeia do diário · **15** `config/units.json` — desejado vs real em `server/units.py` ·
 > **16** `#/storage` — divergência de nome de vetor detectada em `server/storage.py` ·
-> **17** webhooks — HMAC obrigatório, política por endpoint e fila em disco (`server/hookqueue.py`).
+> **17** webhooks — HMAC obrigatório, política por endpoint e fila em disco (`server/hookqueue.py`) ·
+> **18** OAuth PKCE + ponte autenticada (`server/oauth.py`, `server/bridge.py`,
+> `server/credentials.py`) · **19** `#/bridge` com credenciais.
 >
 > **Parciais:** **10** `#/journal` — `jr.denials` já mostra as recusas de webhook; faltam 403
 > cross-site e arquivo fora da raiz, que acontecem fora de uma execução e de um endpoint ·
-> **15** falta o grafo de dependência que desabilita `VOZ` preventivamente · **19**
-> `#/integrations` sem credenciais, que dependem do 18.
+> **15** falta o grafo de dependência que desabilita `VOZ` preventivamente.
 >
-> **Abertos:** **16** `#/storage` · **18** OAuth + `/api/bridge` · **20**
-> capacidades com gate `PreToolUse`. O que está aberto fora daqui está em
+> **Aberto:** **20** capacidades com gate `PreToolUse`. O que está aberto fora daqui está em
 > [`proximos-passos.md`](proximos-passos.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue

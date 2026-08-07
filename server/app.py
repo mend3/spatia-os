@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, qdrant, recorder, running, speech, storage, units, webhooks, websearch
+from . import agent, attach, bridge, brain, budget, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -77,12 +77,12 @@ class Handler(BaseHTTPRequestHandler):
             self._hook(parsed.path[len("/hooks/"):].strip("/"))
             return
 
-        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill"):
+        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
-        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill") and not self._same_site():
+        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget") and not self._same_site():
             metrics.crosssite_refused.inc()
             self._json({"error": "requisição cross-site recusada"}, status=403)
             return
@@ -94,6 +94,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = min(int(self.headers.get("Content-Length") or 0), MAX_BODY_BYTES)
             payload = json.loads(self.rfile.read(length) or b"{}")
+            if parsed.path == "/api/oauth/start":
+                # Devolve SÓ a URL. O `code_verifier` e o `state` ficam no servidor, e a página
+                # não tem como saber nem precisar deles.
+                self._json(oauth.start(str(payload.get("provider") or "")))
+                return
+            if parsed.path == "/api/oauth/forget":
+                self._json({"forgotten": credentials.forget(str(payload.get("provider") or ""))})
+                return
             if parsed.path == "/api/kill":
                 # `False` é "essa execução já acabou", não erro: entre o desenho da tela e o
                 # clique cabe o fim natural dela, e 404 aqui leria como falha do botão.
@@ -263,6 +271,13 @@ class Handler(BaseHTTPRequestHandler):
                     "pending": hookqueue.pending(),
                     "providers": websearch.availability(),
                 })
+            elif route == "/api/oauth/callback":
+                self._oauth_callback(query)
+            elif route == "/api/credentials":
+                self._json({"store": credentials.describe(), "providers": oauth.providers(),
+                            "bridge": bridge.available()})
+            elif route.startswith("/api/bridge/"):
+                self._bridge(route, parsed.query)
             elif route == "/api/storage":
                 self._json(storage.describe())
             elif route == "/api/units":
@@ -421,6 +436,33 @@ class Handler(BaseHTTPRequestHandler):
         if not source:
             return {"error": "parâmetro `source` ausente"}
         return {"source": source, "chunks": qdrant.chunks_of(source)}
+
+    def _oauth_callback(self, query: dict) -> None:
+        """Responde uma página mínima que se fecha. NADA útil volta ao JavaScript: o valor do
+        fluxo já foi consumido no servidor, e devolvê-lo aqui recriaria o caminho que o PKCE
+        existe para eliminar."""
+        try:
+            oauth.callback(_first(query, "code") or "", _first(query, "state") or "")
+            corpo = "<p>autorizado — pode fechar esta aba</p>"
+        except (ValueError, OSError) as error:
+            corpo = f"<p>falhou: {error}</p>"
+        body = f"<!doctype html><meta charset=utf-8><title>SpatIA</title>{corpo}<script>window.close()</script>".encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _bridge(self, route: str, query: str) -> None:
+        """`/api/bridge/<provider>/<caminho>` — o `Authorization` entra do lado do servidor.
+
+        O agente alcança esta URL com `WebFetch` e recebe só o corpo do terceiro. O token não
+        entra no contexto dele em momento nenhum.
+        """
+        resto = route[len("/api/bridge/"):]
+        provider, _, path = resto.partition("/")
+        status, payload = bridge.call(provider, path, query=query)
+        self._json(payload, status=status)
 
     def _tunnel_signs(self) -> dict:
         """Sinais de que a requisição atravessou um proxy/túnel em vez de vir do loopback."""

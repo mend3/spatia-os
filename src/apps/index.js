@@ -97,7 +97,7 @@ export function registerApps() {
     tagline: 'integrações, webhooks, MCP',
     color: COLORS.bridge,
     key: '4',
-    widgets: ['context', 'br-webhooks', 'br-mcp', 'br-deliveries', 'answer', 'sky-time', 'timeline'],
+    widgets: ['context', 'br-credentials', 'br-webhooks', 'br-mcp', 'br-deliveries', 'answer', 'sky-time', 'timeline'],
   });
 
   /*
@@ -1040,6 +1040,92 @@ function registerWebWidgets() {
 // ---------------------------------------------------------------- PONTE
 
 function registerBridgeWidgets() {
+  listWidget({
+    id: 'br-credentials',
+    title: 'CREDENCIAIS',
+    hint: 'IMPRESSÃO, NUNCA O VALOR',
+    slot: 'left',
+    /**
+     * O que existe, onde mora, e a impressão — nunca o segredo.
+     *
+     * Não há caminho de código que devolva o valor, nem mascarado: mascarar seria manter o
+     * caminho e confiar na formatação. A impressão existe para o operador dizer "é a mesma
+     * credencial de ontem" sem que esse caminho precise existir.
+     */
+    render(view, ctx) {
+      async function draw() {
+        let data;
+        try {
+          data = await ctx.api.credentials();
+        } catch (error) {
+          return view.empty(error.message);
+        }
+        const store = data.store;
+        const blocks = [];
+
+        // Onde a credencial mora é pergunta de tela, e a resposta não pode ser "depende".
+        const guarda = el('div', 'kv');
+        guarda.append(el('span', 'kv-label', 'GUARDADAS EM'), el('span', 'kv-value', store.storage));
+        blocks.push(guarda);
+        if (store.mode_ok === false) {
+          // Segredo legível por outros é achado, não detalhe.
+          blocks.push(el('div', 'widget-error', `⚠ permissão do arquivo é ${store.mode}, deveria ser 0o600`));
+        }
+
+        for (const provider of data.providers) {
+          const cred = provider.credential;
+          const ok = cred?.state === 'válida';
+          const row = el('div', `unit ${ok ? '' : 'down'}`);
+          row.append(el('i', 'dot'), el('span', 'unit-name', provider.label));
+          row.append(
+            el('span', 'unit-detail', cred ? `${cred.state} · ${cred.fingerprint}` : provider.configured ? 'sem credencial' : provider.needs)
+          );
+          row.querySelector('.dot').dataset.status = ok ? 'on' : 'off';
+          if (cred?.scopes?.length) row.append(el('div', 'unit-sub', cred.scopes.join(' ')));
+
+          /*
+           * ⚠️ O redirect EFETIVO fica visível antes de autorizar.
+           *
+           * Provedores exigem a porta exata registrada, e alguns exigem `localhost` em vez de
+           * `127.0.0.1`. Descobrir isso no meio do fluxo dá uma mensagem que não diz qual dos
+           * dois lados está errado — `ESPATIAL_PORT` deixa de ser detalhe local aqui.
+           */
+          row.append(el('div', 'unit-sub', `redirect: ${provider.redirect_uri}`));
+
+          const acao = button({ variant: 'select', size: 'sm' });
+          if (cred) {
+            acao.textContent = 'ESQUECER';
+            acao.addEventListener('click', async () => {
+              await ctx.api.oauthForget(provider.id);
+              draw();
+            });
+          } else {
+            acao.textContent = 'AUTORIZAR';
+            acao.disabled = !provider.configured;
+            acao.addEventListener('click', async () => {
+              const { url, error } = await ctx.api.oauthStart(provider.id);
+              // A página abre a URL e não sabe mais nada: o verifier nunca chegou aqui.
+              if (url) window.open(url, '_blank', 'noopener');
+              else view.push(el('div', 'widget-error', error || 'não consegui iniciar'));
+            });
+          }
+          row.append(acao);
+          blocks.push(row);
+        }
+
+        blocks.push(el('div', 'controls-group', 'PONTE AUTENTICADA'));
+        for (const b of data.bridge) {
+          blocks.push(el('div', 'unit-sub', `${b.url} → ${b.base} · ${b.state}`));
+        }
+        // A regra completa, escrita onde ela é executada.
+        blocks.push(el('div', 'widget-hint', 'o agente fala com a ponte, não com o terceiro — o token não entra no contexto dele'));
+        view.set(blocks);
+      }
+      draw();
+      return null;
+    },
+  });
+
   listWidget({
     id: 'br-webhooks',
     title: 'WEBHOOKS DE ENTRADA',
