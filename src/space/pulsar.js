@@ -516,8 +516,12 @@ const NEBULA_FRAGMENT = /* glsl */ `
      * ja matou cinco vezes.
      */
     vec3 q = normalize(vPos) * 1.4 + uSeed;
-    float teia = snoise(q + vec3(0.0, uTime * 0.03, 0.0)) * 0.5 + 0.5;
-    teia += (snoise(q * 2.3 - vec3(0.0, uTime * 0.05, 0.0)) * 0.5 + 0.5) * 0.5;
+    // ⚠️ A funcao e simplex3, o nome que GLSL_SIMPLEX3 exporta. snoise e o nome do original da
+    // Ashima e nao existe aqui: com ele o fragmento nao compila, a casca some inteira e o unico
+    // sinal e uma linha no console. (Sem crase: este comentario mora dentro de um template
+    // literal, e uma crase fecha a string no meio do shader.)
+    float teia = simplex3(q + vec3(0.0, uTime * 0.03, 0.0)) * 0.5 + 0.5;
+    teia += (simplex3(q * 2.3 - vec3(0.0, uTime * 0.05, 0.0)) * 0.5 + 0.5) * 0.5;
     // ⚠️ A ESCALA DO RUIDO E A DIFERENCA ENTRE TEIA E CHUVISCO. Em 2,6 a celula cai perto de um
     // pixel quando a casca cobre a tela, e ruido do tamanho de um pixel nao e estrutura: e grao.
     // 1,4 da filamento com largura visivel. O limiar abre vazio; o expoente abaixo de 2 evita
