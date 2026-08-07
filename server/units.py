@@ -28,6 +28,19 @@ PATH = config.ROOT / "config" / "units.json"
 # tal. O default é `optional`: assumir `required` por omissão transformaria toda instalação
 # enxuta num painel vermelho.
 STATES = ("required", "optional", "disabled")
+
+# Grafo de dependência: capacidade → unidades de que ela depende.
+#
+# Declarado AQUI e não espalhado por quem consome: o botão VOZ perguntando "o tts está no ar?"
+# e a busca perguntando "o qdrant está no ar?" seriam duas cópias da mesma regra, e a terceira
+# capacidade nasceria com a pergunta esquecida. Com o grafo num lugar, `capabilities()` responde
+# por todas — e desabilitar antes de falhar deixa de depender de alguém lembrar.
+DEPENDS = {
+    "ask": ["claude", "embed", "qdrant"],
+    "voice": ["tts"],
+    "web": [],
+    "search": ["embed", "qdrant"],
+}
 DEFAULT = {"state": "optional", "degrades": "", "start_hint": ""}
 
 _cache: Optional[dict] = None
@@ -99,8 +112,24 @@ def describe(health: dict) -> dict:
             }
         )
 
+    # O que cada capacidade perde, calculado do grafo. `disabled` NÃO conta como falta: uma
+    # unidade desligada por decisão degrada a capacidade de propósito, e a tela precisa dizer
+    # "desligado nesta instalação", não "quebrado".
+    estado = {linha["id"]: linha for linha in linhas}
+    caps = {}
+    for nome, requisitos in DEPENDS.items():
+        faltando = [item for item in requisitos if not estado.get(item, {}).get("up")]
+        desligados = [item for item in faltando if units.get(item, DEFAULT)["state"] == "disabled"]
+        caps[nome] = {
+            "ready": not faltando,
+            "missing": [item for item in faltando if item not in desligados],
+            "disabled": desligados,
+            "degrades": [estado[item]["degrades"] for item in faltando if estado.get(item, {}).get("degrades")],
+        }
+
     return {
         "declared": bool(units),
+        "capabilities": caps,
         "path": str(PATH),
         "error": data["error"],
         "units": linhas,

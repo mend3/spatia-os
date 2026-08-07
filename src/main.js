@@ -309,7 +309,9 @@ async function main() {
   try {
     health = await api.health();
     frame.applyHealth(health);
-    voice.applyHealth(health);
+    // O botão de voz precisa do DESEJADO, que o health não carrega: sem ele, TTS desligado por
+    // decisão e TTS caído chegam iguais e a tela promete uma voz que não vem.
+    api.units().then((units) => voice.applyHealth(health, units)).catch(() => voice.applyHealth(health));
     streams.showProviders(health.providers);
     scene.installProviders(health.providers);
   } catch (error) {

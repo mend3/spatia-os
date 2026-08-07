@@ -766,13 +766,11 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 >
 > **10** `#/journal` — `jr.denials` cobre as cinco origens de recusa do sistema.
 >
-> **Parcial:** **15** falta o grafo de dependência que desabilita `VOZ` preventivamente.
->
 > **20** capacidades com portão `PreToolUse` real (`server/capabilities.py`, `/api/gate`,
 > `--settings` efêmera) — inerte por padrão, ativa-se declarando
 > `AGENT_CWD/.claude/spatia/capabilities.json`.
 >
-> **Nada aberto na lista numerada.** O que está aberto fora daqui está em
+> **Os vinte itens estão fechados.** O que está aberto fora daqui está em
 > [`proximos-passos.md`](proximos-passos.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue

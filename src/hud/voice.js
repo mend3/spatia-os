@@ -240,8 +240,32 @@ export function createVoice(root, { onLevel } = {}) {
     isEnabled: () => enabled,
     stop,
     /** O boot informa se o TTS do servidor existe, para o rótulo não mentir. */
-    applyHealth(health) {
+    /**
+     * @param {object} health
+     * @param {object} [units] resposta de `/api/units` — o DESEJADO, que o health não tem
+     */
+    applyHealth(health, units) {
       engine = health?.tts?.online ? 'server' : 'browser';
+
+      /*
+       * DESABILITAR ANTES DE FALHAR, e dizer qual das duas coisas é.
+       *
+       * O health responde só o real: TTS fora do ar e TTS que nunca foi para ser usado nesta
+       * instalação chegavam iguais aqui. Com o grafo do `units`, a capacidade `voice` diz se o
+       * que falta foi DECLARADO desligado — e aí a mensagem é "desligado", não "falhou".
+       *
+       * O motor do browser continua atendendo nos dois casos; o que muda é a expectativa que a
+       * tela cria. Prometer voz de servidor que não vai vir é a promessa que este bloco desfaz.
+       */
+      const voz = units?.capabilities?.voice;
+      if (voz && !voz.ready) {
+        setHint(
+          voz.disabled.length
+            ? `SÍNTESE DESLIGADA NESTA INSTALAÇÃO (${voz.disabled.join(', ')}) — VOZ DO NAVEGADOR`
+            : `SÍNTESE FORA DO AR (${voz.missing.join(', ')}) — VOZ DO NAVEGADOR`
+        );
+        return;
+      }
       /*
        * Cada variável é nomeada pelo seu próprio nome.
        *
