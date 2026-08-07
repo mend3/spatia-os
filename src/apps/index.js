@@ -851,48 +851,70 @@ function registerSystemWidgets() {
   listWidget({
     id: 'sys-services',
     title: 'SERVIÇOS',
-    hint: 'ESTADO REAL',
+    hint: 'DESEJADO vs REAL',
     slot: 'right',
     grow: 1,
-    render(view) {
+    /**
+     * Três colunas: o que esta instalação DECLAROU querer, o que está no ar, e o que se perde.
+     *
+     * Sem o desejado, TTS fora do ar é indistinguível de TTS que nunca foi para ser usado aqui —
+     * e pintar de vermelho uma ausência que é escolha ensina o operador a ignorar vermelho, que
+     * é o começo de toda cegueira operacional.
+     *
+     * ⚠️ `start_hint` é TEXTO copiável, não botão. O SpatIA não sobe Qdrant nem Ollama, e um
+     * painel que finge poder é a mesma classe de erro do interruptor que não controla.
+     */
+    render(view, ctx) {
       async function draw() {
         let data;
         try {
-          data = await api.health();
+          data = await ctx.api.units();
         } catch (error) {
           return view.empty(error.message);
         }
-        const units = [
-          /*
-           * `vectors` e `sparse` chegavam no payload e ninguém os desenhava — e são exatamente
-           * o dado que diagnostica o modo de falha que `server/config.py` descreve: "busca
-           * devolve vazio sem erro", que acontece quando a coleção não tem o vetor que o
-           * cliente pergunta. Com os nomes na tela, esse silêncio vira uma linha legível.
-           */
-          [
-            'qdrant',
-            'MEMÓRIA VETORIAL',
-            data.qdrant?.online,
-            [
-              plural(data.qdrant?.points ?? 0, 'chunk'),
-              (data.qdrant?.vectors || []).length ? (data.qdrant.vectors || []).join('+') : null,
-              (data.qdrant?.sparse || []).length ? (data.qdrant.sparse || []).join('+') : null,
-            ]
-              .filter(Boolean)
-              .join(' · '),
-          ],
-          ['claude', 'AGENTE', data.claude_cli, data.brain],
-          ['ollama', 'MODELO LOCAL', data.ollama?.online, `${data.ollama?.models?.length ?? 0} modelos`],
-          ['tts', 'SÍNTESE DE VOZ', data.tts?.online, data.tts?.voice ?? '—'],
-          ...(data.providers || []).map((p) => [p.id, `BUSCA · ${p.label}`, p.online, p.online ? 'pronto' : p.needs]),
-        ];
-        view.set(units.map(([id, label, up, detail]) => {
-          const row = el('div', `unit ${up ? '' : 'down'}`);
-          row.append(el('i', 'dot'), el('span', 'unit-name', label), el('span', 'unit-detail', detail));
-          row.querySelector('.dot').dataset.status = up ? 'on' : 'off';
-          row.dataset.unit = id;
-          return row;
-        }));
+
+        const blocks = [];
+        if (data.error) blocks.push(el('div', 'widget-error', `⚠ ${data.error}`));
+        if (data.missing.length) {
+          // O que foi declarado NECESSÁRIO e não está lá é a primeira linha, não uma cor no meio
+          // da lista: é o único estado em que a instalação não faz o que prometeu fazer.
+          blocks.push(
+            el('div', 'widget-error', `⚠ falta o que é obrigatório: ${data.missing.join(', ')}`)
+          );
+        }
+
+        for (const unit of data.units) {
+          // `disabled` não é falha: é decisão declarada, e vai para o fim em tom apagado.
+          const desligado = unit.wanted === 'disabled';
+          const ruim = unit.missing;
+          const row = el('div', `unit ${unit.up && !ruim ? '' : ruim ? 'down' : 'warn'}`);
+          row.append(el('i', 'dot'), el('span', 'unit-name', unit.id));
+          row.append(
+            el(
+              'span',
+              'unit-detail',
+              desligado
+                ? 'desligado nesta instalação'
+                : `${unit.wanted} · ${unit.up ? 'no ar' : 'fora'}`
+            )
+          );
+          row.querySelector('.dot').dataset.status = desligado ? 'off' : unit.up ? 'on' : ruim ? 'off' : 'busy';
+          // A degradação só interessa quando ela está ACONTECENDO.
+          if (!unit.up && !desligado && unit.degrades) {
+            row.append(el('div', 'unit-sub', `perde-se: ${unit.degrades}`));
+          }
+          if (!unit.up && !desligado && unit.start_hint) {
+            row.append(el('div', 'unit-sub', unit.start_hint));
+          }
+          blocks.push(row);
+        }
+
+        if (!data.declared) {
+          blocks.push(
+            el('div', 'widget-hint', 'sem config/units.json: tudo é opcional e nada é falha declarada')
+          );
+        }
+        view.set(blocks);
       }
       draw();
       const timer = setInterval(draw, 10000);

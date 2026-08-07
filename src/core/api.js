@@ -39,6 +39,7 @@ export const file = (path) => json(`/api/file?path=${encodeURIComponent(path)}`)
 /** O arquivo NO DISCO, pela mesma chave que o céu usa. A convenção de caminho é do servidor. */
 export const fileBySource = (source) => json(`/api/file?source=${encodeURIComponent(source)}`);
 export const dirty = () => json('/api/dirty');
+export const units = () => json('/api/units');
 // Sem `day` vem só o índice (dias, gasto, estado da cadeia); com `day`, as execuções dele.
 export const journal = (day = '') =>
   json(day ? `/api/journal?day=${encodeURIComponent(day)}` : '/api/journal');

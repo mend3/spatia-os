@@ -1,0 +1,27 @@
+{
+  "qdrant": {
+    "state": "required",
+    "degrades": "sem contexto recuperado; o céu não carrega",
+    "start_hint": "cd core/oracle && make up qdrant"
+  },
+  "embed": {
+    "state": "required",
+    "degrades": "a pergunta não vira vetor; a busca semântica para",
+    "start_hint": "roda no próprio processo — veja o log do boot"
+  },
+  "claude": {
+    "state": "required",
+    "degrades": "sem agente: nenhuma pergunta é respondida",
+    "start_hint": "instale o CLI `claude` e garanta que está no PATH"
+  },
+  "tts": {
+    "state": "optional",
+    "degrades": "a voz cai no speechSynthesis do browser",
+    "start_hint": "cd core/oracle && make up nvidia speech"
+  },
+  "ollama": {
+    "state": "disabled",
+    "degrades": "—",
+    "start_hint": "cd core/oracle && make up ollama"
+  }
+}

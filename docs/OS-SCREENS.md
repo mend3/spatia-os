@@ -758,7 +758,7 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > `#/metrics` (parser em `src/core/promtext.js`, zero backend novo) · **9** diário JSONL
 > encadeado (`server/journal.py`) · **12** fail-safe da config · **13** teto de custo e
 > concorrência (`server/budget.py`) · **14** drenagem no `SIGTERM` com `boot`/`shutdown` na
-> mesma cadeia do diário.
+> mesma cadeia do diário · **15** `config/units.json` — desejado vs real em `server/units.py`.
 >
 > **Parciais:** **10** `#/journal` — `jr.denials` só enxerga ferramenta; 403 cross-site e arquivo
 > fora da raiz acontecem fora de uma execução e ainda não viram registro · **11** `#/activity` —
@@ -766,7 +766,9 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > `server/webhooks.py`; falta a política por endpoint e a fila EM DISCO · **19** `#/integrations`
 > sem credenciais, que dependem do 18.
 >
-> **Abertos:** **15** `units.json` · **16** `#/storage` · **18** OAuth + `/api/bridge` · **20**
+> **Parcial no 15:** falta o grafo de dependência que desabilita `VOZ` preventivamente.
+>
+> **Abertos:** **16** `#/storage` · **18** OAuth + `/api/bridge` · **20**
 > capacidades com gate `PreToolUse`. O que está aberto fora daqui está em
 > [`proximos-passos.md`](proximos-passos.md).
 

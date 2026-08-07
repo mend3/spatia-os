@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, running, speech, webhooks, websearch
+from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, running, speech, units, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -261,6 +261,10 @@ class Handler(BaseHTTPRequestHandler):
                     "history": webhooks.history(),
                     "providers": websearch.availability(),
                 })
+            elif route == "/api/units":
+                # Casa com o MESMO payload de health que a HUD acende; sondar de novo aqui daria
+                # duas leituras do mesmo serviço em instantes diferentes.
+                self._json(units.describe(self._health()))
             elif route == "/api/running":
                 self._json({"running": running.snapshot(), "budget": budget.status()})
             elif route == "/api/journal":
