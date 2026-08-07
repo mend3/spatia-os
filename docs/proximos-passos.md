@@ -55,7 +55,7 @@ O que já foi ligado saiu da lista. Continua vindo no fio e morrendo:
 | `session` | `brain.py:168` | correlacionar uma execução da tela com o log do CLI — hoje impossível |
 | ~~`UpstreamError.status`~~ | `net.py` | **LIGADO em 2026-08-07.** O erro passou a carregar `reason` (decidido onde o fato existe) e os dois chegam ao corpo da resposta, à métrica e à timeline: `FALHA · TTS · CHAVE RECUSADA (401)` contra `FALHA · QDRANT · SERVIÇO FORA (503)`. Junto saíram dois defeitos que só apareceram puxando o fio: `recorder._reason` adivinhava o motivo pela FRASE (e por isso `http_client`/`http_server` eram rótulos sem escritor), e o handler genérico respondia 502 sem contar nada — um qdrant fora deixava `espatial_upstream_errors_total` em zero. Oráculo: `.cache/motivo-upstream.py` |
 | ~~`detail` do `phase:"result"`~~ | `agent.py`, `brain.py` | **LIGADO em 2026-08-07.** O retorno de cada ferramenta aparece na linha dela (`→ 6 chunks`, `→ export const FOCUS_FIT_PX…`), um tom acima da ENTRADA que já era desenhada. Em falha ele é a mensagem do erro — a que mais sumia. |
-| `tokens.in` / `cache_read` | `brain.py:264,266` | `answer.js` mostra só `out` e escreve "N tokens" |
+| ~~`tokens.in` / `cache_read`~~ | `brain.py` | **LIGADO em 2026-08-07.** A linha de metadados passou a ler `9,1k → 450 tokens · 21,4k de cache` em vez de "450 tokens" — o `out` sozinho é o menor dos três numa execução com contexto, e sem entrada e cache o `$` ao lado não se explica. `compact()` em `hud/dom.js` encurta os milhares. |
 | `depth`, `parent` | `graph.py` | o que sobra do payload da topologia sem consumidor — `sections`, `indexed_at` e `changed_at` foram para o painel `context` em 2026-08-05 |
 
 ## 4. i18n

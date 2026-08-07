@@ -57,6 +57,19 @@ export function money(value) {
   return `$${(value || 0).toFixed(4)}`;
 }
 
+/**
+ * Contagem grande em forma curta — `9,1k` em vez de `9.148`.
+ *
+ * A HUD é hairline e monoespaçada: uma linha de metadados com três contagens de milhares vira
+ * uma régua de dígitos que ninguém lê. Abaixo de mil o número sai inteiro, porque aí a precisão
+ * cabe e informa. Vírgula decimal porque o resto da tela já é `pt-BR` (`toLocaleString`).
+ */
+export function compact(value) {
+  const n = value || 0;
+  if (n < 1000) return String(n);
+  return `${(n / 1000).toFixed(1).replace('.', ',')}k`;
+}
+
 
 /**
  * Plural sem `(s)` colado no fim.

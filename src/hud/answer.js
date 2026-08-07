@@ -12,7 +12,7 @@
 import { on } from '../core/bus.js';
 import { snapshot } from '../core/state.js';
 import * as api from '../core/api.js';
-import { el, set, shortPath } from './dom.js';
+import { el, set, shortPath, compact } from './dom.js';
 
 // Um passe só para os três inline que o modelo realmente produz: código, negrito e citação.
 // Ordem no alternador importa — código primeiro, senão um `**` dentro de crase viraria negrito.
@@ -169,7 +169,19 @@ export function createAnswer(root) {
     const parts = [`${((event.ms || 0) / 1000).toFixed(1)}s`];
     if (event.turns) parts.push(`${event.turns} turno(s)`);
     if (event.cost_usd) parts.push(`$${event.cost_usd.toFixed(4)}`);
-    if (event.tokens?.out) parts.push(`${event.tokens.out} tokens`);
+    /*
+     * OS TRÊS NÚMEROS DE TOKEN, e até 2026-08-07 só um deles chegava à tela.
+     *
+     * `brain.py` manda `in`, `out` e `cache_read` desde sempre; aqui saía "450 tokens", que era o
+     * `out` sozinho — e é o menor dos três numa execução com contexto. Sem a ENTRADA não dá para
+     * ler o custo ao lado ($ por token de entrada é outra ordem), e sem o CACHE não dá para
+     * explicar por que uma execução cara e uma barata têm o mesmo tamanho de prompt.
+     */
+    const tokens = event.tokens || {};
+    if (tokens.in || tokens.out) {
+      parts.push(`${compact(tokens.in || 0)} → ${compact(tokens.out || 0)} tokens`);
+    }
+    if (tokens.cache_read) parts.push(`${compact(tokens.cache_read)} de cache`);
     /*
      * `api_ms` viajava e era descartado. Ele e o tempo de PAREDE contam coisas diferentes: a
      * diferença entre os dois é o que o processo local gastou (subir o CLI, ler settings,
