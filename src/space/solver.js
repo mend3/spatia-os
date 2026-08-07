@@ -144,6 +144,25 @@ export function resolveBody(node, facts = {}) {
     return done(SURFACE.GALAXY);
   }
 
+  /*
+   * A CLASSE MANDA QUANDO O ESTADO PRODUZ UM CORPO PRÓPRIO — e até aqui isso era só uma frase.
+   *
+   * `catalog.js` já dizia que "a classe ainda manda quando o estado produz um corpo próprio", mas
+   * não havia caminho: os dois ramos abaixo perguntam à MORFOLOGIA, que sai de `kind`, que é
+   * composição. Serve para os cinco corpos que são composição mesmo (fotosfera, planeta, cometa,
+   * estação, nebulosa) e não serve para o PULSAR, cuja definição é temporal: um scheduler pode
+   * ser `.sh`, `.yaml` ou `.ts`, e o que o torna pulsar é o RITMO, não a extensão.
+   *
+   * Por isso a classe pode declarar `features.body`, e ele vence a morfologia. Genérico de
+   * propósito: a próxima classe definida por COMPORTAMENTO nasce com caminho até o desenho em vez
+   * de precisar de um ramo com o id dela escrito dentro.
+   */
+  const corpoDaClasse = klass.features?.body;
+  if (corpoDaClasse) {
+    const pele = SURFACE_BY_MORPHOLOGY[corpoDaClasse];
+    if (pele) return done(pele);
+  }
+
   if (allows(klass, 'surface')) {
     return done(SURFACE.PLANET);
   }

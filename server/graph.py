@@ -23,7 +23,10 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # 4: `source` chega podado do recipiente (`qdrant.strip_prefix`), então todo id de nó mudou
 #    sem que a contagem de pontos mudasse — o cache em disco continuaria válido servindo ids
 #    velhos, e a cena abriria com o leitor quebrado outra vez.
-SCHEMA_VERSION = 4
+# 5: `regularity` (ritmo de commits) chega em cada nó de arquivo — é o fato de que o PULSAR
+#    passou a depender. Campo novo em nó não muda o fingerprint do corpus, então sem este bump a
+#    feature nasceria morta em qualquer clone que já tivesse `.cache/graph.json`.
+SCHEMA_VERSION = 5
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -190,7 +193,10 @@ def files_root(payload: dict) -> str:
     if override:
         return override
     repos = (payload.get("stats") or {}).get("repos") or {}
-    return max(repos, key=repos.get) if repos else ""
+    # `key=lambda`, e não `key=repos.get`: `dict.get` é sobrecarregado e pode devolver `None`, o
+    # que não satisfaz o `SupportsRichComparison` que o `max` exige — o checador de tipos reclama
+    # com razão. A indexação direta tem o tipo certo e é a mesma conta.
+    return max(repos, key=lambda repo: repos[repo]) if repos else ""
 
 
 def publish_gauges(payload: dict) -> None:

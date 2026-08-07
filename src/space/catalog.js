@@ -60,6 +60,30 @@ export const SUPERNOVA_FLOOR = 0.001;
  */
 const DORMANT_FLOOR = 2;
 
+/**
+ * Regularidade mínima para um arquivo ser PULSAR — `1 - CV` dos intervalos entre commits.
+ *
+ * ⚠️ MEDIDO na distribuição do corpus real, não escolhido: dos ~6.400 caminhos versionados do
+ * workspace, 287 têm regularidade acima de zero, e a massa deles está ABAIXO de 0,5 —
+ *
+ *     >= 0,3 → 110 arquivos     >= 0,5 →  27
+ *     >= 0,4 →  67 arquivos     >= 0,6 →  17     >= 0,7 → 7
+ *
+ * O salto está entre 0,4 (67) e 0,5 (27): abaixo do corte a contagem mais que dobra. O limiar cai
+ * num AFINAMENTO da distribuição, não na parte densa dela — que é exatamente o defeito que o
+ * portão do quasar tinha (bojos `51·51·49·45` em volta do corte de 50, mudando de resposta a cada
+ * commit no corpus).
+ *
+ * E ele tem leitura física: `CV <= 0,5` é **no máximo metade da dispersão relativa de um processo
+ * de Poisson**. Não é "regular o bastante para ficar bonito" — é duas vezes mais regular que o
+ * acaso.
+ *
+ * Conferido no corpus de teste, que traz as três cadências de propósito: metrônomo (intervalos
+ * idênticos) 1,0000 · jitter de ±15% 0,8974 · rajada REJEITADA (CV > 1, ausente da tabela). A
+ * rajada é o controle NEGATIVO, e é o padrão humano típico de commit.
+ */
+export const PULSAR_REGULARITY_FLOOR = 0.5;
+
 export const CELESTIAL = [
   /*
    * SUPERNOVA SAIU DAQUI — virou ESTADO, e a mudança é a correção de uma contradição que a
@@ -188,6 +212,46 @@ export const CELESTIAL = [
       surface: 'a mesma de `planeta-anelado`; massa baixa dá o corpo irregular e sem ar',
     },
     forbids: { ring: 'corpo pequeno pode ter anel, mas cauda e anel juntos não descrevem nada' },
+  },
+
+  {
+    id: 'pulsar',
+    name: 'PULSAR',
+    priority: 20,
+    status: 'rendered',
+    /*
+     * ⚠️ O PULSAR SAIU DE `kind` E VEIO PARA O RITMO — 2026-08-06.
+     *
+     * Ele era `kind === 'infra'`, e a pesquisa do catálogo derruba isso numa frase: *galáxia,
+     * quasar e pulsar se distinguem pelo que FAZEM, não pelo que são feitos*. Um `.tf` não pulsa.
+     * O que faz um pulsar ser reconhecível não é do que ele é feito — é que os pulsos chegam em
+     * INTERVALO REGULAR, e esse é o único corpo deste céu com definição temporal.
+     *
+     * O fato é `node.regularity`, escrito por `server/recency.py`: `1 - CV` dos intervalos entre
+     * commits, onde CV é o coeficiente de variação. A âncora não é escolhida — para um processo
+     * de Poisson (eventos totalmente aleatórios) o CV vale 1, então o número é literalmente
+     * "quanto mais regular que o acaso este arquivo é".
+     */
+    from: 'ritmo REGULAR de commits (`node.regularity`, de `server/recency.py`)',
+    test: (node) =>
+      node?.type === 'file' && (node.regularity || 0) >= PULSAR_REGULARITY_FLOOR,
+    features: {
+      /*
+       * A CLASSE declara o corpo, e é isso que a diferencia das outras: aqui o corpo não vem da
+       * morfologia por `kind`. Um scheduler pode ser `.sh`, `.yaml` ou `.ts` — o que o torna
+       * pulsar é o ritmo, não a extensão.
+       */
+      body: 'pulsar',
+      beam: 'feixe pelos polos magnéticos; o pulso é o feixe cruzando a linha de visada',
+      period: 'o intervalo MÉDIO entre commits — o que o objeto afirma é a regularidade dele',
+    },
+    forbids: {
+      /*
+       * Estrela de nêutrons tem ~20 km. Crosta, costa e atmosfera afirmariam um corpo planetário
+       * onde há matéria degenerada — e é a mesma recusa que a fotosfera já leva.
+       */
+      surface: 'estrela de nêutrons não tem crosta a desenhar: são 20 km de matéria degenerada',
+    },
   },
 
   {
@@ -380,7 +444,20 @@ export const MORPHOLOGY_BY_KIND = Object.freeze({
   memory: Object.freeze({ body: 'planeta', drawn: true }),
   script: Object.freeze({ body: 'cometa', drawn: true }),
   agent: Object.freeze({ body: 'estação', drawn: true }),
-  infra: Object.freeze({ body: 'pulsar', drawn: true }),
+  /*
+   * ⚠️ `infra` ERA PULSAR, e era o erro mais claro do lote: um `.tf` de Terraform não pulsa.
+   *
+   * Ele é infraestrutura, que é o OPOSTO de um evento periódico — é o que fica parado para que
+   * outra coisa aconteça. E o pulsar é o único corpo deste céu cuja definição é temporal, então
+   * derivá-lo de `kind` (que é COMPOSIÇÃO) contradiz a regra que abre o catálogo.
+   *
+   * Estação é o destino certo, e não é consolo: a leitura pré-verbal é a mesma que `agent` já usa
+   * — aresta reta é alguém que construiu aquilo — e é exatamente o que Terraform e k8s são.
+   *
+   * O nome `pulsar` sai desta tabela e vira CLASSE, decidida pelo ritmo de commits. Ver a classe
+   * `pulsar` acima e `docs/catalogo-celeste.md`, "1. O pulsar tem de sair do RITMO".
+   */
+  infra: Object.freeze({ body: 'estação', drawn: true }),
   compose: Object.freeze({ body: 'nebulosa', drawn: true }),
   lock: Object.freeze({ body: 'estrela', drawn: true }),
   other: Object.freeze({ body: 'estrela', drawn: true }),

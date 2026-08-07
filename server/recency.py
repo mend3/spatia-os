@@ -52,7 +52,7 @@ CHURN_WINDOW_DAYS = 30
 DORMANT_WINDOW_DAYS = 180
 
 _lock = threading.Lock()
-_cache: tuple[float, tuple[dict[str, int], dict[str, int]]] = (0.0, ({}, {}))
+_cache: tuple[float, tuple[dict, dict, dict, dict]] = (0.0, ({}, {}, {}, {}))
 
 
 def _workspace_root() -> Optional[Path]:
@@ -82,14 +82,61 @@ def _git_roots(root: Path) -> list[Path]:
     return roots
 
 
+# Quantos INTERVALOS um arquivo precisa ter para que a regularidade dele signifique alguma coisa.
+#
+# 4 intervalos são 5 commits. Abaixo disso o coeficiente de variação é estimado de tão poucas
+# amostras que ele diz mais sobre o acaso do que sobre o arquivo — e um pulsar aceso por ruído é
+# pior que um pulsar a menos, porque a afirmação do objeto é justamente "isto é REGULAR".
+MIN_INTERVALOS = 4
+
+
+def _regularidade(ritmo: dict[str, list[int]]) -> dict[str, float]:
+    """`1 - CV` dos intervalos entre commits, em (0, 1]. Ausente = não há ritmo a afirmar.
+
+    ## Por que o COEFICIENTE DE VARIAÇÃO, e não a variância
+
+    O que define um pulsar não é o período — é a REGULARIDADE dele. Um arquivo tocado a cada hora
+    e outro a cada mês são os dois pulsares se os intervalos forem constantes; a variância crua
+    diria que o segundo é ordens de grandeza mais irregular só por ter intervalos maiores. O
+    coeficiente de variação (`desvio / média`) é adimensional e não depende da escala do período,
+    que é exatamente a propriedade que a comparação entre arquivos precisa.
+
+    E ele tem uma âncora que não é escolhida por gosto: para um processo de Poisson — eventos
+    completamente aleatórios — o CV vale **1**. Então `1 - CV` é literalmente "quanto mais regular
+    que o acaso este arquivo é":
+
+        CV = 0   → perfeitamente periódico   → regularidade 1
+        CV = 1   → aleatório (Poisson)       → regularidade 0
+        CV > 1   → em rajadas (o humano típico) → negativo, e some da tabela
+
+    ⚠️ A ausência é a resposta certa para "não é pulsar", e é por isso que o valor não-positivo
+    não entra no dicionário em vez de entrar como 0: quem consulta pergunta "este arquivo pulsa?",
+    e um 0.0 gravado afirmaria que a pergunta foi respondida com "quase". Ela não foi — commit em
+    rajada não é um pulsar fraco, é outra coisa.
+    """
+    saida: dict[str, float] = {}
+    for key, (n, soma, soma2) in ritmo.items():
+        if n < MIN_INTERVALOS:
+            continue
+        media = soma / n
+        if media <= 0:
+            # Todos os commits no mesmo segundo: é um só evento partido, não um ritmo.
+            continue
+        variancia = max(soma2 / n - media * media, 0.0)
+        valor = 1.0 - (variancia ** 0.5) / media
+        if valor > 0:
+            saida[key] = round(valor, 4)
+    return saida
+
+
 def _last_commits(
     git_root: Path, prefix: str, cutoff: int, dormant_cutoff: int
-) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
-    """Uma passada, TRÊS resultados: última data por caminho, churn na janela, e churn dormente.
+) -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, float]]:
+    """Uma passada, QUATRO resultados: última data, churn na janela, churn dormente e RITMO.
 
-    O churn sai de graça: o `git log --name-only` que data os arquivos já lista TODOS os
-    caminhos de TODOS os commits. Contar os que caem dentro da janela não custa uma segunda
-    consulta ao git — custa um `if` por linha.
+    Os três derivados saem de graça: o `git log --name-only` que data os arquivos já lista TODOS
+    os caminhos de TODOS os commits. Contar os que caem dentro da janela, e acumular o intervalo
+    até a aparição anterior, não custa uma segunda consulta ao git — custa um `if` por linha.
 
     ⚠️ Commit de MERGE não conta, e isso vem de graça: `git log --name-only` não lista arquivos
     de merge (só com `-m`, que não usamos). Um merge que traz 200 arquivos não inflaria 200
@@ -102,11 +149,16 @@ def _last_commits(
         ).stdout
     except (OSError, subprocess.SubprocessError) as e:
         logger.warning(f"git log falhou em {git_root}: {e}")
-        return {}, {}, {}
+        return {}, {}, {}, {}
 
     stamps: dict[str, int] = {}
     churn: dict[str, int] = {}
     dormant: dict[str, int] = {}
+    # Ritmo: por caminho, `[n, soma, soma_dos_quadrados]` dos INTERVALOS entre commits. Três
+    # inteiros por arquivo, atualizados em O(1) — nada de guardar a lista de datas, que num repo
+    # grande seria a mesma ordem de grandeza do log inteiro na memória.
+    ritmo: dict[str, list[int]] = {}
+    anterior: dict[str, int] = {}
     current = None
     for line in out.splitlines():
         if not line.strip():
@@ -118,6 +170,15 @@ def _last_commits(
         elif current is not None:
             key = f"{prefix}{line}" if prefix else line
             stamps.setdefault(key, current)
+            previo = anterior.get(key)
+            if previo is not None:
+                # O log desce no tempo, então o intervalo é `anterior - atual` e é positivo.
+                acc = ritmo.setdefault(key, [0, 0, 0])
+                gap = previo - current
+                acc[0] += 1
+                acc[1] += gap
+                acc[2] += gap * gap
+            anterior[key] = current
             if current >= cutoff:
                 churn[key] = churn.get(key, 0) + 1
             elif current >= dormant_cutoff:
@@ -125,11 +186,11 @@ def _last_commits(
                 # que continua sendo mexido soma no churn recente e não pode somar também no
                 # dormente — senão "trabalhado e abandonado" incluiria "trabalhado ontem".
                 dormant[key] = dormant.get(key, 0) + 1
-    return stamps, churn, dormant
+    return stamps, churn, dormant, _regularidade(ritmo)
 
 
-def _tables() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
-    """`(datas, churn, dormente)`, em cache. As três saem da MESMA passada de `git log`."""
+def _tables() -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str, float]]:
+    """`(datas, churn, dormente, regularidade)`, em cache — as QUATRO saem da MESMA passada."""
     global _cache
     with _lock:
         age, cached = _cache
@@ -138,7 +199,7 @@ def _tables() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
 
         root = _workspace_root()
         if not root or not (root / ".git").exists():
-            _cache = (time.monotonic(), ({}, {}, {}))
+            _cache = (time.monotonic(), ({}, {}, {}, {}))
             return _cache[1]
 
         started = time.monotonic()
@@ -148,10 +209,14 @@ def _tables() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
         stamps: dict[str, int] = {}
         churn: dict[str, int] = {}
         dormant: dict[str, int] = {}
+        # Chaves de raízes diferentes são disjuntas (cada uma leva o prefixo do próprio
+        # submódulo), então `update` é a fusão correta — não há CV a combinar entre raízes.
+        regular: dict[str, float] = {}
         for git_root in _git_roots(root):
             prefix = "" if git_root == root else f"{git_root.relative_to(root)}/"
-            dated, touched, cooled = _last_commits(git_root, prefix, cutoff, dormant_cutoff)
+            dated, touched, cooled, ritmado = _last_commits(git_root, prefix, cutoff, dormant_cutoff)
             stamps.update(dated)
+            regular.update(ritmado)
             for key, count in touched.items():
                 churn[key] = churn.get(key, 0) + count
             for key, count in cooled.items():
@@ -160,9 +225,10 @@ def _tables() -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
         logger.info(
             f"recência: {len(stamps)} caminhos datados, {len(churn)} tocados nos últimos "
             f"{CHURN_WINDOW_DAYS}d e {len(dormant)} só entre {CHURN_WINDOW_DAYS} e "
-            f"{DORMANT_WINDOW_DAYS}d, em {(time.monotonic() - started) * 1000:.0f}ms"
+            f"{DORMANT_WINDOW_DAYS}d, {len(regular)} com ritmo regular, em "
+            f"{(time.monotonic() - started) * 1000:.0f}ms"
         )
-        _cache = (time.monotonic(), (stamps, churn, dormant))
+        _cache = (time.monotonic(), (stamps, churn, dormant, regular))
         return _cache[1]
 
 
@@ -171,9 +237,20 @@ def table() -> dict[str, int]:
     return _tables()[0]
 
 
+def regularity_of(source: str) -> float:
+    """Quanto o ritmo de commits deste arquivo é mais regular que o acaso, em (0, 1]. 0 = não é.
+
+    É o fato que faltava para o PULSAR sair do RITMO em vez de sair de `kind` — ver
+    `docs/catalogo-celeste.md`, "1. O pulsar tem de sair do RITMO".
+    """
+    if source.startswith("/"):
+        return 0.0
+    return _tables()[3].get(_git_key(source), 0.0)
+
+
 def churn_of(source: str) -> int:
     """Quantas vezes este arquivo foi tocado na janela. 0 quando o git não o conhece."""
-    _, churn, _ = _tables()
+    _, churn, _, _ = _tables()
     return churn.get(_git_key(source), 0) if not source.startswith("/") else 0
 
 
@@ -182,7 +259,7 @@ def dormant_churn_of(source: str) -> int:
 
     Alto aqui e baixo em `churn_of` é a assinatura do ponto quente abandonado.
     """
-    _, _, dormant = _tables()
+    _, _, dormant, _ = _tables()
     return dormant.get(_git_key(source), 0) if not source.startswith("/") else 0
 
 
@@ -297,6 +374,9 @@ def _annotate_supernova(nodes: list[dict]) -> None:
             continue
         count = churn_of(node.get("source", ""))
         node["churn"] = count
+        # RITMO — o fato que o pulsar precisava para sair de `kind`. Ele sai da mesma passada de
+        # `git log` que o churn, então escrevê-lo aqui não custa varredura nenhuma. 0 = não pulsa.
+        node["regularity"] = regularity_of(node.get("source", ""))
         if count >= SUPERNOVA_FLOOR:
             counts[node["id"]] = count
 
