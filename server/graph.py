@@ -303,9 +303,16 @@ def load(force: bool = False) -> dict:
     # seria "não aparece nada" sem erro nenhum. Suba a versão ao acrescentar campo em nó.
     # `CORPUS_PREFIX` entra no fingerprint porque mudá-lo reescreve TODO id de nó sem mover o
     # `points_count` — o cache continuaria casando e serviria ids que o leitor não resolve.
+    #
+    # ⚠️ `AGENT_CWD` entra pelo MESMO motivo, e faltava. Ele decide qual repositório git alimenta
+    # `recency`, `churn`, `dormant` e `regularity` — ou seja, o raio orbital, o anel, a supernova e
+    # a classe PULSAR de todo nó. Trocar de árvore mantendo a coleção deixava o cache casando e
+    # servindo esses quatro campos calculados do repo ERRADO, em silêncio. O sintoma observado em
+    # 2026-08-07: os quatro pulsares do corpus de teste sumiram da cena (regularidade ausente)
+    # enquanto `recency._tables()` calculava 1,0 para os mesmos caminhos, no mesmo instante.
     fingerprint = (
         f"{SCHEMA_VERSION}:{config.get('QDRANT_COLLECTION')}:{collection['points']}"
-        f":{config.get('CORPUS_PREFIX')}"
+        f":{config.get('CORPUS_PREFIX')}:{config.get('AGENT_CWD')}"
     )
 
     with _lock:
