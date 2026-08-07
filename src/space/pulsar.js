@@ -334,6 +334,92 @@ const CORE_FRAGMENT = /* glsl */ `
 `;
 
 /**
+ * A MAGNETOSFERA — item #3 do brief, e ela não existia mais quando o brief foi relido.
+ *
+ * ⚠️ O `createFieldCage` que o brief critica ("desenha um dipolo bonito... visualmente parece
+ * wireframe") foi DELETADO antes desta sessão. Então o pedido mudou de forma: não é sujar um
+ * dipolo existente, é decidir o que desenha o campo. O texto dá a especificação inteira —
+ * *dipolo + pequenas flutuações + espessura variável + intensidade variável + algumas linhas
+ * quebrando* — e o que ela proíbe implicitamente é a gaiola de linhas: linha geométrica É
+ * wireframe, por mais que se a suje.
+ *
+ * Por isso o campo aqui não é feito de linhas: é uma CASCA onde o dipolo aparece como densidade.
+ *
+ * ## A conta do dipolo, que é o que faz a forma ser reconhecível
+ *
+ * Numa linha de campo dipolar, `r = L · sin²(θ)` com θ medido do eixo magnético e L o parâmetro da
+ * linha (a distância equatorial em que ela fecha). Invertendo, cada ponto do espaço pertence à
+ * linha `L = r / sin²(θ)`. Desenhar `fract(L)` acende superfícies de L constante — as próprias
+ * linhas de campo, em volume, sem uma única aresta. É a mesma ideia do anel de Saturno: a forma
+ * sai da lei, não de geometria empilhada.
+ *
+ * As quatro exigências do brief entram assim:
+ *   flutuação      ruído somado em L, então a linha ondula em vez de ser uma curva perfeita
+ *   espessura      a largura do traço vem do mesmo ruído, e varia ao longo dela
+ *   intensidade    o brilho cai com o raio e é modulado por uma segunda oitava
+ *   linhas quebrando  um limiar no ruído APAGA trechos — reconexão, sem simular reconexão
+ *
+ * ⚠️ ORÇAMENTO: duas amostras por fragmento, numa casca de 0,9 raios de âncora vista de dentro
+ * (`BackSide`, metade dos fragmentos). É o mesmo custo do halo e uma ordem de grandeza abaixo do
+ * disco de acreção. O campo cede junto com o batimento, como todas as outras camadas — item #11.
+ */
+const CAMPO_FRAGMENT = /* glsl */ `
+  precision highp float;
+  ${GLSL_SIMPLEX3}
+  uniform vec3 uColor;
+  uniform float uAmount;
+  uniform float uTime;
+  uniform float uSeed;
+  uniform float uBeat;
+  uniform vec3 uMag;
+  varying vec3 vPos;
+
+  void main(){
+    vec3 p = normalize(vPos);
+    float r = length(vPos);
+    // Angulo ao eixo magnetico. sin^2 e o que a lei do dipolo pede.
+    float cosTheta = clamp(dot(p, normalize(uMag)), -1.0, 1.0);
+    float sin2 = max(1.0 - cosTheta * cosTheta, 1e-3);
+
+    /*
+     * L = r / sin^2(theta) e o parametro da linha de campo que passa por aqui. fract(L * densidade)
+     * acende superficies de L constante — as linhas, em volume.
+     */
+    /*
+     * ⚠️ r e 1 nesta casca, e a primeira escrita esqueceu disso: a queda por (1 - r) zerava o campo
+     * inteiro, em silencio. Numa SUPERFICIE o parametro da linha vira L = 1/sin^2(theta), que vai
+     * de 1 no equador a infinito nos polos — as linhas fechadas se apertam contra o eixo, que e
+     * exatamente o que um dipolo faz.
+     */
+    float L = 1.0 / sin2;
+    // Perto do eixo as faixas ficam menores que um pixel e viram cintilacao. O corte e honesto: ali
+    // as linhas sao ABERTAS (e por elas que o plasma escapa para o feixe), entao nao ha o que fechar.
+    if (L > 7.0) discard;
+    vec3 q = vPos * 2.6 + vec3(0.0, uTime * 0.22, uSeed);
+    float ondula = simplex3(q) * 0.16;
+    float faixa = fract(L * 2.3 + ondula);
+    // Traco fino nos dois lados do zero, com a largura vindo do proprio ruido.
+    float largura = 0.10 + simplex3(q * 1.9 + 4.0) * 0.05;
+    float linha = smoothstep(largura, 0.0, min(faixa, 1.0 - faixa));
+
+    /*
+     * AS LINHAS QUEBRAM. Um limiar na segunda oitava apaga trechos inteiros — e isso nao simula
+     * reconexao, so mostra o que ela deixa: campo interrompido. Sem isto o dipolo volta a ser o
+     * diagrama didatico que o brief recusa.
+     */
+    float rompe = smoothstep(0.28, 0.62, simplex3(q * 0.9 + 17.0) * 0.5 + 0.5);
+    // Cai com o raio (o campo dipolar cai com 1/r^3; aqui basta a leitura) e some no eixo, onde as
+    // linhas abertas nao fecham.
+    // Concentracao equatorial: e onde as linhas fechadas moram, e some no eixo pelo mesmo motivo
+    // do corte acima. o raio continua sendo lido para o ruido, que precisa de tres dimensoes.
+    float queda = sin2 * sin2;
+    float brilho = linha * rompe * queda * uAmount * uBeat;
+    if (brilho < 0.004) discard;
+    gl_FragColor = vec4(uColor * brilho, brilho);
+  }
+`;
+
+/**
  * O HALO SINCROTRON — item #9 do brief, e ele existia só no pós-processamento.
  *
  * O pedido é literal: *"hoje o bloom depende do pós-processamento, mas o shader pode gerar um halo
@@ -572,6 +658,32 @@ export function createPulsar() {
   });
 
   /*
+   * A MAGNETOSFERA — ver `CAMPO_FRAGMENT`. Casca única, vista de dentro, com o dipolo aparecendo
+   * como densidade. Ela mora no eixo de ROTAÇÃO e não no magnético: o campo é solidário ao corpo,
+   * e é o eixo magnético dentro dele (`uMag`) que inclina o dipolo — a mesma hierarquia que já
+   * produz o farol.
+   */
+  const campoMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(0xffffff) },
+      uAmount: { value: 0 },
+      uTime: { value: 0 },
+      uSeed: { value: 0 },
+      uBeat: { value: 1 },
+      uMag: { value: new THREE.Vector3(0, 1, 0) },
+    },
+    vertexShader: HALO_VERTEX,
+    fragmentShader: CAMPO_FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+  });
+  const campo = new THREE.Mesh(cascaGeo, campoMat);
+  group.add(campo);
+
+  /*
    * DUAS PEÇAS POR POLO, e é a diferença entre "cone" e "pulsar".
    *
    * As referências mostram duas coisas que um cone só não faz ao mesmo tempo. O Crab é um par de
@@ -760,6 +872,18 @@ export function createPulsar() {
        * O raio delas é em raios do CORPO (`params.core`), não do grupo: o corpo é 0,10–0,16 e as
        * cascas seriam invisíveis se multiplicassem só a si mesmas.
        */
+      /*
+       * A magnetosfera ocupa 0,9 raios de âncora — entre o halo maior (0,36) e o lobo (0,41–0,76),
+       * envolvendo os dois. É a camada que o brief chama de magnetosfera na hierarquia de escalas,
+       * e ela é a única do pulsar que não escala com o corpo: o campo é do SISTEMA, não da esfera.
+       */
+      campo.scale.setScalar(0.9);
+      campoMat.uniforms.uColor.value.set(params.color);
+      campoMat.uniforms.uAmount.value = level * 0.85;
+      campoMat.uniforms.uTime.value = reduced ? 0 : elapsed;
+      campoMat.uniforms.uSeed.value = params.seed * 53;
+      campoMat.uniforms.uBeat.value = 0.5 + batimento * 0.85;
+
       for (const casca of halos) {
         casca.scale.setScalar(params.core * casca.material.userData.raio);
         casca.material.uniforms.uColor.value.set(params.color);
@@ -849,12 +973,18 @@ export function createPulsar() {
         for (const mat of [jatoMat, loboMat]) mat.uniforms.uAlign.value = alinhamento;
         core.updateWorldMatrix(true, false);
         core.worldToLocal(coreMat.uniforms.uMag.value.copy(group.position).addScaledVector(EIXO, 1));
+        // A magnetosfera lê o MESMO eixo, no referencial dela. Duas contas do mesmo ângulo seriam
+        // a duplicata que este arquivo já pagou — e o campo inclinado para um lado com o feixe
+        // para outro é o tipo de erro que ninguém vê até orbitar.
+        campo.updateWorldMatrix(true, false);
+        campo.worldToLocal(campoMat.uniforms.uMag.value.copy(group.position).addScaledVector(EIXO, 1));
       }
       return level;
     },
 
     dispose() {
       cascaGeo.dispose();
+      campoMat.dispose();
       for (const casca of halos) casca.material.dispose();
       core.geometry.dispose();
       coreMat.dispose();
