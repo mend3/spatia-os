@@ -108,6 +108,19 @@ export function createStreams(root, { toolColor }) {
     if (!row) return;
     row.classList.add(event.ok === false ? 'bad' : 'done');
     set(row.querySelector('.tool-meta'), event.ms !== undefined ? `${event.ms}ms` : 'ok');
+    /*
+     * O QUE A FERRAMENTA DEVOLVEU, e até 2026-08-07 isto era descartado aqui.
+     *
+     * O servidor já mandava: `agent._tool_result` põe "6 chunks"/"1200 caracteres"/a mensagem do
+     * erro, e `brain._tool_results` corta o conteúdo real do `tool_result` em `RESULT_CHARS`
+     * (220) e manda no mesmo campo. O `phase: 'args'` logo acima desenhava o `detail` de ENTRADA
+     * e o de SAÍDA morria — a tela dizia que a ferramenta rodou e em quantos ms, nunca o que veio.
+     *
+     * `→` distingue os dois na mesma linha de grade, e a saída é um tom mais clara que a entrada
+     * de propósito: o retorno é a metade que informa. Em falha o texto é a mensagem do erro, e aí
+     * ele vale mais ainda — era ela que sumia junto.
+     */
+    if (event.detail) row.append(el('div', 'tool-detail out', `→ ${event.detail}`));
     stamp(`${event.tool} · ${event.ok === false ? 'FALHOU' : 'OK'}`, {
       tone: event.ok === false ? 'bad' : 'dim',
       duration: event.ms ?? null,

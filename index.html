@@ -348,6 +348,10 @@
   .tool-name { color: var(--ink-dim); }
   .tool-meta { color: var(--ink-faint); font-size: 9px; }
   .tool-detail { grid-column: 2 / -1; color: var(--ink-faint); font-size: 8.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* O RETORNO da ferramenta, um tom acima da entrada: é a metade que informa. Em falha ele é a
+     mensagem do erro, e aí acompanha a cor do nome. */
+  .tool-detail.out { color: var(--ink-dim); }
+  .tool.bad .tool-detail.out { color: var(--bad); }
   .tool.done .tool-name { color: var(--ink); }
   .tool.bad .tool-name { color: var(--bad); }
 
