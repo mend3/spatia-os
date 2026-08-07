@@ -249,6 +249,20 @@ export const GLSL_GEODESIC = /* glsl */ `
     estria = mix(estria, estria * vazio * 1.45, uDiskTurbulence * 0.8);
 
     /*
+     * NOS QUENTES — item #8: "o brilho esta muito homogeneo, ha praticamente um unico tom: ambar.
+     * Discos reais apresentam branco, amarelo, dourado, laranja."
+     *
+     * O vazio do item #4 abriu o lado ESCURO da distribuicao; isto abre o CLARO. Onde a estria ja
+     * esta no topo do campo ela vira no, e a potencia 2 faz o no ser raro e concentrado em vez de
+     * uma clareira larga. Zero amostras novas: e o mesmo valor de estria, lido pela outra ponta.
+     *
+     * ⚠️ Ele entra na TEMPERATURA e nao so no brilho, e e isso que traz o BRANCO. So no brilho o
+     * resultado seria um ambar mais claro — que e literalmente a queixa do item. Materia quente
+     * muda de MATIZ, nao de exposicao.
+     */
+    float noQuente = pow(clamp((estria - 0.78) / 0.22, 0.0, 1.0), 2.0);
+
+    /*
      * ASSIMETRIA — item #12: "tudo parece extremamente simetrico. Deveria existir um lado muito
      * mais brilhante, outro muito mais frio, pequenas instabilidades."
      *
@@ -272,6 +286,8 @@ export const GLSL_GEODESIC = /* glsl */ `
     float temperatura = pow(1.0 - span, 3.4) * assimetria;
     vec3 cor = mix(uCool, uMid, smoothstep(0.0, 0.55, temperatura));
     cor = mix(cor, uHot, smoothstep(0.5, 1.0, temperatura));
+    // O no quente sobe a rampa ate o branco. Ver o bloco de noQuente, logo abaixo do fluxo.
+    cor = mix(cor, vec3(1.0), noQuente * 0.75);
     cor = mix(cor, vec3(0.95, 0.28, 0.22), uErrorMix * 0.7);
 
     // Bordas macias nas duas pontas: sem elas o anel tem contorno geometrico visivel.
@@ -284,7 +300,7 @@ export const GLSL_GEODESIC = /* glsl */ `
      * mapeamento de tela, nao constante do modelo.
      */
     float fluxo = pow(max(r / uDiskInner, 1.0), -3.0);
-    float brilho = borda * estria * pow(fluxo, 0.4) * uDiskIntensity * 1.8 * assimetria;
+    float brilho = borda * (estria + noQuente * 1.6) * pow(fluxo, 0.4) * uDiskIntensity * 1.8 * assimetria;
 
     /*
      * BEAMING RELATIVISTICO, e agora ele e de verdade.
