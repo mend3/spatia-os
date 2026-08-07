@@ -31,6 +31,16 @@ function noFalso(values) {
   };
 }
 
+/*
+ * ITENS DO BRIEF AINDA ABERTOS neste objeto. Ficam aqui, e não no `watch`, porque `watch` é o que
+ * se OLHA agora — uma lista de trabalho pendente rolando no painel esconde a que se usa.
+ *
+ * - #3 CAMPO TURBULENTO — o campo magnético é liso demais; o real é sujo.
+ * - #4 FEIXES COMO VOLUME — hoje são geometria. ⚠️ Conte `fatias × amostras` antes de empilhar.
+ * - #5 VENTO DIFUSO NO LUGAR DA AGULHA — o jato está calibrado para QUASAR.
+ * - #9 HALO EM QUATRO CAMADAS no shader.
+ * - #10 LENTE GRAVITACIONAL — `lensing.js` já existe e o buraco negro está travado nele.
+ */
 export const PULSAR_SPEC = {
   id: 'pulsar',
   name: 'PULSAR',
@@ -87,28 +97,14 @@ export const PULSAR_SPEC = {
     { key: 'reduzido', label: 'MOVIMENTO REDUZIDO', type: 'bool', value: false },
   ],
   watch: [
-    '⚠️ UM BATIMENTO SÓ, e este é o espécime que finalmente permite conferir. Rode o tempo e olhe o readout `batimento`: brilho do núcleo, calota polar, halo e vento têm de subir e descer JUNTOS com ele. Se alguma camada tiver ritmo próprio, o objeto tem várias animações em vez de uma pulsação — e essa é a afirmação central da arquitetura em camadas. ⚠️ Screenshot NÃO julga isto: várias animações e uma pulsação única produzem imagens parecidas em qualquer instante e só divergem ao longo do tempo.',
-    'MOVIMENTO REDUZIDO: o batimento tem de CONGELAR em 0,50 e a fervura do núcleo parar. Um campo parado é uma afirmação honesta; um campo animado devagar não é redução de movimento, é movimento mais lento.',
-    'RAIO DA ÂNCORA de 2,0 até 0,05: o corpo tem de DESAPARECER suavemente ao cruzar LOD_FAR_PX (26 px de âncora), não sumir de uma vez. O readout `px` e `nível` dizem onde você está na escada.',
-    '⚠️ NEBULOSA em 0 e depois em 2: ela é a única camada que NÃO respira com o batimento, e é assim que se confere. Se ela pulsar junto com o farol, alguém pendurou o batimento nela — e aí a camada de milhares de anos passou a piscar no relógio de segundos.',
-    '⚠️ FILAMENTO DO PULSO em 0 (o padrão, e o que a cena faz): a casca do pulso tem de continuar existindo, LISA. Se o pulso SUMIR junto, o portão está multiplicando em vez de misturar com 1 — e aí "sem filamento" virou "sem pulso", que são coisas diferentes.',
-    '⚠️ O PAR QUE IMPORTA: com FILAMENTO em 1, leve DECAIMENTO de 1 para 0 e volte. Em 1 as cristas só existem no instante em que a casca nasce e ela chega LISA na borda; em 0 elas são permanentes em todo raio — e aí são ~16 cristas radiais em volta de um ponto brilhante, que leem como ESTRELA DE PONTAS. O defeito nunca foi a crista: era a crista que não envelhece.',
-    '⚠️ Duas tentativas de consertar a FORMA foram REFUTADAS e estão registradas em `pulsar-pulse.js`: as facetas do cone não tinham nada a ver (64 segmentos não mudaram nada), e subir o raio do círculo de amostragem só MULTIPLICA as pontas (2,6 → 6,4 deu ~40 em vez de ~16). O conserto não era da forma, era do tempo.',
-    '⚠️ CABE NO ENQUADRAMENTO, e isto é o item #5 fechado. As três feições medem, em raios de âncora: lobo 0,41–0,76 · jato 0,86–1,61 · vento 1,23–2,28, e `SKIN_EXTENT.pulsar` é 2,6. Antes eram 3,5 / 16,1 / 35,5 — o vento estendia 13,7x ALÉM do que o foco enquadra, e a câmera em foco ficava dentro da nuvem. Se alguma feição voltar a sair do quadro, a calibração de QUASAR voltou.',
-    '⚠️ A ORDEM das três é a afirmação do objeto: VENTO > JATO > LOBO. Num pulsar quem domina é o vento — o Caranguejo é um toro com dois jatos modestos. Se o jato voltar a dominar, o corpo virou um núcleo ativo com nome de pulsar, que era exatamente o defeito.',
-    '⚠️ O VENTO É UM TORO, não um ouriço. Olhe de vários ângulos: tem de haver CINTURA (concentração equatorial) e rarefação nos polos. Se ele for uma bola isotrópica de raias radiais, ou a amostragem por sin²θ voltou a ser uniforme, ou a espiral sumiu — e eram esses dois defeitos juntos que faziam o corpo ler como fogo de artifício.',
-    '⚠️ E as raias radiais não podem voltar. Cada partícula percorria uma RETA a partir do centro, e com 900 direções fixas havia 900 raias simultâneas. Agora a trajetória é uma espiral de Arquimedes cujo ângulo sai do RAIO, nunca do relógio — se ele vier do tempo, o padrão enrola sem fim (Lin-Shu, cinco mortes neste projeto).',
-    '⚠️ E confira que ele DESENHA em algum lugar da escada. `SKIN_EXTENT.pulsar = 4` uma vez travou o chão do zoom em px = 26,4, o valor EXATO de LOD_FAR_PX — o corpo não era desenhável em distância nenhuma, e ninguém percebeu porque não havia bancada. É a regra "enquadra-se a FIGURA, não a extensão".',
-    'MASSA 0 → 1: o período tem de AUMENTAR (o readout diz em segundos) e o corpo crescer pouco. É o inverso do resto do céu, e é a física: o pulsar de milissegundo é o velho reciclado por acreção, não o jovem.',
-    'ORBITE: o `alinhamento` no readout é |eixo magnético · linha de visada|, e é ele que governa o beaming (0,35 + 2,4·cos³). Com o feixe apontando para você o brilho tem de subir MUITO — potência 3 é quase um interruptor, e é o que faz um pulsar ser um farol e não uma lâmpada.',
-    'a OBLIQUIDADE (ângulo entre o eixo magnético e o de rotação) não pode ser 0 nem 90°: alinhado, o feixe aponta sempre para o mesmo lugar e o corpo vira uma lâmpada acesa; a 90° os dois feixes passam juntos e o ritmo dobra sem querer. A faixa é 18°–78° e o readout mostra o valor.',
-    '',
-    '⚠️ ITENS DO BRIEF QUE CONTINUAM ABERTOS — este espécime existe para que eles possam ser julgados:',
-    '#3 CAMPO TURBULENTO: o campo magnético é liso demais. O real é sujo, e a gaiola de alças que foi escrita e DELETADA não é o caminho — ela desenhava o diagrama didático, e referência não é fenômeno.',
-    '#4 FEIXES COMO VOLUME: hoje são geometria. ⚠️ Antes de empilhar fatias, conte `fatias × amostras` por fragmento — foi assim que a espessura do disco do buraco negro matou a aba na primeira tentativa, e a lição é que volume NÃO é mais cópias do mesmo detalhe: o que dá espessura a olho é a LUZ fora do eixo.',
-    '#5 VENTO DIFUSO NO LUGAR DA AGULHA: o jato atual está calibrado para QUASAR, e o usuário apontou. Um pulsar não tem jato colimado de AGN — tem vento relativístico difuso e uma nebulosa de vento (a Nebulosa do Caranguejo é a referência, não Cygnus A). É o único destes cinco que é DEFEITO reportado, não desejo.',
-    '#9 HALO EM QUATRO CAMADAS no shader.',
-    '#10 LENTE GRAVITACIONAL: ⚠️ existe `lensing.js` no repo, e o buraco negro está TRAVADO. Olhe antes de escrever, e não toque no integrador.',
+    '⚠️ UM BATIMENTO SÓ: `batimento` no readout governa halo, núcleo e feixes juntos',
+    'MOVIMENTO REDUZIDO congela o batimento em 0,50 e para a fervura do núcleo',
+    'RAIO DA ÂNCORA até 0,05: o corpo desaparece suavemente ao cruzar LOD_FAR_PX (26 px)',
+    '⚠️ a NEBULOSA é a única camada que NÃO respira com o batimento',
+    '⚠️ FILAMENTO em 1 e DECAIMENTO de 1 a 0: as cristas MIGRAM, não aparecem e somem no lugar',
+    '⚠️ a ordem das três é a afirmação do objeto: VENTO > JATO > LOBO',
+    '⚠️ o vento é um TORO, não um ouriço: orbite e procure a CINTURA equatorial',
+    'OBLIQUIDADE não pode ser 0 nem 90° — nos dois o beaming deixa de existir',
   ],
   build(ctx) {
     const grupo = new THREE.Group();

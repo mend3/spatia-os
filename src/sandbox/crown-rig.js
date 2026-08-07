@@ -84,13 +84,13 @@ export const CROWN_SPEC = {
     { key: 'reduzido', label: 'MOVIMENTO REDUZIDO', type: 'bool', value: false },
   ],
   watch: [
-    '⚠️ O PAR QUE DECIDE: em CIMA de CADA pele, ligue e desligue A COROA CEDE. Com ela desligada o cometa e a nebulosa ganham um DISCO CHAPADO da cor do nó (a coroa) por cima da coma/da nuvem — é o defeito que fechou em 2026-08-07. Na fotosfera e na estação o mesmo botão tira uma atmosfera que estava certa: por isso o portão é por pele, e não global.',
-    'o readout `coroa` diz onde ela caiu em RAIOS DO CORPO e `corpo desenhado` diz até onde a pele vai. Coroa começando ALÉM do corpo desenhado = ela não envolve nada, e é isso que o portão pega.',
-    '⚠️ TETO DO DRIVER: suba RAIO DE REFERÊNCIA (ou aproxime a câmera) e olhe `sprite`. Ele para de crescer em 255,5 px de raio — a partir daí a coroa ENCOLHE em raios do corpo e some para dentro dele. É por isso que "escalar a coroa por SKIN_EXTENT" não funciona: ela pediria 433 px em qualquer pele.',
-    'NÍVEL de 0 a 1 com A COROA CEDE ligada: o sprite tem de sair CONTÍNUO, sem piscar. Se ele sumir de uma vez, o `mix` do fragmento virou um `if`.',
-    'NÍVEL 0 = sprite intacto e pele em `px` alto ao mesmo tempo é uma pose que a CENA NUNCA FAZ (lá o nível é o mesmo número nos dois). Serve para ver quanto brilho o sprite estava somando; não julgue a cena por ela.',
-    '⚠️ A BANCADA SUBESTIMA A COROA, e é de propósito: aqui não há pós-processamento. Na cena o bloom pega justamente o brilho aditivo que sobra e engorda a coroa até o disco chapado que aparece nas fotos de 2026-08-07. Se ela já incomodar aqui, incomoda mais lá — o inverso não vale.',
-    '⚠️ Este espécime NÃO julga oclusão: o sprite é aditivo e não escreve profundidade, então uma pele opaca esconde a parte da coroa que cai sobre ela. A pergunta aqui é onde a coroa CAI, não o quanto dela sobrevive à pele.',
+    '⚠️ ligue e desligue A COROA CEDE em CADA pele: é o A/B que o portão por pele decide',
+    'desligada, cometa e nebulosa ganham um DISCO CHAPADO por cima da coma e da nuvem',
+    'desligada, fotosfera e estação PERDEM uma atmosfera que estava certa — daí o portão ser por pele',
+    '`coroa` começando além de `corpo desenhado` = ela não envolve nada, e é isso que o portão pega',
+    '⚠️ suba RAIO e olhe `sprite`: ele trava em 255,5 px e a coroa encolhe para dentro do corpo',
+    'NÍVEL de 0 a 1 com A COROA CEDE ligada: o sprite sai CONTÍNUO, sem piscar',
+    '⚠️ sem pós-processamento aqui: na cena o bloom engorda a coroa — incomodou aqui, incomoda mais lá',
   ],
   build(ctx) {
     const grupo = new THREE.Group();
