@@ -37,8 +37,10 @@ export const LOD_NEAR_PX = 100;
 /*
  * ⚠️ ERA 6,5 E ISSO ERA CALIBRAÇÃO DE QUASAR — o item #5 do brief, e o usuário apontou.
  *
- * Tudo neste corpo mede em `beam`, e `SKIN_EXTENT.pulsar` é 2,6: o foco da cena enquadra 2,6
- * raios de âncora. Com 6,5 as três feições ficavam assim, em raios de âncora:
+ * Tudo neste corpo mede em `beam`, e o foco da cena enquadra `SKIN_EXTENT.pulsar` raios de âncora
+ * — 2,6 quando este comentário foi escrito, 1,2 desde 2026-08-07 (o porquê está em `lod.js`; aqui
+ * basta saber que o enquadramento ENCOLHEU e o vento passou a sair do círculo de ajuste de
+ * propósito). Com 6,5 as três feições ficavam assim, em raios de âncora, contra os 2,6 de então:
  *
  *     lobo   1,9 a  3,5    1,4x além do enquadramento
  *     jato   8,6 a 16,1    6,2x além
@@ -347,7 +349,11 @@ const QUAT = new THREE.Quaternion();
  * deste corpo, e a diferença entre as duas é exatamente o que o item #5 pedia.
  *
  * Agora, em raios de âncora: lobo 0,41–0,76 · jato 0,86–1,61 · vento 1,23–2,28. Vento > jato >
- * lobo, tudo dentro dos 2,6 do enquadramento.
+ * lobo, e a ORDEM é a afirmação — ela não depende do enquadramento.
+ *
+ * ⚠️ Estes 2,28 do pior caso eram exatamente o que `SKIN_EXTENT.pulsar` = 2,6 continha. Desde
+ * 2026-08-07 o recuo é 1,2 e o vento SAI do círculo de ajuste (sem sair do quadro — ver `lod.js`),
+ * porque conter o vento custava o corpo: a 2,6 ele chegava com 87 px medidos e não se lia.
  */
 const SCALE = Object.freeze({ lobe: 0.45, jet: 0.95, wind: 1.35 });
 

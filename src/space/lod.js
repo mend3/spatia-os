@@ -115,10 +115,28 @@ export const FOCUS_FLOOR_RADII = 3.4;
  * O vento é ambiente e o jato é agulha — os dois podem (e devem) sair do quadro. Quem tem de caber
  * é o corpo com a magnetosfera, que é onde a leitura mora.
  *
- * O teto de cada pele está em `budget()`, e ele é obrigado na carga deste módulo. 2,6 no pulsar não
- * é folclore: é o MAIOR recuo que ainda chega em detalhe pleno (`260/100 = 2,6` exato).
+ * ⚠️ **E o pulsar foi de 2,6 a 1,2 em 2026-08-07, porque 2,6 aplicava a lição pela metade.**
+ *
+ * 2,6 era o pior caso do VENTO com margem (`pulsar.js`: vento 1,23–2,28 raios de âncora) — ou seja,
+ * ainda enquadrava a extensão, não a figura. O preço estava no corpo: `corpo = FOCUS_FIT_PX/extent`
+ * punha o pulsar em 100 px na chegada contra os 260 de uma fotosfera, e a 100 ele não se LÊ.
+ * Medido na bancada em 2026-08-07, descendo o `px` degrau a degrau com `nível 1,000` em todos:
+ * 164 vira um ponto · 181 mostra só o toro · 199 mostra o toro com as pontas difusas · 241 é a
+ * estrela de pontas cheia. A cena entregava 87 (medido) — abaixo do degrau em que há o que ver.
+ *
+ * **O que autoriza descer: o círculo de enquadramento NÃO é a borda do quadro.** `FOCUS_FIT_PX`
+ * mira 260 px, e a meia-altura do framebuffer desta tela é 798 — 3,07× de folga. A 1,2 o vento do
+ * corpo mais pesado cai em 495 px, 62% da meia-altura: fora do círculo de ajuste, dentro do quadro.
+ * O corpo sobe para 217 na chegada (189 medido, com o atraso de âncora de 0,87 desta cena), que é
+ * a faixa em que o toro e as pontas existem.
+ *
+ * O custo, para quem for reverter saber o que se comprou: a folga de zoom cai de 2,80× para 1,29×
+ * (`pxNoChao` 280 ÷ chegada 217), então "chegar mostra, zoom inspeciona" quase encosta neste corpo.
+ *
+ * O teto de cada pele está em `budget()`, e ele é obrigado na carga deste módulo. O teto do pulsar
+ * é 10 (`260/26`) e o de detalhe pleno é 2,6 (`260/100`) — 1,2 passa nos dois com folga.
  */
-export const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 2.6, station: 1.15 });
+export const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 3, pulsar: 1.2, station: 1.15 });
 
 /**
  * O piso e o teto de detalhe de cada pele, ao lado do recuo que a leva até lá.
