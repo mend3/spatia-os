@@ -528,6 +528,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     if (lit.length) focusOn(lit.map((entry) => entry.position));
   });
 
+  /*
+   * A CARGA COGNITIVA CHEGA NA IMAGEM — item #17 do brief: "consumo de contexto: o disco ganha
+   * brilho e engrossa ligeiramente".
+   *
+   * O evento existia inteiro desde `brain.py` e morria no medidor do HUD: o buraco negro
+   * representava o estado do agente sem nunca saber QUANTO ele estava carregando. Uma linha, e o
+   * mesmo número que está escrito em texto passa a estar escrito na forma do disco.
+   */
+  on('cogload', (event) => blackHole.setLoad(event.tokens || 0));
+
   on('token', () => particles.outflow(outflowTarget(), 0xffe6bd, 2));
   on('thought', () => particles.outflow(outflowTarget(0.5, 0.86), 0x6f8bb0, 1));
 
@@ -1908,6 +1918,34 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * do store na próxima — que é exatamente o que se quer de um interruptor de bancada. Sem
      * argumento, só lê.
      */
+    /*
+     * O buraco negro como indicador cognitivo — a bancada da CAMADA 4.
+     *
+     * Sem isto, ver "thinking engrossa o disco" exigia fazer o agente pensar, o que leva segundos
+     * e não se repete igual. É a REGRA DA INSPEÇÃO aplicada ao que a camada 4 acabou de criar:
+     * grandeza nova sem como olhar para ela é grandeza que ninguém confere.
+     *
+     * Com argumento força o regime e/ou a carga; sem argumento, só lê o que o traçado recebe.
+     */
+    blackHoleProbe: ({ regime, tokens } = {}) => {
+      if (regime) blackHole.setRegime(regime);
+      if (tokens !== undefined) blackHole.setLoad(tokens);
+      const g = blackHole.geometry();
+      const alvo = blackHole.regimeTarget();
+      return {
+        // O que o traçado recebe NESTE quadro.
+        agora: {
+          thickness: Number(g.thickness.toFixed(3)),
+          intensity: Number(g.intensity.toFixed(3)),
+          spin: Number(g.spin.toFixed(3)),
+          turbulence: Number(g.turbulence.toFixed(3)),
+        },
+        // Para onde o regime está puxando. Os dois, porque `live` chega no alvo por aproximação
+        // exponencial e sem o alvo "não mudou" e "ainda está a caminho" leem igual.
+        alvo,
+      };
+    },
+
     bloomProbe: (forca) => {
       if (forca !== undefined) bloom.strength = forca;
       return { strength: bloom.strength, threshold: bloom.threshold, doStore: tune?.bloomStrength };

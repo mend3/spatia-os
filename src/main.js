@@ -297,6 +297,8 @@ async function main() {
     moons: () => scene.moonReport?.(),
     /** Lê — e, com argumento, força — a força do bloom. O teste do item #9. Ver `scene.bloomProbe`. */
     bloom: (forca) => scene.bloomProbe(forca),
+    /** Bancada da camada 4: `espatial.core({ regime: 'thinking', tokens: 120000 })`. */
+    core: (opcoes) => scene.blackHoleProbe(opcoes),
   });
 
   // A intenção de abrir um app, venha de onde vier, vira navegação num lugar só. Desde

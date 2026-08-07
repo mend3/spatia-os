@@ -369,6 +369,7 @@ export function createLensingPass() {
       uDiskSpin: { value: 0.18 },
       uDiskIntensity: { value: 0.75 },
       uDiskTurbulence: { value: 0.6 },
+      uDiskThickness: { value: 1 },
       uDiskTime: { value: 0 },
       uErrorMix: { value: 0 },
       uHot: { value: new THREE.Color(0xffdba8) },
@@ -441,6 +442,7 @@ export function createLensingPass() {
       uniforms.uDiskSpin.value = bh.spin;
       uniforms.uDiskIntensity.value = bh.intensity;
       uniforms.uDiskTurbulence.value = bh.turbulence;
+      uniforms.uDiskThickness.value = bh.thickness ?? 1;
       uniforms.uErrorMix.value = bh.error;
       uniforms.uHot.value.copy(bh.hot);
       uniforms.uMid.value.copy(bh.mid);

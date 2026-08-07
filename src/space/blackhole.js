@@ -26,15 +26,39 @@ import * as THREE from 'three';
 
 // Regimes cognitivos → parâmetros físicos. O buraco negro não "fica animado": ele muda de
 // regime, e o regime é o estado real do agente.
+/*
+ * ⚠️ `thickness` É A COLUNA DA CAMADA 4, e ela só existe porque o item #3 deu ao disco uma
+ * espessura de verdade. Antes dela não havia onde pendurar "disco fino" e "disco mais espesso" —
+ * o brief pedia isso desde sempre e o disco não tinha a grandeza.
+ *
+ * Ela multiplica a profundidade óptica `h/cos(i)` no traçado, e a escolha do número por regime não
+ * é estética: em disco de acreção a razão de aspecto h/r CRESCE com a taxa de acreção. Regime que
+ * processa mais matéria infla; regime parado assenta. Então "thinking = disco mais espesso" é a
+ * física concordando com a leitura, que é o que o #17 pede — "mudanças físicas coerentes".
+ */
 export const REGIMES = {
-  boot: { spin: 0.05, intensity: 0.25, turbulence: 0.4, breath: 0.02 },
-  idle: { spin: 0.18, intensity: 0.75, turbulence: 0.6, breath: 0.035 },
-  thinking: { spin: 0.85, intensity: 1.25, turbulence: 1.5, breath: 0.06 },
-  retrieving: { spin: 0.6, intensity: 1.1, turbulence: 1.1, breath: 0.05 },
-  searching: { spin: 0.7, intensity: 1.0, turbulence: 1.3, breath: 0.055 },
-  answering: { spin: 1.15, intensity: 1.6, turbulence: 1.0, breath: 0.045 },
-  error: { spin: 0.12, intensity: 0.5, turbulence: 2.6, breath: 0.1 },
+  boot: { spin: 0.05, intensity: 0.25, turbulence: 0.4, breath: 0.02, thickness: 0.55 },
+  idle: { spin: 0.18, intensity: 0.75, turbulence: 0.6, breath: 0.035, thickness: 0.7 },
+  thinking: { spin: 0.85, intensity: 1.25, turbulence: 1.5, breath: 0.06, thickness: 1.45 },
+  retrieving: { spin: 0.6, intensity: 1.1, turbulence: 1.1, breath: 0.05, thickness: 1.15 },
+  searching: { spin: 0.7, intensity: 1.0, turbulence: 1.3, breath: 0.055, thickness: 1.1 },
+  answering: { spin: 1.15, intensity: 1.6, turbulence: 1.0, breath: 0.045, thickness: 1.3 },
+  error: { spin: 0.12, intensity: 0.5, turbulence: 2.6, breath: 0.1, thickness: 0.85 },
 };
+
+/*
+ * A CARGA COGNITIVA SATURA, e a saturação é o jeito honesto de não saber o teto.
+ *
+ * O #17 pede "consumo de contexto: o disco ganha brilho e engrossa ligeiramente". O dado já
+ * viajava inteiro desde `brain.py` (`cogload` → `store.cogTokens` → o medidor CARGA COGNITIVA do
+ * HUD) e a CENA nunca o consumiu — o buraco negro representava o estado do agente sem saber quanto
+ * ele estava carregando.
+ *
+ * Normalizar por uma janela de contexto exigiria um número que este cliente não tem: o servidor
+ * manda `estimated_tokens`, não o teto do modelo. `1 - exp(-t/T)` não precisa de teto — cresce
+ * rápido no começo, desacelera, e nunca estoura. T = 60 000 põe 63% em 60k e 86% em 120k.
+ */
+const CARGA_ESCALA = 60000;
 
 export const HORIZON_RADIUS = 3.0;
 /*
@@ -482,6 +506,9 @@ export function createBlackHole() {
   // Escalas do painel de afinação. Multiplicam o regime em vez de substituí-lo: o estado
   // cognitivo continua mandando na forma, e o operador só ajusta a amplitude.
   const tune = { spin: 1, intensity: 1, width: 1, breath: 1 };
+  // Carga cognitiva já saturada, 0..1. Fica FORA de `live`/`target` de propósito: ela não é um
+  // regime que converge, é uma leitura que o servidor manda pronta.
+  let carga = 0;
 
   return {
     group,
@@ -532,7 +559,10 @@ export function createBlackHole() {
         inner: DISK_INNER * escala,
         outer: DISK_OUTER * escala,
         spin: live.spin * tune.spin,
-        intensity: live.intensity * tune.intensity,
+        // A carga engrossa "ligeiramente", como o brief escreve: até +45% sobre o regime, não o
+        // dobro. Quem manda na forma continua sendo o regime; a carga é a modulação por cima.
+        thickness: live.thickness * (1 + carga * 0.45),
+        intensity: live.intensity * tune.intensity * (1 + carga * 0.2),
         turbulence: live.turbulence,
         error: uniforms.uErrorMix.value,
         hot: uniforms.uHot.value,
@@ -546,10 +576,29 @@ export function createBlackHole() {
       uniforms.uErrorMix.value = state === 'error' ? 1 : 0;
     },
 
+    /*
+     * Para ONDE o regime está indo, contra onde ele está. Existe por causa da bancada da camada 4:
+     * `setRegime` escreve no ALVO e `live` só chega lá pela aproximação exponencial, então ler a
+     * geometria logo depois de trocar de regime devolve o regime ANTERIOR — foi o que a primeira
+     * medição mostrou, com os seis regimes lendo 0,7 em fila. A sonda precisa dos dois números
+     * para que "não mudou" e "ainda está a caminho" não se pareçam.
+     */
+    regimeTarget: () => ({ ...target }),
+
     /** Empurrão de energia: um evento que chega (memória, ferramenta) alimenta o núcleo. */
     surge(amount = 1) {
       live.intensity += amount * 0.5;
       live.turbulence += amount * 0.3;
+    },
+
+    /**
+     * Quanto contexto o agente está carregando, em tokens estimados. Item #17 do brief.
+     *
+     * Diferente de `surge`, isto NÃO relaxa sozinho: carga é um nível, não um evento. Ela desce
+     * quando o servidor mandar um número menor, e é por isso que ela não entra em `live`.
+     */
+    setLoad(tokens) {
+      carga = 1 - Math.exp(-Math.max(tokens || 0, 0) / CARGA_ESCALA);
     },
 
     update(delta, elapsed) {

@@ -87,6 +87,10 @@ export const GLSL_GEODESIC = /* glsl */ `
   uniform float uDiskSpin;
   uniform float uDiskIntensity;
   uniform float uDiskTurbulence;
+  // A espessura do disco em multiplos do padrao — o regime cognitivo escreve nela. Ver o
+  // comentario de REGIMES em blackhole.js: h/r cresce com a taxa de acrecao, entao regime que
+  // processa mais materia infla o disco de verdade, e nao por licenca artistica.
+  uniform float uDiskThickness;
   uniform float uDiskTime;
   uniform vec3 uHot, uMid, uCool;
   uniform float uErrorMix;
@@ -510,7 +514,17 @@ export const GLSL_GEODESIC = /* glsl */ `
         float t = -anterior.y / (p.y - anterior.y);
         vec3 hit = mix(anterior, p, t);
         float rd = length(hit.xz);
-        float caminhoPlano = min(1.0 / clamp(abs(normalize(v).y), 0.06, 1.0), 4.0);
+        /*
+         * A corona segue a espessura do disco — ela E o gas que sobe do plano, e disco inflado com
+         * corona parada seria a camada 4 contradizendo o item #13 no quadro seguinte.
+         *
+         * ⚠️ MAS PELA RAIZ, e isso e calibracao medida e nao teoria. Seguindo linear, no regime thinking
+         * (espessura 1,45) a corona virava uma fita palida atravessando o ceu inteiro e o disco
+         * deixava de ser o sinal — a fotografia mostrou. O proprio brief pede o contrario no #16:
+         * "sem transformar o objeto em um efeito exagerado". A raiz mantem a direcao (mais acrecao,
+         * mais corona) e devolve o protagonismo ao disco: 1,45 vira 1,20.
+         */
+        float caminhoPlano = min(sqrt(uDiskThickness) / clamp(abs(normalize(v).y), 0.06, 1.0), 4.0 * sqrt(uDiskThickness));
         /*
          * A CORONA — itens #5 e #13, e eles sao a mesma coisa fisica: gas opticamente FINO acima e
          * abaixo do plano, a milhoes de kelvin. "O disco inteiro ilumina o espaco... o correto seria
@@ -567,7 +581,10 @@ export const GLSL_GEODESIC = /* glsl */ `
            * parede opaca no exato instante em que ele deveria ficar mais bonito.
            */
           float cosI = clamp(abs(normalize(v).y), 0.06, 1.0);
-          float caminho = min(1.0 / cosI, 4.0);
+          // A espessura entra AQUI, no numerador da lei, porque e literalmente o h de h/cos(i). O
+          // teto sobe junto: com teto fixo, engrossar o disco nao mudaria nada no caso rasante,
+          // que e exatamente onde a espessura se ve.
+          float caminho = min(uDiskThickness / cosI, 4.0 * uDiskThickness);
           amostra.rgb *= caminho;
           amostra.a = 1.0 - pow(1.0 - clamp(amostra.a, 0.0, 1.0), caminho);
           // Composicao front-to-back: o que ja esta na frente atenua o que vem atras. E o que faz
