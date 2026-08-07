@@ -53,7 +53,7 @@ O que já foi ligado saiu da lista. Continua vindo no fio e morrendo:
 | Campo | Onde nasce | O que responderia |
 |---|---|---|
 | `session` | `brain.py:168` | correlacionar uma execução da tela com o log do CLI — hoje impossível |
-| `UpstreamError.status` | `net.py:22` | 401 de chave inválida e 503 de serviço fora viram o mesmo 502 |
+| ~~`UpstreamError.status`~~ | `net.py` | **LIGADO em 2026-08-07.** O erro passou a carregar `reason` (decidido onde o fato existe) e os dois chegam ao corpo da resposta, à métrica e à timeline: `FALHA · TTS · CHAVE RECUSADA (401)` contra `FALHA · QDRANT · SERVIÇO FORA (503)`. Junto saíram dois defeitos que só apareceram puxando o fio: `recorder._reason` adivinhava o motivo pela FRASE (e por isso `http_client`/`http_server` eram rótulos sem escritor), e o handler genérico respondia 502 sem contar nada — um qdrant fora deixava `espatial_upstream_errors_total` em zero. Oráculo: `.cache/motivo-upstream.py` |
 | `detail` do `phase:"result"` | `agent.py`, `brain.py` | o conteúdo devolvido por cada tool_result, até 220 chars, descartado em `streams.js` |
 | `tokens.in` / `cache_read` | `brain.py:264,266` | `answer.js` mostra só `out` e escreve "N tokens" |
 | `depth`, `parent` | `graph.py` | o que sobra do payload da topologia sem consumidor — `sections`, `indexed_at` e `changed_at` foram para o painel `context` em 2026-08-05 |

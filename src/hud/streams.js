@@ -10,6 +10,7 @@
  */
 import { on } from '../core/bus.js';
 import { el, set, feed, shortPath, clock } from './dom.js';
+import { causaDe } from '../core/upstream.js';
 
 const TIMELINE_LIMIT = 26;
 const MEMORY_LIMIT = 8;
@@ -24,7 +25,9 @@ const TIMELINE_LABELS = {
   memory: (e) => `MEMÓRIA · ${e.hits?.length ?? 0} CHUNKS`,
   brain: (e) => `NÚCLEO ONLINE · ${e.tools ?? 0} FERRAMENTAS`,
   answer: (e) => `RESPOSTA · ${e.turns ?? 1} TURNO(S)`,
-  error: (e) => `FALHA · ${(e.service || '').toUpperCase()}`,
+  // A causa entra aqui porque `FALHA · TTS` sozinho não diz se a chave está errada ou se o
+  // serviço caiu — e o operador trata os dois de formas diferentes. Ver `core/upstream.js`.
+  error: (e) => [`FALHA · ${(e.service || '').toUpperCase()}`, causaDe(e)].filter(Boolean).join(' · '),
   done: () => 'CICLO ENCERRADO',
 };
 

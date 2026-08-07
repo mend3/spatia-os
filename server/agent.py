@@ -110,7 +110,7 @@ def _step_memory(question: str, collected: list[dict]) -> Iterator[dict]:
         hits = qdrant.search(question, limit=MEMORY_LIMIT)
     except Exception as e:  # noqa: BLE001 — degradar, não abortar: o agente ainda responde
         yield _tool_result("qdrant.query", clock, ok=False, detail=str(e))
-        yield {"t": "error", "service": "qdrant", "message": str(e)}
+        yield _error_event("qdrant", e)
         return
 
     collected.extend(hits)
@@ -187,7 +187,7 @@ def _brain_ollama(question: str, memory_hits: list[dict], web_hits: list[dict], 
             yield {"t": "token", "text": chunk}
     except Exception as e:  # noqa: BLE001
         yield _tool_result("ollama.generate", clock, ok=False, detail=str(e))
-        yield {"t": "error", "service": "ollama", "message": str(e)}
+        yield _error_event("ollama", e)
         yield {"t": "state", "state": "error", "label": "FALHA DE SÍNTESE"}
         return
 
@@ -217,6 +217,22 @@ def _event_id(tool: str, clock: float) -> str:
     chamador precise guardar o id numa variável — e o `clock` já existia nos dois lados.
     """
     return f"{tool}:{clock:.6f}"
+
+
+def _error_event(service: str, exc: Exception) -> dict:
+    """Falha de um passo, com o MOTIVO junto quando o erro souber dizê-lo.
+
+    Sem `reason` no evento, quem contabiliza tem de adivinhar pela frase (`recorder._reason`) — e
+    adivinhação por texto nunca acerta `http_client`/`http_server`, que é justamente a diferença
+    entre chave inválida e serviço fora. `UpstreamError` carrega o fato desde 2026-08-07; qualquer
+    outra exceção continua sem motivo declarado, e aí o palpite é a resposta honesta.
+    """
+    # Anotado: sem isto o literal infere `dict[str, str]` e `status` (int) é erro de tipo.
+    event: dict = {"t": "error", "service": service, "message": str(exc)}
+    if isinstance(exc, net.UpstreamError):
+        event["reason"] = exc.reason
+        event["status"] = exc.status
+    return event
 
 
 def _tool_call(tool: str, clock: float, detail: str) -> dict:

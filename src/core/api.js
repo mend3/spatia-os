@@ -6,6 +6,7 @@
  * de um replay depois do fato.
  */
 import { emit } from './bus.js';
+import { causaDe } from './upstream.js';
 
 const TELEMETRY_INTERVAL_MS = 10_000;
 
@@ -14,7 +15,18 @@ let currentStream = null;
 async function json(path) {
   const response = await fetch(path, { headers: { Accept: 'application/json' } });
   const body = await response.json().catch(() => ({ error: `resposta ilegível de ${path}` }));
-  if (!response.ok) throw new Error(body.error || `${response.status} em ${path}`);
+  if (!response.ok) {
+    /*
+     * A CAUSA entra na MENSAGEM, e não num campo novo do erro.
+     *
+     * O servidor manda `service`, `status` e `reason` desde 2026-08-07 (ver `server/net.py`). Um
+     * campo extra no `Error` não seria lido por ninguém — todo consumidor daqui mostra
+     * `error.message` — e campo declarado sem leitor é o defeito que este conserto existe para
+     * apagar, não para repetir. Na mensagem, cada `streams.note` que já existe ganha a causa.
+     */
+    const causa = causaDe(body);
+    throw new Error([body.error || `${response.status} em ${path}`, causa].filter(Boolean).join(' · '));
+  }
   return body;
 }
 

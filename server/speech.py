@@ -220,8 +220,10 @@ def synthesize(text: str, overrides: Optional[dict] = None) -> tuple[bytes, str]
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")[:300]
         raise net.UpstreamError("tts", detail or e.reason, e.code) from e
-    except (urllib.error.URLError, TimeoutError) as e:
-        raise net.UpstreamError("tts", f"inalcançável ({e})") from e
+    except TimeoutError as e:
+        raise net.UpstreamError("tts", f"timeout em {TIMEOUT_SECONDS:.0f}s", reason="timeout") from e
+    except urllib.error.URLError as e:
+        raise net.UpstreamError("tts", f"inalcançável ({e})", reason="unreachable") from e
 
 
 def _mime(fmt: str) -> str:

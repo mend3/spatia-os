@@ -10,16 +10,41 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Iterator, Optional
+from urllib.response import addinfourl
 
 MAX_ERROR_BODY = 400
 
 
 class UpstreamError(RuntimeError):
-    def __init__(self, service: str, detail: str, status: int = 0):
+    """Falha de um serviço externo, com o MOTIVO junto — não só o texto.
+
+    ⚠️ `reason` existe porque ele estava sendo RECONSTRUÍDO a partir da mensagem: `recorder._reason`
+    procurava "timeout"/"inalcanç"/"json" dentro da frase para escolher o rótulo da métrica, e
+    `app.py` respondia `reason="unreachable"` fixo em toda falha de TTS. Duas consequências
+    medidas: chave inválida (401) e serviço fora (503) chegavam ao operador como o mesmo 502
+    anônimo, e dois dos seis rótulos de `UPSTREAM_REASONS` (`http_client`, `http_server`) não
+    tinham NINGUÉM capaz de emiti-los — vocabulário declarado sem escritor, que é a mesma classe
+    de defeito que `forbids`/`features` já pagou do outro lado.
+
+    O motivo é decidido aqui, onde o fato existe: quem levanta sabe se foi timeout, rede ou
+    resposta HTTP, e o status classifica as duas famílias de HTTP.
+    """
+
+    def __init__(self, service: str, detail: str, status: int = 0, reason: str = ""):
         super().__init__(f"{service}: {detail}")
         self.service = service
         self.detail = detail
         self.status = status
+        self.reason = reason or _reason_of(status)
+
+
+def _reason_of(status: int) -> str:
+    """Rótulo de `metrics.UPSTREAM_REASONS` para um status HTTP. 0 = nem chegou a haver resposta."""
+    if status >= 500:
+        return "http_server"
+    if status >= 400:
+        return "http_client"
+    return "unreachable"
 
 
 def _request(
@@ -30,7 +55,7 @@ def _request(
     payload: Optional[dict] = None,
     headers: Optional[dict] = None,
     timeout: float = 30.0,
-) -> urllib.request.addinfourl:
+) -> addinfourl:
     body = None
     all_headers = {"Accept": "application/json", **(headers or {})}
     if payload is not None:
@@ -44,9 +69,11 @@ def _request(
         detail = e.read().decode("utf-8", "replace")[:MAX_ERROR_BODY]
         raise UpstreamError(service, detail or e.reason, e.code) from e
     except urllib.error.URLError as e:
-        raise UpstreamError(service, f"inalcançável ({e.reason})") from e
+        raise UpstreamError(service, f"inalcançável ({e.reason})", reason="unreachable") from e
     except TimeoutError as e:
-        raise UpstreamError(service, f"timeout em {timeout:.0f}s") from e
+        # O único motivo que o status não distingue: sem resposta, mas o serviço EXISTE. Confundir
+        # com "inalcançável" apaga a diferença entre serviço lento e serviço fora.
+        raise UpstreamError(service, f"timeout em {timeout:.0f}s", reason="timeout") from e
 
 
 def get_json(service: str, url: str, *, headers: Optional[dict] = None, timeout: float = 30.0) -> Any:

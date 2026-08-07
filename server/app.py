@@ -174,9 +174,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             audio, mime = speech.synthesize(text, overrides)
         except net.UpstreamError as e:
-            metrics.upstream_errors.inc(service="tts", reason="unreachable")
+            # O motivo vem do ERRO, não de um literal. Antes era "unreachable" fixo: chave inválida
+            # e serviço fora produziam a mesma linha na métrica e a mesma frase na tela.
+            metrics.upstream_errors.inc(service="tts", reason=e.reason)
             metrics.upstream_up.set(0, service="tts")
-            self._json({"error": str(e), "service": "tts"}, status=502)
+            self._json({"error": str(e), "service": "tts", "status": e.status, "reason": e.reason}, status=502)
             return
 
         metrics.upstream_up.set(1, service="tts")
@@ -271,7 +273,19 @@ class Handler(BaseHTTPRequestHandler):
         except FileNotFoundError as e:
             self._json({"error": f"não encontrado: {e}"}, status=404)
         except net.UpstreamError as e:
-            self._json({"error": str(e), "service": e.service}, status=502)
+            # 502 continua sendo a verdade sobre ESTA API (o gateway não conseguiu cumprir), e o
+            # status de quem falhou vai no corpo: sem ele, 401 de chave inválida e 503 de serviço
+            # fora chegam idênticos ao operador. `reason` é o mesmo rótulo da métrica.
+            #
+            # ⚠️ E a falha passa a CONTAR aqui. Até 2026-08-07 só a rota de TTS incrementava, então
+            # um qdrant fora respondia 502 em toda busca e `espatial_upstream_errors_total` ficava
+            # em zero — o painel dizia que estava tudo bem enquanto a tela não achava nada.
+            metrics.upstream_errors.inc(service=e.service, reason=e.reason)
+            metrics.upstream_up.set(0, service=e.service)
+            self._json(
+                {"error": str(e), "service": e.service, "status": e.status, "reason": e.reason},
+                status=502,
+            )
         except BrokenPipeError:
             pass
         except Exception as e:  # noqa: BLE001 — o browser precisa de JSON, não de traceback

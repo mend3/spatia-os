@@ -146,7 +146,11 @@ def _observe(run: Run, event: dict) -> None:
         run.outcome = "error"
         service = event.get("service") or "other"
         metrics.upstream_up.set(0, service=service)
-        metrics.upstream_errors.inc(service=service, reason=_reason(event.get("message", "")))
+        # O motivo DECLARADO ganha do palpite: `agent._error_event` o anexa quando a exceção é
+        # `UpstreamError`, e só aí `http_client`/`http_server` conseguem ser emitidos.
+        metrics.upstream_errors.inc(
+            service=service, reason=event.get("reason") or _reason(event.get("message", ""))
+        )
 
 
 def _observe_web(run: Run, event: dict) -> None:
@@ -190,6 +194,10 @@ def _observe_answer(run: Run, event: dict) -> None:
 
 
 def _reason(message: str) -> str:
+    """Palpite pela FRASE — só para o erro que não declara motivo (`brain`, `webhooks`, `agent`
+    sem `UpstreamError` por trás). ⚠️ Ele nunca devolve `http_client`/`http_server`: adivinhação
+    por texto não distingue chave inválida de serviço fora, que é a razão de `UpstreamError.reason`
+    existir. Quem tiver o fato manda o fato."""
     lowered = message.lower()
     if "timeout" in lowered:
         return "timeout"
