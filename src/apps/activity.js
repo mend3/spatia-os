@@ -69,6 +69,7 @@ const kv = (label, value) => {
 };
 
 export function registerActivity() {
+  registerQueue();
   registerRunning();
   registerThrottle();
   registerProcesses();
@@ -79,7 +80,66 @@ export function registerActivity() {
     tagline: 'o que roda agora, e como parar',
     color: COLOR,
     key: '8',
-    widgets: ['context', 'act-running', 'act-throttle', 'act-processes', 'answer', 'sky-time', 'timeline'],
+    widgets: ['context', 'act-queue', 'act-running', 'act-throttle', 'act-processes', 'answer', 'sky-time', 'timeline'],
+  });
+}
+
+// ---------------------------------------------------------------- FILA
+
+function registerQueue() {
+  listWidget({
+    id: 'act-queue',
+    title: 'FILA DE ENTRADA',
+    hint: 'EM DISCO',
+    slot: 'left',
+    grow: 1,
+    render(view, ctx) {
+      let fila = null;
+      let falha = null;
+
+      async function carregar() {
+        try {
+          fila = await ctx.api.integrations();
+          falha = null;
+        } catch (error) {
+          falha = error.message;
+        }
+        draw();
+      }
+
+      function draw() {
+        if (falha) return view.empty(`indisponível: ${falha}`);
+        if (!fila) return view.empty('lendo…');
+        const status = fila.queue || {};
+        const blocks = [
+          kv('RETIDAS', status.pending ?? 0),
+          kv('JÁ DRENADAS', status.drained ?? 0),
+        ];
+        /*
+         * A fila é o que separa "recebido" de uma promessa vazia.
+         *
+         * Em memória ela evaporava no restart: o remetente lia 202, o servidor reiniciava, e a
+         * entrega deixava de existir sem que nenhum dos dois lados soubesse. Só entra aqui o
+         * que a política do endpoint mandou reter (`enqueue`) — `draw` desenha e não guarda.
+         */
+        for (const item of (fila.pending || []).slice(-12).reverse()) {
+          const linha = el('div', 'delivery');
+          linha.append(el('span', 'row-time', new Date(item.at * 1000).toTimeString().slice(0, 8)));
+          linha.append(el('span', 'delivery-source', item.source));
+          linha.append(el('span', 'delivery-summary', item.summary || '—'));
+          linha.append(el('span', 'delivery-meta', plural((item.events || []).length, 'evento')));
+          blocks.push(linha);
+        }
+        if (!(fila.pending || []).length) {
+          blocks.push(el('div', 'widget-empty', 'nada retido — só a política `enqueue` guarda'));
+        }
+        view.set(blocks);
+      }
+
+      carregar();
+      const timer = setInterval(carregar, 5000);
+      return { destroy: () => clearInterval(timer) };
+    },
   });
 }
 

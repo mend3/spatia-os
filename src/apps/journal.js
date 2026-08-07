@@ -350,8 +350,15 @@ function registerDenials() {
     grow: 1,
     render(view) {
       function draw() {
+        /*
+         * Duas origens de negação, e as duas são o mesmo fato para quem lê: o que o sistema
+         * RECUSOU. As linhas `denial` vêm de fora de uma execução (webhook sem segredo,
+         * assinatura inválida, política desligada); as ferramentas com `ok:false` vêm de dentro.
+         */
         const negados = runs.flatMap((run) =>
-          (run.tools || []).filter((call) => !call.ok).map((call) => ({ run, call }))
+          run.kind === 'denial'
+            ? [{ run, call: { tool: run.origin, detail: run.question } }]
+            : (run.tools || []).filter((call) => !call.ok).map((call) => ({ run, call }))
         );
         const blocks = [];
         if (!negados.length) {
@@ -370,7 +377,9 @@ function registerDenials() {
          * opt-in acontecem fora de uma execução e ainda não viram registro — dizer isso na tela
          * é o que separa "não houve negação" de "não sei".
          */
-        blocks.push(el('div', 'unit-sub', 'só ferramentas: 403 cross-site e arquivo fora da raiz ainda não são registrados'));
+        // O que ainda escapa: 403 cross-site e arquivo fora da raiz acontecem fora de uma
+        // execução E fora de um endpoint, e ainda não passam pelo `journal.denial`.
+        blocks.push(el('div', 'unit-sub', '403 cross-site e arquivo fora da raiz ainda não são registrados'));
         view.set(blocks);
       }
       return follow(draw);

@@ -289,7 +289,30 @@ function registerExposure() {
       function draw() {
         if (!health) return view.empty(erro ? `indisponível: ${erro}` : 'carregando…');
         const e = health.exposure || {};
-        const blocks = [kv('BIND', e.bind || '—'), kv('AUTENTICAÇÃO', e.auth || '—')];
+        const blocks = [];
+
+        /*
+         * EM LETRA GRANDE, e primeiro: é o único momento em que a postura de segurança deste
+         * sistema muda de categoria.
+         *
+         * `127.0.0.1` não recebe webhook da internet — ou o remetente é local, ou existe um
+         * túnel. E havendo túnel, o bind em loopback deixou de ser a proteção que era: o
+         * servidor não tem autenticação nenhuma e passou a ter endereço público. As outras
+         * linhas desta tela continuam verdadeiras e deixam de bastar.
+         */
+        if (e.tunnel?.suspected) {
+          blocks.push(
+            el(
+              'div',
+              'widget-error',
+              `⚠ ESTE PEDIDO ATRAVESSOU UM PROXY OU TÚNEL (Host ${e.tunnel.host}` +
+                `${e.tunnel.forwarded_for ? ` · X-Forwarded-For ${e.tunnel.forwarded_for}` : ''}) — ` +
+                'o bind em loopback não é mais a proteção, e não há autenticação'
+            )
+          );
+        }
+
+        blocks.push(kv('BIND', e.bind || '—'), kv('AUTENTICAÇÃO', e.auth || '—'));
 
         /*
          * A barreira contada, não afirmada.

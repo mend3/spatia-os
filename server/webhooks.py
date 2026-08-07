@@ -9,15 +9,22 @@ Quem desenha `tool` desenha o `tool` de um webhook do mesmo jeito.
 
 Segurança — três camadas, e vale ser explícito sobre o que cada uma cobre:
 
-1. **Segredo por fonte** (`WEBHOOK_SECRET_<FONTE>`): HMAC-SHA256 do corpo cru, comparado em
-   tempo constante. Sem segredo configurado a fonte aceita sem verificar, e isso aparece na UI
-   como *não verificada* — um webhook aberto que se anuncia é melhor que um que finge.
+1. **Segredo por fonte OBRIGATÓRIO** (`WEBHOOK_SECRET_<FONTE>`): HMAC-SHA256 do corpo cru,
+   comparado em tempo constante. Sem segredo, o endpoint **não sobe** — devolve 401 e a recusa
+   vira linha no diário. Esta é a única rota do sistema sem barreira de origem (o remetente é um
+   servidor e não preenche `Sec-Fetch-Site`), então o HMAC não é configurável: é o que existe.
 2. **Corpo limitado.** `Content-Length` acima do teto é recusado antes de ler.
 3. **Sem `Sec-Fetch-Site`.** Ao contrário de `/api/ask`, aqui a chamada VEM de fora por
    definição, então a barreira de mesma origem não se aplica — quem protege é o HMAC.
 
-O que este módulo NÃO faz: fila, retry, entrega garantida. Um webhook perdido é um meteoro que
-não apareceu; inventar durabilidade para efeito visual seria complexidade sem dono.
+**Política por endpoint** (`WEBHOOK_POLICY_<FONTE>`), com `draw` de default:
+
+- `draw`    — publica no barramento; a cena desenha e nada fica retido
+- `enqueue` — publica E grava na fila em disco, para quem chegar depois ver o que passou
+- `off`     — recusa. Endpoint desligado é decisão declarada, e a recusa é registrada
+
+O que este módulo NÃO faz: retry com recuo, ordenação, entrega exatamente-uma-vez. A fila em
+disco (`hookqueue`) dá DURABILIDADE, que é o que o 202 promete — não um broker.
 """
 import hashlib
 import hmac
@@ -29,7 +36,7 @@ import time
 from collections import deque
 from typing import Iterator, Optional
 
-from . import config, metrics
+from . import config, hookqueue, journal, metrics
 
 logger = logging.getLogger("espatial.webhooks")
 
@@ -56,14 +63,47 @@ def secret_for(source: str) -> str:
     return os.environ.get(f"WEBHOOK_SECRET_{source.upper()}", "")
 
 
+POLICIES = ("draw", "enqueue", "off")
+
+
+def policy_for(source: str) -> str:
+    """`draw` de default: o efeito mais barato e o único que não retém nada."""
+    declared = os.environ.get(f"WEBHOOK_POLICY_{source.upper()}", "").strip().lower()
+    return declared if declared in POLICIES else "draw"
+
+
+# Teto de entregas por fonte numa janela. Não é anti-DDoS — é o que impede um remetente em laço
+# de encher o disco da fila e o diário de recusas.
+RATE_WINDOW_SECONDS = 60
+RATE_MAX = 60
+_rate: dict[str, list[float]] = {}
+
+
+def _rate_ok(source: str) -> bool:
+    agora = time.time()
+    with _lock:
+        marcas = [t for t in _rate.get(source, []) if agora - t < RATE_WINDOW_SECONDS]
+        if len(marcas) >= RATE_MAX:
+            _rate[source] = marcas
+            return False
+        marcas.append(agora)
+        _rate[source] = marcas
+        return True
+
+
 def availability() -> list[dict]:
-    """O que a tela de integrações desenha, incluindo quem está sem verificação."""
+    """O que a tela de integrações desenha, incluindo quem está desligado por falta de segredo."""
     return [
         {
             "id": source,
             "label": meta["label"],
             "kind": meta["kind"],
             "verified": bool(secret_for(source)),
+            # `policy` e `live` são o que a tela precisa para distinguir os três estados: no ar,
+            # desligado por decisão, e desligado por falta de segredo. Sem isso um endpoint sem
+            # segredo pareceria "aberto", que é o oposto do que ele agora faz.
+            "policy": policy_for(source),
+            "live": bool(secret_for(source)) and policy_for(source) != "off",
             "url": f"/hooks/{source}",
             "needs": f"WEBHOOK_SECRET_{source.upper()}",
         }
@@ -72,15 +112,22 @@ def availability() -> list[dict]:
 
 
 def verify(source: str, body: bytes, headers) -> tuple[bool, str]:
-    """(aceito, motivo). Sem segredo configurado, aceita e o diz."""
+    """(aceito, motivo).
+
+    ⚠️ Chamada SÓ depois de `deliver` garantir que há segredo. Sem ele o endpoint não sobe, e
+    esta função não tem mais um caminho de "aceita sem verificar" — deixá-lo aqui seria uma
+    segunda porta para a política que a rota acabou de fechar.
+    """
     secret = secret_for(source)
     if not secret:
-        return True, "sem verificação"
+        return False, "sem segredo configurado"
 
     # GitHub manda `sha256=<hex>`; os demais, o hex puro. Aceitar os dois evita um campo de
-    # configuração que só existiria para acomodar um prefixo.
+    # configuração que só existiria para acomodar um prefixo. `X-Espatial-Signature` é o nome
+    # que a documentação publica, então é o primeiro da lista.
     provided = (
-        headers.get("X-Hub-Signature-256")
+        headers.get("X-Espatial-Signature")
+        or headers.get("X-Hub-Signature-256")
         or headers.get("X-Signature-256")
         or headers.get("X-Signature")
         or ""
@@ -100,12 +147,30 @@ def verify(source: str, body: bytes, headers) -> tuple[bool, str]:
 def deliver(source: str, body: bytes, headers) -> dict:
     """Verifica, traduz e publica. Devolve o resumo que a resposta HTTP leva."""
     meta = SOURCES.get(source) or SOURCES["generic"]
-    accepted, reason = verify(source, body, headers)
+    policy = policy_for(source)
 
-    if not accepted:
+    def recusa(reason: str) -> dict:
+        """Toda recusa vira LINHA NO DIÁRIO. Um endpoint que recusa em silêncio é
+        indistinguível de um endpoint que ninguém está usando."""
         metrics.webhook_total.inc(source=_bounded(source), outcome="error")
         logger.warning(f"webhook {source} recusado: {reason}")
+        journal.denial("webhook", source, reason)
         return {"accepted": False, "reason": reason}
+
+    if policy == "off":
+        return recusa("endpoint desligado por política")
+
+    # ⚠️ Sem segredo o endpoint NÃO SOBE. `Sec-Fetch-Site` não protege esta rota — o remetente é
+    # um servidor e não preenche o cabeçalho —, então o HMAC é a única barreira que existe aqui.
+    if not secret_for(source):
+        return recusa("sem segredo configurado — endpoint não sobe")
+
+    if not _rate_ok(source):
+        return recusa(f"limite de {RATE_MAX} entregas por {RATE_WINDOW_SECONDS}s")
+
+    accepted, reason = verify(source, body, headers)
+    if not accepted:
+        return recusa(reason)
 
     try:
         payload = json.loads(body or b"{}")
@@ -121,9 +186,18 @@ def deliver(source: str, body: bytes, headers) -> dict:
         "label": meta["label"],
         "kind": meta["kind"],
         "verified": reason == "verificada",
-        "summary": events[0].get("detail", "") if events else "",
+        # O `detail` mora no evento de RESULTADO, não no de chamada: `events[0]` é sempre a
+        # abertura do wormhole e nunca tem descrição. Toda entrega ficava com resumo vazio, e a
+        # tela de entregas recentes mostrava "—" para tudo desde que existe.
+        "summary": next((event.get("detail") for event in events if event.get("detail")), ""),
         "events": len(events),
     }
+
+    record["policy"] = policy
+    # `enqueue` grava ANTES de publicar: publicar primeiro e cair antes de gravar devolveria um
+    # 202 por uma entrega que só existiu na memória de quem já morreu.
+    if policy == "enqueue":
+        record["queued"] = hookqueue.enqueue(source, events, record["summary"]) is not None
 
     with _lock:
         _history.appendleft(record)

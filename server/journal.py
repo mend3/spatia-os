@@ -156,6 +156,32 @@ def lifecycle(kind: str, detail: str = "") -> Optional[str]:
     )
 
 
+def denial(what: str, source: str, reason: str) -> Optional[str]:
+    """Registra uma RECUSA na mesma cadeia.
+
+    Um endpoint que recusa em silêncio é indistinguível de um endpoint que ninguém está usando —
+    e um toggle desligado que nunca aparece sendo respeitado é um toggle em que se acredita, não
+    um que se verifica. É o mesmo argumento nos dois casos.
+    """
+    return append(
+        {
+            "id": None,
+            "kind": "denial",
+            "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "origin": source,
+            "question": f"{what}: {reason}",
+            "flags": [],
+            "tools": [],
+            "sources": [],
+            "answer": "",
+            "cost_usd": 0.0,
+            "tokens": {},
+            "turns": 0,
+            "outcome": "denied",
+        }
+    )
+
+
 def append(record: dict) -> Optional[str]:
     """Fecha o registro em disco e devolve o id.
 

@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, qdrant, recorder, running, speech, storage, units, webhooks, websearch
+from . import agent, attach, brain, budget, config, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, qdrant, recorder, running, speech, storage, units, webhooks, websearch
 
 logger = logging.getLogger("espatial.app")
 
@@ -259,6 +259,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({
                     "webhooks": webhooks.availability(),
                     "history": webhooks.history(),
+                    "queue": hookqueue.status(),
+                    "pending": hookqueue.pending(),
                     "providers": websearch.availability(),
                 })
             elif route == "/api/storage":
@@ -357,6 +359,11 @@ class Handler(BaseHTTPRequestHandler):
                 "bind": f"{config.get('ESPATIAL_HOST')}:{config.get_int('ESPATIAL_PORT')}",
                 "auth": "nenhuma",
                 "same_site_guard": True,
+                # ⚠️ O ÚNICO MOMENTO EM QUE A POSTURA DESTE SISTEMA MUDA DE CATEGORIA.
+                # `127.0.0.1` não recebe webhook da internet: ou o remetente é local, ou existe
+                # um túnel. E se existe túnel, o bind em loopback deixou de ser a proteção que
+                # era — o servidor não tem autenticação e agora tem endereço público.
+                "tunnel": self._tunnel_signs(),
                 # A CONTAGEM de recusas não vem aqui: ela já é a métrica
                 # `espatial_crosssite_refused_total`, e a tela lê o `/metrics` com o mesmo parser
                 # do `#/metrics`. Publicar o número nos dois lugares criaria duas verdades sobre
@@ -414,6 +421,19 @@ class Handler(BaseHTTPRequestHandler):
         if not source:
             return {"error": "parâmetro `source` ausente"}
         return {"source": source, "chunks": qdrant.chunks_of(source)}
+
+    def _tunnel_signs(self) -> dict:
+        """Sinais de que a requisição atravessou um proxy/túnel em vez de vir do loopback."""
+        host = (self.headers.get("Host") or "").split(":")[0].lower()
+        forwarded = self.headers.get("X-Forwarded-For") or self.headers.get("Forwarded") or ""
+        local = host in ("localhost", "127.0.0.1", "::1", "")
+        return {
+            "host": host,
+            "forwarded_for": forwarded,
+            # Qualquer um dos dois basta: um proxy reverso pode preservar o Host e um túnel pode
+            # não escrever `X-Forwarded-For`. Exigir os dois deixaria metade dos casos invisível.
+            "suspected": bool(forwarded) or not local,
+        }
 
     def _same_site(self) -> bool:
         """Rejeita requisição vinda de outro site.
