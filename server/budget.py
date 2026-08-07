@@ -21,6 +21,19 @@ logger = logging.getLogger("espatial.budget")
 
 _lock = threading.Lock()
 _running = 0
+# Encerrando: recusa execução NOVA e deixa a em curso terminar. Um servidor que morre no meio de
+# uma resposta paga o custo e não entrega nada — e o diário registra `aborted` sem que ninguém
+# tenha abortado.
+_draining = False
+
+
+def drain() -> None:
+    global _draining
+    _draining = True
+
+
+def running() -> int:
+    return _running
 
 
 def max_daily_usd() -> float:
@@ -59,6 +72,9 @@ def refusal() -> Optional[str]:
     Devolve a frase pronta porque quem recusa tem de dizer O QUÊ e QUANTO — "limite atingido"
     manda o operador adivinhar qual dos dois limites e a que distância ele estava.
     """
+    if _draining:
+        return "o servidor está encerrando — a execução não começou"
+
     daily = max_daily_usd()
     if daily:
         spent = spent_today()

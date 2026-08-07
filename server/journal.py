@@ -127,6 +127,35 @@ def begin(question: str, origin: str) -> dict:
     }
 
 
+def lifecycle(kind: str, detail: str = "") -> Optional[str]:
+    """Registra um evento de VIDA do servidor na mesma cadeia das execuções.
+
+    É o que responde "caiu ou eu fechei?". A resposta não está no que a linha diz, está na
+    existência dela: um encerramento limpo deixa `shutdown`, uma queda não deixa nada, e o `boot`
+    seguinte fica órfão. Em arquivo separado a comparação exigiria cruzar dois relógios.
+
+    Carrega os mesmos campos de uma execução para que quem lê o dia não precise de dois formatos
+    — o que a distingue é `kind`, e quem só quer execuções filtra por ele.
+    """
+    return append(
+        {
+            "id": None,
+            "kind": kind,
+            "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "origin": "server",
+            "question": detail,
+            "flags": [],
+            "tools": [],
+            "sources": [],
+            "answer": "",
+            "cost_usd": 0.0,
+            "tokens": {},
+            "turns": 0,
+            "outcome": kind,
+        }
+    )
+
+
 def append(record: dict) -> Optional[str]:
     """Fecha o registro em disco e devolve o id.
 

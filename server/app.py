@@ -10,6 +10,7 @@ Ollama, provedores de busca) é acessado por aqui. O browser fala com uma origem
 import json
 import logging
 import mimetypes
+import signal
 import socket
 import threading
 import time
@@ -24,6 +25,9 @@ VERSION = "0.1.0"
 STATIC_ROOT = config.ROOT
 ALLOWED_STATIC_DIRS = ("src", "vendor", "assets")
 MAX_BODY_BYTES = 8192
+# Quanto o encerramento espera pelas execuções em curso antes de desistir e registrar quantas
+# ficaram. Teto e não espera infinita: um cliente pendurado não pode impedir o servidor de morrer.
+DRAIN_SECONDS = 20
 
 # Rota → label de métrica. O mapa existe para o label ser um enum fechado: usar o path
 # cru como dimensão é o jeito clássico de explodir a cardinalidade de um /metrics.
@@ -527,10 +531,33 @@ def serve() -> None:
         f"{' e http://[::1]:%d' % port if secondary else ''}"
         f"  ·  cérebro={config.get('BRAIN')}"
     )
+    journal.lifecycle("boot", f"{VERSION} · {host}:{port} · cérebro={config.get('BRAIN')}")
+
+    def encerrar(signum, _frame) -> None:
+        """Drena e REGISTRA. É o que responde depois "caiu ou eu fechei?".
+
+        Parar de aceitar vem primeiro e esperar vem depois: matar uma execução em curso paga o
+        custo sem entregar nada, e o diário guardaria `aborted` sem ninguém ter abortado. A
+        espera tem teto porque um cliente pendurado não pode impedir o servidor de morrer — e
+        quando o teto vence, o registro DIZ quantas ficaram, em vez de fingir saída limpa.
+        """
+        budget.drain()
+        limite = time.monotonic() + DRAIN_SECONDS
+        while budget.running() and time.monotonic() < limite:
+            time.sleep(0.2)
+        pendentes = budget.running()
+        journal.lifecycle(
+            "shutdown",
+            f"sinal {signal.Signals(signum).name}"
+            + (f" · {pendentes} execuções não drenaram em {DRAIN_SECONDS}s" if pendentes else " · drenado"),
+        )
+        httpd.shutdown()
+
+    for sinal in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sinal, encerrar)
+
     try:
         httpd.serve_forever()
-    except KeyboardInterrupt:
-        logger.info("encerrando")
     finally:
         httpd.server_close()
         if secondary:

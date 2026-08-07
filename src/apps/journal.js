@@ -140,6 +140,10 @@ function registerRuns() {
         blocks.push(filtros);
 
         const visiveis = runs.filter((run) => {
+          // Linha de vida do servidor (boot/shutdown): não é execução e não tem ferramenta, então
+          // some assim que há filtro. Sem filtro ela aparece na ordem do tempo, que é onde a
+          // ausência de um `shutdown` entre dois `boot` fica legível.
+          if (run.kind) return outcome === 'all' && tool === 'all';
           const okOutcome = outcome === 'all' || (outcome === 'success' ? run.outcome === 'success' : run.outcome !== 'success');
           const okTool = tool === 'all' || (run.tools || []).some((t) => t.tool === tool);
           return okOutcome && okTool;
@@ -148,6 +152,14 @@ function registerRuns() {
         if (!visiveis.length) blocks.push(el('div', 'widget-empty', 'nada neste filtro'));
 
         for (const run of visiveis) {
+          if (run.kind) {
+            const linha = el('div', 'unit-sub');
+            linha.append(el('span', 'row-time', (run.started || '').slice(11, 19)));
+            linha.append(el('span', 'delivery-source', run.kind.toUpperCase()));
+            linha.append(el('span', 'delivery-summary', run.question || ''));
+            blocks.push(linha);
+            continue;
+          }
           const row = button({
             variant: 'row',
             size: 'row',
