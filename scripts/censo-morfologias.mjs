@@ -26,6 +26,11 @@
  *
  * Trocando o módulo e o campo, a mesma forma serve para as outras peles. O que interessa é a
  * pergunta: o valor MEDIDO varre a faixa que o código permite, ou mora num extremo dela?
+ *
+ * ⚠️ **NÃO meça luas assim.** `moonsOf` precisa do RAIO ORBITAL, que nasce em `graph.js:load` a
+ * partir da recência e NÃO existe no payload do servidor — chamá-lo no nó cru devolve zero lua em
+ * qualquer corpus, e em 2026-08-07 isso me fez declarar morto um sistema que tinha 197 luas no ar.
+ * Quem responde é a cena: `window.espatial.moons()`.
  */
 import { classify, MORPHOLOGY_BY_KIND, RING_BY_STATE } from '../src/space/catalog.js';
 import { resolveBody, SURFACE, MODIFIER } from '../src/space/solver.js';

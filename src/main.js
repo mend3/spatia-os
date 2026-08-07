@@ -286,6 +286,15 @@ async function main() {
     galaxy: () => scene.galaxyProbe(),
     /** Recuo × piso de detalhe de cada pele, com a tela de verdade. Ver `space/lod.js`. */
     lod: () => scene.lodProbe(),
+    /**
+     * Luas em órbita e seções que não couberam na janela Roche→Hill.
+     *
+     * ⚠️ Só a CENA sabe responder isto, e é por isso que a sonda existe: `moonsOf` precisa do RAIO
+     * ORBITAL, que nasce em `graph.js:load` (de `recency`) e não existe no payload do servidor.
+     * Um censo que chamasse `moonsOf` no nó cru recebe zero lua e conclui que o sistema está
+     * morto — foi o que aconteceu ao medir a cobertura do fixture em 2026-08-07.
+     */
+    moons: () => scene.moonReport?.(),
   });
 
   // A intenção de abrir um app, venha de onde vier, vira navegação num lugar só. Desde

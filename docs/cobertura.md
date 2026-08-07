@@ -35,9 +35,14 @@ de detritos 4. Todos os quatro estados do git presentes.
 | pulsar | obliquidade | 30°–41° | 18°–78° |
 | estação | módulos · painéis | 5–7 · 4–5 | 2–7 · 2–6 |
 
-E **quatro sistemas inteiros nunca entram em cena**: a atividade do cometa (logo, cauda dupla,
-curvatura e comprimento), o farol da estação, o envoltório filamentar da supernova e o sistema de
-luas Roche→Hill — este último provavelmente a maior peça de física do motor.
+E **três sistemas inteiros nunca entravam em cena**: a atividade do cometa (logo, cauda dupla,
+curvatura e comprimento), o farol da estação e o envoltório filamentar da supernova.
+
+⚠️ **Um quarto foi acusado por engano, e o erro era do censo.** O sistema de luas Roche→Hill
+parecia morto (zero luas) porque a medição chamava `moonsOf` no nó CRU do servidor — e ele precisa
+do RAIO ORBITAL, que nasce em `graph.js:load` a partir da recência e não existe no payload. A cena
+tinha 197 luas em órbita o tempo todo. A sonda `window.espatial.moons()` foi criada para que a
+pergunta tenha uma resposta que não dependa de reimplementar a lei fora do dono dela.
 
 ## A causa é comum, e por isso o conserto é barato
 
@@ -58,9 +63,34 @@ Rastreado até o fato de nó que cada parâmetro lê:
 fixture hoje escreve corpo fixo e um commit por arquivo, então `churn ≈ 0` em todo o corpus e
 `sections` é 0 ou já saturado.
 
-## O que falta para o fixture paramétrico existir
+## O fixture paramétrico entrou em 2026-08-07 — o que ele varre agora
 
-Não é aumentar a quantidade de corpos: é varrer os extremos. O alvo mínimo, um exemplar de cada:
+`VARREDURA`, em `.cache/fixture.py`: 14 arquivos que existem só para levar cada eixo aos extremos.
+O knob novo é `commits` (commits dentro da janela de 30 dias, que é o que vira `node.churn`).
+
+| eixo | antes | agora | faixa do código |
+|---|---|---|---|
+| cometa: atividade | 0,00 fixo | **0,00 … 1,00** | 0–1 |
+| cometa: cauda | 1,98 fixo | **1,98 … 9,00** | 1,98–9,0 |
+| estação: farol | 0,00 nas quatro | **0,00 … 1,00** | 0–1 |
+| fotosfera: manchas | 0,00 na mediana | **0,00 … 1,03** | 0–1+ |
+| nebulosa: cavidade | 0,46 nas duas (teto) | **0,23 … 0,46** | 0,14–0,46 |
+| pulsar: período | 1,73 … 1,86 s | **1,55 … 3,58 s** | inverso da massa |
+| supernova: envoltório | **0 corpos** | **3 corpos** | — |
+| luas | (medido errado) | **197 em órbita · 315 cortadas** | — |
+
+⚠️ **Uma armadilha que a varredura quase caiu:** commits igualmente espaçados dão CV 0, que é
+regularidade ~1,00 — e a classe PULSAR tem prioridade 20. O "cometa de atividade máxima" nasceria
+PULSAR e a varredura estaria medindo outra coisa. Os 27 commits dele saem com gaps irregulares de
+propósito (1 a 5 dias), que é churn alto com ritmo humano. Conferido: `quente.sh` resolve como
+`comet`, churn 27, atividade 1,00, cauda 9,0.
+
+**O que ainda NÃO está coberto:** a obliquidade do pulsar varre 28°–45° de uma faixa de 18°–78°,
+porque ela sai do HASH do caminho — cobrir os extremos significa procurar nomes de arquivo que
+caiam neles, e isso não foi feito. Ficam também sem varredura as combinações (atividade ×
+orientação da cauda, temperatura × manchas × limbo).
+
+### O alvo original, para conferência
 
 - **cometa** — atividade nula, média e alta (a alta é a que mostra cauda dupla e curvatura);
 - **fotosfera** — sem manchas, moderada, intensa;
