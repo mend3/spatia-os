@@ -60,7 +60,18 @@ export function createWidgetHost(root) {
   // id -> { frame, instance, contract }
   const live = new Map();
 
+  /** Recolhe os irmãos de fenda, para que o que acabou de abrir tenha a altura do trilho. */
+  function collapseSiblings(id, slot) {
+    for (const [other, entry] of live) {
+      if (other === id || entry.contract.slot !== slot || !entry.colapsar) continue;
+      collapsedState.add(other);
+      expandedState.delete(other);
+      entry.colapsar(true);
+    }
+  }
+
   function build(contract, ctx) {
+    let colapsar = null;
     const frame = el('section', `widget widget-${contract.slot}`);
     frame.dataset.widget = contract.id;
     /*
@@ -105,10 +116,26 @@ export function createWidgetHost(root) {
       };
       const jaDecidiu = collapsedState.has(contract.id) || expandedState.has(contract.id);
       aplicar(jaDecidiu ? collapsedState.has(contract.id) : Boolean(contract.collapsed));
+      // Publicado no host para que o acordeão do trilho possa recolher os irmãos: o estado é
+      // por widget, mas a decisão de espaço é do trilho, e nenhum widget se alcança sozinho.
+      colapsar = aplicar;
       label.addEventListener('click', () => {
         const recolhido = frame.dataset.collapsed !== 'true';
         if (recolhido) { collapsedState.add(contract.id); expandedState.delete(contract.id); }
         else { collapsedState.delete(contract.id); expandedState.add(contract.id); }
+        /*
+         * ABRIR UM RECOLHE OS OUTROS DO MESMO TRILHO — e só do mesmo trilho.
+         *
+         * Um trilho empilha quatro a seis seções numa coluna flex de altura fixa: com todas
+         * abertas elas disputam a altura, e o que perde não fica menor, fica com ZERO. Um
+         * gráfico de 14px sumia inteiro enquanto a legenda dele continuava na tela, sem erro
+         * nenhum no console.
+         *
+         * O grupo é a FENDA, não a tela: abrir algo à direita não pode fechar o que se estava
+         * lendo à esquerda. São duas colunas independentes, e tratá-las como uma faria o
+         * operador perder contexto por um gesto que não falava daquele lado.
+         */
+        if (!recolhido) collapseSiblings(contract.id, contract.slot);
         persistCollapsed();
         aplicar(recolhido);
       });
@@ -128,7 +155,7 @@ export function createWidgetHost(root) {
       console.error(`[widgets] ${contract.id} falhou ao montar`, error);
       body.replaceChildren(el('div', 'widget-error', `falha: ${error.message}`));
     }
-    return { frame, instance, contract };
+    return { frame, instance, contract, colapsar };
   }
 
   function destroy(entry) {
