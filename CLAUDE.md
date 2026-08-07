@@ -318,3 +318,93 @@ Sempre prefira:
 
 Cada nova funcionalidade deve tornar o sistema mais inteligente, não apenas maior.
 ```
+
+---
+
+# As ferramentas de `scripts/`
+
+Elas existem porque este projeto tem um modo de falha característico: **a feição some, o shader
+continua lá, e a tela não mente nem acusa — ela deixa de afirmar.** Nenhuma delas roda sozinha em
+CI; todas respondem uma pergunta específica, e é a pergunta que diz quando usá-las.
+
+## Antes de mexer no buraco negro
+
+| script | a pergunta | quando |
+|---|---|---|
+| `campo.mjs` | o campo de deflexão ainda é MONÓTONO? | qualquer edição na geodésica |
+| `costura-disco.mjs` | o disco fecha a volta sem cicatriz radial? | ao tocar no ruído do disco |
+| `lado-distante.mjs` | o lado distante ainda afunila 3–6,7×? | ao mexer na integração ou na pose |
+
+São **oráculos**: rodam em `node`, sem navegador e sem GPU, e transcrevem o GLSL. Um deles falhando
+é uma invariante quebrada, não um teste chato — `blackhole-geodesic.js` cita o `campo.mjs` pelo
+nome como quem garante que as cinco invariantes seguem intactas.
+
+⚠️ **Eles têm de acompanhar o shader.** A fonte é o GLSL; a transcrição é cópia. Mudou um, mude o
+outro, ou o oráculo passa a atestar código que não existe mais.
+
+## Antes de commitar shader
+
+    node scripts/check-shaders.mjs
+
+Guarda estática dos blocos GLSL. Pega as duas armadilhas que já morderam quatro vezes e que
+**falham em silêncio**: crase dentro de `/* glsl */` fechando o template literal, e o shader que
+compila mas perde a feição.
+
+## Ao mexer em classificação, limiar ou constante calibrada
+
+| script | o que mede |
+|---|---|
+| `censo-morfologias.mjs` | o que o céu DESENHA — classe · pele · morfologia por `kind` · modificadores |
+| `censo-corpus.mjs` | o que o corpus É — forma, saúde das constantes calibradas, sinal de cada candidata |
+
+O segundo existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
+com 71 hubs, aplicada em 228), `DENSITY_K` (corpus 5,6× maior, **297 luas viraram 0**) e o piso do
+pulsar (medido no git, aplicado no índice, **0 corpos**). Ele acusa em vermelho a classe que ficou
+sem população.
+
+> **Toda constante derivada de `M_total` ou da contagem de hubs expira.** Quem reindexar um corpus
+> muito maior refaz a conta — ela está no comentário de cada uma. O relatório completo, com o que
+> foi refutado e por quê, está em [`docs/medicoes-2026-08-07.md`](./docs/medicoes-2026-08-07.md).
+
+⚠️ Os dois medem o **ÍNDICE**, nunca o disco. A diferença decide conclusões: o disco é 58%
+TypeScript e o índice não tem um único `.ts`. Confundir os dois já produziu uma recomendação errada.
+
+## Ao precisar de um corpus que exercite tudo
+
+    uv run --with fastembed python scripts/fixture.py            # cria repo + indexa
+    uv run --with fastembed python scripts/fixture.py --limpar   # apaga repo + coleção
+
+Corpus sintético em coleção própria (`espatial_fixture`), com 14 arquivos que levam cada eixo aos
+extremos. É o primeiro degrau da doutrina de [`docs/cobertura.md`](./docs/cobertura.md) — *o código
+desenha este tipo?* — e o único jeito de exercitar um corpo que o corpus real não produz. `FIXTURE_ROOT`
+sobrepõe o destino.
+
+⚠️ Cobertura de TIPO não é cobertura de PARÂMETRO: um tipo presente prova que o caminho desenha,
+não que o shader foi exercitado.
+
+## Ao suspeitar de custo
+
+Cole `scripts/baseline.js` no console da aba da cena, com a **janela em primeiro plano**. Leva ~35 s
+e mede FPS + `renderCost` em duas poses, junto com o ambiente (GPU, DPR, foco, aba oculta) — sem
+isso a medida não vale, porque aba oculta é estrangulada pelo motor.
+
+Referência já medida: o céu inteiro com 213 instâncias custa **0,31–0,35 ms**, contra 3,8–5,1 ms só
+da lente do buraco negro. **Não existe "otimizar a galáxia"** — o orçamento está todo na lente.
+
+## Ao mexer em erro de upstream
+
+    python3 scripts/motivo-upstream.py
+
+Sobe um upstream de mentira e confere se `status` e `reason` saem do FATO e não da frase. Sai 0
+quando as quatro famílias batem. Existe porque dois rótulos de métrica não tinham ninguém capaz de
+emiti-los.
+
+## E o que NÃO está aqui
+
+As sondas de runtime vivem na cena, não em `scripts/`: `spatia.galaxy()` · `spatia.moons()` ·
+`spatia.lod()` · `spatia.planet()` · `spatia.bloom({…})` · `spatia.core({…})` ·
+`spatia.renderCost()`. Elas respondem sobre o quadro que está na tela agora, que é uma pergunta
+diferente da que qualquer script offline pode responder.
+
+⚠️ `docs/catalogo-celeste.md` documenta essas sondas como `espatial.*`. O objeto real é
+**`spatia`** — quando os dois discordarem, o código está certo.
