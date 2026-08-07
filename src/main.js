@@ -295,6 +295,8 @@ async function main() {
      * morto — foi o que aconteceu ao medir a cobertura do fixture em 2026-08-07.
      */
     moons: () => scene.moonReport?.(),
+    /** Lê — e, com argumento, força — a força do bloom. O teste do item #9. Ver `scene.bloomProbe`. */
+    bloom: (forca) => scene.bloomProbe(forca),
   });
 
   // A intenção de abrir um app, venha de onde vier, vira navegação num lugar só. Desde

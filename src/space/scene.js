@@ -1898,6 +1898,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     lodProbe: () => budget({ fov: camera.fov, framebufferHeight: canvas.height }),
 
+    /*
+     * O BLOOM, para o teste do item #9 — "o brilho deveria nascer do shader; o bloom apenas
+     * amplificaria". Esse item não se responde discutindo: põe-se a força em zero e olha-se se o
+     * astro continua brilhando. Se ele apaga, o brilho era do pós-processamento.
+     *
+     * ⚠️ É a única sonda que ESCREVE, e escreve fora do store de propósito: `fanOut` reaplica a
+     * afinação inteira a cada mudança de preferência, então o valor forçado aqui volta sozinho ao
+     * do store na próxima — que é exatamente o que se quer de um interruptor de bancada. Sem
+     * argumento, só lê.
+     */
+    bloomProbe: (forca) => {
+      if (forca !== undefined) bloom.strength = forca;
+      return { strength: bloom.strength, threshold: bloom.threshold, doStore: tune?.bloomStrength };
+    },
+
     /** Devolve o controle da câmera à deriva automática. */
     release() {
       userControlled = false;
