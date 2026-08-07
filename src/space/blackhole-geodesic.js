@@ -230,7 +230,23 @@ export const GLSL_GEODESIC = /* glsl */ `
       float estriaB = fbm(vec2((giro + taxa * localB) * ESCALA_AZIMUTAL, radial * 2.6), CELULAS_VOLTA) * 0.5 + 0.5;
       estria = mix(0.72, mix(estriaA, estriaB, peso), uDiskDetail);
     }
+    /*
+     * O DISCO ESTAVA LIMPO DEMAIS — item #4 do brief: "ele parece renderizado, nao parece materia.
+     * Discos de acrecao possuem turbulencia, regioes brilhantes, pequenas instabilidades, zonas
+     * quase negras, filamentos enormes."
+     *
+     * O campo ja existia; o que faltava era CONTRASTE. O expoente sozinho escurece o conjunto sem
+     * abrir vazio: pow(x, 3.2) leva 0,5 a 0,1, mas leva 0,9 a 0,72 — tudo desce junto e nada some.
+     * O que produz zona quase negra e um LIMIAR, e o que produz filamento e ele ser suave o
+     * bastante para nao recortar a estria em ilhas.
+     *
+     * Custo: zero amostras novas. E o mesmo valor de estria, remapeado.
+     */
     estria = pow(estria, mix(1.4, 3.2, uDiskTurbulence * 0.35));
+    // Vazio abaixo do limiar e ganho acima: a materia passa a ter buraco em vez de so ter sombra.
+    // O limiar sobe com a turbulencia — disco calmo e continuo, disco agitado e rasgado.
+    float vazio = smoothstep(0.0, mix(0.10, 0.34, uDiskTurbulence), estria);
+    estria = mix(estria, estria * vazio * 1.45, uDiskTurbulence * 0.8);
 
     // Rampa de temperatura de Shakura-Sunyaev: T proporcional a r^(-3/4). O que muda com o raio e
     // o MATIZ, nao so a luminancia — e por isso que a rampa e de cor e nao de brilho.
