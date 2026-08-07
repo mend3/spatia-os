@@ -377,9 +377,9 @@ function registerDenials() {
          * opt-in acontecem fora de uma execução e ainda não viram registro — dizer isso na tela
          * é o que separa "não houve negação" de "não sei".
          */
-        // O que ainda escapa: 403 cross-site e arquivo fora da raiz acontecem fora de uma
-        // execução E fora de um endpoint, e ainda não passam pelo `journal.denial`.
-        blocks.push(el('div', 'unit-sub', '403 cross-site e arquivo fora da raiz ainda não são registrados'));
+        // Toda recusa do sistema passa por `journal.denial`: ferramenta que falhou dentro de
+        // uma execução, webhook, portão de capacidade, cross-site e arquivo fora da raiz.
+        blocks.push(el('div', 'unit-sub', 'ferramentas, webhooks, portão, cross-site e arquivo fora da raiz'));
         view.set(blocks);
       }
       return follow(draw);

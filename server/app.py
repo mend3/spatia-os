@@ -84,6 +84,7 @@ class Handler(BaseHTTPRequestHandler):
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
         if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget") and not self._same_site():
             metrics.crosssite_refused.inc()
+            journal.denial("cross-site", parsed.path, f"Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')}")
             self._json({"error": "requisição cross-site recusada"}, status=403)
             return
         # Anexo é binário e grande: lê antes do caminho de JSON, com teto próprio.
@@ -322,6 +323,9 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._static(route)
         except files.Forbidden as e:
+            # Arquivo fora da raiz permitida é RECUSA, e recusa que não deixa linha é
+            # indistinguível de recusa que nunca aconteceu — o argumento do `jr.denials`.
+            journal.denial("arquivo", "files", str(e))
             self._json({"error": str(e)}, status=403)
         except FileNotFoundError as e:
             self._json({"error": f"não encontrado: {e}"}, status=404)
@@ -529,6 +533,7 @@ class Handler(BaseHTTPRequestHandler):
                 f"pedido cross-site recusado (Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')})"
             )
             metrics.crosssite_refused.inc()
+            journal.denial("cross-site", "/api/ask", f"Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')}")
             self._json({"error": "requisição cross-site recusada"}, status=403)
             return
 

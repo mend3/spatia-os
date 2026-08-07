@@ -764,9 +764,9 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > **18** OAuth PKCE + ponte autenticada (`server/oauth.py`, `server/bridge.py`,
 > `server/credentials.py`) · **19** `#/bridge` com credenciais.
 >
-> **Parciais:** **10** `#/journal` — `jr.denials` já mostra as recusas de webhook; faltam 403
-> cross-site e arquivo fora da raiz, que acontecem fora de uma execução e de um endpoint ·
-> **15** falta o grafo de dependência que desabilita `VOZ` preventivamente.
+> **10** `#/journal` — `jr.denials` cobre as cinco origens de recusa do sistema.
+>
+> **Parcial:** **15** falta o grafo de dependência que desabilita `VOZ` preventivamente.
 >
 > **20** capacidades com portão `PreToolUse` real (`server/capabilities.py`, `/api/gate`,
 > `--settings` efêmera) — inerte por padrão, ativa-se declarando
