@@ -11,7 +11,7 @@
 import { el, set } from './dom.js';
 import { button } from './button.js';
 import * as prefs from '../core/prefs.js';
-import { on } from '../core/bus.js';
+import { on, ui } from '../core/bus.js';
 import { bind } from '../core/keys.js';
 import * as surface from './surface.js';
 
@@ -248,7 +248,17 @@ export function createPermissions(root, { onChange } = {}) {
     if (open) document.activeElement?.blur?.();
   }
 
-  bind({ code: TOGGLE_KEY, label: 'PERMISSÕES', group: 'PAINÉIS' }, () => setOpen(!panel.classList.contains('open')));
+  /*
+   * A tecla NAVEGA, não sobrepõe — e continua sendo a mesma tecla.
+   *
+   * Permissão é DESTINO (§0 do OS-SCREENS): nenhum toggle tem efeito na execução em curso, ele
+   * vira flag de `claude -p` na próxima invocação. Não há nada acontecendo para olhar junto, e
+   * portanto nenhum custo em trocar de tela. O painel continua existindo para quem já está na
+   * tela e quer mexer — quem o abre é o gatilho, não mais o atalho.
+   *
+   * Vai pelo barramento em vez de alcançar o router: este painel é HUD e não conhece o kernel.
+   */
+  bind({ code: TOGGLE_KEY, label: 'PERMISSÕES', group: 'NAVEGAÇÃO' }, () => ui('open-app', { id: 'security' }));
 
   const trigger = root.querySelector('[data-perms-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));

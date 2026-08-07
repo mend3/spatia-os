@@ -83,6 +83,7 @@ class Handler(BaseHTTPRequestHandler):
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
         if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach") and not self._same_site():
+            metrics.crosssite_refused.inc()
             self._json({"error": "requisição cross-site recusada"}, status=403)
             return
         # Anexo é binário e grande: lê antes do caminho de JSON, com teto próprio.
@@ -335,6 +336,19 @@ class Handler(BaseHTTPRequestHandler):
             # O teto viaja no health porque a pergunta "posso perguntar?" é de saúde, não de
             # diário: quem abre a tela precisa ver a folga ANTES de gastar, não depois.
             "budget": budget.status(),
+            # A postura do servidor, dita pelo próprio servidor. Sem isto `#/security` teria de
+            # AFIRMAR o bind e a ausência de autenticação a partir do código-fonte — e uma tela de
+            # segurança que deduz a própria configuração é a que mente primeiro quando ela muda.
+            "exposure": {
+                "bind": f"{config.get('ESPATIAL_HOST')}:{config.get_int('ESPATIAL_PORT')}",
+                "auth": "nenhuma",
+                "same_site_guard": True,
+                # A CONTAGEM de recusas não vem aqui: ela já é a métrica
+                # `espatial_crosssite_refused_total`, e a tela lê o `/metrics` com o mesmo parser
+                # do `#/metrics`. Publicar o número nos dois lugares criaria duas verdades sobre
+                # o mesmo fato, com a chance de discordarem.
+                "file_roots": [str(root) for root in config.file_roots()],
+            },
         }
         try:
             health["qdrant"] = {"online": True, **qdrant.info()}
@@ -408,6 +422,7 @@ class Handler(BaseHTTPRequestHandler):
             logger.warning(
                 f"pedido cross-site recusado (Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')})"
             )
+            metrics.crosssite_refused.inc()
             self._json({"error": "requisição cross-site recusada"}, status=403)
             return
 

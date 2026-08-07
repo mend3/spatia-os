@@ -219,6 +219,12 @@ websearch_results = registry.histogram(
 # ---------------------------------------------------------------- corpus e grafo
 # Gauges alimentados por um refresher em background, nunca durante o scrape.
 
+# A barreira de mesma origem é a única defesa do `/api/ask`, e uma defesa que nunca se vê agir
+# é uma defesa em que se acredita. O contador é a prova que `#/security` mostra.
+crosssite_refused = registry.counter(
+    "espatial_crosssite_refused_total", "Requisições recusadas pela barreira Sec-Fetch-Site."
+)
+
 index_points = registry.gauge("espatial_index_points", "Chunks na coleção vetorial.")
 index_files = registry.gauge("espatial_index_files", "Arquivos distintos indexados.")
 index_files_by_kind = registry.gauge(
