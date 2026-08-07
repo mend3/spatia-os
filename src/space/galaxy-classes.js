@@ -197,8 +197,33 @@ export const GALAXY_CLASSES = Object.freeze([
  */
 const CUTS = Object.freeze([0.669, 0.5, 0.375]);
 
-/** Below this many direct files a folder has no groups to branch, so it gets no arms. */
-export const MIN_FILES_FOR_ARMS = 3;
+/**
+ * Below this many direct files a folder has no groups to branch, so it gets no arms.
+ *
+ * ⚠️ **3 → 9 em 2026-08-07. É o ÚNICO lever semântico da espiral, e o único que devia mudar.**
+ *
+ * `galaxyParams` já limita `arms <= nº de arquivos` com o argumento certo — *mais braços que
+ * arquivos afirmaria grupos que não existem*. Mas **um arquivo por braço também não é grupo**, e
+ * era isso que 3 permitia: uma pasta de 3 arquivos ganhava 3 braços de um arquivo cada, afirmando
+ * três agrupamentos onde não há nenhum.
+ *
+ * 9 é aritmética do próprio modelo: **3 arquivos por braço** (o menor grupo que ainda é grupo) em
+ * **3 braços** (a menor contagem de uma classe que tem braços, a V1/Sa). Medido no corpus, o
+ * efeito é o que a cena precisava e nenhum outro lever entrega:
+ *
+ *     MIN_FILES 3 → 129 dos 228 hubs espiralam (57%)
+ *     MIN_FILES 9 →  43 dos 228 hubs espiralam (19%)
+ *
+ * ⚠️ E é aqui, não no `SPAN` nem no `LOD_ARM_PX`. Medido: com `SPAN` 1,5 e `LOD` 14, mexer só na
+ * geometria deixa 122 hubs espiralando — a tinta cai e as espirais continuam lá. Os três levers
+ * têm donos distintos: `SPAN` governa TINTA, `LOD_ARM_PX` governa se o braço é RESOLVÍVEL, e
+ * este governa se há GRUPO a afirmar. Trocar um pelo outro é o erro que
+ * `modelo-de-renderizacao.md:127-149` chama de escada por escala.
+ *
+ * `MIN_ARMS` continua sendo a escotilha para o caminho oposto. Medição em
+ * `docs/medicoes-2026-08-07.md` §2.3.
+ */
+export const MIN_FILES_FOR_ARMS = 9;
 
 /**
  * The one place the classification rule lives.

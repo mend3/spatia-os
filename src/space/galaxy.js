@@ -159,8 +159,27 @@ import { MOTION, rateOf } from './motion-catalog.js';
  * also exactly the point, folders becoming the structure of the sky, and flux is preserved so
  * each pixel is correspondingly dimmer. `SPAN` is the first lever to pull if the sky reads as
  * a smear, and at ~49% coverage it is likelier to be needed than the first draft assumed.
+ *
+ * ⚠️ **2,8 → 1,5 em 2026-08-07, e a frase acima foi o aviso que ninguém executou.**
+ *
+ * A derivação acima é de 71 discos. O corpus tem **228 agregados** hoje, e a MESMA conta
+ * (`cobertura ∝ Σ pxDisk²`, área do capote constante) dá **169%** — o capote está saturado de
+ * tinta por construção, e é isso que produz "dezenas de espirais disputando atenção", não a
+ * taxonomia. A calibração venceu por 3,2× de crescimento do corpus.
+ *
+ *     SPAN 2.8 → 169%     SPAN 2.0 → 86%     SPAN 1.6 → 55%
+ *     SPAN 2.2 → 104%     SPAN 1.8 → 70%     SPAN 1.5 → 48%   ← reproduz os 49% originais
+ *
+ * 1,5 não é escolha: é o valor que devolve a cobertura contra a qual o 2,8 foi derivado. Para
+ * outro alvo, `SPAN = 2,8 · √(alvo / 1,69)` — 1,3 dá 36%, 1,2 dá 31%. Não desci mais porque 49%
+ * é o único alvo com precedente medido nesta base.
+ *
+ * ⚠️ Mexer aqui OBRIGA a mexer em `LOD_ARM_PX`: o degrau é em px de DISCO, e o disco mudou de
+ * escala. Ver a nota lá embaixo — sem isso os braços somem por acidente aritmético.
+ *
+ * Medição e método completos em `docs/medicoes-2026-08-07.md` §2.1.
  */
-export const SPAN = 2.8;
+export const SPAN = 1.5;
 
 /*
  * The detail ladder, in pixels of DISC radius.
@@ -181,8 +200,24 @@ export const SPAN = 2.8;
  * `RE` below) keeps the same object valid at 2 px, where the quad is 5.4 px on a side and all
  * 71 of them cost ~2.1 k fragments in total. `detail` and `detail2` are branch-free `mix`
  * factors — one program, no dynamic branching on the hot path.
+ *
+ * ⚠️ **26 → 14 em 2026-08-07, e isto é CORREÇÃO DE UNIDADE, não mudança de critério.**
+ *
+ * O degrau é medido em px de DISCO, e o disco encolheu com `SPAN` 2,8 → 1,5. Manter 26 teria
+ * derrubado os hubs com braço de **129 para 5** — um critério novo entrando por acidente
+ * aritmético. `26 × (1,5/2,8) = 13,9`, e com 14 quem passa o degrau é exatamente quem passava
+ * antes: **129**, conferido.
+ *
+ * Ele continua honesto como LOD. O piso físico é a separação de duas cristas sob a PSF do bloom
+ * (σ ≈ 6 px no mip mais estreito): duas cristas vizinhas de um padrão de `m` braços distam
+ * `2πR/m` na borda e precisam de `2σ` entre elas, então **6 braços resolvem a 11,5 px** e 3
+ * braços a 5,7 px. 14 tem margem de 1,22× sobre o pior caso.
+ *
+ * ⚠️ E ele NÃO é o lever para decidir quantas galáxias espiralam — usar o LOD para trabalho
+ * semântico é a "escada por escala" que `modelo-de-renderizacao.md:127-149` recusa. Quem decide
+ * isso é `MIN_FILES_FOR_ARMS`, que é fato (grupos de arquivos), não pixel.
  */
-export const LOD_ARM_PX = 26;
+export const LOD_ARM_PX = 14;
 export const LOD_TEX_PX = 90;
 export const LOD_FULL_PX = 200;
 
