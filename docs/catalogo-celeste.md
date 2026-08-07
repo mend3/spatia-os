@@ -1,434 +1,326 @@
-# Catálogo celeste — proposta de taxonomia
+# Catálogo celeste
 
-É a proposta que saiu da pesquisa encomendada depois de o usuário notar, corretamente, que **anel é
-de planeta, não de estrela** — e que o problema é mais fundo que nomenclatura: o céu chamava todo
-arquivo indexado de "estrela", o que não deixava vocabulário para dizer que uma coisa é feita de
-outra, que uma orbita outra, ou que uma esfriou.
+**O que existe no céu do Espatial OS**, de que fato cada corpo nasce, como ele varia e o que se vê.
 
-O documento existe porque a pesquisa é cara e o raciocínio se perde. O que for implementado sai
-daqui e vira comentário no código.
+Este documento descreve o **presente**. A pesquisa de taxonomia que deu origem a ele (2026-08-05/06)
+e os dois briefings de refinamento visual (pulsar, buraco negro) já foram absorvidos: o raciocínio
+que sobreviveu virou comentário no código, e é lá que ele mora. O `git log` guarda a história — os
+corpos de commit desta base são longos de propósito, com a medida que decidiu cada número.
 
-## Como este documento está organizado
-
-| parte | o que é | data |
-|---|---|---|
-| **A taxonomia** (daqui até "Ordem de adoção") | que corpo existe, de que fato ele nasce, que regra física o rege — a pesquisa que saiu da pergunta sobre anéis | 2026-08-05 |
-| **Os três corpos definidos por comportamento** | galáxia, quasar e pulsar: o que cada um É, em que escala, e como se encaixam | 2026-08-06 |
-| **Reestruturação da morfologia** | o que a cena faz de errado com esses três, e em que ordem consertar | 2026-08-06 |
-
-A segunda parte é a FONTE da terceira. Se as duas discordarem um dia, a segunda é a física e a
-terceira é a decisão — muda a terceira.
-
-**Estado em 2026-08-06:** planeta anelado e supernova estão no céu; cometa extinto passou a
-classificar (segunda janela de churn), com superfície mas ainda sem cauda; **lua entrou** (40 corpos,
-106 luas, órbita elíptica e sem colisão — a regra e as medidas em `src/space/orbital-zones.js`; a
-contagem caiu de 278 quando o piso de legibilidade passou a medir contra a órbita externa, que é
-quem fixa a distância da câmera); zonas por razão de massa continuam só aqui, mas `μ ≥ 5` já é
-usado como o corte que separa lua de sistema duplo. **A galáxia passou a poder ser rotacionada**
-(`e40373c`): em foco o disco vira MUNDO e responde à órbita, fora de foco continua billboard. O
-`status` de cada entrada em `src/space/catalog.js` é a fonte da verdade — nenhuma mente sobre
-estar pronta.
-
-⚠️ **Duas coisas que o olho apontou em 2026-08-06 e que este documento ainda não resolve:** as
-galáxias estão **flat** (girar já revela a pose; volume não existe — o disco é uma folha de
-espessura zero) e **há galáxias que também são quasares**, que é o item da "Reestruturação da
-morfologia" abaixo, agora com a metade de ESCALA junto.
-
-> **Este documento é a TAXONOMIA** — que corpo existe, de que fato ele nasce, que regra física o
-> rege. Como isso vira pixel (forma, escala, modificadores, composição e animação) é o
-> [modelo de renderização](modelo-de-renderizacao.md), em seis estágios. A separação é recente e
-> deliberada: quando semântica, física e estado disputam a mesma dimensão visual, nenhuma das três
-> informa mais nada.
+> **A fonte da verdade é o código, não este arquivo.** `src/space/catalog.js` classifica,
+> `src/space/solver.js` resolve a pele, `src/space/lod.js` decide o que é desenhável. Quando este
+> documento e eles discordarem, eles estão certos. Rode `node scripts/censo-morfologias.mjs` para
+> ver a distribuição real do corpus atual.
 
 ---
 
-## A regra que reorganiza tudo
+## O princípio: a forma é o fato
 
-> **Massa decide a classe. Composição decide o tipo.**
+Nenhum corpo desta cena é decorativo. Cada feição visual afirma alguma coisa sobre o arquivo, e a
+regra vale nos dois sentidos — **feição sem fato por trás não entra, e fato sem feição não é dado.**
+É por isso que o catálogo tem `forbids`: uma estrela não pode ter crosta porque relevo afirmaria
+corpo sólido, e um cometa não pode ter anel porque cauda e anel juntos não descrevem nada.
 
-A anã marrom tem composição **idêntica** à de uma estrela e não é uma — falha só por massa
-(13 M_J acendem deutério; 80 M_J acendem hidrogênio). A cena hoje faz o contrário: decide tudo
-por `kind`, que é composição. Por isso um `.md` de 2 chunks e um `.md` de 226 chunks são a mesma
-coisa no céu.
+Três camadas independentes, e confundi-las é o erro mais comum:
 
-## Sobre anéis, que originou a pergunta
-
-O instinto estava certo, e a razão é melhor que "anel é de planeta":
-
-- **Corpos pequenos TÊM anéis** — Chariklo (ocultação em 03/06/2013), Haumea (2017), Quaoar
-  (2022), Chiron (em formação). Quaoar é a anomalia: anel a **7 raios** do corpo, mais que o
-  dobro do limite de Roche, onde o material já deveria ter acretado.
-- **O que não tem anel planetário é ESTRELA.** Estrela tem *disco de detritos*, varrido por
-  pressão de radiação e arrasto de Poynting-Robertson.
-
-Ou seja: a correção não é "só planeta tem anel" — é que **estrela não tem**, e hoje é
-exatamente nelas que penduramos anéis.
-
-⚠️ **A idade dos anéis de Saturno está em disputa aberta**: 10–100 Myr pela Cassini (2019) contra
-~4,5 Gyr por Hyodo et al. (*Nature Geoscience*, 16/12/2024). Se algum texto da UI afirmar idade
-de anel, tem que ser em condicional.
-
-## Três conceitos que se confundem — e nós usamos o errado
-
-| Conceito | Depende de | O que rege |
+| camada | pergunta | onde vive |
 |---|---|---|
-| **Limite de Roche** | razão de **densidades** | despedaça o satélite → rege o **anel** |
-| **Lóbulo de Roche** | razão de **massas** | transferência de massa em binário |
-| **Esfera de Hill** | `m/3M` **e o semieixo** | captura e estabilidade → rege a **lua** |
+| **CLASSE** | o que este corpo **É** | `catalog.classify` |
+| **MORFOLOGIA** | que corpo o **tipo de arquivo** declara | `MORPHOLOGY_BY_KIND` |
+| **PELE** | o que ele **desenha de perto** | `solver.resolveBody` |
 
-`r_H = a(1−e)·∛(m/3M)`. O detalhe que importa: a esfera de Hill de **Netuno** (115 milhões de km)
-é **maior** que a de Júpiter (50,6 milhões), apesar de muito menos massa — porque a dependência
-no raio orbital é linear e a da massa é raiz cúbica.
-
-**Consequência para a cena:** se `sections` virarem luas, o raio da órbita delas tem de crescer
-com o **raio orbital do corpo**, não só com `chunks`. Como raio já é recência, um arquivo antigo
-(periferia) seguraria suas seções em órbitas mais largas que um arquivo novo e pesado. Sai de
-graça e é fisicamente correto. E: **todas as 19 luas arredondadas do Sistema Solar estão travadas
-por maré** — luas não devem ter rotação própria.
-
-## Zonas por razão de massa, não classes por tamanho
-
-Corpos não orbitam uns aos outros — ambos orbitam o **baricentro**. Se ele cai dentro do
-primário, o primário oscila; se cai fora, é sistema duplo. Sol–Júpiter põe o baricentro a
-1,07 R☉, logo **acima da fotosfera**. Plutão–Caronte tem razão de massas 0,1218 (a maior do
-Sistema Solar) e baricentro a 1,78 raio plutoniano, **fora do corpo**.
-
-Daí saem três zonas com regra física, medidas neste corpus:
-
-| Zona | Regra (μ do corpo mais pesado) | Análogo | Contagem |
-|---|---|---|---|
-| **Sistema com primária** | μ ≫ 1 | Sol–Júpiter | 8 zonas com μ≥5 |
-| **Sistema duplo** | μ ≈ 1 | Plutão–Caronte | 32 zonas com 1≤μ<5 |
-| **Família colisional** | μ ≪ 1 | família Vesta | 30 zonas |
-
-Isso substitui classes de corpo por classes de **zona**, que é onde a informação está. Resolve o
-problema de "planeta anão" abocanhar 180 dos 388 corpos.
-
-⚠️ **IAU 2006, texto literal: a resolução 5B foi derrotada.** Planeta anão **não** é subtipo de
-planeta. Se o catálogo usar o termo, ele não pode ler como "planeta menor".
-
-## O melhor sinal do lote: cometa extinto
-
-> **Cometa extinto = churn ALTO numa janela ANTIGA + recência BAIXA.**
-> Um arquivo que foi muito trabalhado e depois esfriou.
-
-O análogo é real e documentado: 107P/Wilson–Harrington foi descoberto **como cometa com cauda**
-em 19/11/1949, redescoberto **como asteroide** em 1979, e só em **1992** confirmou-se que eram o
-mesmo objeto. Cometas da família de Júpiter ficam ativos ~10.000 anos e depois selam a superfície
-com uma crosta refratária.
-
-**Custo: um `if` a mais na mesma passada de `git log`.** `CHURN_WINDOW_DAYS` já existe em
-`server/recency.py` e a passada já itera o histórico inteiro — uma segunda janela (ex.: 30–180
-dias) sai igual ao churn atual saiu: de graça.
-
-É o sinal de maior valor operacional do catálogo: identifica **ponto quente abandonado**.
-
-## Um defeito real que a pesquisa diagnosticou
-
-**As arestas do grafo são o problema do enrolamento, literalmente.**
-
-A teoria de ondas de densidade (Lin–Shu) existe porque braços espirais **não podem ser estruturas
-materiais**: o material interno orbita mais rápido e qualquer estrutura material se enrolaria em
-poucas rotações. O `LineSegments` de `space/graph.js` liga cada arquivo (r≈26–62) ao seu hub
-(r≈19–33), e os dois têm ω diferente por `speed = (r/r₀)^-1.5`.
-
-**Aquelas linhas cisalham e enrolam a cada quadro.** É o winding problem desenhado — e explica
-por que o campo de arestas nunca leu como estrutura. Se a leitura pretendida é "grupo co-móvel",
-a aresta deveria ser um **padrão** (mesma fase, mesma cor, realce sob demanda), não um segmento
-material permanente.
-
-## O que a cena já acertou — não "consertar"
-
-**Meteoro é fenômeno, não corpo.** Definição IAU 2017: *meteoroide* é o corpo (30 μm a 1 m),
-*meteoro* é o fenômeno luminoso da entrada, *meteorito* é o que chega ao solo. `particles.js` já
-chama `infall` de rastro e `satellites.js` fala em "rastro de meteoro". É a única parte do
-vocabulário atual que está correta e não precisa mudar.
-
-## Descartado como decorativo
-
-Aglomerado aberto vs globular (a distinção real acopla idade, densidade e metalicidade — nenhum
-fato no grafo), classes espectrais O–M, troianos/ferradura/quase-satélite (±60°, 180°, 0° — nenhum
-fato), lua-de-lua (**nenhum submoon foi observado em lugar nenhum**), teste do lítio, relação M–σ.
-
-E **`first_seen` foi descartado com medida**: vida mediana de 0 dias, 62% dos arquivos com vida
-< 1 dia. O eixo é degenerado neste corpus.
+Uma classe pode recusar a morfologia declarada (o censo chama isso de **recusa do solver**), e é
+saudável: 87,5% do corpus pede `surface` e leva `photosphere`, porque a classe é estrela e estrela
+não tem crosta.
 
 ---
 
-## Ordem de adoção
+## Distribuição real — corpus de 1 862 nós (2026-08-07)
 
-1. **Segunda janela de churn** → cometa extinto. Um `if` em `recency._last_commits`, mesma
-   passada. Maior valor por linha do documento.
-2. **`git_root` como galáxia satélite** (submódulo). Barato, vem junto.
-3. **Zonas por razão de massa** — substitui as classes de corpo.
-4. ~~**Luas dimensionadas pela esfera de Hill**~~ — FEITO em 2026-08-05. O gate foi cumprido antes:
-   `advance()` medido a **0,0098 ms/quadro com 468 nós, 0,109 ms com 5 000 e 0,78 ms com 20 000** —
-   cabe folgado, e o que custa continua sendo o pós-processamento (87–90% do quadro).
+**Classe** — o que o corpo é:
 
-   Duas coisas que a implementação descobriu e que valem para o resto do documento: a previsão de
-   que o `a` (recência) importaria mais que a massa está **certa e é mais forte que o previsto** — na
-   razão Hill/Roche o `m^(1/3)` cancela e só o `a` decide. E comparar Roche (raio do corpo) com Hill
-   (raio orbital) usando o raio DESENHADO não funciona: as duas réguas têm escalas diferentes nesta
-   cena, o que fechava a janela em silêncio. Detalhe em `modelo-de-renderizacao.md`.
+    estrela           1629   87,5%
+    galáxia            228   12,2%
+    cometa-extinto       5    0,3%
+
+**Pele** — o que ele desenha de perto:
+
+    photosphere        668   35,9%
+    station            459   24,7%
+    planet             361   19,4%
+    galaxy             228   12,2%
+    comet              103    5,5%
+    nebula              43    2,3%
+
+**Morfologia por tipo de arquivo:**
+
+    config   → fotosfera   499      schema  → fotosfera  159
+    agent    → estação     414      script  → cometa     103
+    doc      → planeta     332      infra   → estação      47
+    compose  → nebulosa     44      lock    → estrela      12
+    decision → planeta      12      memory  → planeta      12
+
+⚠️ **A distribuição é do corpus, não do catálogo.** Um corpus sem `docker-compose.yml` não tem
+nebulosa nenhuma, e isso não é buraco na cobertura — é o céu descrevendo o repositório com
+honestidade. A doutrina de cobertura (fixture · fixture paramétrico · corpus real) está em
+[`cobertura.md`](./cobertura.md).
 
 ---
 
-## Os três corpos que se distinguem pelo COMPORTAMENTO
+# Os corpos
 
-> Pesquisa acrescentada em **2026-08-06**. Ela é a FONTE da "Reestruturação da morfologia", logo
-> abaixo: esta seção diz o que os três **são**; aquela diz o que a cena faz de errado com eles e
-> em que ordem consertar.
+## Estrela — a classe padrão
 
-A frase que reorganiza os três é o corolário da regra que abre este documento (*massa decide a
-classe, composição decide o tipo*): **nenhum dos três é uma composição.** Galáxia é uma
-**estrutura** de organização, quasar é **atividade**, pulsar é **ritmo**. São os únicos corpos do
-catálogo definidos por comportamento, e é por isso que ganharam seção própria.
+**Representa:** o arquivo indexado comum, sem sinal que o distinga.
+**Pele:** `photosphere` (config, schema) ou `planet` (doc, decision, memory).
 
-| | Galáxia | Quasar | Pulsar |
-|---|---|---|---|
-| **O que é** | Um sistema gigantesco de estrelas, gás, poeira e matéria escura | O núcleo extremamente ativo de uma galáxia | Uma estrela de nêutrons em rápida rotação |
-| **Tamanho** | Dezenas a centenas de milhares de anos-luz | Região central de poucos anos-luz ou menos, mas extremamente brilhante | ~20 km de diâmetro |
-| **Massa** | Bilhões a trilhões de massas solares | Dominado por um buraco negro supermassivo (milhões a bilhões de M☉) | ~1,4–2 M☉ |
-| **Fonte de energia** | Estrelas | Disco de acreção em volta de um buraco negro | Rotação e campo magnético |
-| **Aparência** | Espirais, elipses, formas irregulares | Núcleo extremamente brilhante, com possíveis jatos | Ponto pequeno emitindo pulsos periódicos |
+De longe é um ponto num `THREE.Points` com centenas de irmãos — o campo inteiro custa 0,45 ms de
+GPU, e centenas de malhas de esfera não caberiam nesse orçamento. De perto, **um** corpo ganha
+geometria: o que a câmera travou.
 
-⚠️ As imagens de referência abaixo são links externos e voláteis (CDN de conversa). Se um dia
-pararem de abrir, o texto continua de pé sozinho — nenhuma afirmação deste documento depende delas.
+**Fotosfera** — granulação de convecção fervendo, manchas escuras, limbo escurecido. Sem relevo e
+sem mar: o catálogo proíbe crosta na estrela, porque relevo afirmaria corpo sólido.
 
-### 1 · Galáxia — a ESTRUTURA
+**Planeta procedural** — gerado por semente do caminho. Continentes, mares, calotas, atmosfera com
+espalhamento no limbo. É a pele de `doc`, e a diferença com a fotosfera é categórica: documento é
+coisa acabada, com superfície; configuração é coisa viva, que ferve.
 
-Uma galáxia é uma enorme estrutura gravitacional: de centenas de milhões a trilhões de estrelas,
-mais planetas, nebulosas, gás, poeira, matéria escura e, normalmente, um buraco negro supermassivo
-no centro. Pense nela como uma **cidade cósmica** — o Sistema Solar está dentro da Via Láctea.
+## Galáxia — o agregado
 
-- **Composição:** 85%+ matéria escura (estimativa), gás interestelar, poeira, estrelas,
-  aglomerados, buraco negro central.
-- **Comportamento:** tudo orbita o centro gravitacional; uma estrela leva centenas de milhões de
-  anos para completar uma volta.
-- **Visual:** espiral, elíptica, irregular ou lenticular. Ocupa praticamente toda a paisagem do
-  céu profundo.
+**Representa:** uma pasta (`node.type !== 'file'`). Os arquivos dela são a população.
+**Variações:** quatro classes de Hubble — **S0** (lenticular, sem braços), **Sa**, **SBb**, **SBc**.
 
-[fig 1](https://images.openai.com/static-rsc-4/BRENJMHzVosRqHq6RNWQHWwz2CIRp6DxGZOdcw_7gVIKgmEZEMORtUsJBbpueGvU87nVXIFdKk8TYFyWMkfR7ETCC0VaRW5GVoxIjgJnIpLv1aETj4aExvcM-4UH-j64dpAaCHSmjO_8PrKMpuUWQ9iTuIT_o1Jdo-Izn8Nhsf7oLXnL5JDE1h_ufahHQi6-?purpose=fullsize) ·
-[fig 2](https://images.openai.com/static-rsc-4/dkuKvXyFnkfdudfFipNgqLyq3vQYO5EOCtu60vMDvW2vcw8y161GoKrierE5pJlNGV7ZI2GXAAl2y1WO4VzAm2gshYOdA9pcHHjv0QWzXdnskM0V4sghOhpGcavtIQjTQKh-ocD7xvcCH1IYi5Rp2cuTzrghYbRUpuoUSiOWwgk9M4LcCSfUZ34a7qUSLXC1?purpose=fullsize) ·
-[fig 3](https://images.openai.com/static-rsc-4/BPoCRotETPjX-k8ame3paSHtBxp5eozn10Okdt1JeUOmxkdqdzsw3GWueJqEZClkNY6KX8YSj4t34u1TvvxvGKWVq5epZZW9mwdawML7nVv6pH8LIa7YyqqjI2iEdZSQ-UICaN-kdpX1pCnfdMu_wgU5l5x1RaSDhDjde2nTRkJlvwmVzyFRWRbrjupF0_L_?purpose=fullsize)
+A classe sai da contagem de arquivos e da concentração; o número de braços é o número de GRUPOS de
+arquivos daquela pasta. Passo do braço, razão bojo/disco e cor saem das faixas observadas por
+classe (Sa 4–25°, Sb 8–35°, Sc 10–50°). **Não é decoração:** olhando o céu, uma pasta rasa e uma
+pasta profunda têm silhuetas diferentes.
 
-### 2 · Quasar — a ATIVIDADE
+Em foco o disco vira **mundo** e responde à órbita da câmera; fora de foco continua billboard.
 
-O quasar **não é um objeto separado da galáxia**: é um tipo de núcleo galáctico ativo. Toda galáxia
-tem um buraco negro supermassivo no centro; quando muito gás cai nele, o disco de acreção libera
-energia gigantesca e aquilo vira um quasar.
+**Escada de detalhe:** 26 px (braços) → 90 px (textura) → 200 px (pleno), em pixels de raio do
+disco. A mediana do corpus fica em 32 px — o estado normal é o pé da escada.
 
-```
-galáxia → buraco negro → disco de acreção → energia gigantesca → QUASAR
-```
+## Quasar — o núcleo ativo
 
-> **Todo quasar está dentro de uma galáxia. Mas nem toda galáxia possui um quasar ativo.**
+**Representa:** a pasta massiva cujo bojo passa do limiar **e** que está acretando. Sete acesos no
+corpus atual (≈3%, contra ~1% de quasares luminosos e ~10% de Seyferts na natureza).
+**Não é um pulsar ampliado** — é um motor de acreção.
 
-Essa é a frase mais consequente do documento inteiro para o código — ver "2. O quasar tem de acender
-por ACREÇÃO, não por massa", logo abaixo.
+Desenho instanciado sobre o campo de hubs, não corpo do céu. Seis componentes existem: **disco de
+acreção**, **corona quente interna**, **jatos relativísticos** (Doppler `δ^(2+α)` a β = 0,9),
+**toro de poeira** (abertura de 55°, modelos de unificação), **lóbulos sincrotron** e o horizonte
+como vazio central. A radiação volumétrica entra pelo contínuo da corona.
 
-- **Composição:** não é matéria sólida — buraco negro supermassivo, disco de acreção a milhões de
-  graus, plasma, campos magnéticos e, em muitos casos, jatos relativísticos.
-- **Comportamento:** absorve matéria, aquece o disco, emite radiação intensa e pode lançar jatos a
-  quase a velocidade da luz. É um dos objetos mais luminosos do Universo — **alguns brilham mais
-  que toda a galáxia onde estão.**
-- **Visual:** núcleo branco/azulado extremamente brilhante, disco muito energético, possíveis jatos
-  opostos.
+⚠️ **Broad-line region, partículas de acreção e lente ficam conscientemente de fora**, e o número é
+o argumento: `CORE_RADIUS = 0,016` do disco da galáxia, mediana do corpus a 32 px → o núcleo do
+quasar tem **0,5 px** e o disco de acreção dele 2,2 px. A BLR (0,01–0,1 pc contra 1–10 pc do toro)
+cairia em menos de meio pixel. Custo sem imagem.
 
-[fig 1](https://images.openai.com/static-rsc-4/MEx5L6Wu7W0VtUITr4QjWtexGTSmOoNtNxze9zM61w3OMhyykQrnJqDXV3qRxtI19T9KGmgEIY_E2dLSe6NecaIIH8NJOJAJKBDrvp1iyDZj-qAKcTnXFRnWkXWW2fumBaGgySZLmW6ZRcaaLCsUYZ9o_g4_tvhDgBnTzsUMXL2YN64F44WlHgHjTR7ybF6k?purpose=fullsize) ·
-[fig 2](https://images.openai.com/static-rsc-4/tvm1XzojHYdelUHrxX0Bf2k5NCKGwtW26IO6cGnrK9IU-1zggs2blINZzwz1tQJ-7L6Ug10pT8auh0P2nlwEuwrKSVSiV2QvZDQ2YM-Cerfe3ae8Hxhm5lE_1AV1ewFXoDjohLm7W6wlMKYyonGgJ9ixi1ncfsrcxXVsrIR-_ym33A9oujWPjHz9t-Q92U_b?purpose=fullsize) ·
-[fig 3](https://images.openai.com/static-rsc-4/AZEwBUP_YKriGTlHCaZO-O_N4FOUDHHTQZkkkXeekfW9ijrWGVq0XqhShOJYQ9ZNSHwwFc805UM5Bsv7S1B9olAsnkX9fTwDUQ0ZON93dkljorg19gImqNIK3YRFdznikBUdPHeyPt8qdOipe5LRsTcfCfwTDbEwevuK45C41DDWyfCxFRlrEXL8EFVjeoPg?purpose=fullsize) ·
-[fig 4](https://images.openai.com/static-rsc-4/axKED6NeDOBDo-87u6q5jvSefJSDCPqhC4_E-hqmoMKERRFXRBiPJX8N4nZUF6z18_bJKSbqD1liY9r8D6TcctQBUGAu2F08LCeWfYKjohmBDDKf9-nC_tP3eWJdztHeGOw-dOyE4dY8p8Pf9G8wlMOlkONVJ0FuvqDhXjh0zac4AW4TqcOwwh0JVijM5FxX?purpose=fullsize) ·
-[fig 5](https://images.openai.com/static-rsc-4/ueMoIcj8yB5W76PifTugZIcUPapdfPFOxJrlnBiwNzx1nd1BiV6AXpwSTFfIWUeXykzeIe_-AM8L4qY4kagP523aLqLH2KgWmJGiv_CMSH0U2Nz-C8CvjLW_8vZiPCixY0Y-QBa4EsZl-yHvcqhLaJaTRtYM7yLiDyicyW7Q9T3BP9uuzeHSLl1utOMXvVTq?purpose=fullsize)
+## Estação — o corpo de um agente
 
-### 3 · Pulsar — o RITMO
+**Representa:** `agent` e `infra`. É **o único corpo não natural do céu**, e por isso o único que
+não é feito de ruído — ruído é a ferramenta certa para o que a natureza faz e errada para o que
+alguém projetou.
 
-O pulsar é completamente diferente, e **não tem relação direta com galáxias ativas**. É o que sobra
-da explosão de uma estrela muito massiva:
+Módulos, treliça, painéis solares retangulares. O **farol** é a única parte que pulsa, e carrega a
+única informação que muda: atividade (`churn`). Agente parado tem farol apagado, e isso é o dado.
 
-```
-estrela gigante → supernova → estrela de nêutrons → PULSAR
-```
+> Painel solar é retângulo de borda dura, e isso é fidelidade. O bloom antigo o escondia.
 
-Ele é absurdamente pequeno — cerca de **20 km de diâmetro** — e ainda assim tem mais massa que o
-Sol. Uma colher de chá dessa matéria pesaria bilhões de toneladas na Terra.
+## Cometa — o corpo que aponta
 
-- **Composição:** nêutrons extremamente comprimidos, densidade gigantesca, campo magnético colossal.
-- **Comportamento:** gira muito rápido — dezenas, centenas, até mais de **mil vezes por segundo**.
-  Os polos magnéticos emitem feixes estreitos de radiação; quando um deles cruza a nossa linha de
-  visão, detectamos um pulso. Funciona como um farol, e o que o define é que os flashes chegam em
-  intervalo **extremamente regular** — é daí que vem o nome.
-- **Visual:** ponto pequeno, pulsos periódicos.
+**Representa:** `script`. **O único corpo anisotrópico do céu** — todos os outros têm a mesma
+silhueta de qualquer ângulo.
 
-[fig 1](https://images.openai.com/static-rsc-4/ikVgQCZOrEHR_GU13Ik5f4LveUl2SGfcf2Xa1FuaVsZ5y0g5AqEZxhXOjlaFwm41g3QJQV4BFqMAuqPhpbbrzbhNAQeaHeONIwhnmJRf_K26kGwvIbNtIAkZe0KPkgsSO3zDk0cynsTO8znTbOH15ULVQDnK0d-431y0KAl1iIKtezlMX_J5SiqWnf_Kb52g?purpose=fullsize) ·
-[fig 2](https://images.openai.com/static-rsc-4/5CzBRdlGrgxCFYl1uHRbCWRunQ7iR3H68NlM_VYM9E2AAOPOVRAg0qPs_rsEDHbEMxHn3MIL_C6fipwnJ5pfub35tvCBTKIrEOO4S5IdmiNZ2kbOEHVXl46_5hL608hSAfm4BMv73iZmmw2oBsVG8ZT2cEt3nB4Moz2v1vEg8-_Mzy0zDGcezRWpXJ7udDLb?purpose=fullsize) ·
-[fig 3](https://images.openai.com/static-rsc-4/F85dlaJnQ40NLVkHEm0_gU2xMVIcOgyu4eBB25-deBGYvjK9TUFKMU4J6xiTOc3jHqU0TdtTdHNP2k2Ux-2mPGq8SIrBzkYunPcFUC1xZl53RNjK1jXe0VOG4DShBWJLx_I88BW1tmliIwNYeM-mZyHcFPKlR5aO2x0V5vEkMUXTLmJwDtcXbWJal7oNT_S5?purpose=fullsize) ·
-[fig 4](https://images.openai.com/static-rsc-4/RbRh3xSes8UXOR6YkHCui6_EPHYkStqDxyzW8eJ53lQgEvXIgFbyBLC-_gJxvNl3WiGvxw1uWZ8eB0XroBZjSfGUY8ig9V-0BsEtMJkXuXfNd9uoOzD3tvj9DbS3iiwFaFPWt4ldCnWqZd3gQ6SO0d6VkLXp7xpClEh7NrojWH6G1AYVVPUwR4gsXqxC2ASO?purpose=fullsize) ·
-[fig 5](https://images.openai.com/static-rsc-4/ygsSpu9shY0rhAZEHpc8HXQDr3k5FOJc6WnoeFy2147raTJw9rOQsKXq8uDpwPgNR4geeiXMA6s8n1ey6LYnnmAqBmgo8wvGzKOa8H5izO9Vog2nxs-W2k8c96rdOJku37vhJF66hSeFA_6OVC3Z6ARd992GJiekH7hCmtWW9hoMXf3u2bqJ3F9keryJdvAV?purpose=fullsize)
+A cauda aponta para longe da fonte de radiação, **sempre**, e não segue a órbita. A atividade sai
+do churn por `log₂(1+churn)/log₂(28)`, e ela move três coisas juntas: coma (0,9 → 2,4 raios), cauda
+(22% → 100% do máximo) e brilho. Núcleo de albedo 0,04 — escuro, como cometa real.
 
-### A escala — e é ela que a cena erra hoje
+**Cometa extinto** é uma CLASSE separada, não um estado: arquivo dormente há duas janelas e sem
+churn. Superfície sem cauda — o gelo acabou.
 
-```
-Galáxia            100.000 anos-luz
-  ↓
-Quasar             ~1 ano-luz (região emissora)
-  ↓
-Sistema Solar      0,002 anos-luz
-  ↓
-Pulsar             20 km
-```
+⚠️ A coma do cometa ativo **satura** em 255 num platô de 0,7 a 1,5 raios. Medido: não é geometria,
+é estouro de exposição, e o perfil não tem degrau onde a borda do quad estaria. Pela regra da
+física o conserto seria de apresentação, não da coma.
 
-Uma galáxia é **bilhões de bilhões de vezes maior** que um pulsar. E entre galáxia e quasar a razão
-é de ~10⁵: o quasar é um PONTO no centro de uma cidade.
+## Nebulosa — a ausência de superfície
 
-⚠️ **Observado na cena em 2026-08-06:** no corpo em foco o clarão do núcleo cobre boa parte do
-disco, então a galáxia não *hospeda* um quasar — ela *é* um. É a mesma queixa que a tabela de
-escala acima já responde, e ela é de **proporção**, não de contagem: mesmo com o gate de acreção
-certo, um quasar desenhado do tamanho do disco continua sendo o objeto errado.
+**Representa:** arquivo de `compose`. **O único corpo do céu sem superfície:** gás e poeira sem
+contorno, transparente em qualquer direção. Todas as outras peles respondem "o que há na superfície
+deste objeto"; esta responde que não há.
 
-### Como os três se encaixam
+A nuvem cresce com a massa do arquivo. Enquadramento 3,4 (o maior do céu), porque o que se enquadra
+é a nuvem, não um corpo.
 
-```
-GALÁXIA
-├── bilhões de estrelas
-├── nebulosas
-├── planetas
-├── matéria escura
-│
-├── centro
-│     └── buraco negro supermassivo
-│              └── QUASAR (quando ativo)
-│
-└── uma estrela massiva explode
-          └── PULSAR
-```
+## Pulsar — o ritmo
 
-Os três coexistem na mesma galáxia com papéis diferentes — um pulsar pode existir numa galáxia cujo
-centro também abriga um quasar. **Quasar e pulsar não são alternativas um do outro**, e nada no
-catálogo deve tratá-los como se fossem.
+**Representa:** arquivo de infraestrutura com **regularidade ≥ 0,5** — commits em cadência, não em
+rajada. O que o define não é o corpo (uma estrela de nêutrons tem 10 km: em qualquer escala útil é
+um ponto), são os **feixes**.
 
-### O que cada um significa no Espatial OS
+Hierarquia de escalas, em raios do corpo:
 
-A tradução da metáfora, e é ela que a "Reestruturação da morfologia" cobra do código:
-
-| corpo | papel na cena | leitura |
+| camada | alcance | o que é |
 |---|---|---|
-| **Galáxia** | um grande domínio de conhecimento (Pesquisa, Código, Empresa, Memória) | estrutura que ORGANIZA o espaço, contendo estrelas, sistemas e planetas |
-| **Quasar** | um centro de altíssima atividade e processamento | núcleo brilhante com disco de acreção e jatos: roteamento intenso, busca massiva, processamento do agente |
-| **Pulsar** | um emissor periódico de sinais | eventos recorrentes, monitoramento, heartbeat, scheduler, sincronização, notificações |
+| núcleo + hotspots polares | 1 | 10% esfera, o resto é emissão |
+| magnetosfera | ~7 | casca de densidade, `L = 1/sin²θ`, com trechos apagados |
+| cone de emissão | 7–12 | duas oitavas de ruído ao longo do eixo, média 1 |
+| vento relativístico | 25–47 | toro, espiral de Arquimedes, concentração equatorial |
+| **nebulosa de vento** | **>50** | teia sincrotron achatada no equador, brilhante no limbo |
 
-Galáxias organizam o espaço, quasares concentram energia e processamento, pulsares marcam o ritmo
-e os eventos do sistema. A diferenciação enriquece a física e a leitura visual ao mesmo tempo — é
-o mesmo argumento que a regra de abertura faz, aplicado a três corpos em vez de a um.
+Um batimento só governa brilho, calota, halo e vento — **exceto a nebulosa**, que não respira: ela
+tem milhares de anos e o pulso tem segundos.
 
+A cor vem de uma rampa **sincrotron por energia** (branco do polo → azul → roxo da cauda), com o
+tipo do arquivo entrando apenas como tingimento de 28%. Beaming relativístico `0,35 + 2,4·cos³`.
+Lente gravitacional de campo fraco no passe de tela.
 
-## Reestruturação da morfologia — proposta de 2026-08-06
+## Buraco negro — o núcleo cognitivo
 
-A pesquisa acima bate de frente com o mapa que está no ar, e o conflito tem uma frase só:
+**Representa:** o agente. **É o único corpo que não descreve um arquivo** — ele descreve o estado
+de quem está respondendo.
 
-> **Galáxia, quasar e pulsar se distinguem pelo que FAZEM, não pelo que são feitos.**
+O horizonte não é uma esfera preta: é a **sombra gravitacional**, com raio aparente √27/2 ≈ 2,6 R_s,
+e a borda dela é macia sozinha porque a fração de raios capturados cresce continuamente perto do
+parâmetro de impacto crítico. Tudo é traçado geodésico — o anel de fótons, o arco do lado distante
+por cima da sombra e a lente do fundo **são o mesmo raio**, não três desenhos que precisam
+concordar.
 
-É o corolário da regra que abre este documento (*massa decide a classe, composição decide o tipo*)
-aplicado aos três: nenhum dos três é uma composição. Galáxia é uma ESTRUTURA de organização, quasar
-é ATIVIDADE, pulsar é RITMO. E hoje dois dos três saem de `kind`, que é composição.
+Disco de 3,7 a 18,2 R_s (a borda interna é a imagem aparente da ISCO). Espessura pela lei
+`τ/cos(i)`, a mesma do anel planetário. Vazio e filamento por limiar, nós quentes na temperatura,
+assimetria m=1 precessando rígido, corona somando sem alfa fora da borda externa, ejeção a cada
+14 s.
 
-| corpo | o que a pesquisa diz que ele é | de onde ele sai HOJE | veredito |
+**O lado distante afunila** 3,00× a 78°, 4,75× a 72° e 6,70× a 66°, contra 1,07–1,11× da imagem
+direta — o efeito é da geodésica e `scripts/lado-distante.mjs` o trava.
+
+### Regimes cognitivos → parâmetros físicos
+
+Ele não "fica animado": muda de regime, e o regime é o estado real do agente. A convergência é
+exponencial a 2,4/s, então a troca é sentida como aceleração e não como corte.
+
+| regime | giro | intensidade | turbulência | **espessura** |
+|---|---|---|---|---|
+| boot | 0,05 | 0,25 | 0,4 | 0,55 |
+| idle | 0,18 | 0,75 | 0,6 | 0,70 |
+| searching | 0,70 | 1,00 | 1,3 | 1,10 |
+| retrieving | 0,60 | 1,10 | 1,1 | 1,15 |
+| answering | 1,15 | 1,60 | 1,0 | 1,30 |
+| thinking | 0,85 | 1,25 | 1,5 | **1,45** |
+| error | 0,12 | 0,50 | **2,6** | 0,85 |
+
+A espessura não é escolha estética: em disco de acreção a razão de aspecto `h/r` **cresce com a
+taxa de acreção**. Regime que processa mais matéria infla; regime parado assenta.
+
+**Carga cognitiva** (`cogload`, tokens estimados) engrossa até +45% e ilumina até +20%, saturando
+por `1 - exp(-t/60000)` — saturação porque o cliente não conhece o teto da janela do modelo.
+
+Bancada: `espatial.core({ regime: 'thinking', tokens: 120000 })`.
+
+---
+
+# Modificadores — anexáveis a qualquer corpo
+
+## Anel — o estado do git
+
+**A única coisa na cena que fala do disco AGORA.** O céu inteiro mostra conhecimento indexado, e
+índice é sempre uma foto do passado; apareceu anel, aquele arquivo mudou depois da reindexação.
+
+| estado | família | alcance | espalhamento | assinatura |
+|---|---|---|---|---|
+| `modified` | **saturn** | 2,45 | retro | faixas largas C/B/A, Divisão de Cassini, lacuna de Encke, F estreito por fora |
+| `staged` | **uranus** | 2,2 | retro | dez anéis estreitos e separados, o ε mais largo e brilhante |
+| `untracked` | **jupiter** | 3,2 | forward | halo espesso e difuso, anel principal fino, dois gossamer desbotando |
+
+As três famílias têm **assinaturas fotométricas opostas** — é isso que as distingue de longe, mais
+do que a cor. Rotação kepleriana (`ω ∝ r^-1.5`): a borda interna gira mais rápido que a externa.
+
+⚠️ O anel é **evento, não estado**: existe enquanto o trabalho está aberto e some no commit. Por
+isso ele vence o envoltório de supernova quando os dois cabem no mesmo corpo — ganha o sinal
+perecível, que é acionável agora e se limpa sozinho.
+
+## Envoltório de supernova — a história violenta
+
+Arquivo com churn acima do piso. De longe vive dentro do sprite (`envelope()` sobre
+`gl_PointCoord`); de perto ganha geometria própria. 2% do corpus.
+
+## Luas — as seções do arquivo
+
+Um arquivo com **≥ 5 seções** e massa suficiente ganha luas. Órbitas elípticas, sem colisão, dentro
+da janela Roche→Hill (`ROCHE_FLUID = 2,44` raios). O piso de legibilidade
+(`MOON_MIN_OVER_OUTER = 0,0154`) mede contra a órbita externa, que é quem fixa a distância da
+câmera — foi ele que fez a lua virar corpo em vez de um ponto de 1,27 px.
+
+Com o astro em foco, as órbitas ganham traço.
+
+---
+
+# Enquadramento — quanto de cada corpo cabe na tela
+
+`SKIN_EXTENT` é **recuo**, não tamanho: `px_na_chegada = FOCUS_FIT_PX / SKIN_EXTENT`. `BODY_SPAN` é
+a fração do raio de referência que a pele preenche com corpo desenhado.
+
+| pele | extent | LOD_FAR | LOD_NEAR |
 |---|---|---|---|
-| galáxia | estrutura que organiza (um domínio) | `type` = `dir`/`repo` | ✅ certo |
-| quasar | centro de altíssima ATIVIDADE | `chunks × concentração` (massa de bojo) | ❌ estrutura, não atividade |
-| pulsar | emissor PERIÓDICO de sinais | `kind === 'infra'` | ❌ composição, e nada nela pulsa |
+| photosphere | 1 | 90 | 200 |
+| planet | 1 | 90 | 200 |
+| station | 1,15 | 34 | 120 |
+| pulsar | 1,2 | 26 | 100 |
+| comet | 1,6 | 30 | 110 |
+| nebula | 3,4 | 22 | 95 |
 
-### 1. O pulsar tem de sair do RITMO — e o fato não existe ainda
+⚠️ A tabela de px medidos no cabeçalho de `lod.js` é de 2026-08-06 e traz os extents ANTIGOS
+(pulsar 2,6, cometa 3). Os valores acima são os vigentes — os dois encolheram quando o
+enquadramento passou a mirar a figura e deixar a extensão sair do quadro.
 
-É o erro mais claro do lote: um `.tf` de Terraform não pulsa. Ele é infraestrutura, que é o oposto
-de um evento periódico — é o que fica parado para que outra coisa aconteça.
+**Enquadra-se a FIGURA, não a extensão.** A cauda do cometa (9 raios) e a nebulosa de vento do
+pulsar (>50 raios do corpo) saem do quadro de propósito — é o mesmo princípio, e ele passou pelo
+olho do usuário no cometa antes de valer para o pulsar.
 
-E o pulsar é o ÚNICO corpo deste céu cuja definição é temporal: *"eventos recorrentes, monitoramento,
-heartbeat, scheduler, sincronização"*. O que faz um pulsar ser reconhecível não é do que ele é feito
-— é que os pulsos chegam **em intervalo regular**.
+`lod.js` **lança na carga** se uma pele não declarar `BODY_SPAN` ou se o recuo não alcançar o piso
+de detalhe. Declarar a invariante não a implementa; o `throw` implementa.
 
-O fato correspondente é a **regularidade dos intervalos entre commits**: baixa variância = pulsar;
-alta variância = qualquer outra coisa. Ele **não existe** no grafo hoje (os nós têm `chunks`,
-`recency`, `churn`, `dormant`, `supernova`, `sections`) — mas o custo é o mesmo do cometa extinto,
-que este documento já registrou: **um acumulador a mais na passada de `git log` que
-`server/recency.py` já faz**. Não é varredura nova.
+---
 
-⚠️ E `infra` precisa de destino. Ele não vira pulsar; o candidato natural é **estação** — a mesma
-leitura pré-verbal que `agent` já usa (*aresta reta = alguém construiu*), e é exatamente o que
-Terraform e k8s são.
+# Apresentação — o bloom é uma PSF
 
-### 2. O quasar tem de acender por ACREÇÃO, não por massa
+Glare de instrumento óptico é **forte em fonte pontual e fraca em fonte extensa**: a luz de um
+objeto extenso já está espalhada por muitos pixels e cada um contribui pouco para a auréola.
 
-A pesquisa diz a frase inteira sem querer:
+Valores atuais: **força 0,62 · limiar 1,15 · raio 0,20**. O limiar é linear, e em 0,54 quase todo o
+céu cruzava o corte — o bloom deixava de ser realce e virava névoa global, com as galáxias virando
+borrões brancos. O raio é fixo em tela e o objeto não é: um halo que no buraco negro de 600 px é uma
+borda cobria inteira uma galáxia de 60 px.
 
-> *"Todo quasar está dentro de uma galáxia. Mas nem toda galáxia possui um quasar ativo."*
+⚠️ O **ACES roda depois do bloom** (`OutputPass` é o último passe): o bloom soma em linear e a curva
+tonemapeia a soma, convergindo para branco acima de ~1,5. O branco era composto — fonte + halo —, e
+por isso mexer só na força não resolvia.
 
-O que separa uma galáxia massiva de um quasar **não é o buraco negro** — toda galáxia massiva tem
-um. É **gás caindo AGORA**. Um buraco negro supermassivo sem acreção não é um quasar; é um buraco
-negro supermassivo quieto, e a Via Láctea é o exemplo.
+O brilho de cada objeto **nasce no shader**; o bloom só amplifica. Conferido com o bloom em zero:
+o buraco negro não perde brilho, ele ganha estrutura.
 
-Hoje o gate é `bulgeMass = chunks × concentração ≥ 50`: puramente estrutural. Um diretório grande e
-concentrado acende mesmo estando **congelado há um ano**, o que é o oposto do que o objeto significa.
+Sondas: `espatial.bloom({ threshold, radius })` · `espatial.core({ regime, tokens })` ·
+`espatial.lod()` · `espatial.planet()` · `espatial.galaxy()` · `espatial.moons()`.
 
-**A correção mantém a relação M–σ onde ela vale e acrescenta a que faltava:**
+---
 
-    bojo alto        → o buraco negro EXISTE (pré-requisito, é a M–σ, e ela está certa)
-    churn dos filhos → há gás caindo AGORA (o que ACENDE)
+# O que ficou de fora, e por quê
 
-Isso também conserta um defeito já medido: o limiar de 50 foi calibrado num corpus de 72 hubs e hoje
-dá **35 de 213 — 16,4%**, contra os 9,7% (7 de 72) do desenho original. Reconferido em 2026-08-06
-contra o `buildHubs` do `scene.js`, com os filhos vindos das **arestas** do payload (uma contagem
-que os tirou do campo `dir` deu 31, e estava errada — `dir` não reproduz a árvore, a mesma
-armadilha que a contagem de arquivos descendentes já tinha pago).
+| ideia | por que não |
+|---|---|
+| broad-line region / partículas no quasar | 0,5 px — custo sem imagem |
+| disco de fallback no pulsar | fallback é supernova recaindo, não cascata colisional; a cena não modela nenhum dos dois |
+| anel em cometa | cauda e anel juntos não descrevem nada |
+| crosta em estrela | relevo afirmaria corpo sólido |
+| supernova em galáxia | agregado não tem história própria, tem a dos filhos |
 
-⚠️ **E o limiar está no lugar mais frágil da distribuição.** Os bojos em volta do corte de 50 são
-`51 · 51 · 49 · 45`: dois hubs entram por uma unidade e dois ficam de fora por outra. Um número
-calibrado à mão pousado na parte densa da distribuição muda de resposta a cada commit no corpus —
-o que é mais um argumento para o gate não ser um limiar de massa.
+---
 
-Com a acreção no gate, a fração deixa de ser um número calibrado à mão e passa a ser **quanto do
-corpus está quente agora**, que é precisamente o que os ~10% de núcleos ativos significam na
-natureza.
+# Onde procurar o resto
 
-⚠️ **E há uma segunda metade, que é de ESCALA e não some com o gate certo.** Pela tabela de escala
-acima, o quasar é a região central de **poucos anos-luz** dentro de uma galáxia de **centenas de
-milhares** — um ponto, não o objeto. Hoje o clarão do núcleo cobre boa parte do disco em foco, então
-mesmo os hubs que MERECEM acender continuam desenhando "uma galáxia que é um quasar" em vez de "uma
-galáxia que hospeda um". Acertar o gate reduz a contagem; só acertar a proporção conserta a leitura.
-
-### O que isso NÃO muda
-
-`fotosfera`, `planeta`, `cometa`, `estação` e `nebulosa` continuam saindo de `kind`, e está certo:
-esses cinco são tipos de CORPO, e corpo é composição. A reestruturação é só dos três que a pesquisa
-separou — e ela vale porque os três são os únicos do catálogo definidos por comportamento.
-
-### Ordem sugerida, e o gate de cada passo
-
-1. **Quasar por acreção.** Não precisa de fato novo — `churn` já está em cada nó, e o hub só precisa
-   agregar o dos filhos, que é a mesma varredura que já monta `galaxyParams`. É o passo de maior
-   valor por linha, e conserta o limiar de quebra.
-   ⚠️ **A proporção é um passo separado e independente deste** — ver o aviso de ESCALA acima. Dá
-   para fazer os dois no mesmo commit, mas não são o mesmo conserto: um decide QUEM acende, o outro
-   decide QUANTO da imagem o aceso ocupa.
-2. **`infra` → estação.** Uma linha em `MORPHOLOGY_BY_KIND`. Libera o nome `pulsar`.
-3. **Regularidade no servidor** → pulsar de verdade. Precisa de `server/recency.py` e de bump do
-   `SCHEMA_VERSION` (campo novo em nó nasce morto em qualquer clone com cache — o próprio
-   `server/graph.py` avisa).
-
-⚠️ Nada disto foi implementado: os três mudam o que o céu inteiro desenha, e o passo 3 exige
-reindexar. Está aqui como proposta porque é decisão, não diff.
-
-## Fontes
-
-[IAU definition of planet](https://en.wikipedia.org/wiki/IAU_definition_of_planet) ·
-[Clearing the neighbourhood](https://en.wikipedia.org/wiki/Clearing_the_neighbourhood) ·
-[Hill sphere](https://en.wikipedia.org/wiki/Hill_sphere) ·
-[Roche limit](https://en.wikipedia.org/wiki/Roche_limit) ·
-[Barycenter](https://en.wikipedia.org/wiki/Barycenter_(astronomy)) ·
-[Rings of Quaoar](https://en.wikipedia.org/wiki/Rings_of_Quaoar) ·
-[Density wave theory](https://en.wikipedia.org/wiki/Density_wave_theory) ·
-[107P/Wilson–Harrington](https://en.wikipedia.org/wiki/107P/Wilson%E2%80%93Harrington) ·
-[Asteroid family](https://en.wikipedia.org/wiki/Asteroid_family) ·
-[Brown dwarf](https://en.wikipedia.org/wiki/Brown_dwarf) ·
-[Meteoroid (IAU 2017)](https://en.wikipedia.org/wiki/Meteoroid) ·
-[Hyodo et al. 2024, *Nature Geoscience*](https://www.nature.com/articles/s41561-024-01598-9)
+- **A física de cada corpo** — o cabeçalho do módulo em `src/space/`. Eles são longos de propósito.
+- **A decisão por trás de cada número** — `git log`, no commit que o introduziu.
+- **A distribuição do corpus** — `node scripts/censo-morfologias.mjs`.
+- **Cobertura e o que o fixture exercita** — [`cobertura.md`](./cobertura.md).
+- **Como a cena é desenhada** — [`modelo-de-renderizacao.md`](./modelo-de-renderizacao.md).
+- **A bancada, um objeto por vez, sem pós-processamento** — `sandbox.html`.
