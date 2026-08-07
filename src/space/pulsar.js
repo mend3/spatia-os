@@ -415,7 +415,14 @@ const CAMPO_FRAGMENT = /* glsl */ `
     float queda = sin2 * sin2;
     float brilho = linha * rompe * queda * uAmount * uBeat;
     if (brilho < 0.004) discard;
-    gl_FragColor = vec4(uColor * brilho, brilho);
+    /*
+     * fieldColor — a sexta e ultima cor do item #12, e ela fecha a regra.
+     *
+     * O campo e a camada de MENOR energia do corpo: nao emite, canaliza. Na rampa sincrotron isso
+     * e a ponta roxa, e o tipo do arquivo entra com o mesmo tingimento de 0,28 que o nucleo, a
+     * casca e o feixe ja usam. Seis camadas, seis cores, uma regra so: a energia manda.
+     */
+    gl_FragColor = vec4(mix(vec3(0.45, 0.10, 0.72), uColor, 0.28) * brilho, brilho);
   }
 `;
 
