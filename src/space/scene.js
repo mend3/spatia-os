@@ -1831,6 +1831,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     },
     mode: () => modo,
     universeStats: () => universe.stats(),
+    /** O tipo de um corpo na cena em vigor: novo no UNIVERSO, `null` no AGENTE. */
+    bodyTypeOf: (source) => (modo === 'universo' ? universe.tipoDe(source) : null),
 
     loadGraph: (payload) => {
       const count = graph.load(payload);

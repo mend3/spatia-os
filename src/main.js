@@ -24,6 +24,7 @@ import { createVoice } from './hud/voice.js';
 import { createSpeechPanel } from './hud/speech-panel.js';
 import { createSystray } from './hud/systray.js';
 import { createCenaSwitch } from './hud/cena.js';
+import { registrarTipoDeCorpo } from './core/cena-atual.js';
 import { createYield } from './hud/yield.js';
 import { createWidgetHost } from './kernel/widgets.js';
 import { createRouter, ROUTE_ROOT } from './kernel/router.js';
@@ -167,6 +168,8 @@ async function main() {
    * publica na timeline é o que torna a troca um EVENTO em vez de um piscar — o céu inteiro muda,
    * e uma mudança dessas sem registro parece defeito.
    */
+  // A HUD passa a poder perguntar o tipo à CENA, em vez de deduzi-lo do catálogo antigo.
+  registrarTipoDeCorpo((source) => scene.bodyTypeOf(source));
   const cenaSwitch = createCenaSwitch(hud, {
     scene,
     onChange: (modo) => {

@@ -35,6 +35,7 @@
  * discordando sobre de quem estão falando seria pior que não ter painel.
  */
 import { listWidget } from './widgets-core.js';
+import { tipoDeCorpo } from '../core/cena-atual.js';
 import { el, plural, shortPath } from '../hud/dom.js';
 import { on, emit } from '../core/bus.js';
 import * as attention from '../core/attention.js';
@@ -118,12 +119,20 @@ function desenhar(node, dirty, origin, vizinhos) {
    * sendo a resposta certa, porque ali ela é que decide o que a tela desenha.
    */
   const meta = el('div', 'hover-meta');
-  const corpo = classe.id === 'estrela' ? morphologyOf(node.kind).body.toUpperCase() : classe.name;
+  /*
+   * ⚠️ A CENA responde primeiro. Na UNIVERSO o corpo vem da ontologia nova (`entity-physics`), e
+   * ignorá-la fazia a HUD anunciar `GALÁXIA · dir · AGREGADO` sobre um agregado que aquela cena
+   * chama de SISTEMA — o modelo velho falando por cima do novo. `null` significa "a cena não tem
+   * opinião", e aí o catálogo antigo continua sendo a resposta certa.
+   */
+  const daCena = tipoDeCorpo(node.source);
+  const corpo = daCena
+    ?? (classe.id === 'estrela' ? morphologyOf(node.kind).body.toUpperCase() : classe.name);
   meta.textContent = [
     corpo,
     origin === 'focus' ? 'TRAVADO' : null,
     node.kind,
-    node.type === 'file' ? null : 'AGREGADO',
+    node.type === 'file' || daCena ? null : 'AGREGADO',
   ]
     .filter(Boolean)
     .join(' · ');

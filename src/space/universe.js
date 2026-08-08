@@ -186,6 +186,9 @@ export function createUniverse() {
   let centros = [];
   let rumo = new THREE.Vector3(1, 0.3, 0).normalize();
   let stats = { sistemas: 0, corpos: 0, colisoes: 0 };
+  /* source → tipo, na ontologia NOVA. É o que impede a HUD de anunciar a taxonomia velha
+     por cima da cena nova — o mesmo defeito que a camada de galáxia tinha. */
+  const tipos = new Map();
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
      sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
   const amostra = new THREE.Vector3();
@@ -235,6 +238,8 @@ export function createUniverse() {
 
   return {
     object: group,
+    /** O tipo de um corpo NESTA cena, ou `null` fora dela. A HUD pergunta; ela não deduz. */
+    tipoDe: (source) => tipos.get(source) ?? null,
     stats: () => ({ ...stats, quadros, elapsed: +ultimoElapsed.toFixed(2), amostra: [+amostra.x.toFixed(3), +amostra.y.toFixed(3), +amostra.z.toFixed(3)] }),
 
     /**
@@ -245,6 +250,7 @@ export function createUniverse() {
      */
     load(payload) {
       limpar();
+      tipos.clear();
       const nodes = payload?.nodes || [];
       const byId = new Map(nodes.map((n) => [n.id, n]));
       const filhos = new Map();
@@ -263,6 +269,11 @@ export function createUniverse() {
           return my > mx ? y : my < mx ? x : (x.id < y.id ? x : y);
         });
         sistemas.push({ agg, estrela: dono, planetas: meus.filter((f) => f.id !== dono.id) });
+        tipos.set(agg.id, agg.type === 'repo' ? 'GALÁXIA' : 'SISTEMA');
+        for (const f of meus) {
+          const fis = entityPhysics(f, { dominante: f.id === dono.id, sistema: agg.id });
+          tipos.set(f.source, classificar(fis, f).tipo.toUpperCase());
+        }
       }
 
       // Raio típico de sistema, para a teia reservar volume. Ele é o que decide se 221 cabem.
