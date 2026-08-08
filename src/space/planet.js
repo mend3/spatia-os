@@ -121,6 +121,9 @@ const SHELL_MARGIN = 0.035;
  */
 const MASS_LOG_FULL = 8;
 
+/* Largura do sorteio da geografia, em unidades do domínio do ruído. Ver `planetParams.origin`. */
+const ORIGIN_SPAN = 64;
+
 /* Vetores de rascunho: a conversão para o espaço do objeto acontece a cada quadro. */
 const OBJ_CAM = new THREE.Vector3();
 const OBJ_LIGHT = new THREE.Vector3();
@@ -131,6 +134,7 @@ const SURFACE_VERTEX = /* glsl */ `
 
   uniform float uAmplitude, uSharpness, uSea;
   uniform float uPeriod, uPersistence, uLacunarity, uDetail, uRidged;
+  uniform vec3 uOrigin;
 
   varying vec3 vSphere;
   varying vec3 vNormal;
@@ -142,8 +146,17 @@ const SURFACE_VERTEX = /* glsl */ `
 
   void main(){
     // A geometria e uma esfera de raio 1: position JA e o ponto do dominio do ruido.
+    //
+    // uOrigin desloca esse dominio, e e o que da GEOGRAFIA propria a cada planeta. Sem ele o
+    // campo era amostrado nas MESMAS coordenadas em todo corpo: a semente so modulava escalares
+    // (amplitude, periodo, aspereza, paleta), entao dois planetas de massa parecida nasciam com
+    // os continentes nos mesmos lugares, mudando so a tinta. Deslocar o DOMINIO troca a regiao
+    // do campo, nao os parametros dele.
+    //
+    // ⚠️ O fragmento tem de somar o MESMO uOrigin. Ele recalcula terrainHeight para a normal de
+    // relevo, e dominios diferentes fariam a superficie iluminada discordar da deslocada.
     float h = terrainHeight(
-      position, uAmplitude, uSharpness, uSea,
+      position + uOrigin, uAmplitude, uSharpness, uSea,
       uPeriod, uPersistence, uLacunarity, uDetail, uRidged
     );
     vSphere = position;
@@ -183,6 +196,8 @@ const SURFACE_FRAGMENT = /* glsl */ `
   uniform float uAmount, uCloudPeriod;
   uniform vec2 uSpin;
   uniform vec3 uLight, uCam, uSky, uTwilight;
+  // O MESMO deslocamento do vertice — ver a nota la. Divergir aqui separa relevo de sombra.
+  uniform vec3 uOrigin;
 
   varying vec3 vSphere;
   varying vec3 vNormal;
@@ -194,20 +209,23 @@ const SURFACE_FRAGMENT = /* glsl */ `
 
   void main(){
     float h = terrainHeight(
-      vSphere, uAmplitude, uSharpness, uSea,
+      vSphere + uOrigin, uAmplitude, uSharpness, uSea,
       uPeriod, uPersistence, uLacunarity, uDetail, uRidged
     );
 
     // Duas amostras deslocadas no plano tangente. A normal sai da geometria DESLOCADA, nao de
     // uma derivada do campo: e o que faz o relevo aparecer muito abaixo da resolucao da malha.
+    //
+    // O uOrigin entra nas TRES amostras. Ele desloca o dominio do ruido; dx e dy continuam
+    // sendo passos no plano tangente do ponto real, e por isso somam depois.
     vec3 dx = uBump * normalize(vTangent);
     vec3 dy = uBump * normalize(vBitangent);
     float hx = terrainHeight(
-      vSphere + dx, uAmplitude, uSharpness, uSea,
+      vSphere + dx + uOrigin, uAmplitude, uSharpness, uSea,
       uPeriod, uPersistence, uLacunarity, uDetail, uRidged
     );
     float hy = terrainHeight(
-      vSphere + dy, uAmplitude, uSharpness, uSea,
+      vSphere + dy + uOrigin, uAmplitude, uSharpness, uSea,
       uPeriod, uPersistence, uLacunarity, uDetail, uRidged
     );
 
@@ -233,7 +251,10 @@ const SURFACE_FRAGMENT = /* glsl */ `
       vSphere.y,
       vSphere.x * uSpin.y + vSphere.z * uSpin.x
     );
-    float cover = smoothstep(0.05, 0.5, fbm3(d, uCloudPeriod, 0.55, 2.1, 3.0)) * uAmount;
+    // uOrigin PERMUTADO (.yzx): a nuvem precisa ser propria de cada planeta pelo mesmo motivo que
+    // o terreno, e precisa nao ser o mesmo desenho do terreno. Somar uOrigin cru poria a cobertura
+    // em cima do campo que ja decidiu o continente, e a nuvem viraria contorno da costa.
+    float cover = smoothstep(0.05, 0.5, fbm3(d + uOrigin.yzx, uCloudPeriod, 0.55, 2.1, 3.0)) * uAmount;
     albedo = mix(albedo, vec3(1.0), cover);
 
     float diffuse = ${DIFFUSE.toFixed(3)} * max(0.0, dot(N, L));
@@ -341,17 +362,55 @@ export function planetParams(node = {}) {
    */
   const amplitude = THREE.MathUtils.lerp(0.115, 0.038, mass) * (0.82 + seed * 0.36);
   // Mais massa segura mais volátil: mais água, e menos terreno exposto.
-  const sea = amplitude * THREE.MathUtils.lerp(0.1, 0.5, mass) * (0.55 + seedB * 0.9);
+  /*
+   * ⚠️ Era `lerp(0,1 → 0,5)`, e ele é a SEGUNDA de duas compressões em série.
+   *
+   * Medido em 2026-08-07 (`scripts/censo-planetas.mjs`): com o `sharpness` antigo, o ponto
+   * mediano da superfície ficava abaixo do nível do mar em 76,6% dos planetas, e as três faixas
+   * de cima da rampa — costa, terra alta e pico — não eram pintadas em corpo NENHUM. O céu
+   * inteiro era mar escuro com plataforma cinza.
+   *
+   * Nenhuma das duas compressões errava sozinha; elas se multiplicavam. Esta cai junto com o
+   * `sharpness` porque corrigir só uma trocaria "tudo submerso" por "tudo pico".
+   */
+  const sea = amplitude * THREE.MathUtils.lerp(0.05, 0.3, mass) * (0.55 + seedB * 0.9);
   const palette = planetPalette(node.kind ?? 'other', seed);
 
   return Object.freeze({
     seed,
     mass,
+    /*
+     * ONDE, no campo de ruído, este planeta é amostrado — a geografia dele.
+     *
+     * Salts próprios (não `seed`/`seedB`/`seedC`) porque geografia e relevo são perguntas
+     * separadas: dois corpos podem ter a mesma aspereza e continentes em lugares distintos, e
+     * derivar os dois do mesmo número amarraria um ao outro sem que ninguém tivesse pedido.
+     *
+     * ORIGIN_SPAN = 64 unidades contra features de 0,45–0,85 (`period`): ~75 a 140 larguras de
+     * feição entre dois planetas vizinhos no espaço de hash, o que basta para não haver eco. Não
+     * é maior porque o `float` do shader tem ~7 dígitos e o relevo fino desce a ~0,01 — deslocar
+     * para a casa dos milhares gastaria a precisão que a montanha pequena usa.
+     */
+    origin: Object.freeze([
+      (hash01(path, 59) - 0.5) * ORIGIN_SPAN,
+      (hash01(path, 71) - 0.5) * ORIGIN_SPAN,
+      (hash01(path, 83) - 0.5) * ORIGIN_SPAN,
+    ]),
     amplitude,
     sea,
     // Corpo leve não arredonda: o relevo cristado (`1 - |ruído|`) é a assinatura dele.
     ridged: THREE.MathUtils.clamp(1.12 - mass * 1.45, 0, 1),
-    sharpness: 1.7 + seed * 1.5,
+    /*
+     * ⚠️ Era `1,7 + seed·1,5` (1,70–3,20), e a faixa assumia um campo UNIFORME.
+     *
+     * `fbm3` não é uniforme: normalizado para [0,1] ele tem mediana ~0,50, e `pow(0,50 · 2,43)`
+     * dá 0,19 — a superfície mediana nascia perto do fundo da rampa. Expoente é multiplicador de
+     * escuridão num campo concentrado, não controle de contraste.
+     *
+     * 1,0–1,8 devolve as faixas de cima. Medido pelo `censo-planetas.mjs`, que conta quantos
+     * planetas ALCANÇAM cada faixa de bioma — a régua é essa, não a aparência de um corpo só.
+     */
+    sharpness: 1.0 + seed * 0.8,
     // Tamanho da feição maior, em unidades da esfera unitária. 0,45–0,85 dá de três a seis
     // massas continentais — abaixo disso o planeta vira mármore, acima vira dois hemisférios.
     period: 0.45 + seedB * 0.4,
@@ -416,6 +475,7 @@ export function createPlanet() {
           uLacunarity: { value: 1.9 },
           uDetail: { value: 8 },
           uRidged: { value: 0 },
+          uOrigin: { value: new THREE.Vector3() },
           uScale: { value: 0.06 },
           uBump: { value: BUMP_OFFSET },
           uBumpStrength: { value: BUMP_STRENGTH },
@@ -531,6 +591,9 @@ export function createPlanet() {
       u.uPersistence.value = params.persistence;
       u.uLacunarity.value = params.lacunarity;
       u.uRidged.value = params.ridged;
+      // Acesso direto, como `params.light`: quem montar params à mão sem `origin` tem de quebrar
+      // aqui e não desenhar em silêncio o planeta de todo mundo — a geografia é a identidade dele.
+      u.uOrigin.value.set(params.origin[0], params.origin[1], params.origin[2]);
       u.uScale.value = relief;
       /*
        * As oitavas ENTRAM com o nível de detalhe, em vez de aparecer todas de uma vez.
