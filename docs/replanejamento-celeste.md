@@ -15,9 +15,9 @@
 2. A causa é uma só: **tipo de corpo e massa são tratados como eixos independentes**, e na
    astrofísica eles são o mesmo eixo.
 3. Duas outras inversões (`compose` → nebulosa, `script` → cometa) são consequências dela.
-4. O buraco negro central não é um detalhe estético: ele é a afirmação de que existe **um** centro,
+5. O buraco negro central não é um detalhe estético: ele é a afirmação de que existe **um** centro,
    e o universo real não tem nenhum.
-5. A colisão dos três aros se resolve **pela física**, não por ajuste de brilho — cada feição já
+6. A colisão dos três aros se resolve **pela física**, não por ajuste de brilho — cada feição já
    tem um vocabulário próprio que ninguém usou.
 
 ---
@@ -103,7 +103,37 @@ corpos), inclusive com churn zero. Pela definição acima, esses são asteroides
 cometas. O catálogo já tem `cometa-extinto` como classe: ele conhece o caso dormente e mesmo assim
 deixa o `kind` decidir antes do estado.
 
-### 2.4 Anã branca é massa do Sol no tamanho da Terra
+### 2.4 O raio dos três anéis está invertido — e este é medível contra a fonte
+
+Os anéis reais, na ordem em que a NASA os descreve:
+
+| anel | raio | estrutura | material |
+|---|---|---|---|
+| **Júpiter** | **~1,8 raios planetários** | *"a mere wisp"* — tênue, ejeta de corpos-pai escondidos | silicatos |
+| **Urano** | **~1,8 raios planetários** | nove bandas ESTREITAS, com satélites-pastores | gelo de metano modificado |
+| **Saturno** | até ~282 000 km, mas **~10 m de espessura** | vasto e complexo | gelo de água |
+
+E o `catalog.js` de hoje:
+
+```
+modified  → saturn   reach 2,45
+staged    → uranus   reach 2,2
+untracked → jupiter  reach 3,2   ← o MAIS LARGO
+```
+
+**A INVERSÃO Nº 4.** Júpiter é desenhado como o anel mais largo do céu (3,2) quando na natureza ele
+é o mais interno e o mais tênue, junto de Urano em ~1,8 raios. A parte *difusa* está correta; o
+**raio** está invertido. Saturno e Urano estão na ordem certa entre si.
+
+⚠️ O `ROCHE_FLUID = 2,44` do `orbital-zones.js` **está certo e agora tem fonte**: para densidades
+iguais, o limite de Roche fica em ~2,5 raios planetários, e é dentro dele que o material não
+consegue se acretar em lua — que é exatamente por que anel é anel.
+
+> Fontes: [NASA · Cassini FAQ](https://science.nasa.gov/mission/cassini/faq/) ·
+> [NASA · Saturn Facts](https://science.nasa.gov/saturn/facts/) ·
+> [NASA/NTRS · The narrow rings of Jupiter, Saturn and Uranus](https://ntrs.nasa.gov/citations/19800044425)
+
+### 2.5 Anã branca é massa do Sol no tamanho da Terra
 
 Sustentada por degenerescência eletrônica, **sem fusão**, esfriando por bilhões de anos. Uma colher
 de chá do material pesa ~9,5 toneladas.
@@ -239,3 +269,28 @@ Do isolado para o estrutural, para que cada passo seja reversível:
 5. **O buraco negro sai do centro** (§3.3) — a mais cara, e a que mais depende do seu olho.
 
 Os passos 1 e 2 podem ir hoje. O 3 reescreve `MORPHOLOGY_BY_KIND` e move ~1 600 corpos de lugar.
+
+⚠️ **O passo 0, e ele é grátis:** corrigir o `reach` do anel de Júpiter (§2.4) é trocar um número
+contra uma fonte primária, sem tocar em taxonomia nenhuma.
+
+---
+
+## 8. Fontes — o que cada uma sustenta
+
+A pesquisa foi feita em 2026-08-07, restrita a NASA, ESA, JPL, Chandra e NTRS. Cada linha diz o que
+a fonte afirma e **o que isso decide aqui** — fonte sem consequência não entra.
+
+| fonte | o que ela afirma | o que decide neste documento |
+|---|---|---|
+| [NASA · Stars](https://science.nasa.gov/universe/stars/) · [Britannica · Planets vs Stars](https://www.britannica.com/science/Whats-the-Difference-Between-Planets-and-Stars) | estrela funde e brilha por luz própria; planeta não tem massa para fundir e só reflete; os planetas do Sol somam ~0,1% da massa do sistema | **§2.1 — a inversão nº 1.** Tipo de corpo É massa. Funda a escada do §3 e derruba `kind` como quem decide o corpo |
+| [NASA · Brown dwarf](https://starchild.gsfc.nasa.gov/docs/StarChild/questions/question62.html) | a fronteira estrela/planeta fica em ~13 massas de Júpiter (fusão de deutério) | há um **limiar**, não um degradê — justifica limiares absolutos em vez de percentil |
+| [NASA · Decoding Nebulae](https://science.nasa.gov/universe/stories/quick-reads/decoding-nebulae/) | quatro famílias: emissão (ionizada *por* estrela), reflexão, escura (bloqueia), planetária (**casca expelida por estrela moribunda**) | **§2.2 — a inversão nº 2.** Nebulosa é berço ou cadáver; nunca "arquivo grande e difuso". Tira `compose` dela e devolve a nebulosa ao §3.2 |
+| [NASA · Comet Facts](https://science.nasa.gov/solar-system/comets/facts/) | núcleo de poucos km; coma e cauda **só perto do Sol**; cometa dormente é indistinguível de asteroide | **§2.3 — a inversão nº 3.** Atividade é estado, não `kind`. Valida o `churn` como gatilho e condena o mapeamento `script` → cometa |
+| [NASA · Cassini FAQ](https://science.nasa.gov/mission/cassini/faq/) · [NASA · Saturn Facts](https://science.nasa.gov/saturn/facts/) · [NTRS · Narrow rings of Jupiter, Saturn and Uranus](https://ntrs.nasa.gov/citations/19800044425) | limite de Roche ≈ **2,5 raios** para densidades iguais; dentro dele o material não se acreta; Júpiter e Urano orbitam a ~1,8 raios, e o de Júpiter é *"a mere wisp"* de silicatos | **§2.4 — a inversão nº 4**, e a única medível contra um número do código. Confirma `ROCHE_FLUID = 2,44` e condena `jupiter reach 3,2`. Sustenta o anel FICAR com o aro no §5 |
+| [NASA · White Dwarfs](https://imagine.gsfc.nasa.gov/science/objects/dwarfs2.html) · [Chandra · White Dwarfs](https://chandra.harvard.edu/xray_sources/white_dwarfs.html) | massa do Sol no tamanho da Terra; sem fusão, sustentada por degenerescência eletrônica; esfria por bilhões de anos | **§5** — o vocabulário próprio dela é **massa/tamanho**, não contorno. Manda remover a borda implementada em 2026-08-07 |
+| [NASA · Characteristics of Galaxies](https://imagine.gsfc.nasa.gov/educators/galaxies/imagine/characteristics.html) · [ESA · Hubble tuning fork](https://sci.esa.int/web/hubble/-/52791-the-hubble-tuning-fork-classification-of-galaxies) | sequência de Hubble: espiral (braços mais ou menos enrolados), espiral barrada, elíptica (E0–E7), irregular; disco plano + bojo central | **§4** — galáxia = agregado é o único mapeamento que a pesquisa **não** contradiz. E dá vocabulário para o degrau: quem tem grupo vira espiral, quem não tem vira elíptica ou irregular |
+
+⚠️ **O que a pesquisa NÃO cobriu, e portanto não sustenta nada aqui:** superaglomerado e filamento
+(o topo do briefing), objetos artificiais (a estação não tem análogo natural — ela é a única feição
+do céu que é *construída*, e isso é coerente com ela representar um agente) e a física de sistemas
+binários, que o catálogo já cita como fronteira `μ ≥ 5` sem fonte externa.
