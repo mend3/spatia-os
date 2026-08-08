@@ -771,7 +771,7 @@ de `X-Forwarded-For`, `Host` diferente de localhost) e dizer isso em letra grand
 > `AGENT_CWD/.claude/spatia/capabilities.json`.
 >
 > **Os vinte itens estão fechados.** O que está aberto fora daqui está em
-> [`proximos-passos.md`](proximos-passos.md).
+> [`decisoes-abertas.md`](decisoes-abertas.md).
 
 Dois critérios, aplicados nesta ordem: **fundação primeiro** (o que o resto não consegue
 existir sem), depois **valor visível por esforço**.
