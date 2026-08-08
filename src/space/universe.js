@@ -55,6 +55,20 @@ const TENTATIVAS = 30;
  */
 const BANDA_CORPOS = 4;
 /**
+ * FOLGA vazia em cada ponta da banda, em fração dela. É o "padding" que separa dois corpos vizinhos.
+ *
+ * ⚠️ **Aumentar o corpo ou diminuir a excentricidade NÃO aumenta a folga** — e é o que confunde:
+ * a excursão da elipse absorve tudo o que o corpo não usa, então o intervalo radial mede sempre
+ * `B/2 − folga`, seja qual for o raio. Quem separa é só isto. A distância vazia entre dois
+ * intervalos vizinhos é exatamente `2 · FOLGA_DA_BANDA · B`.
+ *
+ * ⚠️ E ela é paga em EXCENTRICIDADE: `0,25` deixa metade da banda vazia e devolve órbitas quase
+ * circulares. As luas usam `1/8`, que é o mínimo para a disjunção; aqui vale o dobro porque o corpo
+ * do céu é olhado de perto, e a 5 unidades de distância dois corpos que quase se tocam LEEM como
+ * um só — foi o relato que trouxe este número.
+ */
+const FOLGA_DA_BANDA = 0.25;
+/**
  * Teto da excentricidade — faixa PLANETÁRIA. De cima lê como círculo; a elipse lateral é inclinação.
  *
  * ⚠️ Ele é TETO, não valor: a excentricidade real é o que a banda deixa sobrar depois do corpo e da
@@ -292,6 +306,8 @@ export function createUniverse() {
   const indiceDe = new Map();
   /** Índice → o nó do `/api/graph`, para o picking devolver corpo e não número. */
   let corpos = [];
+  /** Raio DESENHADO por índice — o que o teste de sobreposição precisa e a matriz de instância já usa. */
+  let raiosPorIndice = null;
   /** A seleção em vigor e o que ela desenhou. `null` = ninguém selecionado, e a rede some. */
   let selecao = null;
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
@@ -367,6 +383,73 @@ export function createUniverse() {
         ? { fonte: selecao.fonte, desenhados: selecao.desenhados, recusados: selecao.recusados, total: selecao.total }
         : null,
     }),
+
+    /**
+     * OS CORPOS SE ATRAVESSAM? — a sonda que responde por MEDIDA o que a foto não decide.
+     *
+     * ⚠️ Ela existe porque "aqueles dois estão colidindo" e "aqueles dois estão um na frente do
+     * outro" produzem a MESMA imagem numa cena sem sombra projetada, e a diferença entre as duas é
+     * um defeito de geometria contra nada. Esta base já pagou por isso: *"posição na foto é dado"*,
+     * e *"prove movimento com contador, não com foto"*.
+     *
+     * Varre TODOS os pares (188 corpos = 17 578 pares) e devolve os piores. Só sob demanda — nunca
+     * por quadro.
+     *
+     * @param {number} [limite] quantos pares devolver
+     * @returns {{pares:number, sobrepostos:number, piores:Array}}
+     */
+    sobreposicoes(limite = 6) {
+      if (!posicoes || !raiosPorIndice) return { pares: 0, sobrepostos: 0, piores: [] };
+      const achados = [];
+      let pares = 0;
+      for (let i = 0; i < corpos.length; i++) {
+        for (let j = i + 1; j < corpos.length; j++) {
+          pares++;
+          const dx = posicoes[i * 3] - posicoes[j * 3];
+          const dy = posicoes[i * 3 + 1] - posicoes[j * 3 + 1];
+          const dz = posicoes[i * 3 + 2] - posicoes[j * 3 + 2];
+          const soma = raiosPorIndice[i] + raiosPorIndice[j];
+          const d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 >= soma * soma) continue;
+          const d = Math.sqrt(d2);
+          achados.push({
+            a: corpos[i]?.source ?? corpos[i]?.id,
+            b: corpos[j]?.source ?? corpos[j]?.id,
+            distancia: +d.toFixed(3),
+            somaDosRaios: +soma.toFixed(3),
+            // Quanto um entrou no outro. É o número que decide, e ele é positivo só quando há
+            // interpenetração de verdade.
+            penetracao: +(soma - d).toFixed(3),
+          });
+        }
+      }
+      achados.sort((x, y) => y.penetracao - x.penetracao);
+      return { pares, sobrepostos: achados.length, piores: achados.slice(0, limite) };
+    },
+
+    /** A distância viva entre dois corpos e a soma dos raios deles. Para conferir um par nomeado. */
+    entre(a, b) {
+      const i = indiceDe.get(a);
+      const j = indiceDe.get(b);
+      if (i === undefined || j === undefined || !posicoes) return null;
+      const dx = posicoes[i * 3] - posicoes[j * 3];
+      const dy = posicoes[i * 3 + 1] - posicoes[j * 3 + 1];
+      const dz = posicoes[i * 3 + 2] - posicoes[j * 3 + 2];
+      const d = Math.hypot(dx, dy, dz);
+      const soma = raiosPorIndice[i] + raiosPorIndice[j];
+      return {
+        distancia: +d.toFixed(3),
+        raios: [+raiosPorIndice[i].toFixed(3), +raiosPorIndice[j].toFixed(3)],
+        somaDosRaios: +soma.toFixed(3),
+        penetracao: +(soma - d).toFixed(3),
+        // A distância ao CENTRO de cada um: é a grandeza que as bandas disjuntas separam, e é ela
+        // que diz se o defeito é da banda ou de outra coisa.
+        raioOrbital: [
+          +Math.hypot(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]).toFixed(3),
+          +Math.hypot(posicoes[j * 3], posicoes[j * 3 + 1], posicoes[j * 3 + 2]).toFixed(3),
+        ],
+      };
+    },
 
     /** Posição VIVA de um corpo desta cena, ou `null` se ele não é corpo aqui. */
     posicaoDe(source) {
@@ -631,13 +714,19 @@ export function createUniverse() {
          * banda para que dois corpos de bandas distintas **nunca estejam à mesma distância do
          * centro, logo nunca se encontrem**.
          *
-         * O orçamento de uma banda de largura `B` é o mesmo de lá:
+         * O orçamento de uma banda de largura `B`, com a folga DOBRADA em relação às luas (ver
+         * `FOLGA_DA_BANDA` — o corpo do céu é olhado de perto, e dois que quase se tocam leem como
+         * um só):
          *
          * | fatia | quanto |
          * |---|---|
-         * | diâmetro do planeta | `B/2` (raio `B/4`) |
-         * | excursão da elipse (`2·a·e`) | `B/4` |
-         * | folga vazia | `B/4`, `B/8` de cada lado |
+         * | diâmetro do planeta | até `B/2` (raio `B/4`) |
+         * | excursão da elipse (`2·a·e`) | o que sobrar |
+         * | **folga vazia** | **`B/2`, metade em cada ponta** |
+         *
+         * O intervalo radial de cada corpo mede `B/2 − folga` para cada lado do semieixo, então a
+         * distância VAZIA entre dois vizinhos é `2 · FOLGA_DA_BANDA · B` — e ela não depende do
+         * tamanho do corpo, porque a excursão absorve o que o corpo não usa.
          *
          * ⚠️ E o raio desenhado é **o que a banda paga**, limitado pelo que a massa permite — a
          * mesma compressão declarada das luas. Num sistema de 38 arquivos os planetas ficam
@@ -658,7 +747,7 @@ export function createUniverse() {
            * então o planeta interno, com `a` menor, fica mais excêntrico que o externo. Razão
            * física, não decoração.
            */
-          const excursao = Math.max(banda / 2 - rp - banda / 8, 0);
+          const excursao = Math.max(banda / 2 - rp - banda * FOLGA_DA_BANDA, 0);
           const e = Math.min(EXCENTRICIDADE_MAX, excursao / a);
           const c2 = new THREE.Color(KIND_COLORS[f.kind] ?? 0x8fb8ff);
           corPlaneta.push(c2.r, c2.g, c2.b);
@@ -683,6 +772,7 @@ export function createUniverse() {
       corpos = [...estrelasPorFonte, ...planetasPorFonte];
       corpos.forEach((n, i) => { if (n?.source) indiceDe.set(n.source, i); });
       posicoes = new Float32Array(Math.max(corpos.length, 1) * 3);
+      raiosPorIndice = Float32Array.from([...centros.map((c) => c.raio), ...orbitas.map((o) => o.rp)]);
 
       estrelas = new THREE.InstancedMesh(geo, matEstrela, Math.max(centros.length, 1));
       planetas = new THREE.InstancedMesh(geo, matPlaneta, Math.max(orbitas.length, 1));

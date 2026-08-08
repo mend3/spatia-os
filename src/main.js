@@ -328,6 +328,17 @@ async function main() {
      * validação deste switcher.
      */
     cena: (modo) => (modo ? scene.setMode(modo) : { modo: scene.mode(), ...scene.universeStats() }),
+    /**
+     * A geometria da cena UNIVERSO, medida em vez de olhada.
+     *
+     * ⚠️ `sobreposicoes()` existe porque **colisão e oclusão produzem a mesma imagem** numa cena
+     * sem sombra projetada: dois corpos alinhados com a câmera parecem se atravessar, e um defeito
+     * de geometria de verdade parece a mesma coisa. A foto não decide; a distância decide.
+     */
+    universo: {
+      sobreposicoes: (limite) => scene.universeOverlaps(limite),
+      entre: (a, b) => scene.universePair(a, b),
+    },
   });
 
   // A intenção de abrir um app, venha de onde vier, vira navegação num lugar só. Desde

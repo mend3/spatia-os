@@ -1961,6 +1961,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     },
     mode: () => modo,
     universeStats: () => universe.stats(),
+    /**
+     * "Os corpos se atravessam?" — a pergunta que a foto não responde, porque colisão e oclusão
+     * produzem a mesma imagem. Sob demanda: `spatia.universo.sobreposicoes()`.
+     */
+    universeOverlaps: (limite) => universe.sobreposicoes(limite),
+    /** O par nomeado: distância viva, raios e penetração. `spatia.universo.entre(a, b)`. */
+    universePair: (a, b) => universe.entre(a, b),
     /** O tipo de um corpo na cena em vigor: novo no UNIVERSO, `null` no AGENTE. */
     bodyTypeOf: (source) => (modo === 'universo' ? universe.tipoDe(source) : null),
 
