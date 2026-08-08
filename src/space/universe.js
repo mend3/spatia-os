@@ -726,6 +726,25 @@ export function createUniverse() {
        * então a pasta de 38 arquivos recebe o mesmo volume de uma de 2 com estrela parecida, e as
        * bandas orbitais lá ficam 2,6× mais estreitas — **menor planeta 0,039 contra 0,100 un**.
        */
+      /*
+       * ⚠️ **O POSTO ESTELAR — a temperatura de uma estrela se mede contra outras ESTRELAS.**
+       *
+       * `massRank` (escrito por `graph.js`) é o posto no ranking do céu inteiro, e para estrela ele
+       * é uma constante disfarçada: ela é, por definição, o arquivo mais massivo da pasta dela.
+       * Medido aqui: **dez das 17 estrelas têm `massRank` acima de 0,85**. A fotosfera derivava
+       * temperatura, tamanho de grânulo, escurecimento de limbo e cor desse número — e com ele
+       * saturado o céu ficava com dezessete estrelas iguais.
+       *
+       * Quem sabe quem é estrela é esta cena, então é ela que escreve o posto. Empate resolve pelo
+       * `id`, para o número não depender da ordem em que os sistemas chegaram.
+       */
+      const porMassa = [...sistemas].sort(
+        (a, b) => (a.estrela.chunks || 0) - (b.estrela.chunks || 0) || (a.estrela.id < b.estrela.id ? -1 : 1)
+      );
+      porMassa.forEach((s, i) => {
+        s.estrela.postoEstelar = porMassa.length > 1 ? i / (porMassa.length - 1) : 0.5;
+      });
+
       const bruto = sistemas.map((s) =>
         Math.cbrt((s.estrela.chunks || 1) + s.planetas.reduce((a, f) => a + (f.chunks || 0), 0))
       );

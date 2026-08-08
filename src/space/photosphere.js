@@ -262,7 +262,17 @@ const FRAGMENT = /* glsl */ `
      */
     vec3 croma = vec3(1.0);
     if (uMapaForca > 0.0) {
+      /*
+       * ⚠️ A foto e UMA so, e deslocar a longitude nao basta: e literalmente "a mesma textura em
+       * outra posicao", que este modulo ja registra como o que o olho NAO le como outro corpo.
+       * Girar tambem em latitude troca o pedaco do mapa que cruza o disco visivel E move os polos,
+       * entao duas estrelas mostram regioes diferentes da imagem em orientacoes diferentes.
+       */
+      float giroLat = (fract(uSeed * 7.31) - 0.5) * 2.4;
+      float cl = cos(giroLat);
+      float sl = sin(giroLat);
       vec3 d = normalize(corpo);
+      d = vec3(d.x, d.y * cl - d.z * sl, d.y * sl + d.z * cl);
       vec2 uv = vec2(atan(d.z, d.x) / 6.2831853 + 0.5 + uSeed, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
       vec3 amostra = texture2D(uMapa, uv).rgb;
       float lum = dot(amostra, vec3(0.2126, 0.7152, 0.0722));
@@ -412,9 +422,28 @@ export function photosphereParams(node, hash01, kindColor) {
    * O hash entra como DESVIO pequeno (±12%), não como fonte: sem ele, dois arquivos de mesmo
    * tamanho seriam gêmeos exatos; com ele mandando, a temperatura deixaria de informar.
    */
-  const massa = Number.isFinite(node.massRank)
-    ? node.massRank
-    : THREE.MathUtils.clamp(Math.log2(1 + chunks) / MASS_LOG_FULL, 0, 1);
+  /*
+   * ⚠️ **A temperatura de uma estrela é o posto dela entre ESTRELAS, não entre todos os arquivos.**
+   *
+   * `massRank` é a posição no ranking de massa do céu inteiro, e desde que a ontologia nova passou a
+   * eleger a estrela como a entidade DOMINANTE do sistema isso virou uma constante disfarçada: a
+   * estrela é, por definição, o arquivo mais massivo da pasta dela, então todas caem no topo do
+   * ranking global. Medido no `espatial_vivo`: das 17 estrelas, **dez têm `massRank` acima de 0,85**
+   * e catorze acima de 0,47. O eixo chegava saturado, e o céu ficava com dezessete estrelas iguais —
+   * relatado exatamente assim.
+   *
+   * `postoEstelar` é o posto DENTRO da população estelar, escrito por quem sabe quem é estrela
+   * (`universe.js`). Ele devolve a faixa inteira, e é também a comparação certa em física: a
+   * temperatura efetiva de uma estrela se lê contra outras estrelas, não contra planetas.
+   *
+   * A queda para `massRank` e depois para o log da massa continua, porque quem chama daqui pode não
+   * ter população estelar nenhuma para ranquear — e um número saturado ainda é melhor que nenhum.
+   */
+  const massa = Number.isFinite(node.postoEstelar)
+    ? node.postoEstelar
+    : Number.isFinite(node.massRank)
+      ? node.massRank
+      : THREE.MathUtils.clamp(Math.log2(1 + chunks) / MASS_LOG_FULL, 0, 1);
   const temp = THREE.MathUtils.clamp(massa * 0.88 + (seed - 0.5) * 0.24, 0, 1);
 
   /*
