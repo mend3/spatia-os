@@ -21,6 +21,9 @@ import * as tuning from '../core/tuning.js';
 import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
 import { createUniverse } from './universe.js';
+// A ontologia nova, e a tabela que a traduz em pele. Ver `decisaoDoUniverso`.
+import { entityPhysics, classificar, fenomenos } from './entity-physics.js';
+import { superficieDe } from './superficies.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
 import { createGraph, hash01, starSeed } from './graph.js';
@@ -467,6 +470,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   // ao fundo. `anchor` interpola entre a origem (sistema) e a posição do corpo.
   const anchor = new THREE.Vector3();
   const anchorTarget = new THREE.Vector3();
+  /**
+   * Onde o corpo em foco estava no quadro ANTERIOR, e de quem era.
+   *
+   * É o que permite separar o deslocamento do CORPO (que a âncora acompanha sem atraso) do voo até
+   * ele (que continua amortecido). `alvoAnteriorDe` guarda o `source` porque, na troca de foco, a
+   * diferença entre dois corpos não é deslocamento nenhum — é justamente o voo.
+   */
+  let alvoAnterior = null;
+  let alvoAnteriorDe = null;
+  const ANCHOR_DELTA = new THREE.Vector3();
   /*
    * `hidden` marca a janela de amostragem que NÃO é medida.
    *
@@ -977,6 +990,59 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   }
 
   /**
+   * A âncora do corpo em foco na cena UNIVERSO, na MESMA forma que `graph.planetAnchor` devolve.
+   *
+   * ⚠️ **A constante de projeção é escrita pela definição, e é a única cópia dela nesta base.** No
+   * caminho do AGENTE ela é RECUPERADA da saída do `planetAnchor` (`px · distância / raio`) de
+   * propósito, para não existir uma segunda fórmula livre para divergir. Aqui não há âncora de onde
+   * recuperá-la — então ela nasce da definição da projeção em perspectiva, `altura / (2·tan(fov/2))`,
+   * que é exatamente o que a outra recupera. As duas divergirem é o defeito a vigiar.
+   */
+  function ancoraDoUniverso(source) {
+    const ancora = universe.ancoraDe(source);
+    if (!ancora) return null;
+    const k = canvas.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+    const distancia = camera.position.distanceTo(ancora.position);
+    return {
+      node: ancora.node,
+      position: ancora.position,
+      radius: ancora.radius,
+      // Distância mínima de 1e-3: dentro do corpo o `px` estouraria para infinito e levaria junto o
+      // LOD, que decide nível por pixel aparente.
+      px: (k * ancora.radius) / Math.max(distancia, 1e-3),
+    };
+  }
+
+  /**
+   * A pele do corpo em foco na cena UNIVERSO, pela ontologia NOVA. Ver `space/superficies.js`.
+   *
+   * A forma do retorno é a de `resolveBody` no que o quadro consome — `surface` e `recusados` —,
+   * porque o bloco que desenha é o MESMO. O que muda é quem decide, não quem desenha.
+   */
+  function decisaoDoUniverso(node) {
+    const fisica = entityPhysics(node, { dominante: universe.tipoDe(node.source) === 'ESTRELA' });
+    const classe = classificar(fisica, node);
+    const ativos = fenomenos(fisica, node).map((f) => f.tipo);
+    const surface = superficieDe(classe, fisica, ativos);
+    /*
+     * ⚠️ **A FORMA é a de `resolveBody`, com os nomes dele — `modifiers` e `rejected`.** A primeira
+     * versão devolveu `recusados`, e o laço de quadro morreu na linha que escreve o traço
+     * (`decisao.rejected.map`), num erro que só aparece quando o corpo em foco troca de superfície.
+     * Quem desenha é o MESMO bloco: quem muda é quem decide, e o contrato de saída é dele.
+     */
+    return {
+      surface,
+      modifiers: [],
+      rejected: surface === SURFACE.NONE
+        ? [{ feature: 'surface', motivo: `classe ${classe.tipo} não roteia pele` }]
+        : [],
+      // O que a ontologia NOVA concluiu, para a sonda poder dizer por que esta pele e não outra.
+      classe,
+      fenomenos: ativos,
+    };
+  }
+
+  /**
    * The zoom range in force right now.
    *
    * One function because there were two clamps before — the wheel's literals and the focus flight
@@ -1240,8 +1306,28 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // apontando para o vazio.
     if (focusedNode && !nodeAt) focusedNode = null;
     const bodyAt = nodeAt || (focusedBody ? bodies.positionOf(focusedBody) : null);
+    /*
+     * ⚠️ **A SUAVIZAÇÃO É DO VOO, NÃO DO CORPO** — e sem essa distinção a câmera trava PERTO do
+     * astro, nunca nele.
+     *
+     * Um `lerp` de taxa fixa contra alvo em MOVIMENTO tem erro permanente: ele converge para uma
+     * distância proporcional à velocidade do alvo (`v / taxa`), e nunca a zero. No céu AGENTE isso
+     * é invisível porque `ω ∝ r^-1,5` e os raios são grandes; na cena UNIVERSO a órbita mais interna
+     * fecha a volta em ~15 s, e a 0,4 rad/s o atraso vira quase um raio do corpo. Relatado da tela
+     * exatamente assim: *"o zoom no astro não fixa nele, parece fixar perto dele"*.
+     *
+     * O conserto separa os dois movimentos que estavam somados: o deslocamento que o CORPO fez
+     * neste quadro é aplicado à âncora sem amortecimento nenhum — ela viaja junto —, e o `lerp`
+     * passa a amortecer só o que sobra, que é a diferença entre onde a câmera estava olhando e o
+     * corpo novo. O voo continua macio; a perseguição deixa de existir.
+     */
     anchorTarget.copy(bodyAt || ZERO);
+    if (alvoAnterior && alvoAnteriorDe === focusedNode && bodyAt) {
+      anchor.add(ANCHOR_DELTA.copy(anchorTarget).sub(alvoAnterior));
+    }
     anchor.lerp(anchorTarget, 1 - Math.exp(-2.6 * real));
+    alvoAnterior = (alvoAnterior || new THREE.Vector3()).copy(anchorTarget);
+    alvoAnteriorDe = focusedNode;
 
     // A câmera olha para o núcleo, mas se inclina na direção do que foi recuperado: o
     // sistema aponta a atenção para onde a memória acendeu, e depois relaxa de volta.
@@ -1435,9 +1521,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * cima da teia: o céu novo respondendo com o corpo do céu velho, e ainda por cima com a câmera
      * a 7 unidades de um objeto que a cena nova desenha com 0,7.
      */
-    const pouso = focusedNode && modo !== 'universo'
-      ? graph.planetAnchor(focusedNode, camera, canvas.height, elapsed)
-      : null;
+    /*
+     * ⚠️ **A ÂNCORA vem da cena em vigor, e o caminho depois dela é UM SÓ.**
+     *
+     * `graph.planetAnchor` resolve posição, raio e `px` no céu AGENTE. No UNIVERSO o corpo está em
+     * outro lugar, com outro tamanho — mas o que o resto do quadro precisa é a mesma tupla, então
+     * ela é montada aqui em vez de existir um segundo bloco de pele. Um bloco só é o que garante
+     * que enquadramento, piso de zoom, LOD e sonda contam a mesma história nas duas cenas.
+     */
+    const pouso = !focusedNode
+      ? null
+      : modo === 'universo'
+        ? ancoraDoUniverso(focusedNode)
+        : graph.planetAnchor(focusedNode, camera, canvas.height, elapsed);
 
     /*
      * The zoom floor and the fit are derived from the anchor, never from a second formula.
@@ -1465,12 +1561,30 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       moonOrbits.build(luas);
       moonSource = focusedNode;
     }
-    if (pouso) moonOrbits.show(pouso.position, graph.spread());
+    // O traço das luas é do céu AGENTE: as luas são as SEÇÕES do arquivo, e a escala dele é a do
+    // grupo do grafo. No UNIVERSO ele desenharia elipses de outro mundo, no espaço errado.
+    if (pouso && modo !== 'universo') moonOrbits.show(pouso.position, graph.spread());
     else moonOrbits.hide();
 
+    /*
+     * ⚠️ **QUEM ESCOLHE A PELE É A ONTOLOGIA DA CENA EM VIGOR.**
+     *
+     * `resolveBody` decide a partir do `kind` — a taxonomia que a Fase B refutou, em que um `config`
+     * de 2 chunks desenha uma ESTRELA ao lado de um `doc` de 200 desenhado como planeta. Usá-la na
+     * cena nova seria o modelo velho falando por cima do novo, exatamente o defeito que `ce8ad95`
+     * consertou na HUD.
+     *
+     * No UNIVERSO quem responde é `superficieDe(classe, física, fenômenos)` — a tabela da Fase D,
+     * medida antes de escrita (`scripts/censo-superficies.mjs`): fotosfera 17 · planeta 152 ·
+     * cometa 8 · sem pele 11, e nenhuma pele roteada nasce vazia.
+     */
     const decisao = pouso
-      ? resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) })
+      ? (modo === 'universo'
+          ? decisaoDoUniverso(pouso.node)
+          : resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) }))
       : null;
+    // A esfera instanciada cede o lugar para a pele: as duas no mesmo raio brigam por profundidade.
+    universe.ocultar(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE ? focusedNode : null);
     if (pouso) {
       const distancia = camera.position.distanceTo(pouso.position);
       focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
@@ -1501,38 +1615,6 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           ((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX) * extensao
         );
         fitPending = false;
-      }
-    } else if (modo === 'universo' && focusedNode) {
-      /*
-       * ─────────────── O ENQUADRAMENTO DA CENA UNIVERSO — e por que ele é outro caminho
-       *
-       * ⚠️ **Sem isto a câmera não chega perto, e o número explica o sintoma inteiro.** O piso do
-       * zoom cai em `ZOOM_RANGE.min` (12 unidades) quando não há `focusGeometry`, e os corpos desta
-       * cena medem de 0,1 a 1,6 — a câmera parava a DEZ VEZES o tamanho do que se pediu para ver, e
-       * nenhum gesto de roda passava disso. Relatado como "o zoom não chega perto o suficiente".
-       *
-       * `graph.planetAnchor` não serve aqui: ele resolve a posição e o raio do céu AGENTE, que é
-       * outro lugar e outro tamanho. Quem responde é a cena em vigor (`universe.ancoraDe`).
-       *
-       * ⚠️ **A constante de projeção é calculada, e não recuperada.** No caminho do AGENTE ela sai
-       * do próprio `planetAnchor` (`px · distância / raio`) justamente para não existir uma segunda
-       * fórmula livre para divergir. Aqui não há âncora de onde recuperá-la, então ela é escrita
-       * pela definição — altura do framebuffer sobre duas vezes a tangente de meio fov — e é essa
-       * mesma definição que a outra recupera. Uma delas mudar sem a outra é o defeito a vigiar.
-       */
-      const ancora = universe.ancoraDe(focusedNode);
-      if (ancora) {
-        const k = canvas.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
-        focusGeometry = { radius: ancora.radius, k };
-        if (fitPending) {
-          /*
-           * Sem `SKIN_EXTENT`: esta cena não desenha pele nenhuma, então não há envoltório maior
-           * que o corpo para caber no quadro. Quando a Fase D chegar, é aqui que ele entra.
-           */
-          orbit.targetDistance = clampDistance((k * ancora.radius) / FOCUS_FIT_PX);
-          orbit.targetPolar = NODE_FOCUS_POLAR;
-          fitPending = false;
-        }
       }
     } else if (!focusedNode) {
       focusGeometry = null;

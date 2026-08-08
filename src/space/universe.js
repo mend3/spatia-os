@@ -323,6 +323,13 @@ export function createUniverse() {
   let raiosPorIndice = null;
   /** A seleção em vigor e o que ela desenhou. `null` = ninguém selecionado, e a rede some. */
   let selecao = null;
+  /**
+   * O corpo cuja PELE está sendo desenhada por fora, e que por isso não pode desenhar a esfera.
+   *
+   * ⚠️ Sem isto os dois ocupam o mesmo lugar com o mesmo raio e brigam por profundidade — o
+   * z-fighting aparece como a superfície piscando em faixas, que lê como defeito de shader e não é.
+   */
+  let ocultoIdx = -1;
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
      sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
   const amostra = new THREE.Vector3();
@@ -479,6 +486,17 @@ export function createUniverse() {
         radius: raiosPorIndice[i],
         node: corpos[i],
       };
+    },
+
+    /**
+     * Esconde a ESFERA de um corpo porque a pele dele está sendo desenhada por fora. `null` devolve.
+     *
+     * A alternativa seria a cena UNIVERSO desenhar a própria pele, e ela seria uma segunda cópia
+     * das seis que já existem e já foram validadas na bancada.
+     */
+    ocultar(source) {
+      const i = source ? indiceDe.get(source) : undefined;
+      ocultoIdx = i === undefined ? -1 : i;
     },
 
     /** Posição VIVA de um corpo desta cena, ou `null` se ele não é corpo aqui. */
@@ -846,9 +864,11 @@ export function createUniverse() {
       const desloca = rumo.clone().multiplyScalar(elapsed * DERIVA);
       for (let i = 0; i < centros.length; i++) {
         V3.copy(centros[i].pos).add(desloca);
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio));
-        estrelas.setMatrixAt(i, M4);
+        // A POSIÇÃO é escrita sempre — o arco e o picking dependem dela mesmo com o corpo oculto.
+        // Quem some é só a ESCALA da instância: zero desenha nada e não custa fragmento nenhum.
         posicoes[i * 3] = V3.x; posicoes[i * 3 + 1] = V3.y; posicoes[i * 3 + 2] = V3.z;
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(i === ocultoIdx ? 0 : centros[i].raio));
+        estrelas.setMatrixAt(i, M4);
       }
       for (let k = 0; k < orbitas.length; k++) {
         const o = orbitas[k];
@@ -863,7 +883,7 @@ export function createUniverse() {
         const zr = x * Math.sin(o.giro) + z * Math.cos(o.giro);
         const c = centros[o.centro];
         V3.set(c.pos.x + xr, c.pos.y + zr * Math.sin(o.inc), c.pos.z + zr * Math.cos(o.inc)).add(desloca);
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp));
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros.length + k === ocultoIdx ? 0 : o.rp));
         planetas.setMatrixAt(k, M4);
         const p = (centros.length + k) * 3;
         posicoes[p] = V3.x; posicoes[p + 1] = V3.y; posicoes[p + 2] = V3.z;
