@@ -26,7 +26,7 @@ import * as THREE from 'three';
 import { entityPhysics, classificar, raioPorMassa } from './entity-physics.js';
 import { KIND_COLORS } from './graph.js';
 import { createLinks } from './links.js';
-import { createRings } from './rings.js';
+import { createRings, VISIBLE_CORE } from './rings.js';
 
 /**
  * Escala do universo, em unidades de mundo.
@@ -459,6 +459,35 @@ export function createUniverse() {
   const M4 = new THREE.Matrix4();
   const V3 = new THREE.Vector3();
   const Q = new THREE.Quaternion();
+  // Próprio, e não o `V3` acima: este é lido DENTRO do `follow`, que roda depois dos laços de
+  // órbita — compartilhar o temporário faria a distância do anel depender da ordem das chamadas.
+  const ALVO = new THREE.Vector3();
+
+  /**
+   * O raio do corpo `i` nas DUAS réguas que `rings.follow` consome: mundo e pixel.
+   *
+   * ⚠️ Aqui se passava o NÚMERO cru de `raiosPorIndice`, e `follow` lê `size.world` e `size.px`.
+   * Os dois saíam `undefined`: a escala da malha virava `NaN` (nada desenhado) e o nível de
+   * detalhe também. Anel montado e invisível é o pior estado possível — a sonda conta e a tela
+   * não mostra.
+   *
+   * `world` é o raio do SPRITE equivalente, não o do corpo: `follow` escala por
+   * `world · VISIBLE_CORE` porque no AGENTE o astro visível é 0,6 do sprite. Nesta cena o corpo é
+   * malha e `raiosPorIndice` JÁ é o raio desenhado, então dividir pelo mesmo 0,6 é o que faz o aro
+   * envolver a esfera em vez de cortá-la.
+   *
+   * `px` é o raio aparente do corpo — a régua que decide quando a rocha entra (`LOD_NEAR_PX`). É a
+   * mesma conta de `graph.apparentPx`, com a régua do framebuffer que `scene` já passa ao `pick`.
+   */
+  function raioAparente(i, camera, viewportHeight) {
+    const raio = raiosPorIndice?.[i] ?? 1;
+    ALVO.set(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]);
+    const meiaAltura = Math.max(
+      Math.tan((camera.fov * Math.PI) / 360) * camera.position.distanceTo(ALVO),
+      1e-4
+    );
+    return { world: raio / VISIBLE_CORE, px: (raio * viewportHeight) / (2 * meiaAltura) };
+  }
 
   function limpar() {
     for (const m of [estrelas, planetas]) if (m) { group.remove(m); m.dispose?.(); }
@@ -514,6 +543,45 @@ export function createUniverse() {
     object: group,
     /** O tipo de um corpo NESTA cena, ou `null` fora dela. A HUD pergunta; ela não deduz. */
     tipoDe: (source) => tipos.get(source) ?? null,
+
+    /**
+     * Põe anel nos corpos cujo arquivo está alterado no disco.
+     *
+     * ⚠️ **Este método não existia, e a chamada em `scene.markDirty` já existia.** O
+     * `TypeError: universe.sujar is not a function` subia do `scene.markDirty` até o `catch` do
+     * `watchDirty`, que responde a QUALQUER falha apagando os anéis (`forgetDirty`) — então o
+     * defeito não ficava nesta cena: ele zerava o `dirtyState` do grafo e derrubava o anel das
+     * DUAS cenas, mais a linha DISCO do painel, que sai de `graph.dirtyOf`. Medido antes do
+     * conserto: 17 arquivos sujos, 17 casando com `byPath`, `spatia.cena().aneis` = 0, e a única
+     * testemunha era uma nota no log — *"ALTERAÇÕES LOCAIS INDISPONÍVEIS: universe.sujar is not a
+     * function · ANÉIS REMOVIDOS"*. É por isso que quem chama não pode engolir o erro: a nota foi
+     * a prova.
+     *
+     * `estadoDe(source)` é o `graph.dirtyOf`. Quem lê o `git status` continua sendo uma cena só e
+     * esta consome o resultado pelo `source` — duas leituras da mesma tabela divergiriam no dia em
+     * que uma delas mudasse de chave.
+     *
+     * ⚠️ A FAMÍLIA sai da geometria DAQUI, não do solver do AGENTE: `índice < centros.length` é
+     * uma estrela desta cena, e o catálogo é explícito — *a estrela não ganha anel, ganha um disco
+     * de detritos*. Perguntar ao `resolveBody` responderia sobre a morfologia da OUTRA cena, onde
+     * o mesmo arquivo pode ser um pulsar que recusa anel enquanto aqui ele é uma esfera que o
+     * aceita.
+     */
+    sujar(estadoDe) {
+      const entradas = [];
+      for (const [source, i] of indiceDe) {
+        const state = estadoDe(source);
+        if (!state) continue;
+        // `recency` alimenta o `dimOf` do `follow`, e aqui ele é constante (esta cena não tem
+        // janela temporal): vai o valor neutro em vez de um campo faltando.
+        entradas.push({ index: i, size: raiosPorIndice?.[i] ?? 1, state, recency: 1, detritos: i < centros.length });
+      }
+      const resultado = aneis.set(entradas);
+      // A sonda conta o que foi MONTADO, não o que foi pedido: o teto de `maxRings` corta, e um
+      // número que ignorasse o corte mentiria exatamente na hora em que ele passa a importar.
+      sujosAtivos = entradas.slice(0, resultado.shown);
+      return resultado;
+    },
     stats: () => ({
       ...stats,
       quadros,
@@ -1037,7 +1105,7 @@ export function createUniverse() {
      * ⚠️ A deriva é do UNIVERSO inteiro, não por sistema: o que a cena afirma é que não há
      * referencial parado, e mover cada sistema para um lado diferente afirmaria outra coisa.
      */
-    update(elapsed, delta = 0, camera = null) {
+    update(elapsed, delta = 0, camera = null, viewportHeight = 0) {
       quadros++;
       ultimoElapsed = elapsed;
       if (!estrelas || !planetas) return;
@@ -1076,11 +1144,12 @@ export function createUniverse() {
       rede.update(posicoes, delta, elapsed);
       /*
        * O anel segue pelo MESMO buffer, pelo índice. `dimOf` devolve 1 porque esta cena não tem
-       * filtro de tipo (quem some no AGENTE é o que o histograma escondeu); `radiusOf` devolve o
-       * raio desenhado, que é o que faz o aro envolver o corpo em vez de flutuar perto dele.
+       * filtro de tipo (quem some no AGENTE é o que o histograma escondeu); `radiusOf` devolve as
+       * duas réguas do corpo — ver `raioAparente`, que é o que faz o aro envolver a esfera em vez
+       * de sair `NaN`.
        */
-      if (camera && sujosAtivos.length) {
-        aneis.follow(posicoes, camera, () => 1, (i) => raiosPorIndice?.[i] ?? 1, elapsed, undefined, cedidoIdx);
+      if (camera && viewportHeight && sujosAtivos.length) {
+        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, cedidoIdx);
       }
     },
 

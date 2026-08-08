@@ -1272,7 +1272,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     sceneTime += delta;
     const elapsed = sceneTime;
     // A cena UNIVERSO, logo que o relógio dos objetos avança e ANTES de qualquer condicional.
-    if (modo === 'universo') universe.update(elapsed, delta, camera);
+    // `canvas.height` é o framebuffer (CSS × devicePixelRatio) — a MESMA régua que o `pick` e o
+    // `graph.update` recebem. O anel decide nível de detalhe em pixels, e duas réguas dariam duas
+    // distâncias de troca na mesma tela.
+    if (modo === 'universo') universe.update(elapsed, delta, camera, canvas.height);
     const started = performance.now();
 
     // Deriva automática é movimento contínuo sem evento por trás — o primeiro a sair.
