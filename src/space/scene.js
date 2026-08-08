@@ -1272,7 +1272,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     sceneTime += delta;
     const elapsed = sceneTime;
     // A cena UNIVERSO, logo que o relógio dos objetos avança e ANTES de qualquer condicional.
-    if (modo === 'universo') universe.update(elapsed, delta);
+    if (modo === 'universo') universe.update(elapsed, delta, camera);
     const started = performance.now();
 
     // Deriva automática é movimento contínuo sem evento por trás — o primeiro a sair.
@@ -2149,7 +2149,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     applyBackdrop: (options) => backdrop.apply(options),
     /** Qual imagem está no ar — a tela de configuração precisa dela para creditar. */
     backdropPlate: () => backdrop.plate(),
-    markDirty: (table) => graph.markDirty(table),
+    markDirty: (table) => {
+      const resultado = graph.markDirty(table);
+      /*
+       * ⚠️ **A cena UNIVERSO tem o próprio anel, e ele precisa da MESMA varredura.**
+       *
+       * `rings` vive dentro de `graph.js` e o grupo dele é filho de `graph.group`, que o UNIVERSO
+       * esconde inteiro — então o estado do git chegava ao painel ("NÃO RASTREADO") e não à
+       * geometria. Relatado da tela exatamente assim. Aqui a mesma tabela alimenta as duas cenas,
+       * de um ponto só: duas chamadas em lugares diferentes divergiriam no dia em que uma delas
+       * fosse esquecida.
+       */
+      universe.sujar((source) => graph.dirtyOf(source));
+      return resultado;
+    },
     /** Apaga os anéis sem afirmar árvore limpa — quando o disco deixa de ser verificável. */
     forgetDirty: () => graph.forgetDirty(),
     dirtyOf: (source) => graph.dirtyOf(source),

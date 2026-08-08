@@ -257,7 +257,7 @@ await cypher(
 if (agentes.size) {
   await cypher(
     `UNWIND $agentes AS a MERGE (x:${AGENTE} {id: a.id}) SET x.brain = a.brain, x.group_id = $grupo`,
-    { agentes: [...agentes.values()], grupo: GRUPO }
+    { agentes: [...agentes.values()], grupo: GRUPO, corpus: CORPUS }
   );
 }
 
@@ -281,7 +281,7 @@ await cypher(
        r.model = e.model, r.group_id = $grupo, r.corpus = $corpus
    WITH r, e WHERE e.brain IS NOT NULL
    MATCH (a:${AGENTE} {id: e.brain}) MERGE (a)-[:RAN]->(r)`,
-  { execs, grupo: GRUPO }
+  { execs, grupo: GRUPO, corpus: CORPUS }
 );
 
 await cypher(

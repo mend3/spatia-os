@@ -26,6 +26,7 @@ import * as THREE from 'three';
 import { entityPhysics, classificar, raioPorMassa } from './entity-physics.js';
 import { KIND_COLORS } from './graph.js';
 import { createLinks } from './links.js';
+import { createRings } from './rings.js';
 
 /**
  * Escala do universo, em unidades de mundo.
@@ -149,12 +150,32 @@ const RAIO_MINIMO = 0.7;
  * Um corpo apagado porque o Neo4j não foi materializado seria o céu afirmando periferia sobre um
  * fato que ninguém mediu. É a lei nº 1 da integração, do lado do pixel.
  */
-function brilhoDe(node) {
+function brilhoDe(node, usoVale = false) {
   const atividade = Math.min((node.churn || 0) / 12, 1);
   const influencia = typeof node.centrality === 'number' ? node.centrality : null;
   // Piso 0,55: nem o corpo mais periférico do céu desaparece. Ele fica DISCRETO, que é diferente.
   const base = 0.55 + atividade * 0.35;
-  return influencia === null ? base : base + influencia * 0.9;
+  const semUso = influencia === null ? base : base + influencia * 0.9;
+  /*
+   * ─────────────── O USO no brilho, e ele só entra com EVIDÊNCIA SUFICIENTE
+   *
+   * O P5 construiu a dimensão com evidência deliberadamente rala e publicou o veredito junto do
+   * número (`evidenciaDeUso`), justamente para que ela NÃO influenciasse nada enquanto "usado por
+   * muitos agentes" fosse um empate. O piso é grau máximo ≥ 5 e cobertura > 7,2%.
+   *
+   * ⚠️ **Ele foi vencido pela primeira vez em 2026-08-08**, com execuções REAIS contra o fixture:
+   * 22 runs · 8 corpos tocados (11,3% do céu) · grau máximo 10 · 1 `:Agent`. Nada foi semeado — o
+   * `--semear` recusa escrever no diário real, e a cadeia por hash é o que torna isso verificável.
+   *
+   * ⚠️ E o portão continua no código, não na lembrança: `usoVale` vem do veredito que viaja no
+   * snapshot. Se o corpus mudar e a evidência voltar a ser rala, o uso PARA de influenciar sozinho
+   * — que é a diferença entre uma dimensão medida e uma dimensão ligada de uma vez por todas.
+   *
+   * O peso é METADE do da influência (0,45 contra 0,9): "quem me abriu" é um sinal mais novo e mais
+   * ralo que "quem se parece comigo", e o brilho deve dizer isso pela intensidade também.
+   */
+  const uso = typeof node.usage === 'number' ? node.usage : null;
+  return usoVale && uso !== null ? semUso + uso * 0.45 : semUso;
 }
 
 /**
@@ -324,6 +345,26 @@ export function createUniverse() {
   group.add(rede.object);
 
   /*
+   * ─────────────────────────── O ANEL DO GIT — a terceira feição que só a outra cena tinha
+   *
+   * ⚠️ Relatado da tela: um corpo marcado **NÃO RASTREADO** aparecia sem anel. A causa é a mesma
+   * da coroa da estrela: `rings` é instanciado dentro de `graph.js` e o grupo dele é filho de
+   * `graph.group`, que o UNIVERSO esconde inteiro. O estado do git chegava ao painel e não à
+   * geometria.
+   *
+   * ⚠️ E ele NÃO é feição de seleção, ao contrário da rede: anel é ESTADO — "este arquivo tem
+   * trabalho aberto" —, e vale para todos os corpos sujos ao mesmo tempo. Mostrar só no foco
+   * transformaria um fato permanente numa resposta a gesto.
+   *
+   * O `index` das entradas é a posição no buffer de posições, e o desta cena serve tal e qual: é
+   * o mesmo contrato que o grafo usa, com outro buffer.
+   */
+  const aneis = createRings();
+  group.add(aneis.group);
+  /** `index` → raio desenhado, para o anel escalar com o corpo. Ver `follow`. */
+  let sujosAtivos = [];
+
+  /*
    * ─────────────────────────── A COROA da estrela em foco
    *
    * ⚠️ **Estrela emite luz própria, e a pele sozinha não emite.** Relatado da tela: a fotosfera
@@ -426,6 +467,8 @@ export function createUniverse() {
     centros = [];
     posicoes = null;
     corpos = [];
+    sujosAtivos = [];
+    aneis.set([]);
     indiceDe.clear();
     selecao = null;
     rede.show(null);
@@ -481,6 +524,12 @@ export function createUniverse() {
       rede: selecao
         ? { fonte: selecao.fonte, desenhados: selecao.desenhados, recusados: selecao.recusados, total: selecao.total }
         : null,
+      /*
+       * ⚠️ Quantos ANÉIS estão montados. Sem isto, "o anel não apareceu" não distingue três coisas
+       * diferentes: mapa de sujos vazio, `source` que não casou, e geometria muda. Foi exatamente
+       * essa dúvida que custou a primeira investigação.
+       */
+      aneis: sujosAtivos.length,
     }),
 
     /**
@@ -692,6 +741,12 @@ export function createUniverse() {
     load(payload) {
       limpar();
       tipos.clear();
+      /*
+       * O veredito de evidência viaja com a topologia (`stats.uso.evidencia`), escrito por quem
+       * mediu. Lê-lo aqui em vez de recalcular é a mesma regra da legenda dos arcos: o que se vê
+       * sai do mesmo lugar que o que se mediu.
+       */
+      const usoVale = payload?.stats?.uso?.evidencia?.suficiente === true;
       const nodes = payload?.nodes || [];
       const byId = new Map(nodes.map((n) => [n.id, n]));
       const filhos = new Map();
@@ -838,7 +893,7 @@ export function createUniverse() {
         const raio = raios[i];
         const cor = new THREE.Color(KIND_COLORS[s.estrela.kind] ?? 0xffd9a0);
         corEstrela.push(cor.r, cor.g, cor.b);
-        brilhoE.push(brilhoDe(s.estrela));
+        brilhoE.push(brilhoDe(s.estrela, usoVale));
         estrelasPorFonte.push(s.estrela);
 
         // Inclinação própria por sistema: dois sistemas não compartilham plano orbital.
@@ -937,7 +992,7 @@ export function createUniverse() {
            * raio relativo, que é o que Kepler afirma e o que a constante única negava.
            */
           orbitas.push({ centro: i, a, e, rp, fase: hash01(f.id, 53) * Math.PI * 2, inc, giro,
-            n: MOVIMENTO_MEDIO * Math.pow(raio / a, 1.5), brilho: brilhoDe(f) });
+            n: MOVIMENTO_MEDIO * Math.pow(raio / a, 1.5), brilho: brilhoDe(f, usoVale) });
         });
         return { pos, raio, sistema: s.agg.id };
       });
@@ -982,7 +1037,7 @@ export function createUniverse() {
      * ⚠️ A deriva é do UNIVERSO inteiro, não por sistema: o que a cena afirma é que não há
      * referencial parado, e mover cada sistema para um lado diferente afirmaria outra coisa.
      */
-    update(elapsed, delta = 0) {
+    update(elapsed, delta = 0, camera = null) {
       quadros++;
       ultimoElapsed = elapsed;
       if (!estrelas || !planetas) return;
@@ -1019,6 +1074,14 @@ export function createUniverse() {
       // DEPOIS das posições, nunca antes: o arco lê o buffer que este quadro acabou de escrever.
       // Um quadro de atraso aqui aparece como o vínculo arrastando atrás do corpo.
       rede.update(posicoes, delta, elapsed);
+      /*
+       * O anel segue pelo MESMO buffer, pelo índice. `dimOf` devolve 1 porque esta cena não tem
+       * filtro de tipo (quem some no AGENTE é o que o histograma escondeu); `radiusOf` devolve o
+       * raio desenhado, que é o que faz o aro envolver o corpo em vez de flutuar perto dele.
+       */
+      if (camera && sujosAtivos.length) {
+        aneis.follow(posicoes, camera, () => 1, (i) => raiosPorIndice?.[i] ?? 1, elapsed, undefined, cedidoIdx);
+      }
     },
 
     setVisible(v) { group.visible = v; },
