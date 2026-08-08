@@ -1815,6 +1815,22 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * sozinha conforme a pele apaga. Transição contínua, sem quadro nenhum decidindo nada.
      */
     universe.cederPara(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE ? focusedNode : null);
+    /*
+     * ⚠️ **A COROA da estrela, e ela existe porque a cena AGENTE a tinha por outro caminho.**
+     *
+     * Lá quem faz a estrela brilhar é o sprite do grafo, aceso por trás da fotosfera
+     * (`graph.haloOf`, e `keepsCrown` já diz o motivo: *"a fotosfera É o corpo: a coroa fica, e é
+     * ela a atmosfera iluminada por trás"*). O UNIVERSO esconde o grafo inteiro, então o corpo
+     * ganhava superfície e perdia a LUZ — relatado da tela: *"estrela está sem brilho (estrelas
+     * emitem luz própria)"*.
+     *
+     * Ela acompanha o nível de LOD da pele: acende com ela e apaga com ela, em vez de ter um
+     * limiar próprio para discordar do corpo que está iluminando.
+     */
+    universe.coroar(
+      modo === 'universo' && decisao?.surface === SURFACE.PHOTOSPHERE ? focusedNode : null,
+      probe.level ?? 0
+    );
 
     probe.casca = probe.desenhado ? (pouso.node.supernova || 0) * probe.level : 0;
     remnant.update(

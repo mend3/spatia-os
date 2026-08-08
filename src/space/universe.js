@@ -313,6 +313,68 @@ export function createUniverse() {
    */
   const rede = createLinks();
   group.add(rede.object);
+
+  /*
+   * ─────────────────────────── A COROA da estrela em foco
+   *
+   * ⚠️ **Estrela emite luz própria, e a pele sozinha não emite.** Relatado da tela: a fotosfera
+   * desenhava o grão e o corpo lia como pedra. O motivo é estrutural e não estava nesta cena: na
+   * cena AGENTE quem faz a estrela BRILHAR é o sprite do grafo (`graph.haloOf`), aceso por trás da
+   * fotosfera — e o UNIVERSO esconde o grafo inteiro, então o corpo perdia a luz junto.
+   *
+   * Isto não é morfologia nova: é a MESMA feição (`keepsCrown` já a nomeia — *"a fotosfera É o
+   * corpo: a coroa fica, e é ela a atmosfera iluminada por trás"*), desenhada por quem esta cena
+   * tem. Uma casca aditiva, sem escrita de profundidade, acesa no LIMBO — que é onde a atmosfera de
+   * uma estrela real aparece, porque ali a linha de visada atravessa mais gás.
+   */
+  const COROA_VS = /* glsl */ `
+    varying vec3 vN;
+    varying vec3 vV;
+    void main(){
+      vec4 mundo = modelMatrix * vec4(position, 1.0);
+      vN = normalize(mat3(modelMatrix) * normal);
+      vV = normalize(cameraPosition - mundo.xyz);
+      gl_Position = projectionMatrix * viewMatrix * mundo;
+    }
+  `;
+  const COROA_FS = /* glsl */ `
+    precision highp float;
+    uniform vec3 uCor;
+    uniform float uForca;
+    varying vec3 vN;
+    varying vec3 vV;
+    void main(){
+      // Borda: 0 no meio do disco, 1 no limbo. O expoente concentra a luz na borda em vez de
+      // lavar o corpo inteiro — atmosfera se ve de perfil, nao de frente.
+      float borda = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+      // Duas camadas: uma fina e forte colada no limbo, outra larga e fraca que é o halo.
+      float limbo = pow(borda, 6.0);
+      float halo = pow(borda, 1.6);
+      float luz = (limbo * 1.6 + halo * 0.45) * uForca;
+      gl_FragColor = vec4(uCor * luz, luz);
+    }
+  `;
+  /** O branco levemente quente de uma fotosfera. A coroa puxa para cá; ver `coroar`. */
+  const BRANCO_QUENTE = new THREE.Color(0xfff2dc);
+  const matCoroa = new THREE.ShaderMaterial({
+    uniforms: { uCor: { value: new THREE.Color(0xffd9a0) }, uForca: { value: 0 } },
+    vertexShader: COROA_VS,
+    fragmentShader: COROA_FS,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
+  });
+  /**
+   * Raio da coroa, em raios do corpo. A cromosfera solar é uma casca FINA — a 1,35 ela descolava do
+   * corpo e lia como uma bolha em volta da estrela, que é outra coisa.
+   */
+  const COROA_RAIO = 1.14;
+  const coroa = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), matCoroa);
+  coroa.frustumCulled = false;
+  coroa.visible = false;
+  coroa.renderOrder = 2;
+  group.add(coroa);
   /** Posição VIVA de todo corpo, na ordem `estrelas` e depois `planetas`. É o buffer do arco. */
   let posicoes = null;
   /** `source` → índice em `posicoes`. É o que traduz um vínculo do snapshot em dois índices. */
@@ -505,6 +567,33 @@ export function createUniverse() {
     cederPara(source) {
       const i = source ? indiceDe.get(source) : undefined;
       cedidoIdx = i === undefined ? -1 : i;
+    },
+
+    /**
+     * Acende a COROA sobre um corpo — a luz própria da estrela, que a pele sozinha não emite.
+     *
+     * @param {string|null} source  o corpo, ou `null` para apagar
+     * @param {number} forca  0…1, tipicamente o nível de LOD da pele: a coroa apaga junto com ela
+     */
+    coroar(source, forca = 1) {
+      const i = source ? indiceDe.get(source) : undefined;
+      if (i === undefined || !posicoes || !raiosPorIndice || forca <= 0.001) {
+        coroa.visible = false;
+        return;
+      }
+      coroa.visible = true;
+      coroa.position.set(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]);
+      coroa.scale.setScalar(raiosPorIndice[i] * COROA_RAIO);
+      matCoroa.uniforms.uForca.value = forca;
+      /*
+       * ⚠️ **A cor da coroa NÃO é a do `kind`.** O `kind` é o fato do corpus e governa a cor do
+       * CORPO (§4 do replanejamento); a coroa é LUZ, e luz de estrela não é cinza. Com
+       * `other = 0x6f7b8f` a casca saía cinza-azulada e lia como fumaça. Ela puxa o matiz do corpo
+       * — para duas estrelas de tipos diferentes não terem a mesma luz — e vai a 70% do branco
+       * quente, que é o que faz a coroa passar do limiar do bloom e virar brilho de verdade.
+       */
+      const cor = corpos[i] ? KIND_COLORS[corpos[i].kind] : null;
+      matCoroa.uniforms.uCor.value.setHex(cor ?? 0xffd9a0).lerp(BRANCO_QUENTE, 0.7);
     },
 
     /** Posição VIVA de um corpo desta cena, ou `null` se ele não é corpo aqui. */
@@ -905,6 +994,6 @@ export function createUniverse() {
     },
 
     setVisible(v) { group.visible = v; },
-    dispose() { limpar(); rede.dispose(); geo.dispose(); matEstrela.dispose(); matPlaneta.dispose(); },
+    dispose() { limpar(); rede.dispose(); coroa.geometry.dispose(); matCoroa.dispose(); geo.dispose(); matEstrela.dispose(); matPlaneta.dispose(); },
   };
 }
