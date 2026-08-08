@@ -159,6 +159,59 @@ def build() -> dict:
     return payload
 
 
+# Carimbo dos snapshots do grafo já aplicados na topologia em memória. Ver `_reanexar_snapshots`.
+_stamp_snapshots: tuple | None = None
+
+
+def _carimbo_snapshots() -> tuple:
+    """`mtime` dos dois snapshots — é o que acusa influência nova sem corpus novo."""
+    def quando(caminho) -> int:
+        try:
+            return caminho.stat().st_mtime_ns
+        except OSError:
+            return 0
+
+    return (quando(graphdb.SNAPSHOT), quando(graphdb.SNAPSHOT_USO))
+
+
+def _reanexar_snapshots(payload: dict) -> bool:
+    """Reaplica `centrality` e `usage` numa topologia servida do CACHE.
+
+    ⚠️ **Sem isto a materialização do Neo4j não chega à tela**, e o modo de falha é o característico
+    desta base: silencioso e convincente. O fingerprint do cache é do CORPUS
+    (`SCHEMA_VERSION:coleção:pontos:prefixo:cwd`), e o snapshot muda **sem o corpus mudar** — então
+    ele casa, o cache é servido inteiro, e `scripts/centralidade.mjs` parece não ter feito nada.
+    Medido em 2026-08-08: 188 corpos materializados no Neo4j, **0 chegando ao céu**, e o único jeito
+    de ver a dimensão era apagar `.cache/graph.json` à mão.
+
+    Bump de `SCHEMA_VERSION` NÃO resolve: ele protege campo novo em nó, que é mudança de FORMATO.
+    Aqui o formato é o mesmo e o VALOR é que envelheceu — o fingerprint é estruturalmente cego a
+    isso, porque nenhuma das cinco parcelas dele olha para o snapshot.
+
+    A anotação é OVERLAY, não topologia: sai de arquivo em disco e é barata, então pode ser
+    reaplicada na leitura em vez de obrigar a reconstruir o corpus inteiro contra o Qdrant. É a lei
+    nº 2 intacta — o grafo continua fora do caminho do quadro, só o snapshot é relido.
+
+    ⚠️ Os campos são REMOVIDOS antes de reaplicar. Snapshot novo que não traz um corpo que o antigo
+    trazia significa "não medi mais"; deixar o valor velho grudado afirmaria uma medida que ninguém
+    fez, que é a mesma mentira que `null` ≠ `0` existe para impedir.
+    """
+    global _stamp_snapshots
+    carimbo = _carimbo_snapshots()
+    if carimbo == _stamp_snapshots:
+        return False
+
+    nodes = payload.get("nodes") or []
+    for node in nodes:
+        node.pop("centrality", None)
+        node.pop("usage", None)
+    graphdb.annotate_influence(nodes)
+    payload.setdefault("stats", {})["uso"] = graphdb.annotate_usage(nodes)
+    _stamp_snapshots = carimbo
+    logger.info("snapshots do grafo reaplicados sobre a topologia em cache")
+    return True
+
+
 # Piso de regularidade do PULSAR. ⚠️ A SSOT é `src/space/catalog.js`
 # (`PULSAR_REGULARITY_FLOOR`); esta é uma CÓPIA, e ela existe só para o aviso abaixo poder
 # existir — o servidor não classifica nada. Se os dois divergirem, o cliente está certo, e o
@@ -368,7 +421,7 @@ def _histogram(values) -> dict[str, int]:
 def load(force: bool = False) -> dict:
     """Memória → disco → reconstrução. A chave de validade é `points_count` da coleção:
     reindexou, muda a contagem, o cache cai sozinho."""
-    global _cached
+    global _cached, _stamp_snapshots
     collection = qdrant.info()
     # ⚠️ `SCHEMA_VERSION` no fingerprint: campo NOVO em nó (`churn`, `supernova`) não muda o
     # `points_count` do Qdrant, então o cache em disco continuaria válido e serviria nós sem o
@@ -390,12 +443,14 @@ def load(force: bool = False) -> dict:
 
     with _lock:
         if not force and _cached and _cached.get("fingerprint") == fingerprint:
+            _reanexar_snapshots(_cached)
             return _cached
         if not force and CACHE_PATH.is_file():
             try:
                 disk = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
                 if disk.get("fingerprint") == fingerprint:
                     disk.setdefault("files_root", files_root(disk))
+                    _reanexar_snapshots(disk)
                     _cached = disk
                     publish_gauges(disk)
                     return disk
@@ -403,6 +458,8 @@ def load(force: bool = False) -> dict:
                 logger.warning("cache de topologia ilegível, reconstruindo")
 
         payload = build()
+        # `build()` já anotou; o carimbo evita que a primeira leitura do cache refaça o trabalho.
+        _stamp_snapshots = _carimbo_snapshots()
         payload["fingerprint"] = fingerprint
         payload["collection"] = collection
         payload["files_root"] = files_root(payload)
