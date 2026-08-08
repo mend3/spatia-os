@@ -78,7 +78,7 @@ export const CROWN_SPEC = {
      * a pele em detalhe pleno. O meio é a transição, e é lá que uma troca seca apareceria.
      */
     { key: 'nivel', label: 'NÍVEL (halo)', type: 'range', min: 0, max: 1, step: 0.01, value: 1 },
-    { key: 'raio', label: 'RAIO DE REFERÊNCIA', type: 'range', min: 0.1, max: 2, step: 0.01, value: 1 },
+    { key: 'raio', label: 'RAIO DE REFERÊNCIA', type: 'range', min: 0.1, max: 2, step: 0.01, value: 1, roll: false },
     { key: 'massa', label: 'MASSA (chunks)', type: 'range', min: 1, max: 240, step: 1, value: 60 },
     { key: 'semente', label: 'SEMENTE (caminho)', type: 'range', min: 0, max: 1, step: 0.001, value: 0.31 },
     { key: 'reduzido', label: 'MOVIMENTO REDUZIDO', type: 'bool', value: false },

@@ -70,7 +70,7 @@ export const SPECS = [
       { key: 'familia', label: 'FAMÍLIA', type: 'enum', options: Object.keys(RING_FAMILIES), value: 'saturn' },
       { key: 'estado', label: 'ESTADO GIT', type: 'enum', options: Object.keys(DIRTY_COLORS), value: 'modified' },
       { key: 'tombo', label: 'TOMBO', type: 'range', min: 0, max: 1.5, step: 0.01, value: 1.1 },
-      { key: 'raio', label: 'RAIO DA ESTRELA', type: 'range', min: 0.2, max: 1.4, step: 0.02, value: 0.7 },
+      { key: 'raio', label: 'RAIO DA ESTRELA', type: 'range', min: 0.2, max: 1.4, step: 0.02, value: 0.7, roll: false },
       { key: 'estrela', label: 'DESENHAR A ESTRELA', type: 'bool', value: true },
       /*
        * O modo MUNDO é o que a cena usa no astro EM FOCO, e ele não tinha espécime.
@@ -200,7 +200,7 @@ export const SPECS = [
       { key: 'tipo', label: 'TIPO (kind)', type: 'enum', options: Object.keys(KIND_COLORS), value: 'config' },
       { key: 'massa', label: 'MASSA (chunks)', type: 'range', min: 1, max: 240, step: 1, value: 103 },
       { key: 'manchas', label: 'MANCHAS ×', type: 'range', min: 0, max: 3, step: 0.01, value: 1 },
-      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1 },
+      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1, roll: false },
     ],
     watch: [
       'o centro do disco é NÍTIDO e a borda escurece — é a lei de limbo, e é ela que dá o volume',
@@ -265,7 +265,7 @@ export const SPECS = [
       { key: 'relevo', label: 'RELEVO ×', type: 'range', min: 0, max: 2.5, step: 0.01, value: 1 },
       { key: 'mar', label: 'MAR ×', type: 'range', min: 0, max: 3, step: 0.01, value: 1 },
       { key: 'atmosfera', label: 'ATMOSFERA ×', type: 'range', min: 0, max: 2, step: 0.01, value: 1 },
-      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1 },
+      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1, roll: false },
     ],
     watch: [
       'nenhuma costura de meridiano e nenhum aperto nos polos: o ruído é 3D, amostrado na esfera',
@@ -338,7 +338,7 @@ export const SPECS = [
        * disco, e a câmera de foco vai junto. Aqui não há grafo para colidir, então a régua vai até
        * 2,2 e o que se revisa é a PROPORÇÃO INTERNA: ela tem de ficar idêntica em toda a faixa.
        */
-      { key: 'escala', label: 'TAMANHO DO NÚCLEO', type: 'range', min: 0.5, max: 2.2, step: 0.05, value: 1 },
+      { key: 'escala', label: 'TAMANHO DO NÚCLEO', type: 'range', min: 0.5, max: 2.2, step: 0.05, value: 1, roll: false },
       { key: 'respiracao', label: 'RESPIRAÇÃO', type: 'range', min: 0, max: 3, step: 0.05, value: 1 },
       { key: 'regime', label: 'REGIME', type: 'enum', options: ['idle', 'thinking', 'answering', 'error'], value: 'idle' },
     ],

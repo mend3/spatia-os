@@ -171,6 +171,36 @@ function drawRail() {
   rail.append(timeRow);
 
   rail.append(el('div', 'group', 'CONTROLES'));
+  /*
+   * SORTEAR mexe em APARÊNCIA, nunca em ENQUADRAMENTO.
+   *
+   * ⚠️ Ele já produziu um planeta invisível: sorteando `raio` (0,2–1,6) o astro caía abaixo do
+   * piso de LOD e o readout dizia `nível AUSENTE` — correto, e lido como forma quebrada. As
+   * réguas de tamanho existem para VARRER o LOD à mão, que é metade do trabalho da bancada;
+   * sortear em cima delas esconde o eixo em vez de exercitá-lo.
+   *
+   * O conserto é declarativo (`roll: false` no controle) e não uma lista de chaves aqui: um
+   * espécime novo com régua de tamanho própria seria um bug esperando, e quem escreve o espécime
+   * é quem sabe qual eixo é enquadramento.
+   *
+   * `action` fica de fora pelo mesmo espírito, e por um motivo mais duro: sortear um botão seria
+   * disparar o efeito dele. Espécime sem nada a sortear não ganha botão — botão inerte ensina a
+   * duvidar dos que funcionam.
+   */
+  const randomizable = spec.controls.filter(
+    (control) => control.type !== 'action' && control.roll !== false
+  );
+  if (randomizable.length) {
+    const dice = el('button', null, `⚄ SORTEAR ${randomizable.length}`);
+    dice.addEventListener('click', () => {
+      for (const control of randomizable) values[control.key] = randomValue(control);
+      onSpecChange();
+      // Redesenha porque o store deixou de ser o que os inputs mostram — mesmo motivo do `enum`.
+      drawRail();
+    });
+    rail.append(dice);
+    rail.append(el('div', 'note', '· clicar no espécime de novo devolve os valores declarados'));
+  }
   for (const control of spec.controls) rail.append(buildControl(control, values, onSpecChange));
 
   rail.append(el('div', 'group', 'O QUE OLHAR'));
@@ -194,6 +224,33 @@ function onSpecChange() {}
 function onGlobalChange() {
   globals.apply(globalValues);
   passo();
+}
+
+/**
+ * Sorteia um valor DENTRO da faixa que o próprio controle declara.
+ *
+ * A faixa declarada é a régua, e sortear fora dela produziria um espécime que o slider não
+ * consegue reproduzir — a bancada existe justamente para que o que se vê tenha um número ao lado.
+ * Por isso o sorteio não tem faixa própria: ele lê a mesma que o dedo lê.
+ *
+ * ⚠️ `action` fica de fora, e não é economia: sortear um botão seria DISPARAR o efeito dele.
+ * Quem chama já filtrou — este `throw` existe para o caso de alguém passar a chamar direto.
+ */
+function randomValue(control) {
+  if (control.type === 'action') throw new Error(`action não tem valor a sortear: ${control.key}`);
+  if (control.type === 'bool') return Math.random() < 0.5;
+  if (control.type === 'enum') {
+    return control.options[Math.floor(Math.random() * control.options.length)];
+  }
+  /*
+   * Quantizado no `step` declarado. O slider snapa para o passo; um valor entre dois passos faria
+   * o readout e a posição do polegar discordarem no primeiro arraste — divergência pequena, do
+   * tipo que só aparece quando alguém tenta reproduzir o que viu.
+   */
+  const steps = Math.round((control.max - control.min) / control.step);
+  const value = control.min + Math.round(Math.random() * steps) * control.step;
+  // O passo em ponto flutuante acumula (0,1 × 3 = 0,30000000000000004) e vazaria para o readout.
+  return Number(value.toFixed(6));
 }
 
 /**
