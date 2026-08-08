@@ -418,6 +418,28 @@ def _histogram(values) -> dict[str, int]:
     return dict(sorted(counts.items(), key=lambda item: -item[1]))
 
 
+def _corpus() -> dict:
+    """QUEM é o corpus, dito por quem lê o `.env` — e é só o servidor que o lê.
+
+    ⚠️ Isto existe porque os scripts de `scripts/` **adivinhavam**, e adivinhar casa zero em
+    silêncio. `similares.mjs` fazia `CORPUS_PREFIX ?? 'vault/'` e `QDRANT_COLLECTION ||
+    'workspace_embedding'`; `vinculos.mjs` tinha o caminho ABSOLUTO de uma máquina como default de
+    `AGENT_CWD`. Nenhum dos três falha: eles medem o corpus errado com convicção total, e a leitura
+    que sobra é "a vizinhança semântica não cobre o corpus" — foi exatamente o que mordeu no P4.
+
+    As três parcelas já estão no `fingerprint`, então este bloco **não pode envelhecer em relação
+    ao payload**: mudar qualquer uma delas derruba o cache junto.
+    """
+    return {
+        "collection": config.get("QDRANT_COLLECTION"),
+        # ⚠️ Declarado vazio é ESCOLHA, não ausência (ver `config.py`) — e é por isso que o valor
+        # viaja como string, nunca omitido. Chave ausente devolveria o script ao `??` que o
+        # defeito original tinha.
+        "prefix": config.get("CORPUS_PREFIX"),
+        "cwd": config.get("AGENT_CWD") or str(config.ROOT),
+    }
+
+
 def load(force: bool = False) -> dict:
     """Memória → disco → reconstrução. A chave de validade é `points_count` da coleção:
     reindexou, muda a contagem, o cache cai sozinho."""
@@ -443,6 +465,7 @@ def load(force: bool = False) -> dict:
 
     with _lock:
         if not force and _cached and _cached.get("fingerprint") == fingerprint:
+            _cached["corpus"] = _corpus()
             _reanexar_snapshots(_cached)
             return _cached
         if not force and CACHE_PATH.is_file():
@@ -450,6 +473,10 @@ def load(force: bool = False) -> dict:
                 disk = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
                 if disk.get("fingerprint") == fingerprint:
                     disk.setdefault("files_root", files_root(disk))
+                    # Atribuído, nunca `setdefault`: cache gravado por uma versão anterior não tem
+                    # a chave, e um `setdefault` deixaria o payload sem ela justamente no clone que
+                    # já tinha `.cache/graph.json` — a mesma morte silenciosa dos bumps de schema.
+                    disk["corpus"] = _corpus()
                     _reanexar_snapshots(disk)
                     _cached = disk
                     publish_gauges(disk)
@@ -462,6 +489,7 @@ def load(force: bool = False) -> dict:
         _stamp_snapshots = _carimbo_snapshots()
         payload["fingerprint"] = fingerprint
         payload["collection"] = collection
+        payload["corpus"] = _corpus()
         payload["files_root"] = files_root(payload)
         _cached = payload
         publish_gauges(payload)

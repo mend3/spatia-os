@@ -27,19 +27,11 @@
  * data, ninguém sabe se a aresta descreve o corpus de hoje ou o de junho.
  */
 const QDRANT = process.env.QDRANT_URL || 'http://localhost:6333';
-const COLECAO = process.env.QDRANT_COLLECTION || 'workspace_embedding';
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
 const BASE = process.env.NEO4J_HTTP || 'http://127.0.0.1:7474';
 const USER = process.env.NEO4J_USER;
 const PASS = process.env.NEO4J_PASSWORD;
 const SO_DERIVAR = process.argv.includes('--derivar');
-/*
- * ⚠️ O `source` do Qdrant NÃO é o do céu: ele traz o `CORPUS_PREFIX` que o `graph.py` remove ao
- * montar os nós (`vault/devshell-one/x.md` vira `devshell-one/x.md`). O servidor tem
- * `qdrant.restore_prefix` para o caminho inverso; aqui a conversão é a mesma, em uma linha.
- */
-const PREFIXO = process.env.CORPUS_PREFIX ?? 'vault/';
-const doCeu = (s) => (PREFIXO && s.startsWith(PREFIXO) ? s.slice(PREFIXO.length) : s);
 
 const ROTULO = 'Astro';
 const GRUPO = 'spatia';
@@ -66,6 +58,31 @@ async function cypher(statement, parameters = {}) {
 // ───────────────────────────────────────────────────────── 1. um ponto por nó
 const graph = await fetch(`${SPATIA}/api/graph`).then((r) => r.json());
 const fontes = new Set(graph.nodes.filter((n) => n.type === 'file').map((n) => n.source));
+
+/*
+ * ⚠️ **QUEM é o corpus vem do SERVIDOR, não de um default deste arquivo.**
+ *
+ * Estas duas linhas eram `QDRANT_COLLECTION || 'workspace_embedding'` e `CORPUS_PREFIX ?? 'vault/'`,
+ * e as duas falham CALADAS: `||` troca de coleção sem avisar, e `??` só cai no default quando a
+ * variável é AUSENTE — esquecer de exportar `CORPUS_PREFIX=""` casava ZERO representantes, e a
+ * leitura que sobrava era "a vizinhança semântica não cobre o corpus". Foi o que mordeu no P4.
+ *
+ * O `.env` só é lido pelo servidor, e o servidor já publica o corpus junto da topologia que este
+ * script acabou de buscar. Uma fonte, e ela é a mesma que montou o céu contra o qual se mede.
+ */
+if (!graph.corpus) {
+  console.error('o /api/graph não publicou `corpus` — servidor velho? Sem ele este script adivinharia a coleção.');
+  process.exit(1);
+}
+const COLECAO = process.env.QDRANT_COLLECTION || graph.corpus.collection;
+/*
+ * O `source` do Qdrant NÃO é o do céu: ele traz o `CORPUS_PREFIX` que o `graph.py` remove ao montar
+ * os nós (`vault/devshell-one/x.md` vira `devshell-one/x.md`). O servidor tem `qdrant.restore_prefix`
+ * para o caminho inverso; aqui a conversão é a mesma, em uma linha.
+ */
+const PREFIXO = process.env.CORPUS_PREFIX ?? graph.corpus.prefix;
+const doCeu = (s) => (PREFIXO && s.startsWith(PREFIXO) ? s.slice(PREFIXO.length) : s);
+console.log(`\x1b[1mcorpus\x1b[0m  ${COLECAO} · prefixo "${PREFIXO}" · ${graph.corpus.cwd}`);
 
 /*
  * Um REPRESENTANTE por arquivo, e não todos os chunks.
