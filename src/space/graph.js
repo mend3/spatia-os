@@ -1176,9 +1176,26 @@ export function createGraph() {
       dirtyState = new Map();
       ringed = [];
 
+      /*
+       * ⚠️ **QUATRO DESFECHOS, e a nota colapsava todos em "fora do índice".**
+       *
+       * Um arquivo sujo pode: (1) não casar com nó nenhum — aí ele de fato não está indexado;
+       * (2) casar e o SOLVER recusar o anel, porque o corpo dele não hospeda a feição; (3) casar,
+       * aceitar, e estar escondido pelo filtro de tipo; (4) virar anel. Só o primeiro é "fora do
+       * índice", e o `dirtyNote` calculava `total − shown − dropped`, o que jogava os três
+       * primeiros no mesmo balde.
+       *
+       * Medido em 08/08: 17 sujos · 17 casaram · 11 anéis — e a tela anunciava "6 FORA DO ÍNDICE"
+       * sobre 6 arquivos que estavam no índice e foram RECUSADOS pelo corpo. Quem lesse iria
+       * reindexar o corpus para consertar uma decisão do catálogo.
+       */
+      let casados = 0;
+      let recusados = 0;
+      let escondidos = 0;
       for (const [path, state] of Object.entries(files)) {
         const i = byPath.get(path);
         if (i === undefined) continue;
+        casados += 1;
         dirtyState.set(nodes[i].source, state);
         /*
          * O SOLVER decide se este corpo pode ter anel — não este laço.
@@ -1195,10 +1212,10 @@ export function createGraph() {
         const decisao = resolveBody(nodes[i], { dirty: state });
         const anel = decisao.modifiers.includes(MODIFIER.RING);
         const detritos = decisao.modifiers.includes(MODIFIER.DEBRIS);
-        if (!anel && !detritos) continue;
+        if (!anel && !detritos) { recusados += 1; continue; }
         // Corpo escondido não deixa o anel dele para trás: um anel sem estrela no meio lê como
         // defeito de render, e o filtro é justamente o gesto de tirar aquele tipo da tela.
-        if (hidden?.[i]) continue;
+        if (hidden?.[i]) { escondidos += 1; continue; }
         // `detritos` diz QUAL objeto em órbita — anel planetário ou disco de detritos. Os dois
         // saem do mesmo módulo porque os dois são material orbital; o que muda é o perfil.
         entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency, detritos });
@@ -1230,7 +1247,18 @@ export function createGraph() {
       if (mudouCasca) points.geometry.getAttribute('aSupernova').needsUpdate = true;
 
       ringEntries = entries;
-      return { ...rings.set(entries), total: Object.keys(files).length };
+      /*
+       * `casados` é o que separa "não está no índice" de "o corpo não quis o anel" — e sem ele
+       * quem lê a nota não tem como distinguir um problema de indexação de uma decisão do
+       * catálogo. `dropped` continua vindo do `rings.set`: é o teto de anéis simultâneos.
+       */
+      return {
+        ...rings.set(entries),
+        total: Object.keys(files).length,
+        casados,
+        recusados,
+        escondidos,
+      };
     },
 
     /** Estado local do arquivo daquele nó, ou `null` se limpo/desconhecido. */

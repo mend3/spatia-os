@@ -581,11 +581,11 @@ function watchDirty(scene, streams) {
         }
         return;
       }
-      const { shown, dropped, total } = scene.markDirty(files);
+      const resultado = scene.markDirty(files);
       failing = false;
-      if (shown === announced) return;
-      announced = shown;
-      streams.note(dirtyNote(shown, dropped, total), shown ? '' : 'good');
+      if (resultado.shown === announced) return;
+      announced = resultado.shown;
+      streams.note(dirtyNote(resultado), resultado.shown ? '' : 'good');
     } catch (error) {
       /*
        * Falha = APAGAR os anéis, não mantê-los.
@@ -620,13 +620,30 @@ function watchDirty(scene, streams) {
  * teto de anéis. As duas são contadas em separado — calar qualquer uma faz o céu afirmar que
  * só aquilo mudou.
  */
-function dirtyNote(shown, dropped, total) {
+/**
+ * A nota do trabalho local — e ela nomeia CADA razão de um arquivo sujo não virar anel.
+ *
+ * ⚠️ **Ela dizia "FORA DO ÍNDICE" para três coisas diferentes.** O cálculo era
+ * `total − shown − dropped`, e nesse resto cabiam: arquivo que não casou com nó nenhum (o único
+ * que de fato não está indexado), arquivo cujo CORPO recusou o anel pelo solver, e arquivo
+ * escondido pelo filtro de tipo. Medido em 2026-08-08: **17 sujos · 17 casaram · 11 anéis**, e a
+ * tela anunciava "6 FORA DO ÍNDICE" sobre seis arquivos que estavam no índice e foram recusados
+ * pelo catálogo.
+ *
+ * A diferença não é cosmética: mandava reindexar o corpus para consertar uma decisão de
+ * morfologia. Diagnóstico que aponta o lugar errado é pior que diagnóstico nenhum — é a mesma
+ * lição do verificador do diário, que acusava a linha íntegra em vez da órfã.
+ */
+function dirtyNote({ shown, dropped, total, casados, recusados, escondidos }) {
   if (!total) return 'ÁRVORE LIMPA · NENHUM ANEL';
-  const unindexed = total - shown - dropped;
+  const foraDoIndice = total - casados;
   const parts = [`TRABALHO LOCAL · ${plural(total, 'ARQUIVO').toUpperCase()}`];
   if (shown !== total) parts.push(`${shown} NO CÉU`);
   if (dropped) parts.push(`${dropped} ALÉM DO TETO`);
-  if (unindexed > 0) parts.push(`${unindexed} FORA DO ÍNDICE`);
+  // "o corpo não hospeda anel" — decisão do catálogo, não falta de indexação.
+  if (recusados) parts.push(`${recusados} SEM ANEL POR CLASSE`);
+  if (escondidos) parts.push(`${escondidos} OCULTOS PELO FILTRO`);
+  if (foraDoIndice > 0) parts.push(`${foraDoIndice} FORA DO ÍNDICE`);
   return parts.join(' · ');
 }
 
