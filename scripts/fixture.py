@@ -35,11 +35,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# ⚠️ Era um caminho ABSOLUTO da máquina de quem escreveu, e isso passou despercebido enquanto o
-# arquivo vivia em `.cache/` (que não é versionado). Agora ele é versionado, e um path pessoal
-# aqui quebra em qualquer outro clone sem dizer por quê. `FIXTURE_ROOT` sobrepõe; o padrão é o
-# irmão do repo, que é onde o corpus de teste sempre esteve.
-RAIZ = Path(os.environ.get("FIXTURE_ROOT") or "~/workspace/espatial-fixture").expanduser()
+RAIZ = Path(os.environ.get("FIXTURE_ROOT") or "~/workspace/espatial-os").expanduser()
 QDRANT = "http://localhost:6333"
 COLECAO = "espatial_fixture"
 DIMENSAO = 384
