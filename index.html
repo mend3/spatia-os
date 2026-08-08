@@ -324,6 +324,13 @@
     pointer-events: auto;
   }
 
+  /* A COR DO VÍNCULO, e ela é a MESMA do arco na cena — `universe.js` (`COR_DO_VINCULO`) é a
+     fonte, isto é a cópia que a tela precisa. Sem o par, a linha colorida no céu e o nome no
+     painel seriam dois fatos sem ligação declarada, e a cor viraria enfeite.
+     ⚠️ Divergiram? O código está certo e isto está velho. */
+  [data-vinculo="SIMILAR_TO"] .fs-meta, [data-vinculo="SIMILAR_TO"] .vital-label { color: #6fe0ff; }
+  [data-vinculo="CO_EDITED"] .fs-meta, [data-vinculo="CO_EDITED"] .vital-label { color: #ff5fa2; }
+
   .vital { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 6px; padding: 3px 0; }
   .vital-label { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.18em; }
   .vital-value { color: var(--ink); font-size: 14px; font-weight: 400; }

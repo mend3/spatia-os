@@ -67,16 +67,16 @@ export function registerContextWidget() {
     hint: 'SOB ATENÇÃO',
     slot: 'right',
     render(view) {
-      const pintar = ({ subject, dirty, origin, links }) => {
+      const pintar = ({ subject, dirty, origin, links, rede }) => {
         if (!subject) {
           view.empty(VAZIO);
           return;
         }
-        view.set(desenhar(subject, dirty, origin, links || []));
+        view.set(desenhar(subject, dirty, origin, links || [], rede || null));
       };
 
-      const off = on('ui.links', ({ subject, dirty, origin, nodes }) =>
-        pintar({ subject, dirty, origin, links: nodes })
+      const off = on('ui.links', ({ subject, dirty, origin, nodes, rede }) =>
+        pintar({ subject, dirty, origin, links: nodes, rede })
       );
 
       /*
@@ -94,7 +94,7 @@ export function registerContextWidget() {
   });
 }
 
-function desenhar(node, dirty, origin, vizinhos) {
+function desenhar(node, dirty, origin, vizinhos, rede) {
   const linhas = [];
   const classe = classify(node, { dirty });
 
@@ -157,7 +157,7 @@ function desenhar(node, dirty, origin, vizinhos) {
    * dobra do trilho — o painel existe para nomear os arcos e justamente isso ficava escondido
    * atrás do detalhe de um documento. O que responde à pergunta vem primeiro; o resto rola.
    */
-  linhas.push(...vinculos(vizinhos));
+  linhas.push(...vinculos(vizinhos, rede));
 
   const secoes = node.sections || [];
   if (secoes.length) {
@@ -191,8 +191,14 @@ function desenhar(node, dirty, origin, vizinhos) {
  * DELE, que é o gesto de percorrer o grafo. `ui.select` abriria o inspetor de conteúdo por cima,
  * e ler o arquivo é outra intenção, com outro caminho.
  */
-function vinculos(vizinhos) {
+function vinculos(vizinhos, rede) {
   const linhas = [titulo(vizinhos.length ? `VÍNCULOS · ${vizinhos.length}` : 'VÍNCULOS')];
+  if (rede?.indisponivel) {
+    // ⚠️ "Não materializei" ≠ "não tem vizinho". A frase é diferente de propósito: um snapshot
+    // ausente não pode ser lido como um corpo periférico — é o `null` ≠ `0` do lado do texto.
+    linhas.push(el('div', 'widget-empty', `rede não medida — ${rede.indisponivel}`));
+    return linhas;
+  }
   if (!vizinhos.length) {
     linhas.push(el('div', 'widget-empty', 'nenhum arco desenhado para este corpo'));
     return linhas;
@@ -208,8 +214,57 @@ function vinculos(vizinhos) {
     });
     linha.append(el('span', 'fs-glyph', vizinho.type === 'file' ? '·' : '▸'));
     linha.append(el('span', 'fs-name', vizinho.label || shortPath(alvo)));
-    linha.append(el('span', 'fs-meta', String(vizinho.chunks ?? '')));
+    /*
+     * O TIPO do vínculo no lugar da massa, quando ele existe.
+     *
+     * A cena UNIVERSO desenha vínculos de tipos diferentes ao mesmo tempo, com cores diferentes —
+     * e cor sem nome é decoração. `SIMILAR_TO` e `CO_EDITED` não afirmam a mesma coisa
+     * (`integracao-neo4j.md` §3.2.2), e a linha tem de dizer qual das duas está na tela junto com
+     * o número BRUTO que a sustenta: "3 commits" é verificável, "0,10" não é nada.
+     */
+    linha.append(el('span', 'fs-meta', vizinho.vinculo ? forcaDe(vizinho.vinculo) : String(vizinho.chunks ?? '')));
+    if (vizinho.vinculo) linha.dataset.vinculo = vizinho.vinculo.tipo;
     linhas.push(linha);
+  }
+  linhas.push(...legenda(rede));
+  return linhas;
+}
+
+/** Como se lê cada tipo — a legenda do §3.2.2, que é o que impede a cor de ser enfeite. */
+const LEITURA = {
+  SIMILAR_TO: 'afinidade semântica',
+  CO_EDITED: 'afinidade de trabalho',
+  REFERENCES: 'dependência documental',
+  IMPORTS: 'dependência estrutural',
+  TOUCHED: 'uso por agentes',
+};
+
+const forcaDe = (v) => (v.tipo === 'CO_EDITED' ? `${v.valor}×` : v.valor.toFixed(2));
+
+/**
+ * O que a rede desenhou, o que ela CORTOU, e quando mediu.
+ *
+ * ⚠️ Sem a contagem cortada, um corpo de 113 vínculos mostra 28 e a tela afirma que são todos —
+ * truncamento silencioso lê como "isto é tudo o que existe". O teto está no snapshot e a legenda
+ * sai do mesmo lugar que o desenho, então as duas nunca discordam.
+ */
+function legenda(rede) {
+  if (!rede?.total) return [];
+  const linhas = [];
+  const total = Object.values(rede.total).reduce((a, b) => a + b, 0);
+  for (const [tipo, n] of Object.entries(rede.total).sort()) {
+    const linha = el('div', 'vital');
+    linha.append(el('span', 'vital-label', LEITURA[tipo] || tipo), el('strong', 'vital-value', String(n)));
+    linha.dataset.vinculo = tipo;
+    linhas.push(linha);
+  }
+  if (total > (rede.desenhados ?? 0)) {
+    linhas.push(el('div', 'widget-hint', `${total - rede.desenhados} não desenhados — o teto é ${rede.teto ?? '?'} arcos`));
+  }
+  if (rede.recusados) {
+    // Vizinho que não é corpo desta cena. Some do desenho por não ter onde aterrissar, e some
+    // dito — descartar em silêncio faria a soma da legenda não fechar sem explicação.
+    linhas.push(el('div', 'widget-hint', `${rede.recusados} vizinho(s) fora desta cena`));
   }
   return linhas;
 }

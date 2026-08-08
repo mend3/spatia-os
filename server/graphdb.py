@@ -183,3 +183,66 @@ def annotate_usage(nodes: list[dict]) -> Optional[dict]:
         if isinstance(valor, (int, float)):
             node["usage"] = valor
     return {k: v for k, v in dados.items() if k != "uso"}
+
+
+#: Onde `scripts/vizinhanca.mjs` deixa os vínculos laterais por corpo. Arquivo, nunca o banco.
+SNAPSHOT_REDE = config.ROOT / ".cache" / "vizinhanca.json"
+
+_rede: dict | None = None
+_rede_mtime: int = 0
+
+
+def _rede_atual() -> Optional[dict]:
+    """O snapshot da vizinhança, relido quando o `mtime` muda.
+
+    Mesmo gatilho do overlay de `graph.py`, e pelo mesmo motivo: rematerializar é escrever um
+    arquivo, e sem olhar o `mtime` o processo serviria para sempre a foto que leu ao subir — o modo
+    de falha característico desta base, silencioso e convincente.
+    """
+    global _rede, _rede_mtime
+    try:
+        agora = SNAPSHOT_REDE.stat().st_mtime_ns
+    except OSError:
+        _rede, _rede_mtime = None, 0
+        return None
+    if _rede is None or agora != _rede_mtime:
+        try:
+            _rede = json.loads(SNAPSHOT_REDE.read_text(encoding="utf-8"))
+            _rede_mtime = agora
+        except (OSError, ValueError):
+            _rede, _rede_mtime = None, 0
+    return _rede
+
+
+def network(source: Optional[str] = None) -> dict:
+    """A vizinhança lateral de UM corpo — a rede que a cena desenha só na seleção.
+
+    ⚠️ **Rota própria, e não mais um campo no `/api/graph`.** `centrality` e `usage` são um número
+    por corpo e cabem no nó; a vizinhança são 3 705 vínculos, **408 kB contra os 119 kB da topologia
+    inteira**. Anexá-la ao céu faria toda abertura de tela pagar 3,4× por um dado que só a seleção
+    lê — e no corpus real, com 8 130 `SIMILAR_TO`, o fator seria muito maior.
+
+    A lei nº 2 fica intacta: isto lê um ARQUIVO que o script materializou, nunca o Neo4j. Sem
+    snapshot, `disponivel` é falso e a cena simplesmente não desenha rede — nenhum corpo ganha uma
+    lista vazia, que afirmaria "medi e ele não tem vizinhos".
+
+    Sem `source`, devolve só o cabeçalho: é como a tela pergunta se a dimensão existe antes de
+    haver seleção.
+    """
+    dados = _rede_atual()
+    if dados is None:
+        return {"disponivel": False, "motivo": "sem snapshot: rode scripts/vizinhanca.mjs"}
+    cabecalho = {
+        "disponivel": True,
+        "as_of": dados.get("as_of"),
+        "teto": dados.get("teto"),
+        "corpos": dados.get("corpos"),
+        "vinculos": dados.get("vinculos"),
+        "tipos": dados.get("tipos"),
+        "fora": dados.get("fora"),
+    }
+    if source is None:
+        return cabecalho
+    # ⚠️ Corpo ausente do snapshot devolve `null`, não `[]`. "Não medi este" e "medi e ele não tem
+    # vizinho" são fatos diferentes, e o segundo tem representação própria (`v: []`).
+    return {**cabecalho, "source": source, "vizinhanca": (dados.get("vizinhanca") or {}).get(source)}

@@ -47,6 +47,7 @@ ROUTE_LABELS = {
     "/api/speech": "speech",
     "/api/attach": "attach",
     "/api/dirty": "dirty",
+    "/api/vizinhanca": "vizinhanca",
     "/metrics": "metrics",
 }
 
@@ -308,6 +309,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._system_events()
             elif route == "/api/graph":
                 self._json(graph.load(force=query.get("force", ["0"])[0] == "1"))
+            elif route == "/api/vizinhanca":
+                # A rede lateral de um corpo, do snapshot em disco. Rota própria porque ela é 3,4×
+                # a topologia inteira e só a SELEÇÃO a lê — ver `graphdb.network`.
+                self._json(graphdb.network(_first(query, "source") or None))
             elif route == "/api/search":
                 self._json(self._search(query))
             elif route == "/api/node":

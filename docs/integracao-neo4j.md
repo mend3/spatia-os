@@ -314,6 +314,32 @@ comunica contenção; a linha aparece só na seleção"*.
 ⚠️ E é aqui que a legenda do §3.2.2 paga: cinco vínculos desenhados com a mesma linha seriam cinco
 fatos com a mesma voz — a colisão dos três aros, de novo, agora nas arestas.
 
+### 5.1 ✅ FEITO em 2026-08-08 — e três decisões que a medida obrigou
+
+`scripts/vizinhanca.mjs` → `.cache/vizinhanca.json` → `/api/vizinhanca` → `universe.js`. A cadeia é a
+da lei nº 2, inteira: o renderer lê uma lista pronta, e o Neo4j não está no caminho do quadro.
+
+| | |
+|---|---|
+| população | **3 705 vínculos desenháveis em 188 corpos** · grau MED 20 · P90 42 · **máx 113** · 0 isolados |
+| teto | **28 arcos**, herdado do `MAX_LINKS` de `links.js` — mesma tela, mesmo olho |
+| acima do teto | **44 corpos (23,4%)**, e o corte é PUBLICADO (`total` por tipo) |
+
+**1. Rota própria, e não mais um campo no `/api/graph`.** `centrality` e `usage` são um número por
+corpo e cabem no nó. A vizinhança são **408 kB contra 119 kB da topologia inteira** — 3,4×. Anexá-la
+faria toda abertura de tela pagar por um dado que só a seleção lê. Por isso **não houve bump de
+`SCHEMA_VERSION`**: nenhum campo novo entrou no nó.
+
+**2. O corte é RODÍZIO entre tipos, não ordenação única.** `SIMILAR_TO` tem `score` (0,51–0,97) e
+`CO_EDITED` tem `peso` (1–21 commits); ordenar os dois juntos compararia cosseno com contagem, que é
+o score composto já refutado. O rodízio nunca compara dois tipos, e é o que impede o teto de
+silenciar o tipo menos numeroso.
+
+**3. ⚠️ `TOUCHED` NÃO entra, e não é por estar vazio.** Ele liga `Run → Astro`: **as duas pontas não
+são corpos.** Desenhá-lo entre dois astros afirmaria que dois arquivos abertos pela mesma execução
+"se usam", que ninguém mediu. Ele volta quando houver decisão sobre o que a outra ponta é — e a
+população dele hoje é 0 de qualquer forma, então o que se perdeu foi só a ilusão de completude.
+
 ---
 
 ## 6. Como o dado entra
@@ -396,7 +422,7 @@ ninguém saberia de quem era o número.
 | **P2** ✅ | `Astro` + `CO_EDITED` (`scripts/vinculos.mjs`) | provou o caminho ponta a ponta | **556 pares · 118 nós · 7,2% do céu.** Grau MED 9 · P90 17 · máx 48 |
 | **P2b** ❌ | teste ↔ alvo por convenção de nome | **CAI** | as 627 arestas foram medidas no DISCO; exigindo os dois lados indexados sobram **4** |
 | **P3** | `connectivity` → `centrality` → **influência → brilho** | a §11.1 do replanejamento | nunca `centrality → classe` |
-| **P4** ✅ | `SIMILAR_TO` materializado (`scripts/similares.mjs`) | **8 130 arestas, k=5 derivado, 6,6% isolados** | contra 92,8% do `CO_EDITED`. A rede visível na seleção continua pendente |
+| **P4** ✅ | `SIMILAR_TO` materializado (`scripts/similares.mjs`) | **8 130 arestas, k=5 derivado, 6,6% isolados** | ⚠️ números do corpus que os volumes levaram; no `espatial_vivo` são **1 504 arestas, k=8** (aqui `k=5` deixa 10,6% de isolados, acima do corte). A rede na seleção fechou — §5.1 |
 | **P5** ✅ | `Agent` + `Run` + `TOUCHED` (`scripts/uso.mjs`) | `usage` no `EntityPhysics`; influência por USO | **11 Run · 64 TOUCHED · 51 corpos (3,12%) · grau máx 2 · 0 Agent.** Construído com evidência RALA de propósito, e o snapshot publica o veredito. Ver §3.2.3 |
 | **lei nº 1** ✅ | `scripts/lei-neo4j.mjs` | a lei vira invariante **implementada** | 29 448 perturbações de `centrality`/`usage`/`connectivity` sobre 1 636 corpos: **nenhuma altera classe** |
 | **P6** | `REFERENCES`, `IMPORTS` | dependência documental e estrutural | semanticamente mais fortes que "parecidos" |

@@ -629,7 +629,64 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * a interface tem.
    */
   let hoveredNode = null;
+
+  /*
+   * ─────────────────── A REDE DA CENA UNIVERSO — só na seleção, e por outro caminho
+   *
+   * Duas diferenças em relação ao arco da cena AGENTE, e as duas são a spec, não preferência:
+   *
+   * 1. **Só a SELEÇÃO acende.** Lá o cursor vence o foco, porque o vínculo é de contenção e
+   *    responder ao gesto mais barato é um ganho. Aqui a regra é o §5 do `integracao-neo4j.md`:
+   *    *"a teia só existe na seleção"*, e o corpo selecionado **vira o centro temporário daquela
+   *    topologia**. Rede acendendo no hover seria a teia de volta, agora perseguindo o cursor.
+   * 2. **O dado não vem do `/api/graph`.** São 3 705 vínculos, 3,4× a topologia inteira — eles têm
+   *    rota própria (`/api/vizinhanca`), lida sob demanda. Continua sendo a lei nº 2: o que se lê é
+   *    um SNAPSHOT em disco, e o Neo4j nunca está no caminho do quadro.
+   *
+   * ⚠️ O `pedido` é um carimbo contra resposta fora de ordem. Selecionar A e B em sequência dispara
+   * duas buscas, e a de A pode voltar depois — sem o carimbo, a rede de A se desenharia em volta de
+   * B, que é o pior tipo de erro aqui: plausível.
+   */
+  let pedido = 0;
+  const paintUniverseLinks = async () => {
+    const alvo = focusedNode;
+    const meu = ++pedido;
+    if (!alvo) {
+      universe.selecionar(null, null);
+      ui('links', { subject: null, dirty: null, origin: 'focus', nodes: [], rede: null });
+      return;
+    }
+    let resposta = null;
+    try {
+      resposta = await fetch(`/api/vizinhanca?source=${encodeURIComponent(alvo)}`).then((r) => r.json());
+    } catch {
+      // Rede indisponível é `null`, nunca lista vazia: "não perguntei" e "perguntei e não há
+      // vizinho" são fatos diferentes, e só o segundo pode ser desenhado como ausência.
+      resposta = null;
+    }
+    if (meu !== pedido) return;
+    const vizinhanca = resposta?.disponivel ? resposta.vizinhanca : null;
+    const desenho = universe.selecionar(alvo, vizinhanca);
+    ui('links', {
+      subject: graph.nodeAt(alvo),
+      dirty: graph.dirtyOf(alvo),
+      origin: 'focus',
+      // A legenda sai da MESMA lista que virou linha, e na mesma ordem — a regra do arco da outra
+      // cena vale inteira aqui. O nó vem do céu; o tipo e a força vêm do vínculo.
+      nodes: (vizinhanca?.v || [])
+        .slice(0, desenho?.desenhados ?? 0)
+        .map((v) => ({ ...(graph.nodeAt(v.para) || { source: v.para, type: 'file' }), vinculo: v })),
+      rede: desenho
+        ? { ...desenho, teto: resposta?.teto, tipos: resposta?.tipos, as_of: resposta?.as_of }
+        : { indisponivel: resposta?.motivo || 'rede não materializada' },
+    });
+  };
+
   const paintLinks = () => {
+    if (modo === 'universo') {
+      paintUniverseLinks();
+      return;
+    }
     const alvo = hoveredNode || focusedNode;
     const desenhados = links.show(
       alvo ? graph.linksOf(alvo) : null,
@@ -658,6 +715,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   };
   on('ui.hover', ({ node }) => {
     hoveredNode = alvoDe(node);
+    /*
+     * ⚠️ **No UNIVERSO o cursor NÃO repinta a rede, e isso não é economia.** Lá o arco é a
+     * topologia do corpo ESCOLHIDO; deixar o hover trocar o sujeito faria a legenda nomear os
+     * vínculos de um corpo enquanto a tela desenha os de outro — as duas afirmações discordando
+     * sobre de quem estão falando, que é pior do que não ter painel.
+     */
+    if (modo === 'universo') return;
     paintLinks();
   });
   on('ui.node-focus', () => paintLinks());
@@ -872,9 +936,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * distance that yields `FOCUS_FIT_PX`. The correction lands inside the camera's own easing,
      * so it reads as one flight, not as two.
      */
-    orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
-    orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
-    fitPending = Boolean(source);
+    /*
+     * ⚠️ **No UNIVERSO a seleção RECENTRA, e não aproxima** — e a razão é o que a seleção produz
+     * ali. O que ela acende não é o corpo (que não tem pele nesta cena, por decisão da spec): é a
+     * TOPOLOGIA dele, e os vínculos atravessam a teia inteira, com vizinhos a dezenas de unidades.
+     * Voar até 7 unidades enquadraria o único elemento que não mudou e jogaria para fora da tela
+     * exatamente o que apareceu.
+     *
+     * Então a âncora persegue o corpo — ele vira o centro — e a distância é do operador.
+     */
+    if (modo !== 'universo') {
+      orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
+      orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
+    }
+    fitPending = Boolean(source) && modo !== 'universo';
     if (!source) focusGeometry = null;
     if (motion.isReduced()) {
       orbit.distance = orbit.targetDistance;
@@ -1118,7 +1193,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     sceneTime += delta;
     const elapsed = sceneTime;
     // A cena UNIVERSO, logo que o relógio dos objetos avança e ANTES de qualquer condicional.
-    if (modo === 'universo') universe.update(elapsed);
+    if (modo === 'universo') universe.update(elapsed, delta);
     const started = performance.now();
 
     // Deriva automática é movimento contínuo sem evento por trás — o primeiro a sair.
@@ -1142,7 +1217,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // primeiro quadro em que ele tem posição.
     // ⚠️ TEMPO REAL: `FOCO_PRAZO_S` é um prazo de rede em segundos, não uma fase de animação.
     aplicarFocoPendente(clock.elapsedTime);
-    const nodeAt = focusedNode ? graph.worldPositionOf(focusedNode) : null;
+    /*
+     * ⚠️ **A posição do astro em foco é a da CENA EM VIGOR.** O mesmo `source` existe nas duas, em
+     * lugares completamente diferentes: no AGENTE ele orbita o buraco negro por recência; no
+     * UNIVERSO ele orbita a estrela do sistema dele. Perguntar sempre ao grafo fazia a câmera voar,
+     * dentro do universo, para a coordenada do OUTRO céu — e como as duas cenas compartilham o
+     * corpus, o destino era sempre plausível e sempre errado.
+     */
+    const nodeAt = focusedNode
+      ? (modo === 'universo' ? universe.posicaoDe(focusedNode) : graph.worldPositionOf(focusedNode))
+      : null;
     // Astro que saiu do céu (recarga da topologia) solta o foco em vez de prender a câmera
     // apontando para o vazio.
     if (focusedNode && !nodeAt) focusedNode = null;
@@ -1291,7 +1375,23 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         hoveredBody = body;
         canvas.style.cursor = body ? 'pointer' : '';
       }
-      const picked = body ? null : graph.pick(raycaster);
+      /*
+       * ⚠️ **Cada cena responde pelo próprio picking, e o raycast não sabe disso.**
+       *
+       * O `raycaster` do three NÃO olha `object.visible`: ele trabalha sobre as posições, e o grafo
+       * da cena AGENTE continua tendo todas as suas mesmo escondido. No modo UNIVERSO, portanto,
+       * passar o cursor pelo céu acertava um corpo da OUTRA cena — hover e clique respondiam com
+       * convicção total sobre um objeto que ninguém estava vendo, sem erro nenhum no caminho.
+       *
+       * A cena UNIVERSO pica por proximidade na TELA (`universe.pick`), e não por malha: os corpos
+       * dela têm poucos pixels, e exigir o acerto dentro da esfera deixaria só as estrelas
+       * clicáveis.
+       */
+      const picked = body
+        ? null
+        : modo === 'universo'
+          ? universe.pick(pointer, camera, canvas.height)
+          : graph.pick(raycaster);
       if (picked?.node?.id !== hovered?.node?.id) {
         hovered = picked;
         /*
@@ -1316,7 +1416,17 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * É a mesma regra do anel, e pelo mesmo motivo — um quadro de atraso aqui aparece como a
      * esfera arrastando atrás do próprio halo.
      */
-    const pouso = focusedNode
+    /*
+     * ⚠️ **No UNIVERSO não há pouso, e é a regra do cabeçalho do replanejamento em uma linha:**
+     * *nenhuma morfologia nova enquanto a classificação não fechar.* Todo o aparato de PELE do
+     * astro em foco — planeta, fotosfera, estação, cometa, pulsar, nebulosa, luas — sai daqui, e
+     * ele desenha a taxonomia ANTIGA (`solver.js` sobre o `kind`).
+     *
+     * Sem esta guarda, travar num corpo do universo abria a esfera texturizada da outra cena por
+     * cima da teia: o céu novo respondendo com o corpo do céu velho, e ainda por cima com a câmera
+     * a 7 unidades de um objeto que a cena nova desenha com 0,7.
+     */
+    const pouso = focusedNode && modo !== 'universo'
       ? graph.planetAnchor(focusedNode, camera, canvas.height, elapsed)
       : null;
 
@@ -1826,7 +1936,27 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // O universo foi normalizado para caber no zoom de hoje (ver `universe.js`), então aqui basta
       // recuar até enquadrá-lo. Sem isto o operador entra na cena nova dentro de um sistema, sem
       // saber que existe um universo em volta.
-      orbit.targetDistance = universo ? 150 : HOME.distance;
+      /*
+       * ⚠️ Voltar ao AGENTE com um astro TRAVADO tem de voltar ao enquadramento DELE. Sem isto a
+       * câmera recuava para a casa (`HOME.distance`) com o foco intacto: o astro continuava
+       * travado, o painel continuava nomeando-o, e a tela mostrava o céu inteiro — a cena
+       * afirmando duas coisas diferentes sobre o mesmo estado. `fitPending` volta junto porque é
+       * ele que deixa o quadro seguinte corrigir a distância pelo raio real do corpo.
+       */
+      orbit.targetDistance = universo ? 150 : (focusedNode ? NODE_FOCUS_DISTANCE : HOME.distance);
+      if (!universo && focusedNode) {
+        orbit.targetPolar = NODE_FOCUS_POLAR;
+        fitPending = true;
+      }
+      /*
+       * Trocar de cena repinta o vínculo, e sem isto ele fica preso na cena anterior: sair do
+       * UNIVERSO deixava a rede acesa por baixo do céu AGENTE (o grupo some, a lista não), e entrar
+       * nele com um astro já travado não desenhava rede nenhuma até alguém clicar de novo. As duas
+       * metades são o mesmo esquecimento — o desenho é derivado do FOCO, e o foco sobrevive à
+       * troca de cena.
+       */
+      if (!universo) universe.selecionar(null, null);
+      paintLinks();
       return modo;
     },
     mode: () => modo,

@@ -27,7 +27,7 @@ import { on } from './bus.js';
  * so no read site needs a guard — and a missing guard is how the previous version of this idea
  * would have thrown on the very first mount before any hover.
  */
-const EMPTY = Object.freeze({ subject: null, dirty: null, origin: null, links: Object.freeze([]) });
+const EMPTY = Object.freeze({ subject: null, dirty: null, origin: null, links: Object.freeze([]), rede: null });
 
 let current = EMPTY;
 
@@ -36,13 +36,17 @@ export const snapshot = () => current;
 
 /** Wired once at boot, next to `state.install()` and `session.install()`. */
 export function install() {
-  on('ui.links', ({ subject, dirty, origin, nodes }) => {
+  on('ui.links', ({ subject, dirty, origin, nodes, rede }) => {
     current = subject
       ? Object.freeze({
           subject,
           dirty: dirty ?? null,
           origin: origin ?? null,
           links: Object.freeze([...(nodes || [])]),
+          // A rede da cena UNIVERSO viaja junto pelo mesmo motivo que os vínculos: ela é parte do
+          // que o painel afirma, e um remonte sem ela devolveria a lista de arcos sem o que foi
+          // CORTADO — a legenda passaria a dizer "são estes" sobre um corpo truncado.
+          rede: rede ?? null,
         })
       : EMPTY;
   });

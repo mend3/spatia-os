@@ -25,6 +25,7 @@
 import * as THREE from 'three';
 import { entityPhysics, classificar, raioPorMassa } from './entity-physics.js';
 import { KIND_COLORS } from './graph.js';
+import { createLinks } from './links.js';
 
 /**
  * Escala do universo, em unidades de mundo.
@@ -92,6 +93,38 @@ function brilhoDe(node) {
   const base = 0.55 + atividade * 0.35;
   return influencia === null ? base : base + influencia * 0.9;
 }
+
+/**
+ * A COR DE CADA TIPO DE VÍNCULO — a legenda do `integracao-neo4j.md` §3.2.2, do lado do pixel.
+ *
+ * ⚠️ **Nenhuma delas aparece em `KIND_COLORS` nem em `DIRTY_LABELS`.** É a condição que impede o
+ * arco de ser lido como o `kind` de um corpo ou como um estado do git — e as duas primeiras são
+ * opostas em matiz, porque a única coisa que a rede TEM de comunicar sem legenda é que aquelas duas
+ * linhas afirmam fatos diferentes.
+ *
+ * `REFERENCES` e `IMPORTS` (o P6) ainda não têm população. Eles entram aqui quando tiverem, e até
+ * lá o pega-tudo desenha em cinza: um vínculo que existe e cuja voz ninguém declarou é diferente de
+ * um vínculo ausente, e some-lo seria esconder um fato medido.
+ */
+export const COR_DO_VINCULO = {
+  SIMILAR_TO: 0x6fe0ff,
+  CO_EDITED: 0xff5fa2,
+  desconhecido: 0x8a97ad,
+};
+
+/** `sentido` do snapshot → o sinal que o shader do arco lê. Recíproco = 0 = sem seta. */
+const SENTIDO = { saida: 1, entrada: -1, mutuo: 0 };
+
+/**
+ * Tolerância do clique, em PIXELS de framebuffer.
+ *
+ * Não é conforto: sem ela os corpos pequenos seriam inselecionáveis. `ESCALA_CORPO` foi derivada do
+ * ponto em que uma esfera deixa de ser um ponto — **~4 px** —, e exigir o acerto dentro de 4 px
+ * deixaria só as estrelas clicáveis. Três vezes isso é o alvo de clique mínimo usual, e continua
+ * pequeno o bastante para não roubar o corpo vizinho: o empacotamento da teia garante 2× o raio do
+ * sistema entre vizinhos.
+ */
+const ALVO_PX = 12;
 
 const hash01 = (texto, sal = 0) => {
   let v = 2166136261 ^ sal;
@@ -189,6 +222,29 @@ export function createUniverse() {
   /* source → tipo, na ontologia NOVA. É o que impede a HUD de anunciar a taxonomia velha
      por cima da cena nova — o mesmo defeito que a camada de galáxia tinha. */
   const tipos = new Map();
+
+  /*
+   * ─────────────────────────── a REDE, e por que ela mora aqui
+   *
+   * O arco é o mesmo desenho da cena AGENTE (`links.js`), em outra instância. Duas razões, e a
+   * segunda é a que decide: as posições são as DESTA cena (planeta em órbita, sistema em deriva),
+   * e o objeto precisa ser filho DESTE grupo — arco parented noutro lugar renderiza no espaço de
+   * coordenadas errado, que é exatamente o defeito que os arcos da cena AGENTE já pagaram.
+   *
+   * ⚠️ As posições são recalculadas por quadro, nunca transportadas. Um arco entre dois corpos que
+   * orbitam com velocidade angular diferente é um PADRÃO, não uma barra rígida — a mesma distinção
+   * que fez a teia permanente sair da cena AGENTE.
+   */
+  const rede = createLinks();
+  group.add(rede.object);
+  /** Posição VIVA de todo corpo, na ordem `estrelas` e depois `planetas`. É o buffer do arco. */
+  let posicoes = null;
+  /** `source` → índice em `posicoes`. É o que traduz um vínculo do snapshot em dois índices. */
+  const indiceDe = new Map();
+  /** Índice → o nó do `/api/graph`, para o picking devolver corpo e não número. */
+  let corpos = [];
+  /** A seleção em vigor e o que ela desenhou. `null` = ninguém selecionado, e a rede some. */
+  let selecao = null;
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
      sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
   const amostra = new THREE.Vector3();
@@ -204,6 +260,11 @@ export function createUniverse() {
     estrelas = planetas = null;
     orbitas = [];
     centros = [];
+    posicoes = null;
+    corpos = [];
+    indiceDe.clear();
+    selecao = null;
+    rede.show(null);
   }
 
   /**
@@ -240,7 +301,95 @@ export function createUniverse() {
     object: group,
     /** O tipo de um corpo NESTA cena, ou `null` fora dela. A HUD pergunta; ela não deduz. */
     tipoDe: (source) => tipos.get(source) ?? null,
-    stats: () => ({ ...stats, quadros, elapsed: +ultimoElapsed.toFixed(2), amostra: [+amostra.x.toFixed(3), +amostra.y.toFixed(3), +amostra.z.toFixed(3)] }),
+    stats: () => ({
+      ...stats,
+      quadros,
+      elapsed: +ultimoElapsed.toFixed(2),
+      amostra: [+amostra.x.toFixed(3), +amostra.y.toFixed(3), +amostra.z.toFixed(3)],
+      // A rede na sonda: sem isto, "a seleção desenhou?" só se responde por foto — e foto não
+      // distingue arco ausente de arco desenhado fora da tela.
+      rede: selecao
+        ? { fonte: selecao.fonte, desenhados: selecao.desenhados, recusados: selecao.recusados, total: selecao.total }
+        : null,
+    }),
+
+    /** Posição VIVA de um corpo desta cena, ou `null` se ele não é corpo aqui. */
+    posicaoDe(source) {
+      const i = indiceDe.get(source);
+      if (i === undefined || !posicoes) return null;
+      return new THREE.Vector3(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]);
+    },
+
+    /**
+     * O corpo sob o ponteiro, por PROXIMIDADE NA TELA.
+     *
+     * ⚠️ **Não é raycast contra a esfera**, e a diferença é a razão de existir do método. O corpo
+     * mediano desta cena tem ~4 px; exigir o acerto dentro da malha deixaria só as estrelas
+     * clicáveis, e o gesto morreria em silêncio sobre a maior parte do céu — que é o defeito que a
+     * cena AGENTE já resolveu com `threshold` nos pontos.
+     *
+     * ⚠️ E ele existe porque o picking da cena AGENTE **continua acertando** aqui: o raycast do
+     * three não olha `visible`, então o grafo escondido responde por baixo do universo. Sem esta
+     * rota, selecionar no UNIVERSO devolvia o corpo de outra cena, com convicção total.
+     *
+     * @param {THREE.Vector2} ponteiro  em NDC (−1…1), como o `pointer` da cena
+     * @param {THREE.Camera} camera
+     * @param {number} alturaFB  `canvas.height` — framebuffer, nunca `clientHeight`
+     */
+    pick(ponteiro, camera, alturaFB) {
+      if (!posicoes || !corpos.length || !alturaFB) return null;
+      // NDC → px: metade da altura, porque o NDC vai de −1 a 1. Mesma unidade do `gl_PointSize`.
+      const limite = (ALVO_PX * 2) / alturaFB;
+      let melhor = null;
+      for (let i = 0; i < corpos.length; i++) {
+        V3.set(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]).project(camera);
+        // Atrás da câmera o `project` devolve coordenada espelhada — sem este corte, um corpo às
+        // costas do observador ganharia o clique de um corpo à frente.
+        if (V3.z > 1) continue;
+        const dx = V3.x - ponteiro.x;
+        const dy = V3.y - ponteiro.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > limite * limite) continue;
+        if (!melhor || d2 < melhor.d2) melhor = { d2, node: corpos[i], i };
+      }
+      // `position` viaja junto porque quem recebe o pick também acende partículas ali — pedir a
+      // posição depois, por `source`, seria ler o buffer de novo para responder o que já se sabe.
+      if (!melhor) return null;
+      const p = melhor.i * 3;
+      return { node: melhor.node, position: new THREE.Vector3(posicoes[p], posicoes[p + 1], posicoes[p + 2]) };
+    },
+
+    /**
+     * A REDE NA SELEÇÃO — o corpo vira o centro temporário da topologia dele.
+     *
+     * `vizinhanca` é o que o `/api/vizinhanca` devolveu para este corpo (já cortado no teto pelo
+     * script que o materializou). Passar `null` apaga a rede por desvanecimento.
+     *
+     * ⚠️ **Vizinho que não é corpo DESTA cena é recusado, e a recusa é contada.** A cena UNIVERSO
+     * desenha arquivos; um vínculo para algo que ela não desenha não pode virar linha para lugar
+     * nenhum. Contar em vez de descartar é o que impede a legenda de nomear um arco que a tela não
+     * tem — a mesma regra que o `MAX_LINKS` já obrigava.
+     *
+     * @returns {{desenhados:number, recusados:number, total:object}|null}
+     */
+    selecionar(source, vizinhanca) {
+      if (!source || !vizinhanca || indiceDe.get(source) === undefined) {
+        selecao = null;
+        rede.show(null);
+        return null;
+      }
+      const eu = indiceDe.get(source);
+      const pares = [];
+      let recusados = 0;
+      for (const v of vizinhanca.v || []) {
+        const outro = indiceDe.get(v.para);
+        if (outro === undefined) { recusados++; continue; }
+        pares.push([eu, outro, COR_DO_VINCULO[v.tipo] ?? COR_DO_VINCULO.desconhecido, SENTIDO[v.sentido] ?? 0]);
+      }
+      const desenhados = rede.show(pares);
+      selecao = { fonte: source, desenhados, recusados, total: vizinhanca.total || {} };
+      return { desenhados, recusados, total: selecao.total };
+    },
 
     /**
      * Monta a cena a partir do payload do grafo. Idempotente: recarregar refaz tudo.
@@ -307,6 +456,14 @@ export function createUniverse() {
       const corEstrela = [];
       const corPlaneta = [];
       const brilhoE = [];
+      /*
+       * O índice de um corpo é o mesmo em `posicoes`, em `corpos` e no `InstancedMesh` dele —
+       * estrelas primeiro, planetas depois. Um índice só evita a tradução que já mordeu esta base
+       * ("espaço de coordenadas", armadilha nº 9): o arco lê o buffer por índice e não sabe, nem
+       * precisa saber, se aquilo é estrela ou planeta.
+       */
+      const estrelasPorFonte = [];
+      const planetasPorFonte = [];
       centros = postos.map(({ pos, s }, i) => {
         const fisica = entityPhysics(s.estrela, { dominante: true, sistema: s.agg.id });
         classificar(fisica, s.estrela); // a classe é dele; aqui só o raio importa
@@ -314,6 +471,7 @@ export function createUniverse() {
         const cor = new THREE.Color(KIND_COLORS[s.estrela.kind] ?? 0xffd9a0);
         corEstrela.push(cor.r, cor.g, cor.b);
         brilhoE.push(brilhoDe(s.estrela));
+        estrelasPorFonte.push(s.estrela);
 
         // Inclinação própria por sistema: dois sistemas não compartilham plano orbital.
         const inc = (hash01(s.agg.id, 31) - 0.5) * 1.4;
@@ -325,11 +483,16 @@ export function createUniverse() {
           const e = Math.min(0.4, EXCENTRICIDADE * (0.6 + ((j * 7) % 5) * 0.2));
           const c2 = new THREE.Color(KIND_COLORS[f.kind] ?? 0x8fb8ff);
           corPlaneta.push(c2.r, c2.g, c2.b);
+          planetasPorFonte.push(f);
           orbitas.push({ centro: i, a, e, rp, fase: hash01(f.id, 53) * Math.PI * 2, inc, giro,
             n: 0.9 * Math.pow(a, -1.5), brilho: brilhoDe(f) });
         });
         return { pos, raio, sistema: s.agg.id };
       });
+
+      corpos = [...estrelasPorFonte, ...planetasPorFonte];
+      corpos.forEach((n, i) => { if (n?.source) indiceDe.set(n.source, i); });
+      posicoes = new Float32Array(Math.max(corpos.length, 1) * 3);
 
       estrelas = new THREE.InstancedMesh(geo, matEstrela, Math.max(centros.length, 1));
       planetas = new THREE.InstancedMesh(geo, matPlaneta, Math.max(orbitas.length, 1));
@@ -366,7 +529,7 @@ export function createUniverse() {
      * ⚠️ A deriva é do UNIVERSO inteiro, não por sistema: o que a cena afirma é que não há
      * referencial parado, e mover cada sistema para um lado diferente afirmaria outra coisa.
      */
-    update(elapsed) {
+    update(elapsed, delta = 0) {
       quadros++;
       ultimoElapsed = elapsed;
       if (!estrelas || !planetas) return;
@@ -375,6 +538,7 @@ export function createUniverse() {
         V3.copy(centros[i].pos).add(desloca);
         M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio));
         estrelas.setMatrixAt(i, M4);
+        posicoes[i * 3] = V3.x; posicoes[i * 3 + 1] = V3.y; posicoes[i * 3 + 2] = V3.z;
       }
       for (let k = 0; k < orbitas.length; k++) {
         const o = orbitas[k];
@@ -391,13 +555,18 @@ export function createUniverse() {
         V3.set(c.pos.x + xr, c.pos.y + zr * Math.sin(o.inc), c.pos.z + zr * Math.cos(o.inc)).add(desloca);
         M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp));
         planetas.setMatrixAt(k, M4);
+        const p = (centros.length + k) * 3;
+        posicoes[p] = V3.x; posicoes[p + 1] = V3.y; posicoes[p + 2] = V3.z;
         if (k === 0) amostra.copy(V3);
       }
       estrelas.instanceMatrix.needsUpdate = true;
       planetas.instanceMatrix.needsUpdate = true;
+      // DEPOIS das posições, nunca antes: o arco lê o buffer que este quadro acabou de escrever.
+      // Um quadro de atraso aqui aparece como o vínculo arrastando atrás do corpo.
+      rede.update(posicoes, delta, elapsed);
     },
 
     setVisible(v) { group.visible = v; },
-    dispose() { limpar(); geo.dispose(); matEstrela.dispose(); matPlaneta.dispose(); },
+    dispose() { limpar(); rede.dispose(); geo.dispose(); matEstrela.dispose(); matPlaneta.dispose(); },
   };
 }
