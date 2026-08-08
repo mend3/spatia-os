@@ -96,6 +96,35 @@ const raioDuasCurvas = (chunks) => {
  */
 const semiEixo = (i, espaco) => 2.44 * Math.pow(espaco, i + 1);
 
+/**
+ * Resolve a equação de Kepler `M = E − e·sin(E)` por Newton — não há forma fechada.
+ *
+ * É ela que produz a SEGUNDA lei (áreas iguais em tempos iguais), e é por isso que não dá para
+ * trapacear com um seno na anomalia média: a anomalia média avança uniforme, a EXCÊNTRICA não, e a
+ * diferença entre as duas é exatamente o "acelera no periélio" do briefing.
+ *
+ * Cinco iterações bastam para `e < 0,9` com folga de várias casas; o `break` sai antes na maioria.
+ */
+function anomaliaExcentrica(M, e) {
+  let E = M + e * Math.sin(M);
+  for (let i = 0; i < 5; i++) {
+    const passo = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+    E -= passo;
+    if (Math.abs(passo) < 1e-6) break;
+  }
+  return E;
+}
+
+/**
+ * Excentricidade do planeta `i`.
+ *
+ * O briefing pede que a FORMA da órbita comunique estado: quase circular = estável, muito excêntrica
+ * = objeto de passagem. Aqui ela varia por índice para o espécime mostrar a faixa inteira num
+ * quadro — na cena ela vai sair de um fato (atividade é o candidato natural, porque cometa é o
+ * corpo excêntrico da natureza e atividade já é o que faz um cometa).
+ */
+const excentricidade = (i, base) => Math.min(0.86, base * (0.6 + ((i * 7) % 5) * 0.2));
+
 function corpo(cor, raio) {
   const malha = new THREE.Mesh(
     new THREE.SphereGeometry(1, 24, 16),
@@ -116,6 +145,7 @@ export const SYSTEM_SPEC = {
     { key: 'espaco', label: 'ESPAÇAMENTO ×', type: 'range', min: 1.15, max: 2.2, step: 0.01, value: 1.45 },
     { key: 'inclinacao', label: 'INCLINAÇÃO DO SISTEMA', type: 'range', min: 0, max: 1.2, step: 0.01, value: 0.35 },
     { key: 'deriva', label: 'DERIVA DA ESTRELA', type: 'range', min: 0, max: 8, step: 0.1, value: 0 },
+    { key: 'excentricidade', label: 'EXCENTRICIDADE', type: 'range', min: 0, max: 0.9, step: 0.01, value: 0.18 },
     { key: 'kepler', label: 'OBEDECER KEPLER', type: 'bool', value: true },
     { key: 'lei', label: 'LEI DE RAIO', type: 'enum', options: ['duas curvas', 'log (a do céu)'], value: 'duas curvas' },
     { key: 'orcamento', label: 'ORÇAMENTO DO SISTEMA', type: 'range', min: 0, max: 20, step: 0.5, value: 0 },
@@ -130,6 +160,9 @@ export const SYSTEM_SPEC = {
     'RAIO DO SISTEMA no painel é o número que decide se 221 sistemas cabem sem se atravessar',
     'LEI DE RAIO em «log»: a estrela encolhe até quase empatar com o planeta — é o achado nº 1 ao vivo',
     'ORÇAMENTO acima de zero: o sistema muda de tamanho e as PROPORÇÕES internas não mudam',
+    'a ESTRELA não fica no centro da elipse — ela fica num FOCO. Com EXCENTRICIDADE alta isso salta aos olhos',
+    'com o tempo CORRENDO o planeta ACELERA perto da estrela e desacelera longe (2ª lei). Se a velocidade for constante, é ponteiro de relógio',
+    'EXCENTRICIDADE em 0: volta ao círculo, e a estrela volta ao centro — é o A/B do briefing',
   ],
   build(ctx) {
     const grupo = new THREE.Group();
@@ -141,6 +174,12 @@ export const SYSTEM_SPEC = {
 
     /** Um planeta por índice, criado sob demanda e reaproveitado — o slider vai de 0 a 12. */
     const planetas = [];
+    /*
+     * A trilha é um CÍRCULO UNITÁRIO, e a elipse nasce da escala não-uniforme mais o deslocamento
+     * do centro. `x = a(cos t − e)` e `z = a√(1−e²) sin t` — que é a elipse com o FOCO na origem,
+     * onde a estrela está. Desenhar a elipse ponto a ponto por quadro seria reconstruir geometria
+     * 96 vezes por planeta para dizer a mesma coisa.
+     */
     const anel = (raio) => {
       const pontos = [];
       for (let i = 0; i <= 96; i++) {
@@ -196,19 +235,35 @@ export const SYSTEM_SPEC = {
           maiorPlaneta = Math.max(maiorPlaneta, rp);
 
           const a = semiEixo(i, values.espaco) * raioEstrela;
-          raioSistema = Math.max(raioSistema, a + rp);
+          // O afélio é o que fixa o tamanho do sistema: `a(1 + e)`, não o semi-eixo.
+          raioSistema = Math.max(raioSistema, a * (1 + excentricidade(i, values.excentricidade)) + rp);
 
           /*
-           * Kepler: T ∝ a^(3/2), logo ω ∝ a^(-3/2). Com o portão desligado, ω é constante — e é
-           * essa comparação que mostra por que a lei importa para a LEITURA, não só para a física.
+           * TERCEIRA lei: T ∝ a^(3/2), logo o movimento médio n ∝ a^(-3/2). Com o portão desligado
+           * n é constante — e é essa comparação que mostra por que a lei importa para a LEITURA.
            */
-          const omega = values.kepler ? 0.9 * Math.pow(a, -1.5) : 0.12;
-          const ang = clock.elapsed * omega + i * 1.7;
+          const n_ = values.kepler ? 0.9 * Math.pow(a, -1.5) : 0.12;
+          const M = clock.elapsed * n_ + i * 1.7;
+
+          /*
+           * SEGUNDA lei, e é ela que o briefing `orbita-eliptica.md` veio corrigir.
+           *
+           * A anomalia MÉDIA avança uniforme; a posição sai da anomalia EXCÊNTRICA, que não avança.
+           * O resultado é o planeta varrer áreas iguais em tempos iguais — rápido no periélio,
+           * lento no afélio. Sem isso a órbita vira ponteiro de relógio, que é a sensação
+           * artificial que o documento nomeia.
+           */
+          const ecc = excentricidade(i, values.excentricidade);
+          const E = anomaliaExcentrica(M, ecc);
+          const b = a * Math.sqrt(1 - ecc * ecc);
 
           const p = planetas[i];
           p.malha.scale.setScalar(rp);
-          p.malha.position.set(Math.cos(ang) * a, 0, Math.sin(ang) * a);
-          p.trilha.scale.setScalar(a);
+          // FOCO na origem: `x = a(cos E − e)`. A estrela não fica no centro da elipse — e essa é
+          // a primeira frase do briefing.
+          p.malha.position.set(a * (Math.cos(E) - ecc), 0, b * Math.sin(E));
+          p.trilha.scale.set(a, 1, b);
+          p.trilha.position.x = -a * ecc;
         }
         /*
          * ORÇAMENTO acima de zero normaliza o sistema INTEIRO para caber num raio fixo.
@@ -232,6 +287,9 @@ export const SYSTEM_SPEC = {
           'sistemas por 100 un.': (100 / Math.max(raioSistema * 2, 0.001)).toFixed(1),
           'kepler': values.kepler ? 'ligado (ω ∝ a^-3/2)' : 'DESLIGADO — carrossel',
           'lei de raio': values.lei,
+          'excentricidade (1º planeta)': excentricidade(0, values.excentricidade).toFixed(3),
+          'periélio → afélio': `${(1 - excentricidade(0, values.excentricidade)).toFixed(2)} → ${(1 + excentricidade(0, values.excentricidade)).toFixed(2)} × a`,
+          'v periélio / v afélio': ((1 + excentricidade(0, values.excentricidade)) / (1 - excentricidade(0, values.excentricidade))).toFixed(2) + '×',
           'orçamento': values.orcamento > 0 ? `${values.orcamento} un. (escala ${(values.orcamento / raioSistema).toFixed(3)}×)` : 'livre',
           'inversão de massa': razao >= 1 ? 'não' : 'SIM — planeta maior que a estrela',
         });
