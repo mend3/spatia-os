@@ -254,7 +254,15 @@ const LEITURA = {
   TOUCHED: 'uso por agentes',
 };
 
-const forcaDe = (v) => (v.tipo === 'CO_EDITED' ? `${v.valor}×` : v.valor.toFixed(2));
+/**
+ * O valor BRUTO do vínculo, na unidade dele.
+ *
+ * ⚠️ Contagem e score não se escrevem igual: "3×" é verificável (três commits, três citações) e
+ * "0,74" é um cosseno. Formatar os dois do mesmo jeito faria a legenda afirmar precisão onde há
+ * contagem, e contagem onde há medida contínua.
+ */
+const CONTAGEM = new Set(['CO_EDITED', 'REFERENCES', 'IMPORTS']);
+const forcaDe = (v) => (CONTAGEM.has(v.tipo) ? `${v.valor}×` : v.valor.toFixed(2));
 
 /**
  * O que a rede desenhou, o que ela CORTOU, e quando mediu.

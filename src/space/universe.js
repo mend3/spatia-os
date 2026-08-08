@@ -172,8 +172,17 @@ function brilhoDe(node) {
 export const COR_DO_VINCULO = {
   SIMILAR_TO: 0x6fe0ff,
   CO_EDITED: 0xff5fa2,
+  REFERENCES: 0xffcf5c,
+  IMPORTS: 0x8affc0,
   desconhecido: 0x8a97ad,
 };
+
+/**
+ * ⚠️ **E as quatro se separam por DUAS coisas, não uma.** Só a matiz não bastaria com quatro tipos
+ * na mesma tela: as duas primeiras são estatísticas e SIMÉTRICAS (parecença, co-edição), as duas
+ * últimas são citações e têm SETA. O pulso viajante já distingue os dois grupos antes da cor —
+ * `links.js` desenha direção onde ela foi medida e respiração onde não foi.
+ */
 
 /** `sentido` do snapshot → o sinal que o shader do arco lê. Recíproco = 0 = sem seta. */
 const SENTIDO = { saida: 1, entrada: -1, mutuo: 0 };

@@ -353,9 +353,9 @@ da lei nº 2, inteira: o renderer lê uma lista pronta, e o Neo4j não está no 
 
 | | |
 |---|---|
-| população | **3 705 vínculos desenháveis em 188 corpos** · grau MED 20 · P90 42 · **máx 113** · 0 isolados |
+| população | **4 226 vínculos desenháveis em 188 corpos** (com o P6) · grau MED 26 · P90 56 · **máx 182** · 0 isolados |
 | teto | **28 arcos**, herdado do `MAX_LINKS` de `links.js` — mesma tela, mesmo olho |
-| acima do teto | **44 corpos (23,4%)**, e o corte é PUBLICADO (`total` por tipo) |
+| acima do teto | **79 corpos (42,0%)** depois do P6, e o corte é PUBLICADO (`total` por tipo) |
 
 **1. Rota própria, e não mais um campo no `/api/graph`.** `centrality` e `usage` são um número por
 corpo e cabem no nó. A vizinhança são **408 kB contra 119 kB da topologia inteira** — 3,4×. Anexá-la
@@ -457,7 +457,7 @@ ninguém saberia de quem era o número.
 | **P4** ✅ | `SIMILAR_TO` materializado (`scripts/similares.mjs`) | **8 130 arestas, k=5 derivado, 6,6% isolados** | ⚠️ números do corpus que os volumes levaram; no `espatial_vivo` são **1 504 arestas, k=8** (aqui `k=5` deixa 10,6% de isolados, acima do corte). A rede na seleção fechou — §5.1 |
 | **P5** ✅ | `Agent` + `Run` + `TOUCHED` (`scripts/uso.mjs`) | `usage` no `EntityPhysics`; influência por USO | **11 Run · 64 TOUCHED · 51 corpos (3,12%) · grau máx 2 · 0 Agent.** Construído com evidência RALA de propósito, e o snapshot publica o veredito. Ver §3.2.3 |
 | **lei nº 1** ✅ | `scripts/lei-neo4j.mjs` | a lei vira invariante **implementada** | 29 448 perturbações de `centrality`/`usage`/`connectivity` sobre 1 636 corpos: **nenhuma altera classe** |
-| **P6** | `REFERENCES`, `IMPORTS` | dependência documental e estrutural | semanticamente mais fortes que "parecidos" |
+| **P6** ✅ | `REFERENCES`, `IMPORTS` (`scripts/citacoes.mjs`) | dependência documental e estrutural | **452 REFERENCES · 88,8% do céu** e **313 IMPORTS · 59,6%** — e são as duas ÚNICAS relações DIRIGIDAS. Ver §6.1 |
 | **P7** | `MENTIONS`, `Concept` | inferência | só depois de o grafo provar valor **sem** LLM |
 
 ### A derivação do `k`, e o que ela me corrigiu
@@ -487,6 +487,34 @@ redistribui o nada sobre 7,2% dos corpos.
 A ordem executável passa a ser **P4 → P3**: materializar a vizinhança semântica do Qdrant primeiro,
 porque ela é a única aresta que alcança todo o corpus (todo nó tem vizinho semântico; nem todo nó
 tem co-editor).
+
+### 6.1 ✅ P6 — as duas relações que têm SETA (2026-08-08)
+
+`scripts/citacoes.mjs` lê o DISCO e resolve cada citação contra a topologia — ponta que não é corpo
+do céu não vira aresta, que é a lição do P2b (627 no disco viraram 4 exigindo os dois lados
+indexados).
+
+| relação | pares | corpos | cobertura | grau MED · P90 · máx |
+|---|---|---|---|---|
+| `REFERENCES` | 452 | 167 | **88,8%** | 3 · 11 · 36 |
+| `IMPORTS` | 313 | 112 | 59,6% | 4 · 10 · 34 |
+
+**A cobertura do `REFERENCES` passa a do `CO_EDITED`** (85,1%) — e ele afirma algo que nenhuma das
+duas primeiras afirma: *quem aponta para quem*. `SIMILAR_TO` e `CO_EDITED` são estatísticas e
+simétricas; citação é uma afirmação que alguém escreveu, e tem direção. É por isso que o arco delas
+pulsa com sentido e o das outras respira sem seta.
+
+⚠️ **`IMPORTS` é capacidade DESTE corpus, não do real.** O real tem zero código; `espatial_vivo`
+inclui `.js/.mjs/.py` de propósito. `REFERENCES` transfere — prosa cita caminho em qualquer corpus.
+
+⚠️ **O script APAGA as arestas do grupo antes de escrever.** Citação some quando alguém edita o
+arquivo, e um grafo que só cresce descreve o passado em vez do corpus — a mesma razão pela qual o
+overlay do servidor remove o campo antes de reaplicar.
+
+⚠️ E ele achou uma armadilha viva: **`AGENT_CWD` exportado no perfil do shell** aponta para
+`devshell-one`, que não existe desde a reorganização. A precedência cega ao ambiente devolvia
+**0 arquivos lidos e um relatório inteiro de zeros** — resultado com cara de resultado. Os scripts
+que leem disco agora CONFEREM que o caminho existe antes de obedecê-lo, e zero lidos é erro fatal.
 
 ## Fontes
 
