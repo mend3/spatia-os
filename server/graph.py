@@ -29,7 +29,7 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # 7: `services` (as partes nomeadas de um compose) chega no nó de compose — 164 deles em 44
 #    arquivos, medido em 2026-08-07. Mesmo motivo do bump 5: campo novo não muda o fingerprint
 #    do corpus, e sem ele a nebulosa continuaria sem luas em qualquer clone com cache.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").

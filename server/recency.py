@@ -339,11 +339,63 @@ def annotate(nodes: list[dict]) -> None:
         node.setdefault("recency", 0.5)
 
     _annotate_supernova(nodes)
+    _annotate_dwarf(nodes)
 
 
 # Quantas vezes um arquivo precisa ser tocado na janela para virar supernova. Pedido do usuário,
 # e o número é bom: abaixo disso é manutenção normal e o céu inteiro acenderia.
 SUPERNOVA_FLOOR = 5
+
+# ── Anã branca ──────────────────────────────────────────────────────────────────
+#
+# Massa mínima, em chunks. **Constante calibrada, e por isso ela EXPIRA** — 13 é o P75 de chunks
+# do corpus de 2026-08-07 (P50 5 · P90 25 · máx 289), transcrito como número ABSOLUTO de
+# propósito: percentil vivo reclassificaria este corpo quando OUTRO arquivo mudasse, e
+# `docs/medicoes-2026-08-07.md` §3.1 refuta percentil com número (74,6% dos nós trocam de classe
+# sem que nenhum deles mude). Quem reindexar um corpus muito maior refaz a conta: é o P75 de
+# chunks, e nada além disso.
+DWARF_MASS_FLOOR = 13
+
+# Fatia mais VELHA do ranking de recência que ainda conta como "parou há muito". `recency` é
+# posição no ranking (0 = o mais antigo), uniforme por construção — ver `node["recency"]` acima —,
+# então 0,25 é literalmente o quarto mais antigo do céu, e continua sendo isso em qualquer corpus.
+DWARF_RECENCY = 0.25
+
+
+def _annotate_dwarf(nodes: list[dict]) -> None:
+    """Escreve `dwarf` (0 ou 1): massa que sobrou depois que a atividade acabou.
+
+    ## O que ela afirma, e o que ela NÃO afirma
+
+    *Este arquivo é pesado e não se move há muito.* Só isso. Anã branca **não julga**: massa
+    parada tanto pode ser a peça madura que ninguém precisa tocar quanto o débito que ninguém
+    quer tocar, e o céu não tem como distinguir os dois. Quem conhece o arquivo distingue.
+
+    ## Por que ela não é dormência
+
+    `dormant > 0` a exclui de propósito. Dormente é o caminho do cometa-extinto, que é um
+    VEREDITO (abandonado) e por isso exige duas janelas. A anã branca fica no meio: parou, mas
+    não a ponto de o repositório ter desistido dela. Medido em 2026-08-07: as três populações —
+    supernova 38, anã branca 53, cometa-extinto 5 — não se sobrepõem em nenhum par.
+
+    ⚠️ **Essa não-sobreposição é invariante, não sorte.** Ela se apoia neste `dormant` e no
+    `churn` zerado; afrouxar qualquer um dos dois faz duas feições reivindicarem o mesmo corpo em
+    silêncio, que é o modo de falha desta base. Quem mexer aqui confere as três contagens.
+
+    ## Degrau, não rampa
+
+    `0` ou `1`, como a supernova é degrau acima do piso. "Meio anã branca" não é um estado: ou
+    sobrou massa sem atividade, ou não sobrou.
+    """
+    for node in nodes:
+        if node.get("type") != "file":
+            continue
+        node["dwarf"] = int(
+            node.get("chunks", 0) >= DWARF_MASS_FLOOR
+            and not node.get("churn")
+            and not node.get("dormant", 0) > 0
+            and node.get("recency", 0.5) <= DWARF_RECENCY
+        )
 
 
 def _annotate_supernova(nodes: list[dict]) -> None:

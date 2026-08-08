@@ -93,6 +93,7 @@ const VERTEX = /* glsl */ `
   attribute float aIgnition;
   attribute float aRecency;
   attribute float aSupernova;
+  attribute float aDwarf;
   attribute float aSeed;
   attribute float aHalo;
   attribute vec3 aColor;
@@ -102,6 +103,8 @@ const VERTEX = /* glsl */ `
   varying float vReveal;
   varying float vSupernova;
   varying float vSeed;
+  /** 1 = anã branca: massa que sobrou depois que a atividade acabou. Ver server/recency.py. */
+  varying float vDwarf;
   varying float vHalo;
 
   // Do catálogo de movimento, e o espelho em JS de starRadius() lê os MESMOS três valores. Eram
@@ -125,6 +128,7 @@ const VERTEX = /* glsl */ `
     }
     vIgnition = aIgnition;
     vSupernova = aSupernova;
+    vDwarf = aDwarf;
     vSeed = aSeed;
     vHalo = aHalo;
     // 1 = dentro da janela, 0 = ainda no futuro em relação ao playhead.
@@ -224,6 +228,8 @@ const FRAGMENT = /* glsl */ `
   varying float vReveal;
   varying float vSupernova;
   varying float vSeed;
+  /** 1 = anã branca: massa que sobrou depois que a atividade acabou. Ver server/recency.py. */
+  varying float vDwarf;
   varying float vHalo;
 
 ${ENVELOPE_GLSL}
@@ -296,9 +302,29 @@ ${ENVELOPE_GLSL}
      * uma que nao acompanha", que e pior de ver e de diagnosticar.
      */
     float shell = envelope(pc, vSeed) * vSupernova * ENV_GAIN * (1.0 - vHalo);
-    float intensity = (core + corona + shell) * vReveal;
+    /*
+     * ANA BRANCA: uma borda FINA e azul-branca, colada na silhueta.
+     *
+     * Ela e o oposto exato do shell da supernova, e a diferenca tem de ser legivel sem legenda:
+     * a supernova e grande e filamentar ("esta explodindo agora"), a ana branca e apertada e lisa
+     * ("sobrou massa e apagou"). Os dois nunca dividem o mesmo corpo — medido em 2026-08-07, as
+     * populacoes nao se sobrepoem em nenhum par —, entao nao ha precedencia a declarar entre eles.
+     *
+     * Ela NAO repinta o nucleo, e isso e decisao: a cor do sprite e o kind, que e o fato do
+     * corpus. Trocar a cor do corpo por causa do estado apagaria o tipo do arquivo para dizer a
+     * idade dele — dois fatos disputando um canal. A borda ACRESCENTA um canal em vez de tomar um.
+     *
+     * O intervalo [0,86 · 0,99] fica dentro do sprite (que zera em d = 1,0, ver a nota da corona):
+     * borda que vazasse do quad viraria o mesmo quadrado nitido que a corona ja produziu tres vezes.
+     */
+    float rim = smoothstep(0.86, 0.94, d) * (1.0 - smoothstep(0.94, 0.99, d))
+              * vDwarf * (1.0 - vHalo);
+    float intensity = (core + corona + shell + rim) * vReveal;
     if (intensity < 0.004) discard;
-    gl_FragColor = vec4(vColor * intensity, intensity);
+    // A tinta azul entra SO na fracao que a borda contribui: onde ela nao existe, vColor fica
+    // intacto. Degenerado nao tem convecao nem vento — o que ele emite e superficie quente, so isso.
+    vec3 tinta = mix(vColor, vec3(0.78, 0.88, 1.0), clamp(rim / max(intensity, 1e-4), 0.0, 1.0));
+    gl_FragColor = vec4(tinta * intensity, intensity);
   }
 `;
 
@@ -510,6 +536,7 @@ export function createGraph() {
    * este atributo. Ver `markDirty`.
    */
   let supernovae = null;
+  let dwarfs = null;
   let sizes = null;
   let points = null;
   let edgePairs = [];
@@ -758,6 +785,7 @@ export function createGraph() {
     sizes = new Float32Array(count);
     const recencies = new Float32Array(count);
     supernovae = new Float32Array(count);
+    dwarfs = new Float32Array(count);
     const seeds = new Float32Array(count);
     halo = new Float32Array(count);
     haloIndex = -1;
@@ -807,6 +835,7 @@ export function createGraph() {
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
       supernovae[i] = node.type === 'file' ? node.supernova || 0 : 0;
+      dwarfs[i] = node.type === 'file' ? node.dwarf || 0 : 0;
       seeds[i] = starSeed(node);
       color.setHex(KIND_COLORS[node.kind] ?? KIND_COLORS.other);
       colors.set([color.r, color.g, color.b], i * 3);
@@ -819,6 +848,7 @@ export function createGraph() {
     geometry.setAttribute('aIgnition', new THREE.BufferAttribute(ignition, 1));
     geometry.setAttribute('aRecency', new THREE.BufferAttribute(recencies, 1));
     geometry.setAttribute('aSupernova', new THREE.BufferAttribute(supernovae, 1));
+    geometry.setAttribute('aDwarf', new THREE.BufferAttribute(dwarfs, 1));
     geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
     geometry.setAttribute('aHalo', new THREE.BufferAttribute(halo, 1));
     geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
