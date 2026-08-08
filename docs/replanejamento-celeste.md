@@ -683,3 +683,66 @@ colisões estagnadas com volume reservado), porque a terceira só se entende con
 
 **A ordem do §7 permanece.** O que a bancada fez foi derivar as leis de LAYOUT, que não são
 morfologia e por isso não esbarravam na regra. A cena no céu espera a Fase A.
+
+---
+
+## 16. Fases A · B · C — executadas, 2026-08-08
+
+`src/space/entity-physics.js` (o modelo) + `scripts/censo-ontologia.mjs` (o leitor). O módulo é
+**puro** — não importa `three` — e é isso que deixa medida e céu usarem a MESMA derivação em vez de
+duas cópias. **Nenhum shader tocado: a Fase D não começou.**
+
+### Fase A — ontologia congelada
+
+As três famílias existem em código, e as quatro dimensões sem fato estão **declaradas** em
+`AUSENTES`, valendo `null` e nunca `0`.
+
+⚠️ **A regra que a medida corrigiu: DOMINÂNCIA decide papel, MASSA decide porte.** A primeira
+versão usava o limiar global de massa para decidir quem é estrela, e o corpus respondeu: **80
+estrelas, 148 sistemas SEM estrela e 174 "companheiras"**. Cento e setenta e quatro binárias não é
+um céu — é um limiar aplicado na pergunta errada.
+
+E a correção torna a inversão nº 1 **impossível por construção**: a dominante é a mais massiva do
+sistema, logo nenhum planeta pode ser maior que a sua estrela. É a diferença entre invariante
+implementada e invariante declarada, que esta base já pagou cinco vezes para aprender.
+
+### Fase B — o céu recalculado
+
+| família | n | | corpo | n | % |
+|---|---|---|---|---|---|
+| estrutura | 228 | | **estrela** | **228** | 13,9% |
+| corpo | 1 636 | | planeta | 444 | 27,1% |
+| | | | lua | 407 | 24,9% |
+| | | | asteroide | 557 | 34,0% |
+
+**Uma estrela por sistema, exatamente 228.** Porte: anã 148 · normal 57 · gigante 23.
+
+Fenômenos, que acontecem sem trocar classe nenhuma: atividade-de-cometa 229 · anã branca 45 ·
+supernova 38 · extinto 5 — 301 corpos (18,4%) com ao menos um.
+
+⚠️ **Os 336 órfãos deixaram de existir, e a resposta é estrutural:** eles penduram direto no
+REPO, e repo é agregado. O sistema deles é o repositório. A pergunta do §3.1 tinha resposta no
+próprio grafo.
+
+### Fase C — a métrica
+
+```
+ANTES   ████████████████████████████████████████  228 galáxias (100% dos agregados)
+DEPOIS  █                                           7 galáxias (repo)
+        ███████████████████████████████████████   221 sistemas (diretório)
+```
+
+**Classe grande indevida: 228 → 7 (−96,9%).** A ontologia não trocou nomes; ela mudou quantos
+corpos recebem escala cosmológica.
+
+### E uma correspondência que ninguém plantou
+
+65% das estrelas do corpus são **anãs** (dominante abaixo do limiar de fusão). Na Via Láctea, anãs
+vermelhas são ~70–75% de todas as estrelas. A forma da população estelar bate com a da natureza
+porque as duas saem da mesma coisa — a maioria das pastas é pequena, como a maioria das estrelas.
+
+### O que trava a Fase D
+
+`centrality` e `connectivity` continuam sem fato. A Fase A **não fecha** sem decisão sobre o Neo4j
+([`integracao-neo4j.md`](./integracao-neo4j.md), P0 é a auditoria do graphiti) — e sem elas o céu
+sabe o TAMANHO de cada corpo e não sabe a INFLUÊNCIA dele, que é metade do §11.1.
