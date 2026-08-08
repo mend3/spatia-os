@@ -118,6 +118,15 @@ const NODE_FOCUS_POLAR = 1.18;
  */
 /** Free-flight range, when nothing is locked. */
 const ZOOM_RANGE = { min: 12, max: 260 };
+/**
+ * Distância de casa da cena UNIVERSO — o enquadramento que mostra a teia inteira.
+ *
+ * O universo foi normalizado para caber no zoom de hoje (`universe.js`), então isto é só o recuo que
+ * o enquadra. Ele é constante e não some no `HOME` do AGENTE porque as duas cenas têm mundos de
+ * tamanhos diferentes: entrar numa com a distância da outra põe o operador dentro de um sistema sem
+ * saber que existe um universo em volta.
+ */
+const HOME_UNIVERSO = 150;
 /** Caminho de ponteiro, em px CSS, acima do qual o `click` do browser é órbita e não clique. */
 const CLICK_SLOP_PX = 6;
 /**
@@ -937,19 +946,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * so it reads as one flight, not as two.
      */
     /*
-     * ⚠️ **No UNIVERSO a seleção RECENTRA, e não aproxima** — e a razão é o que a seleção produz
-     * ali. O que ela acende não é o corpo (que não tem pele nesta cena, por decisão da spec): é a
-     * TOPOLOGIA dele, e os vínculos atravessam a teia inteira, com vizinhos a dezenas de unidades.
-     * Voar até 7 unidades enquadraria o único elemento que não mudou e jogaria para fora da tela
-     * exatamente o que apareceu.
-     *
-     * Então a âncora persegue o corpo — ele vira o centro — e a distância é do operador.
+     * ⚠️ **No UNIVERSO a distância NÃO sai daqui**, e não porque a seleção não deva aproximar — ela
+     * deve, e a primeira versão desta linha errou nisso. É que `NODE_FOCUS_DISTANCE` são 7 unidades
+     * derivadas do céu AGENTE, e os corpos desta cena medem de 0,1 a 1,6: voar para 7 é parar a dez
+     * vezes o tamanho do que se pediu para ver. Quem resolve é o enquadramento por RAIO, no quadro
+     * seguinte, com a âncora da cena em vigor — o mesmo mecanismo do `fitPending` do AGENTE.
      */
     if (modo !== 'universo') {
       orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
       orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
+    } else if (!source) {
+      orbit.targetDistance = HOME_UNIVERSO;
     }
-    fitPending = Boolean(source) && modo !== 'universo';
+    fitPending = Boolean(source);
     if (!source) focusGeometry = null;
     if (motion.isReduced()) {
       orbit.distance = orbit.targetDistance;
@@ -1493,6 +1502,38 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         );
         fitPending = false;
       }
+    } else if (modo === 'universo' && focusedNode) {
+      /*
+       * ─────────────── O ENQUADRAMENTO DA CENA UNIVERSO — e por que ele é outro caminho
+       *
+       * ⚠️ **Sem isto a câmera não chega perto, e o número explica o sintoma inteiro.** O piso do
+       * zoom cai em `ZOOM_RANGE.min` (12 unidades) quando não há `focusGeometry`, e os corpos desta
+       * cena medem de 0,1 a 1,6 — a câmera parava a DEZ VEZES o tamanho do que se pediu para ver, e
+       * nenhum gesto de roda passava disso. Relatado como "o zoom não chega perto o suficiente".
+       *
+       * `graph.planetAnchor` não serve aqui: ele resolve a posição e o raio do céu AGENTE, que é
+       * outro lugar e outro tamanho. Quem responde é a cena em vigor (`universe.ancoraDe`).
+       *
+       * ⚠️ **A constante de projeção é calculada, e não recuperada.** No caminho do AGENTE ela sai
+       * do próprio `planetAnchor` (`px · distância / raio`) justamente para não existir uma segunda
+       * fórmula livre para divergir. Aqui não há âncora de onde recuperá-la, então ela é escrita
+       * pela definição — altura do framebuffer sobre duas vezes a tangente de meio fov — e é essa
+       * mesma definição que a outra recupera. Uma delas mudar sem a outra é o defeito a vigiar.
+       */
+      const ancora = universe.ancoraDe(focusedNode);
+      if (ancora) {
+        const k = canvas.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+        focusGeometry = { radius: ancora.radius, k };
+        if (fitPending) {
+          /*
+           * Sem `SKIN_EXTENT`: esta cena não desenha pele nenhuma, então não há envoltório maior
+           * que o corpo para caber no quadro. Quando a Fase D chegar, é aqui que ele entra.
+           */
+          orbit.targetDistance = clampDistance((k * ancora.radius) / FOCUS_FIT_PX);
+          orbit.targetPolar = NODE_FOCUS_POLAR;
+          fitPending = false;
+        }
+      }
     } else if (!focusedNode) {
       focusGeometry = null;
     }
@@ -1943,7 +1984,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * afirmando duas coisas diferentes sobre o mesmo estado. `fitPending` volta junto porque é
        * ele que deixa o quadro seguinte corrigir a distância pelo raio real do corpo.
        */
-      orbit.targetDistance = universo ? 150 : (focusedNode ? NODE_FOCUS_DISTANCE : HOME.distance);
+      orbit.targetDistance = universo ? HOME_UNIVERSO : (focusedNode ? NODE_FOCUS_DISTANCE : HOME.distance);
+      /*
+       * ⚠️ Trocar de cena ENQUADRA A CENA, não mergulha no astro travado. São gestos diferentes:
+       * "me mostre o universo" e "me leve até este corpo". Por isso `fitPending` só religa no
+       * caminho de volta ao AGENTE, onde a distância de foco é do outro céu e precisa ser refeita.
+       */
+      fitPending = false;
       if (!universo && focusedNode) {
         orbit.targetPolar = NODE_FOCUS_POLAR;
         fitPending = true;

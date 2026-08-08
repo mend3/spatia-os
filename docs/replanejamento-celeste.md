@@ -741,10 +741,35 @@ corpos recebem escala cosmológica.
 vermelhas são ~70–75% de todas as estrelas. A forma da população estelar bate com a da natureza
 porque as duas saem da mesma coisa — a maioria das pastas é pequena, como a maioria das estrelas.
 
-### O que trava a Fase D
+### O que travava a Fase D — e ela DESTRAVOU em 2026-08-08
 
-`connectivity` continua sem fato. `centrality` fechou no P3 e **`usage` fechou no P5** — a quinta
-grandeza do §11.1 pelo caminho que só o diário conhece: *influência por USO, não por semelhança*.
+`centrality` fechou no P3, **`usage` fechou no P5** — a quinta grandeza do §11.1 pelo caminho que só
+o diário conhece: *influência por USO, não por semelhança* — e **`connectivity` fechou por último**,
+como ALCANCE (a fração dos vínculos que sai do sistema), depois de a medida refutar a definição que
+esta spec dava. Ver `integracao-neo4j.md` §4.1.
+
+> **A condição de saída da Fase A era "os quatro fatos ausentes do §11 têm dono ou estão
+> explicitamente adiados". Ela está cumprida:** `centrality` ✅ · `usage` ✅ · `connectivity` ✅ ·
+> `density` **adiada por escrito** (é bytes por chunk, e o indexador não emite — conserta-se lá,
+> não aqui) · `importance` **recusada por escrito** (é juízo, não fato).
+>
+> **Portanto a Fase D pode começar.** É o registro "por escrito" que o §7 exigia.
+
+⚠️ **E ela não começa desenhando pele nova.** O que a cena UNIVERSO tem hoje são esferas, e o
+relato da tela — *"a maioria não renderiza corretamente, são apenas esferas opacas"* — tem duas
+metades que não se resolvem no mesmo lugar:
+
+1. **silhueta facetada** (12×8 segmentos): não era morfologia, era falta de vértice. Consertado sem
+   tocar em taxonomia — 32×16, e o custo medido é zero no enquadramento de casa (120 fps, 188
+   corpos);
+2. **ausência de superfície**: é a Fase D de verdade. As peles já existem e foram validadas na
+   bancada (`planet`, `photosphere`, `station`, `comet`, `pulsar`, `nebula`) — o que **não** existe
+   é o roteamento delas pela ontologia NOVA. Hoje quem escolhe pele é `solver.js` a partir do
+   `kind`, que é exatamente a taxonomia que a Fase B refutou (228 de 228 agregados viravam galáxia).
+
+⚠️ **Reusar as peles pelo caminho antigo seria o modelo velho falando por cima do novo** — o mesmo
+defeito que `ce8ad95` consertou na HUD. O primeiro passo da Fase D é uma tabela
+`classificar() → superfície`, não um shader.
 
 ⚠️ **E o P5 introduziu uma distinção que vale para toda dimensão daqui em diante:**
 

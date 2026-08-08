@@ -210,7 +210,20 @@ export function createUniverse() {
   const group = new THREE.Group();
   group.visible = false;
 
-  const geo = new THREE.SphereGeometry(1, 12, 8);
+  /*
+   * ⚠️ **12×8 segmentos era um POLÍGONO de perto, e isso não é falta de pele — é falta de vértice.**
+   *
+   * A malha nasceu quando esta cena era só estrutura vista de longe, onde um corpo tem 4 px e a
+   * silhueta não se lê. Desde que o foco passou a enquadrar o corpo pelo raio dele (`FOCUS_FIT_PX`),
+   * ele chega a centenas de pixels — e a 12 segmentos a borda vira um octógono visível. Relatado da
+   * tela como "os astros são apenas esferas opacas": metade disso é a silhueta facetada, e essa
+   * metade se conserta sem tocar em morfologia nenhuma.
+   *
+   * 32×16 é onde a borda para de mostrar faceta no enquadramento de foco. O custo é irrelevante e
+   * medido: 1 024 triângulos por corpo × 188 = 192 mil, contra 0,31–0,35 ms que o céu inteiro já
+   * custava — e a cena UNIVERSO roda sem o passe da lente, que sozinho come 3,8–5,1 ms.
+   */
+  const geo = new THREE.SphereGeometry(1, 32, 16);
   /*
    * ⚠️ **Sem `vertexColors`.** Ele faz o shader procurar um atributo `color` na GEOMETRIA, que não
    * existe aqui — e o resultado é preto, não erro. Quem colore instância é o `instanceColor`.
@@ -448,6 +461,23 @@ export function createUniverse() {
           +Math.hypot(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]).toFixed(3),
           +Math.hypot(posicoes[j * 3], posicoes[j * 3 + 1], posicoes[j * 3 + 2]).toFixed(3),
         ],
+      };
+    },
+
+    /**
+     * A ÂNCORA de um corpo: onde ele está e QUE TAMANHO tem, agora.
+     *
+     * ⚠️ É o equivalente do `graph.planetAnchor` para esta cena, e sem ele a câmera não sabe chegar
+     * perto: o piso de zoom cai no valor global (12 unidades) enquanto os corpos daqui medem 0,1 a
+     * 1,6 — a câmera parava a dez vezes o tamanho do que se pediu para ver.
+     */
+    ancoraDe(source) {
+      const i = indiceDe.get(source);
+      if (i === undefined || !posicoes || !raiosPorIndice) return null;
+      return {
+        position: new THREE.Vector3(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]),
+        radius: raiosPorIndice[i],
+        node: corpos[i],
       };
     },
 
