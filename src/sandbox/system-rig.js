@@ -118,10 +118,24 @@ function anomaliaExcentrica(M, e) {
 /**
  * Excentricidade do planeta `i`.
  *
- * O briefing pede que a FORMA da órbita comunique estado: quase circular = estável, muito excêntrica
- * = objeto de passagem. Aqui ela varia por índice para o espécime mostrar a faixa inteira num
- * quadro — na cena ela vai sair de um fato (atividade é o candidato natural, porque cometa é o
- * corpo excêntrico da natureza e atividade já é o que faz um cometa).
+ * ⚠️ **O default é PLANETÁRIO, e isso resolve uma contradição aparente.**
+ *
+ * O briefing diz "o corpo central fica em um foco" e "a velocidade nunca é constante"; a leitura do
+ * usuário diz "de cima é um círculo, de lado é uma elipse". As duas estão certas, e o número prova:
+ *
+ * | e | achatamento | foco fora do centro |
+ * |---|---|---|
+ * | 0,0167 (Terra) | **0,01%** | 2% de a |
+ * | 0,09 | 0,41% | 9% |
+ * | 0,43 | 9,7% | 43% |
+ *
+ * **A órbita da Terra é elíptica e, vista de cima, é indistinguível de um círculo.** Então a elipse
+ * que se vê de lado é PROJEÇÃO da inclinação, e a elipse física fica no comportamento — o foco
+ * deslocado e a velocidade variável — em vez de na silhueta.
+ *
+ * A primeira versão deste rig nasceu com base 0,18 e chegava a 0,43 no primeiro planeta: isso não é
+ * planeta, é cometa. E é justamente o que o briefing reserva para "objetos de passagem" — a faixa
+ * alta continua disponível no controle, para quando um corpo tiver de comunicar isso.
  */
 const excentricidade = (i, base) => Math.min(0.86, base * (0.6 + ((i * 7) % 5) * 0.2));
 
@@ -144,8 +158,10 @@ export const SYSTEM_SPEC = {
     { key: 'massaMaior', label: 'MASSA DO MAIOR PLANETA', type: 'range', min: 1, max: 289, step: 1, value: 24 },
     { key: 'espaco', label: 'ESPAÇAMENTO ×', type: 'range', min: 1.15, max: 2.2, step: 0.01, value: 1.45 },
     { key: 'inclinacao', label: 'INCLINAÇÃO DO SISTEMA', type: 'range', min: 0, max: 1.2, step: 0.01, value: 0.35 },
-    { key: 'deriva', label: 'DERIVA DA ESTRELA', type: 'range', min: 0, max: 8, step: 0.1, value: 0 },
-    { key: 'excentricidade', label: 'EXCENTRICIDADE', type: 'range', min: 0, max: 0.9, step: 0.01, value: 0.18 },
+    { key: 'deriva', label: 'VELOCIDADE DO SISTEMA', type: 'range', min: 0, max: 3, step: 0.05, value: 0.6 },
+    { key: 'rumo', label: 'INCLINAÇÃO DO RUMO', type: 'range', min: 0, max: 1.5, step: 0.01, value: 1.05 },
+    { key: 'rastro', label: 'RASTRO HELICOIDAL', type: 'bool', value: true },
+    { key: 'excentricidade', label: 'EXCENTRICIDADE', type: 'range', min: 0, max: 0.9, step: 0.005, value: 0.03 },
     { key: 'kepler', label: 'OBEDECER KEPLER', type: 'bool', value: true },
     { key: 'lei', label: 'LEI DE RAIO', type: 'enum', options: ['duas curvas', 'log (a do céu)'], value: 'duas curvas' },
     { key: 'orcamento', label: 'ORÇAMENTO DO SISTEMA', type: 'range', min: 0, max: 20, step: 0.5, value: 0 },
@@ -163,6 +179,10 @@ export const SYSTEM_SPEC = {
     'a ESTRELA não fica no centro da elipse — ela fica num FOCO. Com EXCENTRICIDADE alta isso salta aos olhos',
     'com o tempo CORRENDO o planeta ACELERA perto da estrela e desacelera longe (2ª lei). Se a velocidade for constante, é ponteiro de relógio',
     'EXCENTRICIDADE em 0: volta ao círculo, e a estrela volta ao centro — é o A/B do briefing',
+    'com VELOCIDADE DO SISTEMA acima de zero o rastro vira HÉLICE, não círculo — é a composição de orbitar com viajar',
+    'INCLINAÇÃO DO RUMO em 0 dá o «vórtice» dos vídeos: bonito e FALSO. O plano real é inclinado ~60° em relação ao rumo',
+    'no default (planetário) a órbita LÊ como círculo de cima; a elipse que se vê de lado é a INCLINAÇÃO, não a excentricidade',
+    'a faixa alta (acima de ~0,3) é de objeto de PASSAGEM, não de planeta — cometa, não órbita estável',
   ],
   build(ctx) {
     const grupo = new THREE.Group();
@@ -207,9 +227,24 @@ export const SYSTEM_SPEC = {
       });
     }
 
+    /*
+     * O rastro é do PRIMEIRO planeta, em coordenadas de MUNDO — é lá que a hélice existe. Desenhado
+     * no espaço do sistema ele voltaria a ser uma elipse, que é exatamente a ilusão que ele desmente.
+     */
+    const RASTRO = 420;
+    const trilhaPos = new Float32Array(RASTRO * 3);
+    const trilhaGeo = new THREE.BufferGeometry();
+    trilhaGeo.setAttribute('position', new THREE.BufferAttribute(trilhaPos, 3));
+    const rastro = new THREE.Line(trilhaGeo, new THREE.LineBasicMaterial({ color: 0x4a6da8 }));
+    rastro.frustumCulled = false;
+    let escritos = 0;
+    const MUNDO = new THREE.Vector3();
+
     return {
       object: grupo,
       update(values, camera, clock) {
+        if (!rastro.parent) grupo.parent?.add(rastro);
+        rastro.visible = values.rastro;
         const n = Math.round(values.planetas);
         garante(n);
 
@@ -218,9 +253,23 @@ export const SYSTEM_SPEC = {
         estrela.scale.setScalar(raioEstrela);
         orbitas.rotation.x = values.inclinacao;
 
-        // A DERIVA move a estrela E o grupo: é o teste de gravidade local. Se algum planeta não
-        // acompanhar, ele não está pendurado nela.
-        grupo.position.x = Math.sin(clock.elapsed * 0.25) * values.deriva;
+        /*
+         * O SISTEMA VIAJA, e isso não é enfeite: é a segunda metade do que uma órbita é.
+         *
+         * O Sol atravessa a galáxia a ~828 mil km/h; os planetas orbitam enquanto isso. A
+         * composição das duas coisas não é um círculo — é uma HÉLICE. "Astro parado" não existe no
+         * universo, e um sistema estático afirma um referencial absoluto que a cena inteira nega.
+         *
+         * Serve também como o teste de gravidade local que este rig já fazia: se um planeta não
+         * acompanhar a estrela, ele não está pendurado nela.
+         *
+         * ⚠️ **Sem o exagero do vídeo do "vórtice".** O plano orbital NÃO é perpendicular ao rumo
+         * do Sol — ele é inclinado ~60°, e por isso a hélice é ESTICADA, não um redemoinho apertado.
+         * INCLINAÇÃO DO RUMO existe para não repetir esse erro: em 0 o plano fica perpendicular e a
+         * figura vira a do vídeo, que é bonita e falsa.
+         */
+        const rumo = new THREE.Vector3(Math.cos(values.rumo), Math.sin(values.rumo) * 0.35, 0).normalize();
+        grupo.position.copy(rumo).multiplyScalar(clock.elapsed * values.deriva);
 
         let maiorPlaneta = 0;
         let raioSistema = raioEstrela;
@@ -277,6 +326,16 @@ export const SYSTEM_SPEC = {
           grupo.scale.setScalar(values.orcamento / raioSistema);
         } else {
           grupo.scale.setScalar(1);
+        }
+
+        // Amostra a posição de MUNDO do primeiro planeta a cada quadro: a hélice se desenha sozinha.
+        if (values.rastro && n > 0) {
+          planetas[0].malha.getWorldPosition(MUNDO);
+          const k = escritos % RASTRO;
+          trilhaPos[k * 3] = MUNDO.x; trilhaPos[k * 3 + 1] = MUNDO.y; trilhaPos[k * 3 + 2] = MUNDO.z;
+          escritos++;
+          trilhaGeo.setDrawRange(0, Math.min(escritos, RASTRO));
+          trilhaGeo.attributes.position.needsUpdate = true;
         }
 
         const razao = maiorPlaneta > 0 ? raioEstrela / maiorPlaneta : Infinity;
