@@ -1,11 +1,17 @@
 # Cena UNIVERSO — o replanejamento celeste
 
-> **Estudo, não implementação.** Nada aqui está em `src/`. O documento existe para ser aprovado por
-> partes: cada seção tem o número que a torna decidível e a fonte que a sustenta.
+> **Este documento é a SPEC DE TRANSIÇÃO da cena UNIVERSO.** Ele deixou de ser uma lista de
+> melhorias visuais quando ficou claro que define uma **nova ontologia** — decisão do usuário em
+> 2026-08-07, na revisão que virou o §10.
 >
-> Base: [`catalogo-celeste.md`](./catalogo-celeste.md) (o modelo atual), o briefing
-> [`briefings/multi-scene.md`](./briefings/multi-scene.md) (a cena nova) e uma rodada de pesquisa
-> em fontes primárias (NASA, ESA, Chandra) feita em 2026-08-07.
+> **A regra que governa tudo o que vem depois:**
+>
+> > **Não implementar mais nenhuma morfologia até a classificação que decide quando ela existe
+> > estar correta.**
+>
+> Nada aqui está em `src/`. Base: [`catalogo-celeste.md`](./catalogo-celeste.md) (o modelo atual),
+> [`briefings/multi-scene.md`](./briefings/multi-scene.md) (a cena nova) e pesquisa em fontes
+> primárias (NASA, ESA, JPL, Chandra, NTRS) feita em 2026-08-07.
 
 ---
 
@@ -430,3 +436,198 @@ ele descreve a hierarquia ideal e não a que o disco tem.
 - **"escalar para milhões de entidades"** — o corpus tem 1 864 nós. A afirmação não é testável
   aqui, e o `advance()` já foi medido linear até 10 000 (0,278 ms). Nada sugere problema, e nada
   prova a escala pedida.
+
+---
+
+## 10. A ontologia congelada — estrutura, corpo e fenômeno
+
+Revisão do usuário em 2026-08-07. Ela promove este documento de "melhorias visuais" a **fundação**,
+e a tese central é uma inversão de ordem:
+
+```
+hoje       filesystem → kind → corpo celeste
+a partir   entidade → massa/escala + atividade + composição + relações → manifestação celeste
+```
+
+**O filesystem passa a ser fonte de OBSERVAÇÃO, não a taxonomia do universo.** É a mesma correção
+da inversão nº 1 (§2.1), agora dita como arquitetura em vez de como defeito.
+
+### 10.1 Três famílias que nunca mais disputam o campo `kind`
+
+```
+UNIVERSE
+├── STRUCTURES   filamento cósmico · grupo de galáxias · galáxia · aglomerado estelar · sistema
+├── BODIES       buraco negro · estrela · planeta · lua · anã branca · pulsar · …
+└── PHENOMENA    quasar · supernova · atividade de cometa · acreção · colisão · fluxo de conhecimento
+```
+
+Isto resolve, de uma vez, quatro das cinco inversões do §2 — porque todas elas são a mesma coisa:
+**um fenômeno ou uma estrutura ocupando o assento de um corpo.** O quasar é o caso exemplar
+(§2.6): ele nunca deveria ter competido com "buraco negro" como se fossem corpos equivalentes.
+
+⚠️ O catálogo de hoje já tinha os quatro papéis (`estrutura · corpo · fenômeno · modificador`) e
+**registra que dois deles não passam pelo `catalog.js`** — *"ESTRUTURA não existe como papel:
+`galaxia` é estrutura e classe ao mesmo tempo, e é essa acumulação que a infla"*. O modelo já sabia
+onde doía; faltava separar os campos.
+
+### 10.2 O buraco negro muda de universo, e não de forma
+
+Mantida integralmente a decisão do §9.1. O ganho de a decisão ser esta, e não "tirar o buraco
+negro", é ele parar de ser **cinco coisas ao mesmo tempo**: centro cognitivo, objeto astronômico,
+splash, representação do agente e representação do workspace.
+
+Na cena Agentic ele continua sendo a interface conceitual do Context Engine — e lá o centro único
+está **certo**, porque ali a gravidade É prioridade.
+
+---
+
+## 11. `EntityPhysics` — a peça que falta, e o que dela tem fato hoje
+
+O modelo intermediário que impede a recaída (`if kind === 'folder' galaxy()`):
+
+```
+EntityGraph → EntityPhysics → classificação → Structure|Body|Phenomenon → morfologia → render
+```
+
+**Nenhuma morfologia nova antes disto.** Mas antes de especificar as onze dimensões, uma medida —
+porque a REGRA DO CATÁLOGO diz que declarar uma invariante não a implementa, e esta base já pagou
+cinco vezes por campo declarado sem leitor:
+
+| dimensão | fato hoje | de onde | veredito |
+|---|---|---|---|
+| `mass` | ✅ | `chunks` (P50 5 · P75 13 · P90 25 · máx 289) | pronto |
+| `activity` | ✅ | `churn` na janela de 30 dias | pronto |
+| `recency` / `age` | ✅ | posição no ranking, uniforme por construção | pronto |
+| `volatility` | ~ | `regularity` existe, mas mede RITMO, não variância de tamanho | precisa definir |
+| `composition` | ~ | `kind` + extensão — **13 extensões, 45,7% `.md`, ZERO código** | pobre por construção do indexador |
+| `scale` | ~ | derivável de `mass`, mas é o que a escada do §3 precisa nomear | precisa dos limiares |
+| `density` | ❌ | não há bytes por chunk no nó | **sem fato** |
+| `centrality` | ❌ | só grau de contenção; **arestas laterais = 0** | **sem fato** |
+| `connectivity` | ❌ | idem — o semântico vive no qdrant, fora do grafo | **sem fato** |
+| `importance` | ❌ | nada mede | **sem fato** |
+
+**Quatro das onze não têm fato, e duas delas (`centrality`, `connectivity`) são justamente as que
+o §7 da revisão usa para separar atividade de massa.** Especificá-las sem criar o fato seria repetir
+o defeito que o modelo está tentando corrigir.
+
+⚠️ **O caminho para as duas é o mesmo, e o usuário já o nomeou:** o relacionamento semântico do
+qdrant. Ele existe, mas **não está no grafo** — hoje o grafo é 100% contenção. Criar essas arestas
+é a única dependência dura de `EntityPhysics`, e é trabalho, não configuração.
+
+### 11.1 A quinta dimensão: atividade ≠ massa
+
+A separação que a revisão acrescenta, e que este documento não explorava:
+
+| grandeza | governa |
+|---|---|
+| massa | escala e gravidade |
+| atividade | energia e brilho |
+| centralidade | influência |
+| idade | evolução |
+| relações | estrutura |
+
+O caso que ela protege: **um arquivo pequeno, muito acessado, usado por muitos agentes e com muitas
+relações não deve virar galáxia.** Ele é pequeno — vira um corpo pequeno e **muito brilhante**.
+
+Isso encaixa exatamente na correção da anã branca (§5): lá o par é massa alta + brilho baixo; aqui é
+massa baixa + brilho alto. **Os dois eixos passam a ser lidos juntos, e é isso que dá vocabulário
+próprio a cada feição** — sem precisar de mais um aro.
+
+---
+
+## 12. As fases, e a métrica que decide se funcionou
+
+**A ordem é inegociável: a próxima rodada não começa pelo visual.**
+
+| fase | o que se faz | condição de saída |
+|---|---|---|
+| **A — congelar ontologia** | `Structure`, `Body`, `Phenomenon`, `EntityPhysics`, classificação derivada | os quatro fatos ausentes do §11 têm dono ou estão explicitamente adiados |
+| **B — recalcular o céu** | rodar os **1 636** objetos e medir distribuição por classe, massa, atividade, densidade, composição, centralidade, conectividade, linguagem, idade | um censo novo, na linha do `censo-corpus.mjs` |
+| **C — comparar antes/depois** | o mesmo corpus nos dois modelos | ver a métrica abaixo |
+| **D — shaders** | só aqui | — |
+
+### A métrica principal
+
+> **Quantas entidades continuam recebendo uma classe cosmologicamente grande sem merecê-la?**
+
+O número de partida está medido e é brutal: **hoje TODO agregado é galáxia — 228 de 228.** Por
+contenção, o modelo declarado já separa `galáxia 17 · aglomerado 21 · sistema 71 · hub raso 119`.
+
+```
+1 636 entidades + 228 agregados
+
+ANTES   ████████████████████  228 galáxias  (100% dos agregados)
+DEPOIS  █ 17 galáxias · ██ 21 aglomerados · ████ 71 sistemas · ██████ 119 hubs rasos
+```
+
+⚠️ **Este é o teste da reforma inteira.** Se depois do recálculo os 228 continuarem grandes, a
+ontologia não mudou nada — só trocou os nomes.
+
+### O pipeline de cobertura, na ordem certa
+
+```
+CORPUS REAL → medição → EntityPhysics → classificação → morfologia → FIXTURE → stress test
+```
+
+E não o contrário. A regra de engenharia, que o `cobertura.md` já sustenta:
+
+- **fixture = CAPACIDADE** — pode conter de propósito um pulsar extremo, uma nebulosa rara, um
+  cometa saturado;
+- **corpus real = COMPORTAMENTO do céu** — é ele que diz se o universo está repetitivo, saturado ou
+  fisicamente incoerente.
+
+---
+
+## 13. Só depois: o universo vivo
+
+Com a cosmologia correta, os eventos voltam — e ganham lugar, porque agora existe a família
+PHENOMENA para recebê-los:
+
+```
+System Event → Universe Event → Phenomenon → Entity → Animation
+```
+
+```
+file.uploaded     → proto-objeto capturado → acreção → a entidade evolui
+agent.reasoning   → fluxo de conhecimento  → conexões iluminam
+semantic.search   → ativação gravitacional → entidades relevantes brilham
+```
+
+⚠️ **`fluxo` e não `entrelaçamento`**, e a distinção é semântica, não estilística: entrelaçamento
+representa **relação persistente**; fluxo representa **atividade real**. Chamar o segundo pelo nome
+do primeiro afirmaria permanência onde há evento.
+
+---
+
+## 14. A pilha congelada
+
+```
+                    SPATIA
+                       │
+                 ENTITY GRAPH
+                       │
+                ENTITY PHYSICS
+                       │
+          ┌────────────┼────────────┐
+          ↓            ↓            ↓
+      STRUCTURE      BODY       PHENOMENON
+          │            │            │
+          └────────────┼────────────┘
+                       ↓
+                  MORPHOLOGY
+                       ↓
+                   DYNAMICS
+                       ↓
+                  RENDERING
+                       ↓
+                 EVENT SYSTEM
+                       ↓
+                  USER ACTION
+```
+
+**A próxima peça a especificar é `EntityPhysics`** — antes de qualquer implementação, e com os
+quatro fatos ausentes do §11 resolvidos ou adiados por escrito.
+
+⚠️ O §7 (ordem de construção) fica **subordinado a isto**. O passo 0 (raio do anel de Júpiter) e o
+passo 1 (a anã branca perde o aro) sobrevivem porque são correções de valor contra fonte, não
+morfologias novas. Os passos 3 a 5 esperam a Fase A.
