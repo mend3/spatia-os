@@ -63,8 +63,27 @@ DEFAULTS = {
 }
 
 
+# Chaves que o `.env` DECLAROU, mesmo que com valor vazio. Ver `get`.
+_DECLARADAS: set[str] = set()
+
+
 def _load_env_file(path: Path) -> None:
-    """Popula o ambiente com o `.env` sem sobrescrever quem já veio de fora."""
+    """Carrega o `.env` SOBRESCREVENDO o ambiente.
+
+    **A hierarquia é arquivo > ambiente, e ela é decisão.** O arquivo é o que está mais
+    atualizado e o que continua respondendo quando o resto não está: ambiente fora do ar não
+    impede o arquivo de existir. Ambiente é o mais fraco dos três porque é o único que ninguém
+    consegue ler depois — some com a sessão do shell e não deixa registro.
+
+    ⚠️ Era `setdefault`, e o efeito era o oposto do que a docstring deste módulo já prometia
+    ("override por `.env`"): com `AGENT_CWD` exportado no perfil do shell, editar o `.env` e
+    reiniciar o servidor NÃO mudava nada. O sintoma é o pior tipo — o `.env` diz uma coisa, a
+    tela mostra outra, e nada acusa: medido em 2026-08-07, apontar o `.env` para o corpus de
+    teste deixou o servidor no corpus real, com o `/api/dirty` respondendo a raiz antiga.
+
+    Consequência a saber: `VAR=x ./serve.py` deixa de vencer o arquivo. Para um valor de uma
+    execução só, tire a chave do `.env` — ausência é o que devolve a palavra ao ambiente.
+    """
     if not path.is_file():
         return
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -72,14 +91,27 @@ def _load_env_file(path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+        key = key.strip()
+        os.environ[key] = value.strip().strip("'\"")
+        _DECLARADAS.add(key)
 
 
 _load_env_file(ROOT / ".env")
 
 
 def get(key: str) -> str:
-    return os.environ.get(key) or DEFAULTS.get(key, "")
+    """Valor efetivo: ambiente (já sobrescrito pelo arquivo) e, na ausência, o default.
+
+    ⚠️ **Declarado VAZIO no arquivo é ESCOLHA, não ausência.** `CORPUS_PREFIX=` significa "sem
+    prefixo", e cair no default aqui apontaria o céu para caminhos que não existem no corpus
+    escolhido — sem erro, com o sintoma de "nenhum arquivo casa" que já custou uma sessão.
+    """
+    value = os.environ.get(key)
+    if value:
+        return value
+    if key in _DECLARADAS:
+        return ""
+    return DEFAULTS.get(key, "")
 
 
 def get_int(key: str) -> int:
@@ -113,6 +145,22 @@ def agent_dir() -> Optional[Path]:
     if not raiz:
         return None
     caminho = Path(raiz) / ".claude"
+    return caminho if caminho.is_dir() else None
+
+
+def vault_path() -> Optional[Path]:
+    """O vault do Obsidian, quando existe — a SEGUNDA raiz do corpus.
+
+    `AGENT_CWD` é o workspace do agente e existe sempre; o vault é integração e pode não existir
+    nesta máquina. Por isso ele é `Optional` e nunca obrigatório: o servidor tem de subir e ler
+    arquivo num ambiente sem Obsidian nenhum.
+
+    O default (`$HOME/vault`) é o mesmo caminho que o `CLAUDE.md` do workspace declara como
+    `VAULT_PATH`. `None` quando o diretório não existe, para o chamador poder dizer "não há vault
+    aqui" em vez de reportar um caminho que nunca teve chance.
+    """
+    declarado = get("VAULT_PATH")
+    caminho = Path(declarado).expanduser() if declarado else Path.home() / "vault"
     return caminho if caminho.is_dir() else None
 
 
