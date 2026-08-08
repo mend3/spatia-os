@@ -369,6 +369,23 @@ sem população.
 ⚠️ Os dois medem o **ÍNDICE**, nunca o disco. A diferença decide conclusões: o disco é 58%
 TypeScript e o índice não tem um único `.ts`. Confundir os dois já produziu uma recomendação errada.
 
+## Quando o céu parecer «todos iguais»
+
+| script | a pergunta | quando |
+|---|---|---|
+| `censo-planetas.mjs` | quantos formatos VISUALMENTE distintos o corpus produz, e qual eixo colapsou | ao mexer em `planetParams`, na paleta ou nas faixas da rampa |
+
+Ele **importa** `planetParams` e `resolveBody` em vez de transcrevê-los — a derivação é JS, então
+não há oráculo a manter em dia. Conta só os nós cuja pele resolvida é planeta (363 dos 1 636
+arquivos hoje); medir o corpus inteiro descreve um céu que ninguém vê.
+
+Ele cria sozinho `node_modules/three/` reexportando `vendor/three.module.js` — o Node não lê o
+importmap do `index.html` — e esboça `window`/`document` para o `motion.js` carregar. Nada vem da rede.
+
+⚠️ A §6 (alcance da rampa) **transcreve** três linhas de `GLSL_TERRAIN` e a tabela `BANDS`; ela
+carrega a obrigação dos oráculos. O `WET_EDGE` importado serve de trava — a §6 aborta se a
+transcrição sair de sincronia.
+
 ## Ao precisar de um corpus que exercite tudo
 
     uv run --with fastembed python scripts/fixture.py            # cria repo + indexa

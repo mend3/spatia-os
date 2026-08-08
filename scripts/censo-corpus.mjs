@@ -57,6 +57,33 @@ const doisFilhos = aggs.filter((n) => K(n.id).length <= 2).length;
 const umKind = aggs.filter((n) => new Set(K(n.id).map((c) => c?.kind).filter(Boolean)).size <= 1).length;
 console.log(`  com <= 2 filhos: ${doisFilhos} (${pc(doisFilhos, aggs.length)})   com UM kind só: ${umKind} (${pc(umKind, aggs.length)})`);
 
+/*
+ * SISTEMAS — a pasta como ESTRELA e os arquivos dela como planetas.
+ *
+ * A linha de "filhos" acima conta subpasta junto; o modelo precisa de ARQUIVOS, e é essa
+ * diferença que diz se há sistema. Medido em 2026-08-07 para responder se a proporção
+ * planeta/estrela teria de ser imposta: **não teria** — ela sai do corpus, e nenhuma pasta
+ * tem menos de dois arquivos.
+ *
+ * ⚠️ Os ÓRFÃOS são a pergunta que decide se o modelo é honesto. Arquivo pendurado direto no
+ * repo é planeta sem estrela: ou o repo vira a estrela dele, ou o céu passa a conviver com
+ * duas leis de órbita. Sobra sem lei é o que revela que a lei não valia para tudo.
+ *
+ * ⚠️ E a pasta NÃO está livre: hoje TODO agregado é galáxia (§5). Estes números dizem quantos
+ * sistemas existiriam, nunca que a promoção sai de graça — ela reclassifica os mesmos 228
+ * corpos que `SPAN` e `MIN_FILES_FOR_ARMS` calibram.
+ */
+const dirs = aggs.filter((n) => n.type === 'dir');
+const porEstrela = dirs.map((n) => K(n.id).filter((c) => c?.type === 'file').length);
+const puros = dirs.filter((n) => K(n.id).every((c) => c?.type === 'file')).length;
+const semPlaneta = porEstrela.filter((n) => n === 0).length;
+const sobDir = porEstrela.reduce((a, b) => a + b, 0);
+const orfaos = files.length - sobDir;
+console.log(`  sistemas: ${dirs.length} pastas — ${puros} só com arquivos · ${dirs.length - puros} com subpasta · ${semPlaneta} SEM planeta`);
+console.log(`  planetas por estrela: min ${q(porEstrela, 0)} · P25 ${q(porEstrela, 0.25)} · MED ${q(porEstrela, 0.5)} · P75 ${q(porEstrela, 0.75)} · P90 ${q(porEstrela, 0.9)} · máx ${q(porEstrela, 0.999)}`);
+console.log(`  arquivos sob uma pasta: ${sobDir} · \x1b[33mÓRFÃOS (direto no repo): ${orfaos} (${pc(orfaos, files.length)})\x1b[0m`);
+console.log(`  razão planeta/estrela: ${(sobDir / Math.max(dirs.length, 1)).toFixed(2)}  ·  contando os repos como estrela: ${(files.length / Math.max(aggs.length, 1)).toFixed(2)}`);
+
 const ext = {};
 for (const f of files) {
   const m = String(f.id).match(/(\.[^./]+)$/);
