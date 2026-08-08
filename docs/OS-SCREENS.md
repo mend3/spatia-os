@@ -317,7 +317,7 @@ duas perguntas que não caberiam num painel sobreposto.
 | `sec.effective` | strip | 0 | o `argv` resultante | `cli_flags()` |
 
 **`sec.reach` é a tela nova dentro da tela antiga.** A lista de permissões cobre *ferramentas*;
-o dano vive no *alcance*. Esta instalação roda com `AGENT_CWD=/Users/victor/workspace/devshell-one`
+o dano vive no *alcance*. Esta instalação roda com `AGENT_CWD=/Users/victor/workspace/espatial-os`
 — o workspace inteiro, não o projeto — e nenhum dos 11 toggles diz isso. `Read` com a raiz no
 próprio projeto e `Read` com a raiz no workspace são a mesma marca de seleção ligada e duas
 autoridades incomparáveis. E
