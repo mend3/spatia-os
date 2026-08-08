@@ -42,6 +42,50 @@ import { MOTION } from './motion-catalog.js';
 import { glslFloat } from './glsl.js';
 
 const BOIL = MOTION.boil.rates;
+
+/**
+ * A PELE FOTOGRAFADA de uma estrela — uma imagem para todas, colorida por temperatura.
+ *
+ * ⚠️ **Procedência, e ela precisa ficar escrita.** `assets/textures/sun.jpg` (2048×1024) foi trazida
+ * de `github.com/SoumyaEXE/3d-Solar-System-ThreeJS`. Texturas dessa família costumam vir da NASA ou
+ * do Solar System Scope (CC BY 4.0); o repositório de origem não declara licença, e isso é uma
+ * pendência a resolver antes de qualquer publicação — não um impedimento para usar aqui.
+ *
+ * ⚠️ **O carregamento é OPCIONAL e assíncrono, e a falta dela não pode apagar a estrela.** A força
+ * só sobe depois que a imagem chega; se ela não existir, `onError` deixa tudo como está e o céu
+ * desenha a granulação procedural sozinha, como desenhava antes.
+ */
+const MAPA_SOLAR = { textura: null, pronta: false };
+const FORCA_DO_MAPA = 0.55;
+
+/** Carrega a pele solar uma vez, para todas as estrelas. Chamado no primeiro `build()`. */
+function carregarMapaSolar(aoChegar) {
+  if (MAPA_SOLAR.textura) return;
+  MAPA_SOLAR.textura = new THREE.TextureLoader().load(
+    '/assets/textures/sun.jpg',
+    (t) => {
+      /*
+       * `SRGBColorSpace`: o JPEG está em sRGB e o cálculo do shader é linear. Sem isto a
+       * luminância vem com gama embutida, o desvio em torno de 0,5 fica torto e o grão sai com
+       * contraste errado — o tipo de erro que parece "escolha de valor" e é conversão faltando.
+       */
+      t.colorSpace = THREE.SRGBColorSpace;
+      // A projeção equirretangular dá a volta em `u`; sem `RepeatWrapping` a costura vira uma
+      // faixa esticada no meridiano de trás.
+      t.wrapS = THREE.RepeatWrapping;
+      t.wrapT = THREE.ClampToEdgeWrapping;
+      t.anisotropy = 4;
+      MAPA_SOLAR.pronta = true;
+      aoChegar?.();
+    },
+    undefined,
+    () => {
+      // Sem imagem, sem acréscimo — e sem erro no console de quem clonou o repo sem os assets.
+      MAPA_SOLAR.textura = null;
+      MAPA_SOLAR.pronta = false;
+    }
+  );
+}
 const SPIN = MOTION.spin;
 
 /**
@@ -138,6 +182,9 @@ const FRAGMENT = /* glsl */ `
   // Rotacao propria: angulo acumulado e eixo (inclinacao). Ver photosphereParams.
   uniform float uSpin;
   uniform float uTilt;
+  uniform sampler2D uMapa;
+  uniform float uMapaForca;
+  uniform float uCroma;
   varying vec3 vObject;
 
   // Taxas de fervura, do motion-catalog.js. A ORDEM entre elas e a fisica: supergranulacao
@@ -195,6 +242,45 @@ const FRAGMENT = /* glsl */ `
     float cells = granulation(corpo);
 
     /*
+     * ─────────────────── A TEXTURA DO SOL, e ela entra como DETALHE, nao como cor
+     *
+     * A pele fotografada da uma estrutura de granulacao que ruido nenhum reproduz de graca. Mas
+     * ela e UMA imagem, e o ceu tem muitas estrelas: usada como cor, todas ficariam laranjas e
+     * iguais — que e exatamente o defeito que a temperatura existe para negar (a mesma textura em
+     * outra posicao nao le como outro corpo).
+     *
+     * Entao o que se usa dela e a LUMINANCIA, centrada em zero, somada ao campo de granulacao que
+     * ja existe. Tres coisas se preservam por construcao:
+     *
+     * - a COR continua vindo de uHot/uCool, isto e, da temperatura derivada da massa;
+     * - a FERVURA continua viva, porque o termo procedural anda no tempo e a foto nao;
+     * - o LIMBO, as manchas e as faculas continuam sendo fisica, nao pixel.
+     *
+     * A projecao e equirretangular sobre o vetor do CORPO (ja girado pelo eixo), entao a textura
+     * gira com a estrela em vez de ficar colada na tela. E o deslocamento por uSeed impede que
+     * duas estrelas mostrem a mesma mancha no mesmo lugar.
+     */
+    vec3 croma = vec3(1.0);
+    if (uMapaForca > 0.0) {
+      vec3 d = normalize(corpo);
+      vec2 uv = vec2(atan(d.z, d.x) / 6.2831853 + 0.5 + uSeed, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+      vec3 amostra = texture2D(uMapa, uv).rgb;
+      float lum = dot(amostra, vec3(0.2126, 0.7152, 0.0722));
+      // Centrada: o que interessa e o DESVIO em relacao ao brilho medio da foto, que e o grao.
+      // Somar a luminancia crua deslocaria a exposicao inteira e apagaria o escurecimento de limbo.
+      cells += (lum - 0.5) * 2.0 * uMapaForca;
+      /*
+       * O MATIZ da foto, separado do brilho dela.
+       *
+       * Dividir a amostra pela propria luminancia deixa so a RAZAO entre canais — a cor sem a
+       * intensidade. Assim o vermelho de uma regiao quente da foto aquece aquele ponto sem
+       * clarea-lo, e o brilho continua saindo inteiro da fisica (limbo, granulacao, faculas).
+       * uCroma decide quanto disso passa; em 0 a estrela volta a ser so temperatura.
+       */
+      croma = mix(vec3(1.0), amostra / max(lum, 0.001), uCroma);
+    }
+
+    /*
      * MANCHAS. Campo separado, de escala muito maior, cortado por limiar alto — mancha e evento
      * raro e localizado, nao modulacao continua do brilho. Elas tambem migram, so que devagar
      * demais para se perceber num olhar; o termo de tempo existe para que duas visitas ao mesmo
@@ -238,7 +324,12 @@ const FRAGMENT = /* glsl */ `
      * alaranjada CONTRA o branco, e nao cinza.
      */
     float cold = clamp(spot * 0.85 + max(-cells, 0.0) * 0.45, 0.0, 1.0);
-    vec3 color = mix(uHot, uCool, cold);
+    /*
+     * ⚠️ A TEMPERATURA continua mandando na cor; a foto so a MODULA. Invertido — a foto como cor
+     * base — todas as estrelas do ceu ficariam laranjas iguais, e a temperatura, que e derivada da
+     * massa e existe justamente para duas estrelas serem duas estrelas, deixaria de aparecer.
+     */
+    vec3 color = mix(uHot, uCool, cold) * croma;
 
     /*
      * EXPOSICAO. A conta acima e fisica e passa de 1 com folga (limbo ~1 vezes granulacao
@@ -454,6 +545,22 @@ export function createPhotosphere() {
         uCells: { value: 26.0 },
         uUmbra: { value: 0.19 },
         uDetail: { value: 0 },
+        uMapa: { value: MAPA_SOLAR.textura },
+        /*
+         * ⚠️ **Zero enquanto a imagem não chegou, e zero para sempre se ela não existir.**
+         *
+         * A pele fotografada é um ACRÉSCIMO, não um requisito: um clone sem `assets/textures/` tem
+         * de desenhar a estrela do mesmo jeito, com a granulação procedural sozinha. Sem esta
+         * guarda o shader amostraria uma textura nula e o corpo sairia preto — a falha silenciosa
+         * clássica, e a pior possível aqui, porque ela some justamente com o corpo que emite luz.
+         */
+        uMapaForca: { value: 0 },
+        /*
+         * Quanto do MATIZ da foto atravessa. Ela é uma imagem do SOL — uma anã G — e o céu tem
+         * estrelas de outras temperaturas; deixar a cor dela dominar pintaria todas de laranja.
+         * 0,45 traz o calor das regiões ativas sem apagar o eixo que a massa governa.
+         */
+        uCroma: { value: 0.45 },
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
@@ -467,6 +574,15 @@ export function createPhotosphere() {
     // toda a estrutura mora no fragmento.
     mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), material);
     group.add(mesh);
+    /*
+     * A força sobe no CALLBACK, não aqui: entre o pedido e a chegada da imagem existem quadros, e
+     * ligar antes faria o shader amostrar uma textura vazia — estrela preta por um instante, que é
+     * o mesmo modo de falha que a guarda do uniforme evita no caso permanente.
+     */
+    carregarMapaSolar(() => {
+      material.uniforms.uMapa.value = MAPA_SOLAR.textura;
+      material.uniforms.uMapaForca.value = FORCA_DO_MAPA;
+    });
   }
 
   return {
