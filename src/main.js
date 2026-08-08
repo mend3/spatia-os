@@ -23,6 +23,7 @@ import { createPermissions } from './hud/permissions.js';
 import { createVoice } from './hud/voice.js';
 import { createSpeechPanel } from './hud/speech-panel.js';
 import { createSystray } from './hud/systray.js';
+import { createCenaSwitch } from './hud/cena.js';
 import { createYield } from './hud/yield.js';
 import { createWidgetHost } from './kernel/widgets.js';
 import { createRouter, ROUTE_ROOT } from './kernel/router.js';
@@ -161,6 +162,23 @@ async function main() {
    * systray é a moldura dos controles, não a dona deles.
    */
   const systray = createSystray(hud);
+  /*
+   * O switcher de cena. Ele vem depois da systray porque depende de `scene`, e a nota que ele
+   * publica na timeline é o que torna a troca um EVENTO em vez de um piscar — o céu inteiro muda,
+   * e uma mudança dessas sem registro parece defeito.
+   */
+  const cenaSwitch = createCenaSwitch(hud, {
+    scene,
+    onChange: (modo) => {
+      const s = scene.universeStats?.();
+      streams.note(
+        modo === 'universo'
+          ? `CENA UNIVERSO · ${s?.sistemas ?? 0} SISTEMAS · ${s?.corpos ?? 0} CORPOS${s?.colisoes ? ` · ${s.colisoes} COLISÕES` : ''}`
+          : 'CENA AGENTE · O NÚCLEO NO CENTRO',
+        'good'
+      );
+    },
+  });
   // A onda da HUD passa a ser desenhada com a amplitude real do áudio que o motor toca.
   const voice = createVoice(document, { onLevel: (level) => terminal.setLevel(level) });
 
@@ -299,6 +317,14 @@ async function main() {
     bloom: (ajuste) => scene.bloomProbe(ajuste),
     /** Bancada da camada 4: `spatia.core({ regime: 'thinking', tokens: 120000 })`. */
     core: (opcoes) => scene.blackHoleProbe(opcoes),
+    /**
+     * A cena em vigor, e a troca por código: `spatia.cena('universo')`.
+     *
+     * Existe pelo mesmo motivo das outras sondas — sem ela, "cliquei e não mudou" não distingue
+     * botão morto de cena que não trocou, e foi exatamente essa dúvida que custou a primeira
+     * validação deste switcher.
+     */
+    cena: (modo) => (modo ? scene.setMode(modo) : { modo: scene.mode(), ...scene.universeStats() }),
   });
 
   // A intenção de abrir um app, venha de onde vier, vira navegação num lugar só. Desde

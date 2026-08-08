@@ -58,6 +58,35 @@ export const AUSENTES = Object.freeze({
   importance: 'RECUSADA como dimensão: é juízo, não fato. Derivá-la reconstrói o score composto',
 });
 
+/** Massa em que um corpo passa a fundir. Ver `raioPorMassa`. */
+export const MASSA_FUSAO = ESCADA.ESTRELA;
+/** Raio no limiar: é onde as DUAS curvas se encontram. */
+export const RAIO_FUSAO = 0.2;
+
+/**
+ * Massa → raio com DUAS curvas, porque a natureza tem duas.
+ *
+ * Derivada e validada na bancada (`sandbox/system-rig.js`) em 2026-08-07. A lei única `log2`
+ * comprimia a faixa inteira do corpus em 3,6× e deixava a estrela 1,6× maior que o maior planeta,
+ * contra ~10× de Sol para Júpiter — o erro não era o expoente, era supor UMA curva.
+ *
+ * - planeta (`c ≤ MASSA_FUSAO`): `R ∝ M^(1/3)`, a contribuição clássica dos íons. Acima de Júpiter
+ *   a degenerescência achata a curva (`R ∝ M^-1/8`);
+ * - estrela (`c > MASSA_FUSAO`): `R ∝ M^0.8`, sequência principal.
+ *
+ * ⚠️ As curvas SE TOCAM no limiar, e isso é fato: objetos perto do limite de queima de hidrogênio
+ * têm raio de Júpiter. A dominância nasce da massa ACIMA do limiar, não de um degrau pintado.
+ *
+ * Medido: faixa do corpus 3,6× → 23×; estrela de 289 contra planeta no limiar 8,5×.
+ *
+ * > Fontes: ESA · Stars · Giant Planets (arXiv:1405.3752).
+ */
+export function raioPorMassa(chunks) {
+  const c = Math.max(chunks, 0.001);
+  const razao = c / MASSA_FUSAO;
+  return RAIO_FUSAO * Math.pow(razao, c <= MASSA_FUSAO ? 1 / 3 : 0.8);
+}
+
 // ─────────────────────────────────────────────────────────── derivação
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);

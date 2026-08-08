@@ -215,6 +215,11 @@
   .header-right { display: flex; align-items: flex-start; gap: 16px; }
   /* Os glifos alinham pela primeira linha do relógio, não pelo bloco inteiro. */
   .systray { display: flex; align-items: center; gap: 4px; padding-top: 2px; }
+  /* Segmentado: uma moldura, dois lados, e o ativo se destaca por PREENCHIMENTO — a mesma
+     gramática dos outros grupos da HUD, e legível sem cor (o `aria-pressed` também o diz). */
+  .cena-switch { display: flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; margin-right: 8px; }
+  .cena-switch .btn { border: 0; border-radius: 0; letter-spacing: .08em; opacity: .55; }
+  .cena-switch .btn[aria-pressed="true"] { background: var(--accent-dim, #1b2540); color: var(--accent, #ffd9a0); opacity: 1; }
   /* `relative` para o menu ancorar no item, e não no header inteiro. */
   .tray-item { position: relative; }
 
@@ -1265,6 +1270,16 @@
       é ali que o macOS põe wifi, bateria e relógio, nessa ordem, colados.
     -->
     <div class="header-right">
+    <!--
+      O SWITCHER DE CENA. Ele fica FORA da systray de propósito: a systray é onde moram estados que
+      se consultam (voz, permissões, relógio), e isto é uma troca de MUNDO. Segmentado, com os dois
+      lados sempre visíveis, porque um toggle de um botão só esconde metade do que existe — e o
+      usuário precisa saber que a outra cena existe antes de querer ir para ela.
+    -->
+    <div class="cena-switch" data-cena role="group" aria-label="cena">
+      <button type="button" class="btn" data-variant="ghost" data-size="sm" data-cena-btn="agente" aria-pressed="true" title="o buraco negro no centro: como a IA pensa">AGENTE</button>
+      <button type="button" class="btn" data-variant="ghost" data-size="sm" data-cena-btn="universo" aria-pressed="false" title="gravidade local, sem centro: onde o conhecimento vive">UNIVERSO</button>
+    </div>
     <div class="systray" data-systray>
       <div class="tray-item">
         <button type="button" class="btn" data-variant="icon" data-size="md" data-tray="voice"

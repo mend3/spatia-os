@@ -42,49 +42,11 @@
  */
 import * as THREE from 'three';
 import { KIND_COLORS } from '../space/graph.js';
+// A lei de raio mora no módulo PURO: a cena e a bancada leem a mesma, e não duas cópias.
+import { raioPorMassa as raioDuasCurvas } from '../space/entity-physics.js';
 
 /** A lei do céu de hoje. Fica aqui para o A/B — é ela que o achado nº 1 acusa. */
 const raioLog = (chunks) => 0.06 + Math.log2(1 + Math.max(chunks, 0)) * 0.035;
-
-/**
- * Massa em que um corpo passa a fundir, em chunks. **Constante calibrada, logo expira.**
- *
- * 20 fica entre o P75 (13) e o P90 (25) do corpus de 2026-08-07, o que põe ~13% dos arquivos acima
- * dela — perto dos 221 sistemas em 1 636 arquivos que a contenção já produz. Não é derivação, é
- * âncora: o número certo sai da escada do §3 do replanejamento, que ainda não está fechada.
- */
-const MASSA_FUSAO = 20;
-
-/** Raio no limiar. As duas curvas se ENCONTRAM aqui, e é isso que torna a lei honesta. */
-const RAIO_FUSAO = 0.2;
-
-/**
- * Massa → raio com DUAS curvas, porque a natureza tem duas.
- *
- * A lei única (`log2`) comprimia a faixa inteira do corpus em 3,6× e deixava a estrela 1,6× maior
- * que o maior planeta — contra ~10× de Sol para Júpiter. O erro não era o expoente: era supor **uma
- * curva só**.
- *
- * - **Planeta** (`c ≤ MASSA_FUSAO`): `R ∝ M^(1/3)` — a contribuição clássica dos íons, que é
- *   densidade constante. Acima de Júpiter a degenerescência achata a curva (`R ∝ M^-1/8`), e é por
- *   isso que um planeta de 10 massas de Júpiter é quase do tamanho de Júpiter.
- * - **Estrela** (`c > MASSA_FUSAO`): `R ∝ M^0.8` — sequência principal.
- *
- * ⚠️ **As curvas se tocam no limiar, e isso é fato, não conveniência:** objetos perto do limite de
- * queima de hidrogênio têm raio de Júpiter. O maior planeta e a menor estrela são do mesmo tamanho
- * — a dominância nasce da massa ACIMA do limiar, não de um degrau pintado.
- *
- * Medido: faixa do corpus 3,6× → **23×**; estrela de 289 contra planeta no limiar 1,6× → **8,5×**.
- *
- * > Fontes: [ESA · Stars](https://sci.esa.int/web/gaia/-/40576-stars) ·
- * > [Giant Planets (arXiv:1405.3752)](https://arxiv.org/pdf/1405.3752) — o máximo local perto de
- * > 4 M_J e a degenerescência que achata a curva acima dele.
- */
-const raioDuasCurvas = (chunks) => {
-  const c = Math.max(chunks, 0.001);
-  const razao = c / MASSA_FUSAO;
-  return RAIO_FUSAO * Math.pow(razao, c <= MASSA_FUSAO ? 1 / 3 : 0.8);
-};
 
 /**
  * Semi-eixo da órbita `i`, em raios da estrela.

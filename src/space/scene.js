@@ -20,6 +20,7 @@ import { on, ui } from '../core/bus.js';
 import * as tuning from '../core/tuning.js';
 import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
+import { createUniverse } from './universe.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
 import { createGraph, hash01, starSeed } from './graph.js';
@@ -175,6 +176,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   camera.position.copy(CAMERA.start);
 
   const blackHole = createBlackHole();
+  /* A cena UNIVERSO. Nasce oculta: o modo padrão é AGENTE, que é o céu de hoje. */
+  const universe = createUniverse();
+  let modo = 'agente';
   const stars = createStars();
   const graph = createGraph();
   const particles = createParticles();
@@ -232,7 +236,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   scene.add(
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
-    stars.object, blackHole.group, graph.group, planet.object, photosphere.object, remnant.object, moonOrbits.object,
+    stars.object, blackHole.group, universe.object, graph.group, planet.object, photosphere.object, remnant.object, moonOrbits.object,
     station.object, comet.object, pulsar.object, nebula.object,
     /*
      * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
@@ -1622,8 +1626,22 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * `reduced` do catálogo é `freeze` para padrão: quem pediu menos movimento não perde
        * informação nenhuma aqui — a figura fica, só para de girar.
        */
+      /*
+       * ⚠️ O `update` da cena UNIVERSO vive AQUI, no laço de quadro, e não no `fanOut`.
+       *
+       * A primeira versão caiu no `fanOut` (que é afinação, não quadro) por eu ter ancorado no
+       * `blackHole.tune`. Lá o `elapsed` não é o do quadro: as matrizes saíam com `NaN`, os 1 636
+       * corpos iam para lugar nenhum, e a cena nova nascia VAZIA — sem uma linha no console, porque
+       * `NaN` não é erro, é posição.
+       */
+      if (modo === 'universo') universe.update(elapsed);
       galaxy.tune({ omega: motion.isReduced() ? 0 : rateOf(MOTION.patternSpin) });
-      const acesas = galaxy.update(lote, camera, canvas.height, elapsed, focadaNoLote);
+      /*
+       * ⚠️ A galáxia se REACENDE sozinha: o `update` dela repõe a visibilidade por instância, então
+       * esconder o objeto no `setMode` durava um quadro. A guarda tem de ser na CHAMADA — e ela vale
+       * como economia também, porque a cena UNIVERSO não paga o LOD de 228 discos que não desenha.
+       */
+      const acesas = modo === 'universo' ? [] : galaxy.update(lote, camera, canvas.height, elapsed, focadaNoLote);
       /*
        * A MESMA projeção e a MESMA escada da galáxia, injetadas — não recalculadas aqui.
        *
@@ -1757,8 +1775,62 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     moonReport: () => graph.moonReport(),
 
+    /**
+     * Troca entre as duas cenas: `agente` (buraco negro no centro) e `universo` (gravidade local).
+     *
+     * ⚠️ Ela ESCONDE, não destrói. As duas ficam montadas: reconstruir 1 636 corpos a cada clique
+     * daria um engasgo de meio segundo no gesto que mais se repete, e o custo de manter as duas em
+     * memória é geometria instanciada, que não custa quadro enquanto invisível.
+     *
+     * O que sai no modo UNIVERSO é o que afirma um centro: o buraco negro e o campo de corpos por
+     * recência. O campo estelar de fundo fica — ele é cenário, não afirmação.
+     */
+    setMode: (proximo) => {
+      if (proximo !== 'agente' && proximo !== 'universo') return modo;
+      modo = proximo;
+      const universo = modo === 'universo';
+
+      /*
+       * ⚠️ **Esconder o GRUPO do buraco negro não o tira da cena.** Ele é, acima de tudo, um PASSE
+       * de pós-processamento — a lente gravitacional deforma o quadro inteiro, e ela continua
+       * rodando com o disco invisível. Foi o que aconteceu na primeira versão deste switcher: a
+       * cena trocou, os corpos sumiram, e a distorção do espaço-tempo ficou.
+       *
+       * Desligar o passe é o que de fato muda de universo — e devolve o orçamento junto: a lente
+       * custa 3,8–5,1 ms de GPU contra 0,31–0,35 ms do céu inteiro com 213 instâncias. A cena
+       * UNIVERSO nasce, por construção, uma ordem de grandeza mais barata.
+       */
+      lensing.pass.enabled = !universo;
+      blackHole.group.visible = !universo;
+      graph.group.visible = !universo;
+      /*
+       * A camada de galáxia sai junto, e não é economia: ela desenha TODO agregado como galáxia,
+       * que é o modelo que a nova ontologia refutou (228 de 228). Deixá-la ligada faria a cena
+       * nova afirmar a taxonomia velha por cima da nova.
+       */
+      galaxy.object.visible = !universo;
+      universe.setVisible(universo);
+
+      /*
+       * A escala muda com o mundo. O céu AGENTE cabe em ~60 unidades; o UNIVERSO tem raio 150, e
+       * entrar nele com a câmera do outro deixaria o operador dentro de um sistema sem saber que
+       * existe um universo em volta. O limite superior da órbita sobe junto, senão a câmera bate
+       * no teto do modo anterior.
+       */
+      // O universo foi normalizado para caber no zoom de hoje (ver `universe.js`), então aqui basta
+      // recuar até enquadrá-lo. Sem isto o operador entra na cena nova dentro de um sistema, sem
+      // saber que existe um universo em volta.
+      orbit.targetDistance = universo ? 150 : HOME.distance;
+      return modo;
+    },
+    mode: () => modo,
+    universeStats: () => universe.stats(),
+
     loadGraph: (payload) => {
       const count = graph.load(payload);
+      // A cena UNIVERSO lê o MESMO payload: um corpus, duas leituras dele. Montar as duas no
+      // carregamento evita o engasgo de construir 1 636 corpos no clique do switcher.
+      universe.load(payload);
       hubs = buildHubs(payload);
       // Só agora o céu sabe responder se conhece o astro salvo. Ver `aplicarFocoPendente`.
       agendarFoco();
