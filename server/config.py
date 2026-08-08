@@ -22,6 +22,10 @@ DEFAULTS = {
     "OLLAMA_URL": "http://localhost:11434",
     "OLLAMA_MODEL": "gpt-oss:20b",
     "NEO4J_HTTP": "http://localhost:7474",
+    # Vazios de propósito: sem eles a sonda reporta "nunca configurado" em vez de tentar e falhar.
+    # O Neo4j é a única dependência OPCIONAL que faz parte da hierarquia quando ativa.
+    "NEO4J_USER": "",
+    "NEO4J_PASSWORD": "",
     # TTS global do oracle (shared/speech.compose.yml). Kokoro, API OpenAI-compatível.
     "TTS_URL": "http://localhost:8880",
     "TTS_MODEL": "kokoro",

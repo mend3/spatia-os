@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch
+from . import agent, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch, graphdb
 
 logger = logging.getLogger("espatial.app")
 
@@ -406,6 +406,11 @@ class Handler(BaseHTTPRequestHandler):
 
         models = llm.available()
         health["ollama"] = {"online": models is not None, "models": models or []}
+
+        # O grafo de RELAÇÃO. Ele pode faltar sem impedir nada — e a tela precisa saber a
+        # diferença entre "não configurado", "fora" e "no ar", porque as três pedem reações
+        # diferentes do operador. Ver `docs/integracao-neo4j.md` §1.2.
+        health["neo4j"] = graphdb.describe()
 
         # O health reflete o estado CONFIGURADO, não o default do .env: é o que a UI mostra,
         # e mostrar o default depois de o operador ter mudado a voz seria mentira.

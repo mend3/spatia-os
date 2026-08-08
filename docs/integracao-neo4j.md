@@ -272,24 +272,42 @@ consulta devolve o nó do outro.
 
 ## 8. Ordem de integração
 
-**P0 — AUDITORIA DO GRAPHITI. Bloqueante, e nada é escrito antes dela.**
+**P0 — AUDITORIA DO GRAPHITI. ✅ FEITA em 2026-08-08, e ela achou duas colisões.**
 
-O workspace já roda graphiti sobre um Neo4j do `oracle`. Seis perguntas, e todas precisam de
-resposta antes do primeiro `CREATE`:
+| pergunta | resposta |
+|---|---|
+| mesma instância? | **sim** — `workspace-neo4j-1`, `neo4j:5.26.0`, portas 7474/7687 |
+| mesmo database? | **sim, e não há alternativa**: só existem `neo4j` e `system`. Community **não tem multi-database livre** |
+| rótulos do graphiti | `Entity` · `Episodic` · `Community` · `Saga` |
+| tipos de relação | `RELATES_TO` · `MENTIONS` · `HAS_EPISODE` · `HAS_MEMBER` · `NEXT_EPISODE` |
+| constraints | **nenhuma** |
+| indexes | **33**, sobre `uuid`, `group_id`, `name`, `created_at` |
+| convenção de isolamento | `group_id` por fonte, e todo nó dele carrega o campo |
 
-1. é exatamente a mesma instância?
-2. mesmo `database`? (Community **não tem multi-database livre**)
-3. mesmo usuário?
-4. quais `labels` o graphiti usa?
-5. quais `constraints` e `indexes` já existem?
-6. qual convenção de isolamento já está em uso (`group_ids` por fonte)?
+⚠️ **Duas colisões diretas com o plano original: `Entity` e `MENTIONS` já são do graphiti.** Eram
+exatamente os dois nomes que este documento propunha. Sem a auditoria, o primeiro `CREATE` teria
+misturado os dois grafos num banco que não permite separá-los — e o sintoma só apareceria quando
+uma consulta devolvesse o nó do outro.
 
-Escrever `Entity` num banco onde outro grafo já mora, sem saber os rótulos dele, é o tipo de colisão
-que só aparece quando uma consulta devolve o nó do outro — e aí os dois grafos já estão misturados.
+**Resolução, e ela é por RÓTULO porque o database não está disponível:**
+
+| SpatIA | era | ficou |
+|---|---|---|
+| corpo | `Entity` ❌ | **`Astro`** |
+| estrutura | — | **`Sistema`** |
+| relação semântica | `MENTIONS` ❌ | **`ABOUT`** |
+| demais relações | `CO_EDITED` · `SIMILAR_TO` · `TOUCHED` · `REFERENCES` · `IMPORTS` | livres, mantidas |
+
+Segunda camada: `group_id = "spatia"` em todo nó nosso, pela mesma convenção que o graphiti já usa.
+Ela não é redundância — é o que torna a limpeza uma consulta só.
+
+⚠️ E a contagem publicada no `/api/health` conta **apenas o que é nosso**. Publicar os nós do
+graphiti como se fossem deste sistema faria "9 corpos" parecer nosso, e na primeira divergência
+ninguém saberia de quem era o número.
 
 | passo | o que | destrava | observação |
 |---|---|---|---|
-| **P1** | `neo4j` no `/api/health` e no `units.json`, com os quatro estados do §1.2 | a tela para de mentir por omissão | não depende de nada; torna verdadeiro o que o `metrics.py` já afirma |
+| **P1** ✅ | `neo4j` no `/api/health` (`server/graphdb.py`) | a tela para de mentir por omissão | medido: sem credencial → `configured:false` e `corpos:null`; com credencial → `online:true` e `corpos:0`. **`null` ≠ `0`** funcionando |
 | **P2** | `Entity` + `CO_EDITED`, e **medir grau/distribuição** | prova o caminho ponta a ponta | ⚠️ 44 pares: prova o caminho, **não** entrega a dimensão (§3.2.1) |
 | **P2b** | **teste ↔ alvo por convenção de nome** | densidade real: **627 arestas** | não estava no plano original e deveria estar |
 | **P3** | `connectivity` → `centrality` → **influência → brilho** | a §11.1 do replanejamento | nunca `centrality → classe` |
