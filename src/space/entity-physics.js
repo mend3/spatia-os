@@ -42,6 +42,58 @@ export const ESCADA = Object.freeze({
 /** Toques na janela recente para a atividade saturar. Mesmo espírito do piso de supernova. */
 const ATIVIDADE_CHEIA = 12;
 
+/**
+ * Execuções distintas que tocam um corpo para o USO saturar. O P5 de `integracao-neo4j.md`.
+ *
+ * ⚠️ **Saturação declarada, e não normalização por posto — a diferença é honestidade.** O
+ * `centralidade.mjs` normaliza influência pelo POSTO porque lá o substrato é denso (8 130 arestas)
+ * e o que importa é a ordem. Aqui o substrato é RALO: com o diário de 2026-08-08 o grau máximo é 2,
+ * e normalizar por posto daria `usage = 1.0` — "o corpo mais usado do céu" — a um arquivo que duas
+ * execuções abriram. O número seria verdadeiro na ordem e falso na afirmação.
+ *
+ * Com saturação declarada, 2 toques valem 2/12 = 0,17 e o céu diz "quase não usado", que é o fato.
+ * E o valor **sobe sozinho** conforme o diário cresce, sem reescalar nada: é o que permite a
+ * evidência crescer organicamente sem migração de ontologia.
+ */
+const USO_CHEIO = 12;
+
+/**
+ * O piso a partir do qual o USO pode exercer influência — e nunca classificação.
+ *
+ * Os dois números saem de medidas desta base, não de gosto:
+ *
+ * - `grauMax` **5**: com máximo 2, "usado por muitos agentes" é um empate, não uma afirmação.
+ * - `cobertura` **0,072**: é exatamente a do `CO_EDITED`, que a própria spec já declarou
+ *   insuficiente para carregar dimensão (§3.2.1). O uso tem de passar do piso que já reprovou.
+ *
+ * ⚠️ Isto separa **"a dimensão existe"** de **"a dimensão tem poder estatístico"**. As duas coisas
+ * são diferentes e esta base confundiu-as antes: dimensão ausente vale `null`, dimensão presente e
+ * fraca vale um número pequeno com a evidência declarada ao lado.
+ */
+export const EVIDENCIA_USO_MINIMA = Object.freeze({ grauMax: 5, cobertura: 0.072 });
+
+/**
+ * A evidência de uso é forte o bastante para influenciar? Recebe os metadados do snapshot.
+ *
+ * Devolve sempre os três campos, e `disponivel: false` é diferente de `suficiente: false` —
+ * o primeiro é "não materializei", o segundo é "materializei e é rala".
+ */
+export function evidenciaDeUso(meta) {
+  if (!meta || typeof meta.grau_max !== 'number') {
+    return { disponivel: false, suficiente: false, motivo: 'sem snapshot de uso' };
+  }
+  const { grauMax, cobertura } = EVIDENCIA_USO_MINIMA;
+  if (meta.grau_max < grauMax) {
+    return { disponivel: true, suficiente: false, motivo: `grau máximo ${meta.grau_max} < ${grauMax}` };
+  }
+  if ((meta.cobertura || 0) <= cobertura) {
+    return { disponivel: true, suficiente: false, motivo: `cobertura ${((meta.cobertura || 0) * 100).toFixed(1)}% ≤ ${(cobertura * 100).toFixed(1)}%` };
+  }
+  return { disponivel: true, suficiente: true, motivo: 'grau e cobertura acima do piso' };
+}
+
+export { USO_CHEIO };
+
 /** Massa acima da qual um corpo parado vira remanescente. Ver `server/recency.py`. */
 const MASSA_REMANESCENTE = 13;
 
@@ -54,6 +106,7 @@ const MASSA_REMANESCENTE = 13;
 export const AUSENTES = Object.freeze({
   density: 'bytes por chunk — o indexador não emite. Conserta-se no indexador, não no grafo',
   centrality: 'RESOLVIDA — snapshot de scripts/centralidade.mjs. `null` quando não materializada',
+  usage: 'RESOLVIDA — snapshot de scripts/uso.mjs (P5). Dimensão DISPONÍVEL, evidência hoje esparsa: ver evidenciaDeUso()',
   connectivity: 'Neo4j (arestas laterais). Hoje o grafo é 100% contenção',
   importance: 'RECUSADA como dimensão: é juízo, não fato. Derivá-la reconstrói o score composto',
 });
@@ -142,6 +195,22 @@ export function entityPhysics(node, contexto = {}) {
      * materialização atrasada declarar periferia sobre 1 636 corpos.
      */
     centrality: typeof node.centrality === 'number' ? node.centrality : null,
+
+    /**
+     * USO: quantas execuções distintas de agente tocaram este corpo, saturado em `USO_CHEIO`.
+     *
+     * É a quinta grandeza do §11.1 do replanejamento — *atividade ≠ massa* — pelo caminho que só
+     * o diário conhece: **influência por USO, não por semelhança**. `centrality` responde "quantos
+     * se parecem comigo"; `usage` responde "quantos me abriram".
+     *
+     * ⚠️ Governa BRILHO, como toda grandeza vinda do Neo4j. `classificar()` não lê este campo, e
+     * `scripts/lei-neo4j.mjs` prova isso perturbando o valor e exigindo classe idêntica — porque
+     * declarar a lei não a implementa, e esta base já pagou cinco vezes por isso.
+     *
+     * ⚠️ `null` é "não materializei". `0` seria "medi e ninguém tocou" — e são fatos diferentes:
+     * um corpus nunca lido e um corpo ignorado não são a mesma afirmação.
+     */
+    usage: typeof node.usage === 'number' ? node.usage : null,
 
     /** Contexto: este arquivo é o corpo mais massivo do sistema dele? */
     dominante: contexto.dominante === true,

@@ -743,6 +743,19 @@ porque as duas saem da mesma coisa — a maioria das pastas é pequena, como a m
 
 ### O que trava a Fase D
 
-`centrality` e `connectivity` continuam sem fato. A Fase A **não fecha** sem decisão sobre o Neo4j
-([`integracao-neo4j.md`](./integracao-neo4j.md), P0 é a auditoria do graphiti) — e sem elas o céu
-sabe o TAMANHO de cada corpo e não sabe a INFLUÊNCIA dele, que é metade do §11.1.
+`connectivity` continua sem fato. `centrality` fechou no P3 e **`usage` fechou no P5** — a quinta
+grandeza do §11.1 pelo caminho que só o diário conhece: *influência por USO, não por semelhança*.
+
+⚠️ **E o P5 introduziu uma distinção que vale para toda dimensão daqui em diante:**
+
+> **"a dimensão existe" ≠ "a dimensão tem poder estatístico para classificar".**
+
+Ele foi construído com evidência deliberadamente rala (11 execuções, grau máximo 2), porque o
+encaixe custa menos agora do que uma segunda integração depois — e o que impede isso de virar
+autoengano é a evidência ser **publicada junto com o número**, por `evidenciaDeUso()`. Dimensão
+ausente vale `null`; dimensão presente e fraca vale um número pequeno com o veredito ao lado.
+
+A lei que protege tudo isso deixou de ser declaração: **`scripts/lei-neo4j.mjs` perturba
+`centrality`, `usage` e `connectivity` em 29 448 combinações sobre os 1 636 corpos e exige classe,
+porte, fenômeno e escala idênticos.** Era a última invariante desta base que valia por lembrança —
+e esta base já pagou cinco vezes por isso.

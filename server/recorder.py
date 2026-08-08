@@ -163,6 +163,13 @@ def _observe(run: Run, event: dict) -> None:
 
     elif kind == "brain":
         run.model = event.get("model") or run.model
+        # ⚠️ Até 2026-08-08 o modelo parava AQUI: alimentava métrica e morria com o processo. O
+        # diário registrava a pergunta, as ferramentas e o custo, e não registrava QUEM executou —
+        # e foi por isso que o P5 não tinha como criar `Agent` sem fabricar identidade a partir do
+        # canal. O fato existia; faltava alguém escrevê-lo.
+        if run.record is not None and isinstance(run.record.get("agent"), dict):
+            run.record["agent"]["model"] = run.model or None
+            run.record["agent"]["session"] = event.get("session") or run.record["agent"]["session"]
 
     elif kind == "limit":
         window = event.get("window") or "unknown"
@@ -270,7 +277,7 @@ def instrument(
     o custo do dia crescer sem ninguém ter gasto nada.
     """
     live = running.register(question, origin)
-    run = Run(brain, journal.begin(question, origin) if journaled else None, live)
+    run = Run(brain, journal.begin(question, origin, brain) if journaled else None, live)
     metrics.ask_active.inc(brain=brain)
     try:
         for event in events:

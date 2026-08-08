@@ -147,3 +147,39 @@ def annotate_influence(nodes: list[dict]) -> Optional[dict]:
         if isinstance(valor, (int, float)):
             node["centrality"] = valor
     return {k: v for k, v in dados.items() if k != "influencia"}
+
+
+#: Onde `scripts/uso.mjs` (P5) deixa o snapshot de uso. Mesma lei nº 2: arquivo, nunca o banco.
+SNAPSHOT_USO = config.ROOT / ".cache" / "uso.json"
+
+
+def annotate_usage(nodes: list[dict]) -> Optional[dict]:
+    """Anexa `usage` (0…1) a cada nó, do snapshot do P5 — influência por USO, não por semelhança.
+
+    Devolve os metadados **com o veredito de evidência junto**, ou `None` se não há snapshot.
+
+    ⚠️ Aqui há três estados, não dois, e confundi-los foi o que esta integração existe para evitar:
+
+    - **sem snapshot** → nenhum nó ganha o campo. "Não materializei."
+    - **snapshot com evidência RALA** → os nós ganham o número, e `evidencia.suficiente` é falso.
+      A dimensão EXISTE e é publicada; ela só não tem poder para influenciar nada ainda.
+    - **snapshot com evidência suficiente** → idem, com o veredito verdadeiro.
+
+    O que nunca acontece é o campo valer `0` por ausência: um corpus que ninguém leu e um corpo que
+    ninguém abriu são fatos diferentes, e só o segundo é um zero.
+
+    ⚠️ `origem` distingue diário real de semeadura de bancada. Um snapshot semeado descreve
+    CAPACIDADE, não comportamento — publicá-lo sem o carimbo faria a bancada contaminar a leitura
+    do céu, que é exatamente a confusão que o `cobertura.md` separa.
+    """
+    try:
+        dados = json.loads(SNAPSHOT_USO.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    tabela = dados.get("uso") or {}
+    for node in nodes:
+        valor = tabela.get(node.get("source"))
+        if isinstance(valor, (int, float)):
+            node["usage"] = valor
+    return {k: v for k, v in dados.items() if k != "uso"}

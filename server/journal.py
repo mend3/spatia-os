@@ -102,7 +102,7 @@ def _next_id(when: float) -> str:
     return f"r-{datetime.fromtimestamp(when).strftime('%Y-%m-%d')}-{used + 1:03d}"
 
 
-def begin(question: str, origin: str) -> dict:
+def begin(question: str, origin: str, brain: str = "") -> dict:
     """Abre o registro no instante do disparo.
 
     As flags são fotografadas AQUI e não no fim: o operador pode mexer no painel de permissões
@@ -110,11 +110,26 @@ def begin(question: str, origin: str) -> dict:
 
     O `id` nasce vazio de propósito — ele é atribuído no `append`, sob o mesmo lock que lê a
     contagem do dia, senão duas execuções simultâneas ganhariam o mesmo número.
+
+    ## `agent` — quem executou, e por que ele não é o `origin`
+
+    O P5 de `docs/integracao-neo4j.md` precisa de identidade de agente, e a auditoria de 2026-08-08
+    mostrou que o diário não a tinha: o `origin` é **canal** (`console`, `files`, `github`), não
+    quem rodou. Materializar `(:Agent {id: "console"})` batizaria uma porta de entrada de entidade.
+
+    O fato existia e estava sendo jogado fora — `recorder.run.model` recebe o modelo do frame
+    `init` do brain e só alimentava métrica. Aqui ele vira registro.
+
+    ⚠️ `model` nasce `None` e é preenchido quando o frame `init` chega. `None` é "o brain não
+    declarou", nunca "modelo padrão" — a mesma regra de `null` ≠ `0` que governa a influência.
+    Execuções anteriores a esta mudança não têm a chave, e isso também é honesto: elas rodaram
+    num tempo em que ninguém mediu.
     """
     return {
         "id": None,
         "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "origin": origin,
+        "agent": {"brain": brain or None, "model": None, "session": None},
         "question": question,
         "flags": permissions.cli_flags(),
         "tools": [],
@@ -143,6 +158,8 @@ def lifecycle(kind: str, detail: str = "") -> Optional[str]:
             "kind": kind,
             "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "origin": "server",
+            # Vida do servidor não tem agente. `None` e não `{}`: ninguém executou.
+            "agent": None,
             "question": detail,
             "flags": [],
             "tools": [],
@@ -169,6 +186,8 @@ def denial(what: str, source: str, reason: str) -> Optional[str]:
             "kind": "denial",
             "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "origin": source,
+            # Recusa não executou nada, logo não teve agente.
+            "agent": None,
             "question": f"{what}: {reason}",
             "flags": [],
             "tools": [],

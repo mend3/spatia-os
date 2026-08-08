@@ -29,7 +29,11 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # 7: `services` (as partes nomeadas de um compose) chega no nó de compose — 164 deles em 44
 #    arquivos, medido em 2026-08-07. Mesmo motivo do bump 5: campo novo não muda o fingerprint
 #    do corpus, e sem ele a nebulosa continuaria sem luas em qualquer clone com cache.
-SCHEMA_VERSION = 9
+# 10: `usage` (P5 — quantas execuções de agente tocaram o corpo) chega no nó, do snapshot de
+#    `scripts/uso.mjs`. Mesmo motivo dos bumps 5 e 7, e aqui ele morde mais: o snapshot muda
+#    sozinho conforme o diário cresce, e sem o bump o primeiro clone com cache nunca veria a
+#    dimensão aparecer — ela nasceria morta justamente na base que mais a acumulou.
+SCHEMA_VERSION = 10
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -124,6 +128,11 @@ def build() -> dict:
     # é a lei nº 2 de `docs/integracao-neo4j.md`: o grafo nunca está no caminho do quadro, e cair
     # entre duas materializações não muda nada na tela até a próxima.
     graphdb.annotate_influence(nodes)
+    # USO (P5): quantas execuções de agente tocaram o corpo. Mesma lei — snapshot em disco, nunca
+    # consulta no caminho do quadro. Vem depois da influência porque são dimensões distintas com
+    # snapshots distintos: `centrality` é "quantos se parecem comigo", `usage` é "quantos me
+    # abriram". Fundi-las num número só reconstruiria o score composto já refutado.
+    uso = graphdb.annotate_usage(nodes)
     hubs, edges = _hierarchy(nodes)
     payload = {
         "nodes": hubs + nodes,
@@ -134,6 +143,10 @@ def build() -> dict:
             "hubs": len(hubs),
             "kinds": _histogram(node["kind"] for node in nodes),
             "repos": _histogram(node["repo"] for node in nodes),
+            # Os metadados do uso viajam com a topologia para a tela poder dizer "a dimensão existe
+            # e a evidência é rala" em vez de calar. Omitir o veredito faria um `usage` pequeno
+            # parecer medida forte de pouco uso, quando é medida fraca de uso nenhum.
+            "uso": uso,
             "built_in_ms": round((time.monotonic() - started) * 1000),
         },
     }

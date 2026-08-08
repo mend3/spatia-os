@@ -111,13 +111,17 @@ exatamente isso: *"always have a property that uniquely identifies a node"*.
 |---|---|---|---|
 | `Entity` | um nó do céu (arquivo, pasta, repo) | `source` | `kind` (só para consulta), nada mais |
 | `Concept` | assunto extraído de prosa | `slug` | `label` |
-| `Agent` | um agente declarado | `id` | — |
+| `Agent` | o brain que executou | `id` (= `brain`) | `brain`. ⚠️ `model` NÃO mora aqui — ver §3.2.3 |
 | `Tool` | uma ferramenta | `name` | — |
 | `Run` | uma execução do agente | `run_id` | `started_at` |
 
-`Run`, `Agent` e `Tool` fecham o ciclo que hoje só existe no diário JSONL: **o que o agente tocou**
-vira relação, e aí "este arquivo é usado por muitos agentes" passa a ser um fato consultável — que
-é justamente o exemplo que a revisão deu para *atividade ≠ massa*.
+`Run` e `Tool` fecham o ciclo que hoje só existe no diário JSONL: **o que o agente tocou** vira
+relação, e aí "este arquivo é usado por muitos agentes" passa a ser um fato consultável — que é
+justamente o exemplo que a revisão deu para *atividade ≠ massa*.
+
+⚠️ **`Agent` não fechava nada até 2026-08-08**, e a medida mostrou por quê: o diário não registrava
+agente. Esta frase dizia "`Run`, `Agent` e `Tool`" e estava errada em um terço. O conserto não foi
+inventar identidade — foi **gravar a que já existia no runtime e era descartada**. Ver §3.2.3.
 
 ### 3.2 Relações
 
@@ -175,6 +179,87 @@ por dependerem de algo que elas não precisam.
 É por isso que os tipos são específicos em vez de um `RELATED_TO` genérico: cinco vínculos com o
 mesmo nome seriam cinco fatos diferentes desenhados com a mesma linha — a colisão dos três aros
 outra vez, agora nas arestas.
+
+### 3.2.3 ⚠️ `TOUCHED` medido: o fato existe, a população não — e `Agent` não tem fato nenhum
+
+Medido em **2026-08-08** sobre `.cache/journal/` (2 dias, cadeia íntegra) contra os 1 636 nós do céu:
+
+| medida | valor |
+|---|---|
+| registros no diário | 114 — mas **só 11 são execuções** (`boot` 37 · `shutdown` 20 · `denial` 46) |
+| arquivos distintos citados | 57, dos quais **51 são nós do céu**; os 6 restantes são páginas web (`kind: web`), que não são corpo nenhum |
+| arestas `TOUCHED` | **70** — contra 556 do `CO_EDITED` e 8 130 do `SIMILAR_TO` |
+| cobertura | **51/1 636 = 3,12%** — menos da metade dos 7,2% que o §3.2.1 já declarou insuficiente |
+| **grau máximo** | **2** (38 arquivos com grau 1 · 13 com grau 2) |
+
+**O grau máximo é o número que decide.** A dimensão prometida é *"usado por muitos agentes"*, e
+**"muitos" tem teto 2** neste corpus. PageRank sobre isso repete o que o §8 já apurou para o
+`CO_EDITED`, agora com menos da metade da cobertura: redistribui o nada sobre 3% dos corpos.
+
+**E o rótulo `Agent` não tinha fato — o fato existia e estava sendo jogado fora.** Os campos de uma
+execução eram `answer · cost_usd · flags · id · origin · outcome · prev · question · sources ·
+started · tokens · tools · turns` — nenhum de agente, nenhum de modelo. `origin` é **canal**, não
+identidade: `console` nas 11 execuções, e os demais valores (`files`, `github`, `server`,
+`callback`) são portas de entrada. Criar `Agent` a partir dele seria a **REGRA DO CATÁLOGO ao
+contrário**: em vez de campo declarado sem leitor, **nó criado sem fato**.
+
+⚠️ **Mas `recorder.run.model` já recebia o modelo do frame `init` do brain** — e só alimentava
+métrica, morrendo com o processo. O diário registrava a pergunta, as ferramentas e o custo, e não
+registrava QUEM executou. Desde 2026-08-08 o `journal.begin(question, origin, brain)` grava
+`agent: {brain, model, session}`, e o `recorder` o completa quando o frame chega.
+
+Consequências, e nenhuma delas mente sobre o estado atual:
+
+- **execuções anteriores não têm a chave e não ganham `Agent`** — viram `Run` órfão, que é a
+  verdade: rodaram num tempo em que ninguém registrou quem rodava;
+- **`model` mora no `Run`, não no `Agent`** — um agente roda modelos diferentes ao longo do tempo,
+  então modelo é propriedade da execução. Pendurá-lo no agente faria a última execução reescrever
+  a história de todas as anteriores;
+- o rótulo e a constraint existem com **0 nós**, e isso é o contrato nascendo antes da população.
+
+⚠️ O caminho `(:Agent)-[:RAN]->(:Run)-[:TOUCHED]->(:Astro)` foi **exercitado por semeadura antes de
+existir uso real** — 1 977 percursos, 1 `Agent` com `id: "claude"` vindo do fato. Sem isso ele seria
+código que nunca rodou, que é a armadilha nº 6 do handoff: *objeto com dois modos precisa dos dois
+na bancada*. O sintético foi apagado em seguida.
+
+⚠️ `Tool`, ao contrário, tem fato: o diário registra **30 ferramentas distintas** com `tool`, `kind`,
+`ok` e `ms`. O que falta é só o `Agent` que as usaria.
+
+#### A decisão: CONSTRUIR agora, com a distinção escrita no código
+
+O **P2b caiu por ESTRUTURA**: as 627 arestas de teste↔alvo vivem no disco e, exigindo os dois lados
+indexados, sempre sobrarão 4. Ele não cresce com nada.
+
+O **P5 está vazio por JUVENTUDE** — cada `/api/ask` acrescenta arestas. Medido isso, havia duas
+saídas, e a escolhida foi **construir**: o encaixe custa menos agora, enquanto a ontologia está
+sendo desenhada, do que depois de milhares de runs descobrir que o grafo não foi feito para
+representar uso. A alternativa — esperar — economizava trabalho e cobrava uma segunda integração
+justamente quando o universo já dependesse dela.
+
+O que impede isso de virar autoengano é uma distinção que passa a existir **em código**, não em
+promessa:
+
+| pergunta | onde é respondida | hoje |
+|---|---|---|
+| a dimensão EXISTE? | `usage` no `EntityPhysics`, `number \| null` | **sim** |
+| ela tem PODER estatístico? | `evidenciaDeUso()`, publicada no snapshot e no `/api/graph` | **não** — grau máx 2 < 5 |
+| ela pode decidir CLASSE? | `scripts/lei-neo4j.mjs`, por perturbação | **nunca**, e está provado |
+
+⚠️ **"Dimensão indisponível" e "evidência esparsa" deixam de ser a mesma frase.** Ausência vale
+`null` e nenhum nó ganha o campo; evidência rala vale um número pequeno com o veredito ao lado. Era
+a confusão que faria um `usage` baixo parecer medida forte de pouco uso, quando é medida fraca de
+nada.
+
+**O piso para a evidência exercer influência** (`EVIDENCIA_USO_MINIMA`, em `entity-physics.js`):
+grau máximo **≥ 5** — abaixo disso "usado por muitos" é empate, não afirmação — **e** cobertura
+acima de **7,2%**, que é exatamente a do `CO_EDITED` que esta spec já reprovou. A dimensão tem de
+passar do piso que já reprovou outra.
+
+⚠️ **E a escala foi escolhida para não precisar de migração.** O `usage` satura em `USO_CHEIO = 12`
+execuções distintas, em vez de normalizar por posto como a influência faz. Com grau máximo 2, o
+posto daria `1.0` ao corpo mais tocado — "o mais usado do céu", sobre um arquivo que duas execuções
+abriram: verdadeiro na ordem, falso na afirmação. Com saturação declarada ele vale 2/12 = **0,17**, e
+sobe sozinho conforme o diário cresce. **A mesma escala serve para 11 e para 10 000 execuções.**
 
 ### 3.3 O que NÃO vira relação
 
@@ -312,7 +397,8 @@ ninguém saberia de quem era o número.
 | **P2b** ❌ | teste ↔ alvo por convenção de nome | **CAI** | as 627 arestas foram medidas no DISCO; exigindo os dois lados indexados sobram **4** |
 | **P3** | `connectivity` → `centrality` → **influência → brilho** | a §11.1 do replanejamento | nunca `centrality → classe` |
 | **P4** ✅ | `SIMILAR_TO` materializado (`scripts/similares.mjs`) | **8 130 arestas, k=5 derivado, 6,6% isolados** | contra 92,8% do `CO_EDITED`. A rede visível na seleção continua pendente |
-| **P5** | `Agent`, `Run`, `TOUCHED` | "quais objetos os agentes realmente usam" | influência por uso, não massa |
+| **P5** ✅ | `Agent` + `Run` + `TOUCHED` (`scripts/uso.mjs`) | `usage` no `EntityPhysics`; influência por USO | **11 Run · 64 TOUCHED · 51 corpos (3,12%) · grau máx 2 · 0 Agent.** Construído com evidência RALA de propósito, e o snapshot publica o veredito. Ver §3.2.3 |
+| **lei nº 1** ✅ | `scripts/lei-neo4j.mjs` | a lei vira invariante **implementada** | 29 448 perturbações de `centrality`/`usage`/`connectivity` sobre 1 636 corpos: **nenhuma altera classe** |
 | **P6** | `REFERENCES`, `IMPORTS` | dependência documental e estrutural | semanticamente mais fortes que "parecidos" |
 | **P7** | `MENTIONS`, `Concept` | inferência | só depois de o grafo provar valor **sem** LLM |
 
