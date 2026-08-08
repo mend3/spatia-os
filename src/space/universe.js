@@ -324,12 +324,20 @@ export function createUniverse() {
   /** A seleção em vigor e o que ela desenhou. `null` = ninguém selecionado, e a rede some. */
   let selecao = null;
   /**
-   * O corpo cuja PELE está sendo desenhada por fora, e que por isso não pode desenhar a esfera.
+   * O corpo cuja PELE é desenhada por fora — ele CEDE o lugar, mas não desaparece.
    *
-   * ⚠️ Sem isto os dois ocupam o mesmo lugar com o mesmo raio e brigam por profundidade — o
-   * z-fighting aparece como a superfície piscando em faixas, que lê como defeito de shader e não é.
+   * ⚠️ **A primeira versão escondia a esfera, e o corpo sumia ao afastar a câmera.** A pele tem
+   * escada de LOD: abaixo de ~90 px ela apaga (medido: 35 270 pixels acesos a px 103 contra 3 430 a
+   * px 82), e sem a esfera não sobrava nada no lugar. Qualquer limiar que ligasse a esfera de volta
+   * teria o mesmo defeito num degrau diferente — o problema não era ONDE esconder, era ESCONDER.
+   *
+   * O que resolve sem limiar nenhum: a esfera encolhe 2% e vira o NÚCLEO. Enquanto a pele está
+   * opaca ela cobre a esfera (nada de z-fighting, que é o motivo de a esfera ter saído); conforme a
+   * pele apaga com a distância, o núcleo reaparece por baixo. É uma transição contínua em vez de um
+   * degrau, e é grátis — nenhum quadro precisa decidir nada.
    */
-  let ocultoIdx = -1;
+  const FATOR_NUCLEO = 0.98;
+  let cedidoIdx = -1;
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
      sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
   const amostra = new THREE.Vector3();
@@ -489,14 +497,14 @@ export function createUniverse() {
     },
 
     /**
-     * Esconde a ESFERA de um corpo porque a pele dele está sendo desenhada por fora. `null` devolve.
+     * Este corpo tem PELE desenhada por fora: a esfera dele vira núcleo (2% menor). `null` devolve.
      *
      * A alternativa seria a cena UNIVERSO desenhar a própria pele, e ela seria uma segunda cópia
      * das seis que já existem e já foram validadas na bancada.
      */
-    ocultar(source) {
+    cederPara(source) {
       const i = source ? indiceDe.get(source) : undefined;
-      ocultoIdx = i === undefined ? -1 : i;
+      cedidoIdx = i === undefined ? -1 : i;
     },
 
     /** Posição VIVA de um corpo desta cena, ou `null` se ele não é corpo aqui. */
@@ -867,7 +875,7 @@ export function createUniverse() {
         // A POSIÇÃO é escrita sempre — o arco e o picking dependem dela mesmo com o corpo oculto.
         // Quem some é só a ESCALA da instância: zero desenha nada e não custa fragmento nenhum.
         posicoes[i * 3] = V3.x; posicoes[i * 3 + 1] = V3.y; posicoes[i * 3 + 2] = V3.z;
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(i === ocultoIdx ? 0 : centros[i].raio));
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio * (i === cedidoIdx ? FATOR_NUCLEO : 1)));
         estrelas.setMatrixAt(i, M4);
       }
       for (let k = 0; k < orbitas.length; k++) {
@@ -883,7 +891,7 @@ export function createUniverse() {
         const zr = x * Math.sin(o.giro) + z * Math.cos(o.giro);
         const c = centros[o.centro];
         V3.set(c.pos.x + xr, c.pos.y + zr * Math.sin(o.inc), c.pos.z + zr * Math.cos(o.inc)).add(desloca);
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros.length + k === ocultoIdx ? 0 : o.rp));
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp * (centros.length + k === cedidoIdx ? FATOR_NUCLEO : 1)));
         planetas.setMatrixAt(k, M4);
         const p = (centros.length + k) * 3;
         posicoes[p] = V3.x; posicoes[p + 1] = V3.y; posicoes[p + 2] = V3.z;

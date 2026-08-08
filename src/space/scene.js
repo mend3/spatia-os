@@ -1583,8 +1583,6 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           ? decisaoDoUniverso(pouso.node)
           : resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) }))
       : null;
-    // A esfera instanciada cede o lugar para a pele: as duas no mesmo raio brigam por profundidade.
-    universe.ocultar(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE ? focusedNode : null);
     if (pouso) {
       const distancia = camera.position.distanceTo(pouso.position);
       focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
@@ -1804,6 +1802,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * geometria entra exatamente na medida em que o sprite sai: nunca as duas somadas, nunca
      * nenhuma das duas. Ver `space/remnant.js`.
      */
+    /*
+     * ⚠️ **A esfera CEDE o lugar para a pele — ela não some.**
+     *
+     * A primeira versão escondia a instância, e o corpo desaparecia ao afastar a câmera: a pele tem
+     * escada de LOD e apaga abaixo de ~90 px (medido: 35 270 pixels acesos a px 103 contra 3 430 a
+     * px 82), e sem a esfera não sobrava nada. Relatado da tela: *"objeto em foco some quando
+     * afastamos o zoom dele"*.
+     *
+     * ⚠️ E trocar o limiar não resolveria — só mudaria o degrau em que o buraco aparece. Quem
+     * resolve é a esfera virar NÚCLEO (2% menor): a pele opaca a cobre de perto, e ela reaparece
+     * sozinha conforme a pele apaga. Transição contínua, sem quadro nenhum decidindo nada.
+     */
+    universe.cederPara(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE ? focusedNode : null);
+
     probe.casca = probe.desenhado ? (pouso.node.supernova || 0) * probe.level : 0;
     remnant.update(
       pouso?.position ?? ZERO,
