@@ -144,6 +144,17 @@ if (!graph) {
   console.error(`sem resposta de ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
   process.exit(1);
 }
+
+/**
+ * O CORPUS que este grafo descreve, carimbado em todo nó e toda aresta.
+ *
+ * ⚠️ **Sem ele os dois céus se somam em silêncio.** O `Astro` é chaveado por `source`, e sources de
+ * corpora diferentes não colidem — materializar o fixture por cima do vivo não sobrescreve nada:
+ * ACRESCENTA. O `/api/health` passaria a anunciar 259 corpos sobre um céu de 71.
+ *
+ * `group_id` separa do GRAPHITI (auditoria do P0); `corpus` separa os NOSSOS céus entre si.
+ */
+const CORPUS = graph?.corpus?.collection;
 const fontes = graph.nodes.filter((n) => n.type === 'file' && n.source).map((n) => n.source);
 const noCeu = new Set(fontes);
 
@@ -239,8 +250,8 @@ await cypher(`CREATE CONSTRAINT agent_id IF NOT EXISTS FOR (a:${AGENTE}) REQUIRE
  * rodaram antes. Tocar um corpo não o cria — ele nasce do corpus, não do uso.
  */
 await cypher(
-  `UNWIND $fontes AS s MERGE (a:${ROTULO} {source: s}) SET a.group_id = $grupo`,
-  { fontes: [...toques.keys()], grupo: GRUPO }
+  `UNWIND $fontes AS s MERGE (a:${ROTULO} {source: s}) SET a.group_id = $grupo, a.corpus = $corpus`,
+  { fontes: [...toques.keys()], grupo: GRUPO, corpus: CORPUS }
 );
 
 if (agentes.size) {
@@ -267,7 +278,7 @@ await cypher(
   `UNWIND $execs AS e
    MERGE (r:${EXECUCAO} {run_id: e.run_id})
    SET r.started = e.started, r.origin = e.origin, r.outcome = e.outcome,
-       r.model = e.model, r.group_id = $grupo
+       r.model = e.model, r.group_id = $grupo, r.corpus = $corpus
    WITH r, e WHERE e.brain IS NOT NULL
    MATCH (a:${AGENTE} {id: e.brain}) MERGE (a)-[:RAN]->(r)`,
   { execs, grupo: GRUPO }
@@ -277,7 +288,7 @@ await cypher(
   `UNWIND $arestas AS t
    MATCH (r:${EXECUCAO} {run_id: t.run}), (a:${ROTULO} {source: t.source})
    MERGE (r)-[e:TOUCHED]->(a) SET e.group_id = $grupo`,
-  { arestas, grupo: GRUPO }
+  { arestas, grupo: GRUPO, corpus: CORPUS }
 );
 
 const conf = await cypher(

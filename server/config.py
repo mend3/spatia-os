@@ -16,7 +16,14 @@ DEFAULTS = {
     "ESPATIAL_HOST": "127.0.0.1",
     "ESPATIAL_PORT": "8787",
     "QDRANT_URL": "http://localhost:6333",
-    "QDRANT_COLLECTION": "workspace_embedding",
+    # ⚠️ **VAZIO DE PROPÓSITO — corpus não tem default.** Ele valia `workspace_embedding`, que é a
+    # coleção de UMA máquina, e isso contradiz o princípio declarado três linhas abaixo para o
+    # Neo4j: sem valor, a sonda diz "nunca configurado" em vez de tentar e acertar outro alvo.
+    #
+    # Um default de corpus não falha: ele monta um céu inteiro, com convicção total, sobre um
+    # índice que não é o do operador. Foi o modo de falha que mordeu duas vezes em 2026-08-08 —
+    # uma pela variável exportada no perfil do shell, outra por este default.
+    "QDRANT_COLLECTION": "",
     "EMBED_MODEL": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
     "SPARSE_MODEL": "Qdrant/bm25",
     "OLLAMA_URL": "http://localhost:11434",

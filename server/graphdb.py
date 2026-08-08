@@ -96,9 +96,16 @@ def describe() -> dict:
         }
 
     tipos = "|".join(RELACOES)
+    # ⚠️ **A contagem é do céu EM VIGOR, não do banco.** O `Astro` é chaveado por `source`, e dois
+    # corpora não colidem — eles COEXISTEM. Sem este filtro, apontar o servidor para o fixture faria
+    # o health somar os 188 do vivo aos 71 dele e anunciar 259 corpos sobre um céu de 71. É a mesma
+    # regra que já vale para o graphiti: publicar o que é do outro como se fosse deste sistema é a
+    # mentira que ninguém consegue rastrear depois.
+    corpus = config.get("QDRANT_COLLECTION")
     payload = consultar(
-        f"MATCH (n:{ROTULOS['corpo']}) WITH count(n) AS corpos "
-        f"OPTIONAL MATCH ()-[r:{tipos}]->() RETURN corpos, count(r) AS vinculos"
+        f"MATCH (n:{ROTULOS['corpo']} {{corpus: '{corpus}'}}) WITH count(n) AS corpos "
+        f"OPTIONAL MATCH ()-[r:{tipos} {{corpus: '{corpus}'}}]->() "
+        f"RETURN corpos, count(r) AS vinculos"
     )
     if payload is None:
         return {

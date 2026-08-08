@@ -71,7 +71,10 @@ async function cypher(statement, parameters = {}) {
 /** Ver `citacoes.mjs`: `AGENT_CWD` do perfil aponta para uma árvore que não existe mais. */
 function raizDoDisco(doServidor) {
   const doAmbiente = process.env.AGENT_CWD;
-  if (doAmbiente && fs.existsSync(doAmbiente)) return doAmbiente;
+  // ⚠️ E ele só vence se APONTAR PARA O MESMO LUGAR que o servidor, ou se o servidor não souber.
+  // Uma árvore diferente da que montou o céu não mede outro corpus: mede o vazio, porque nenhum
+  // caminho casa. Medido: com `AGENT_CWD=devshell-one` exportado no perfil, 0 de 188 arquivos.
+  if (doAmbiente && fs.existsSync(doAmbiente) && (!doServidor || doAmbiente === doServidor)) return doAmbiente;
   if (doAmbiente) {
     console.warn(`\x1b[33m⚠ AGENT_CWD=${doAmbiente} não existe no disco — usando a raiz que o servidor publica\x1b[0m`);
   }
@@ -85,6 +88,11 @@ if (!graph.corpus) {
   process.exit(1);
 }
 const RAIZ = raizDoDisco(graph.corpus.cwd);
+/**
+ * O CORPUS que este grafo descreve — ver o mesmo bloco em `vinculos.mjs`. Sem ele, dois céus se
+ * somam no mesmo grafo e o `/api/health` conta os dois como um.
+ */
+const CORPUS = graph.corpus.collection;
 const semRepo = (source) => source.slice(source.indexOf('/') + 1);
 const prosa = graph.nodes
   .filter((n) => n.type === 'file' && /\.(md|mdc|txt)$/i.test(n.source))
@@ -359,10 +367,10 @@ for (let i = 0; i < lista.length; i += 1000) {
   await cypher(
     `UNWIND $e AS x
      MERGE (c:Concept {slug: x.slug}) SET c.label = x.label, c.group_id = $g
-     MERGE (a:${ROTULO} {source: x.corpo}) ON CREATE SET a.group_id = $g
+     MERGE (a:${ROTULO} {source: x.corpo}) ON CREATE SET a.group_id = $g, a.corpus = $c
      MERGE (a)-[r:ABOUT]->(c)
-     SET r.modelo = $modelo, r.as_of = $asOf, r.group_id = $g`,
-    { e: lista.slice(i, i + 1000), g: GRUPO, modelo: MODELO, asOf }
+     SET r.modelo = $modelo, r.as_of = $asOf, r.group_id = $g, r.corpus = $c`,
+    { e: lista.slice(i, i + 1000), g: GRUPO, c: CORPUS, modelo: MODELO, asOf }
   );
 }
 

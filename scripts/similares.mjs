@@ -74,13 +74,40 @@ if (!graph.corpus) {
   console.error('o /api/graph não publicou `corpus` — servidor velho? Sem ele este script adivinharia a coleção.');
   process.exit(1);
 }
-const COLECAO = process.env.QDRANT_COLLECTION || graph.corpus.collection;
+/*
+ * ⚠️ **O CORPUS VEM DO SERVIDOR, SEM SOBREPOSIÇÃO POR AMBIENTE — e isso é uma correção.**
+ *
+ * Este script mede uma coleção do Qdrant CONTRA o céu que o servidor montou. Se as duas discordam,
+ * não há resultado possível: todo `source` do índice deixa de casar com todo nó do céu, e a saída é
+ * ZERO com cara de medida. Um override de ambiente aqui só pode produzir desacordo.
+ *
+ * E ele produziu: `QDRANT_COLLECTION=workspace_embedding` e `CORPUS_PREFIX=vault/` estão exportados
+ * no PERFIL DO SHELL desta máquina. Com a precedência do ambiente, o script apontado para o fixture
+ * media a coleção do workspace e casava **0 de 71 representantes** — exatamente o modo de falha que
+ * o `ee302fa` existia para matar, voltando pela porta que ele mesmo abriu.
+ *
+ * Para medir outro corpus, aponte o SERVIDOR para ele (`.env` + reiniciar). Aí o céu e o índice
+ * mudam juntos, que é a única combinação que significa alguma coisa.
+ */
+const COLECAO = graph.corpus.collection;
 /*
  * O `source` do Qdrant NÃO é o do céu: ele traz o `CORPUS_PREFIX` que o `graph.py` remove ao montar
  * os nós (`vault/devshell-one/x.md` vira `devshell-one/x.md`). O servidor tem `qdrant.restore_prefix`
  * para o caminho inverso; aqui a conversão é a mesma, em uma linha.
  */
-const PREFIXO = process.env.CORPUS_PREFIX ?? graph.corpus.prefix;
+const PREFIXO = graph.corpus.prefix;
+/**
+ * O CORPUS que este grafo descreve, carimbado em todo nó e toda aresta.
+ *
+ * ⚠️ **Sem ele os dois céus se somam em silêncio.** O `Astro` é chaveado por `source`, e sources de
+ * corpora diferentes não colidem — então materializar o fixture por cima do vivo não sobrescreve
+ * nada: ele ACRESCENTA. O `/api/health` passaria a anunciar 259 corpos sobre um céu de 71, e a
+ * centralidade sairia de dois universos empilhados.
+ *
+ * `group_id` continua sendo a separação em relação ao GRAPHITI (auditoria do P0); `corpus` é a
+ * separação entre os NOSSOS próprios céus. Duas perguntas diferentes, dois campos.
+ */
+const CORPUS = graph.corpus.collection;
 const doCeu = (s) => (PREFIXO && s.startsWith(PREFIXO) ? s.slice(PREFIXO.length) : s);
 console.log(`\x1b[1mcorpus\x1b[0m  ${COLECAO} · prefixo "${PREFIXO}" · ${graph.corpus.cwd}`);
 
@@ -193,24 +220,27 @@ for (const [fonte, lista] of vizinhos) {
 await cypher(`CREATE CONSTRAINT astro_source IF NOT EXISTS FOR (a:${ROTULO}) REQUIRE a.source IS UNIQUE`);
 const todas = [...new Set(arestas.flatMap((e) => [e.a, e.b]))];
 for (let i = 0; i < todas.length; i += 2000) {
-  await cypher(`UNWIND $f AS s MERGE (a:${ROTULO} {source: s}) SET a.group_id = $g`,
-    { f: todas.slice(i, i + 2000), g: GRUPO });
+  await cypher(`UNWIND $f AS s MERGE (a:${ROTULO} {source: s}) SET a.group_id = $g, a.corpus = $c`,
+    { f: todas.slice(i, i + 2000), g: GRUPO, c: CORPUS });
 }
 for (let i = 0; i < arestas.length; i += 2000) {
   await cypher(
     `UNWIND $e AS x
      MATCH (a:${ROTULO} {source: x.a}), (b:${ROTULO} {source: x.b})
      MERGE (a)-[r:SIMILAR_TO]->(b)
-     SET r.score = x.score, r.k = $k, r.as_of = $asOf, r.group_id = $g`,
-    { e: arestas.slice(i, i + 2000), k: K, asOf, g: GRUPO }
+     SET r.score = x.score, r.k = $k, r.as_of = $asOf, r.group_id = $g, r.corpus = $c`,
+    { e: arestas.slice(i, i + 2000), k: K, asOf, g: GRUPO, c: CORPUS }
   );
   process.stdout.write(`\r  escrevendo: ${Math.min(i + 2000, arestas.length)}/${arestas.length}`);
 }
 
+// ⚠️ Filtrada pelo CORPUS — o banco hospeda os dois céus, e contar os dois juntos é a mentira
+// que o carimbo de corpus existe para impedir.
 const conf = await cypher(
-  `MATCH (a:${ROTULO}) WITH count(a) AS corpos
-   OPTIONAL MATCH ()-[s:SIMILAR_TO]->() WITH corpos, count(s) AS sim
-   OPTIONAL MATCH ()-[c:CO_EDITED]->() RETURN corpos, sim, count(c) AS coed`
+  `MATCH (a:${ROTULO} {corpus: $c}) WITH count(a) AS corpos
+   OPTIONAL MATCH ()-[s:SIMILAR_TO {corpus: $c}]->() WITH corpos, count(s) AS sim
+   OPTIONAL MATCH ()-[e:CO_EDITED {corpus: $c}]->() RETURN corpos, sim, count(e) AS coed`,
+  { c: CORPUS }
 );
 const [corpos, sim, coed] = conf.data.values[0];
 console.log(`\n\n\x1b[1mescrito\x1b[0m  ${corpos} :${ROTULO} · ${sim} SIMILAR_TO (k=${K}, as_of=${asOf}) · ${coed} CO_EDITED`);
