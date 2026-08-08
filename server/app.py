@@ -665,13 +665,17 @@ def serve() -> None:
     )
     journal.lifecycle("boot", f"{VERSION} · {host}:{port} · cérebro={config.get('BRAIN')}")
 
-    def encerrar(signum, _frame) -> None:
+    encerrando = threading.Event()
+
+    def drenar_e_parar(nome_sinal: str) -> None:
         """Drena e REGISTRA. É o que responde depois "caiu ou eu fechei?".
 
         Parar de aceitar vem primeiro e esperar vem depois: matar uma execução em curso paga o
         custo sem entregar nada, e o diário guardaria `aborted` sem ninguém ter abortado. A
         espera tem teto porque um cliente pendurado não pode impedir o servidor de morrer — e
         quando o teto vence, o registro DIZ quantas ficaram, em vez de fingir saída limpa.
+
+        ⚠️ RODA NUMA THREAD PRÓPRIA, e as duas linhas abaixo são o motivo. Ver `encerrar`.
         """
         budget.drain()
         limite = time.monotonic() + DRAIN_SECONDS
@@ -680,10 +684,39 @@ def serve() -> None:
         pendentes = budget.running()
         journal.lifecycle(
             "shutdown",
-            f"sinal {signal.Signals(signum).name}"
+            f"sinal {nome_sinal}"
             + (f" · {pendentes} execuções não drenaram em {DRAIN_SECONDS}s" if pendentes else " · drenado"),
         )
         httpd.shutdown()
+
+    def encerrar(signum, _frame) -> None:
+        """Só AGENDA o encerramento. O trabalho não pode acontecer aqui dentro.
+
+        Um handler de sinal roda na thread PRINCIPAL, no meio do que ela estava fazendo — que
+        neste processo é o `serve_forever()` logo abaixo. Isso trava de duas formas, e as duas
+        já aconteceram nesta base (medidas em 2026-08-08, com pilha amostrada):
+
+        1. `httpd.shutdown()` espera o laço do `serve_forever()` terminar. Chamado de dentro do
+           handler, ele espera um laço que não pode avançar porque a thread dele está presa no
+           próprio handler. A doc do Python é explícita: `shutdown()` tem de vir de OUTRA thread.
+        2. `journal.lifecycle` pega o `_lock` do diário, que é `threading.Lock` — NÃO reentrante.
+           Se a principal já o segurava quando o sinal chegou, o handler trava nela mesma.
+
+        O sintoma não é "servidor morre devagar": é servidor que NÃO MORRE, com a porta ainda em
+        LISTEN e ninguém aceitando — que lê como cena congelada — e SEM o registro `shutdown` no
+        diário, ou seja, perdendo justamente a resposta que este caminho existe para dar.
+
+        ⚠️ E o segundo sinal é descartado de propósito. `uv run` repassa o TERM que recebe, então
+        o processo leva DOIS pelo mesmo `kill` — e o segundo, reentrando no meio do primeiro, é
+        o que fazia o diário travar no próprio lock antes de escrever.
+        """
+        if encerrando.is_set():
+            return
+        encerrando.set()
+        # `daemon=False`: o processo não pode sair antes de o diário terminar de escrever.
+        threading.Thread(
+            target=drenar_e_parar, args=(signal.Signals(signum).name,), name="shutdown"
+        ).start()
 
     for sinal in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sinal, encerrar)
