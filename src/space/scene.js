@@ -701,6 +701,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       rede: desenho
         ? { ...desenho, teto: resposta?.teto, tipos: resposta?.tipos, as_of: resposta?.as_of }
         : { indisponivel: resposta?.motivo || 'rede não materializada' },
+      // Os ASSUNTOS vêm na MESMA resposta e no mesmo evento: eles respondem a mesma pergunta que a
+      // rede — com o que este corpo se relaciona —, por um caminho que liga corpo a CONCEITO em vez
+      // de corpo a corpo. Dois eventos fariam o painel montar em duas etapas e piscar.
+      conceitos: resposta?.conceitos ?? null,
     });
   };
 

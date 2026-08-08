@@ -67,16 +67,16 @@ export function registerContextWidget() {
     hint: 'SOB ATENÇÃO',
     slot: 'right',
     render(view) {
-      const pintar = ({ subject, dirty, origin, links, rede }) => {
+      const pintar = ({ subject, dirty, origin, links, rede, conceitos }) => {
         if (!subject) {
           view.empty(VAZIO);
           return;
         }
-        view.set(desenhar(subject, dirty, origin, links || [], rede || null));
+        view.set(desenhar(subject, dirty, origin, links || [], rede || null, conceitos || null));
       };
 
-      const off = on('ui.links', ({ subject, dirty, origin, nodes, rede }) =>
-        pintar({ subject, dirty, origin, links: nodes, rede })
+      const off = on('ui.links', ({ subject, dirty, origin, nodes, rede, conceitos }) =>
+        pintar({ subject, dirty, origin, links: nodes, rede, conceitos })
       );
 
       /*
@@ -94,7 +94,7 @@ export function registerContextWidget() {
   });
 }
 
-function desenhar(node, dirty, origin, vizinhos, rede) {
+function desenhar(node, dirty, origin, vizinhos, rede, conceitos) {
   const linhas = [];
   const classe = classify(node, { dirty });
 
@@ -173,6 +173,7 @@ function desenhar(node, dirty, origin, vizinhos, rede) {
    * atrás do detalhe de um documento. O que responde à pergunta vem primeiro; o resto rola.
    */
   linhas.push(...vinculos(vizinhos, rede));
+  linhas.push(...assuntos(conceitos));
 
   const secoes = node.sections || [];
   if (secoes.length) {
@@ -242,6 +243,34 @@ function vinculos(vizinhos, rede) {
     linhas.push(linha);
   }
   linhas.push(...legenda(rede));
+  return linhas;
+}
+
+/**
+ * ASSUNTOS — o P7, e a única seção deste painel que NÃO é fato.
+ *
+ * ⚠️ Ela diz de onde veio. As outras linhas saem de disco, de git ou de vetor e qualquer pessoa
+ * recalcula; esta saiu de um modelo, e duas execuções podem discordar. Um painel que apresenta
+ * inferência com a mesma voz de medida ensina o operador a confiar na coisa errada.
+ *
+ * ⚠️ E ela separa os dois tipos de assunto, porque eles afirmam coisas diferentes: exercido por UM
+ * corpo, o conceito DESCREVE o documento; por dois ou mais, ele LIGA os dois — e é o segundo que
+ * faz dois arquivos distantes se tocarem. Medido: dos 100 conceitos do corpus, só 16 ligam.
+ */
+function assuntos(conceitos) {
+  const lista = conceitos?.lista;
+  if (!lista?.length) return [];
+  const linhas = [titulo(`ASSUNTOS · ${lista.length}`)];
+  for (const c of [...lista].sort((a, b) => b.corpos - a.corpos)) {
+    const linha = el('div', 'vital');
+    linha.append(
+      el('span', 'vital-label', c.label),
+      el('strong', 'vital-value', c.corpos > 1 ? `${c.corpos}` : '·')
+    );
+    linha.append(el('span', 'vital-unit', c.corpos > 1 ? 'corpos' : 'só aqui'));
+    linhas.push(linha);
+  }
+  linhas.push(el('div', 'widget-hint', `inferido por ${conceitos.modelo} — não é medida`));
   return linhas;
 }
 

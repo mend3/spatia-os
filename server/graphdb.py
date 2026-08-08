@@ -279,4 +279,48 @@ def network(source: Optional[str] = None) -> dict:
         return cabecalho
     # ⚠️ Corpo ausente do snapshot devolve `null`, não `[]`. "Não medi este" e "medi e ele não tem
     # vizinho" são fatos diferentes, e o segundo tem representação própria (`v: []`).
-    return {**cabecalho, "source": source, "vizinhanca": (dados.get("vizinhanca") or {}).get(source)}
+    return {
+        **cabecalho,
+        "source": source,
+        "vizinhanca": (dados.get("vizinhanca") or {}).get(source),
+        # Os ASSUNTOS deste corpo (P7). Vêm na mesma resposta porque respondem a mesma pergunta —
+        # "com o que este corpo se relaciona" — por um caminho diferente: o vínculo liga corpo a
+        # corpo, o assunto liga corpo a conceito. Ver `conceitos`.
+        "conceitos": conceitos(source),
+    }
+
+
+#: Onde `scripts/conceitos.mjs` deixa os assuntos por corpo (P7). Arquivo, nunca o banco.
+SNAPSHOT_CONCEITOS = config.ROOT / ".cache" / "conceitos.json"
+
+_conceitos: dict | None = None
+_conceitos_mtime: int = 0
+
+
+def conceitos(source: Optional[str] = None) -> Optional[dict]:
+    """Os assuntos de um corpo, do snapshot do P7 — ou o cabeçalho, sem `source`.
+
+    ⚠️ **É a única dimensão deste sistema que NÃO é fato.** As outras saem de disco, de git ou de
+    vetor, e qualquer pessoa recalcula e chega ao mesmo número; esta sai de um modelo, e duas
+    execuções podem discordar. Por isso `modelo` e `as_of` viajam junto: quem lê o assunto precisa
+    saber quem o afirmou, e quando.
+
+    ⚠️ E `corpos` (quantos exercem cada conceito) viaja por conceito porque é ele que separa as
+    duas coisas que a extração produz: assunto com 1 corpo DESCREVE o documento; com 2 ou mais,
+    LIGA os dois. Medido no `espatial_vivo`: 100 conceitos, **só 16 compartilhados**.
+    """
+    global _conceitos, _conceitos_mtime
+    try:
+        agora = SNAPSHOT_CONCEITOS.stat().st_mtime_ns
+    except OSError:
+        return None
+    if _conceitos is None or agora != _conceitos_mtime:
+        try:
+            _conceitos = json.loads(SNAPSHOT_CONCEITOS.read_text(encoding="utf-8"))
+            _conceitos_mtime = agora
+        except (OSError, ValueError):
+            return None
+    cabecalho = {k: v for k, v in _conceitos.items() if k != "porCorpo"}
+    if source is None:
+        return cabecalho
+    return {**cabecalho, "lista": (_conceitos.get("porCorpo") or {}).get(source)}

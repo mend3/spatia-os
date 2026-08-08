@@ -458,7 +458,7 @@ ninguém saberia de quem era o número.
 | **P5** ✅ | `Agent` + `Run` + `TOUCHED` (`scripts/uso.mjs`) | `usage` no `EntityPhysics`; influência por USO | **11 Run · 64 TOUCHED · 51 corpos (3,12%) · grau máx 2 · 0 Agent.** Construído com evidência RALA de propósito, e o snapshot publica o veredito. Ver §3.2.3 |
 | **lei nº 1** ✅ | `scripts/lei-neo4j.mjs` | a lei vira invariante **implementada** | 29 448 perturbações de `centrality`/`usage`/`connectivity` sobre 1 636 corpos: **nenhuma altera classe** |
 | **P6** ✅ | `REFERENCES`, `IMPORTS` (`scripts/citacoes.mjs`) | dependência documental e estrutural | **452 REFERENCES · 88,8% do céu** e **313 IMPORTS · 59,6%** — e são as duas ÚNICAS relações DIRIGIDAS. Ver §6.1 |
-| **P7** | `MENTIONS`, `Concept` | inferência | só depois de o grafo provar valor **sem** LLM |
+| **P7** ✅ | `ABOUT`, `Concept` (`scripts/conceitos.mjs`) | inferência | **100 conceitos · 130 ABOUT · 23/23 arquivos**, e só **16 ligam** dois corpos. Ver §7.1 |
 
 ### A derivação do `k`, e o que ela me corrigiu
 
@@ -515,6 +515,48 @@ overlay do servidor remove o campo antes de reaplicar.
 `devshell-one`, que não existe desde a reorganização. A precedência cega ao ambiente devolvia
 **0 arquivos lidos e um relatório inteiro de zeros** — resultado com cara de resultado. Os scripts
 que leem disco agora CONFEREM que o caminho existe antes de obedecê-lo, e zero lidos é erro fatal.
+
+### 7.1 ✅ P7 — e a extração livre NÃO liga nada (2026-08-08)
+
+A condição estava cumprida: quatro relações medidas e a rede desenhando, então o grafo provou valor
+sem LLM e o custo da inferência se justifica.
+
+⚠️ **Mas a primeira versão produziu uma relação que não relaciona: 138 conceitos, ZERO
+compartilhados.** Extração livre nunca colide como string — "replanejamento celeste" e "cosmologia
+do céu" são o mesmo assunto e viravam dois nós. Cada corpo ficava com etiquetas particulares, e um
+conceito que só um corpo exerce **descreve** o documento em vez de **ligar** dois. É rótulo com
+custo de inferência.
+
+**O conserto é consolidar por SIGNIFICADO, não por texto.** Os rótulos são embutidos com
+`nomic-embed-text` — o vetorizador que o workspace já tem — e agrupados por cosseno. O limiar é
+DERIVADO, com a mesma régua do `k` do `SIMILAR_TO`:
+
+| limiar | conceitos | compartilhados | maior grupo |
+|---|---|---|---|
+| 0,68 | 76 | 16 | **13 corpos — engole mais da metade** |
+| **0,72** | **100** | **16** | 8 |
+| 0,76 | 111 | 14 | 5 |
+| 0,85 | 133 | 5 | 2 |
+
+O critério tem os dois lados: maximizar o compartilhamento **com** o teto de nenhum grupo tocar mais
+da metade dos corpos — um conceito que todo mundo exerce não distingue ninguém, que é a armadilha da
+classe vazia pelo avesso.
+
+Resultado: **100 conceitos · 130 `ABOUT` · 23/23 arquivos de prosa · 16 compartilhados** (84%
+continuam solitários, e isso está publicado). Os que ligam são reconhecíveis: *estrutura* (8
+corpos), *renderização* (5), *classificação* (3), *memória viva* (3).
+
+⚠️ **`ABOUT` liga `Astro → Concept`: as duas pontas não são corpos, então ela NÃO entra na rede da
+seleção** — pela mesma razão que o `TOUCHED` ficou de fora (§5.1). O leitor dela é o painel
+CONTEXTO, por `/api/vizinhanca`.
+
+⚠️ **É a única dimensão deste sistema que não é fato.** Toda aresta carrega `modelo` e `as_of`, o
+snapshot também, e o painel escreve *"inferido por qwen3:8b — não é medida"*. Apagar tudo o que veio
+de inferência é uma consulta só, porque o tipo é próprio.
+
+⚠️ E a EXTRAÇÃO é cacheada em `.cache/conceitos-brutos.json` enquanto a consolidação não é: sem
+isso, cada ajuste de limiar pagaria uma extração nova — e **diferente**, tornando impossível saber
+se o número mudou por causa do limiar ou do modelo.
 
 ## Fontes
 
