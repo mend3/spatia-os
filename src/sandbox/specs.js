@@ -34,6 +34,7 @@ import { CROWN_SPEC } from './crown-rig.js';
 import { COMET_SPEC, NEBULA_SPEC, STATION_SPEC } from './skin-rigs.js';
 import { REMNANT_SPEC, LINKS_SPEC } from './field-rigs.js';
 import { SYSTEM_SPEC } from './system-rig.js';
+import { UNIVERSE_SPEC } from './universe-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -586,6 +587,11 @@ export const SPECS = [
    * global. Ver `docs/replanejamento-celeste.md` e o cabeçalho de `system-rig.js`.
    */
   SYSTEM_SPEC,
+  /*
+   * E o que responde "isto cabe?". O SISTEMA LOCAL prova que um sistema funciona; este prova que
+   * 221 deles convivem, que é a única pergunta capaz de reprovar a cena inteira.
+   */
+  UNIVERSE_SPEC,
 
   ...RING_VARIANTS,
   /*
