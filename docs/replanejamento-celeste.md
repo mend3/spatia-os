@@ -9,16 +9,19 @@
 
 ---
 
-## 0. O veredito, em cinco linhas
+## 0. O veredito, em seis linhas
 
 1. O céu de hoje afirma uma hierarquia gravitacional **invertida**, centenas de vezes por quadro.
 2. A causa é uma só: **tipo de corpo e massa são tratados como eixos independentes**, e na
    astrofísica eles são o mesmo eixo.
-3. Duas outras inversões (`compose` → nebulosa, `script` → cometa) são consequências dela.
-5. O buraco negro central não é um detalhe estético: ele é a afirmação de que existe **um** centro,
-   e o universo real não tem nenhum.
-6. A colisão dos três aros se resolve **pela física**, não por ajuste de brilho — cada feição já
-   tem um vocabulário próprio que ninguém usou.
+3. São **cinco inversões** — `kind` decidindo o corpo, `compose` → nebulosa, `script` → cometa, o
+   raio do anel de Júpiter e o quasar como classe separada do buraco negro.
+4. O buraco negro **não sai de cena**: ele muda de cena. O briefing resolve isso melhor do que a
+   primeira versão deste documento — são dois universos, não duas câmeras (§9.1).
+5. A colisão dos três aros se resolve **pela física** — cada feição já tem um vocabulário próprio
+   que ninguém usou.
+6. O briefing acerta a ESTRUTURA e erra as FOLHAS, e sempre pelo mesmo motivo: ele assume fatos que
+   o corpus não tem (§9.2).
 
 ---
 
@@ -142,6 +145,67 @@ de chá do material pesa ~9,5 toneladas.
 > [Chandra · White Dwarfs](https://chandra.harvard.edu/xray_sources/white_dwarfs.html)
 
 Ou seja: o que a define é a razão **massa/tamanho**, não um contorno. Ver §5.
+
+### 2.6 O quasar NÃO é um corpo — é o buraco negro comendo
+
+> *"Quasars and AGN aren't separate from supermassive black holes — they're different
+> manifestations of the same phenomenon."*
+
+Um núcleo ativo é um buraco negro supermassivo **consumindo matéria**. O disco de acreção e os
+jatos não são entidades separadas: são estruturas criadas pela matéria caindo. E só **1 em 10**
+AGN produz jatos.
+
+> Fontes: [NASA · What Are Active Galactic Nuclei?](https://science.nasa.gov/mission/webb/science-overview/science-explainers/what-are-active-galactic-nuclei/) ·
+> [Chandra · Quasars & Active Galaxies](https://chandra.harvard.edu/xray_sources/quasars.html)
+
+**A INVERSÃO Nº 5.** O `catalogo-celeste.md` tem **`## Quasar`** e **`## Buraco negro`** como duas
+entradas, dois corpos. Fisicamente são o mesmo objeto em dois estados.
+
+E o modelo já tem o estado certo à mão: o buraco negro é o **núcleo cognitivo**, e ele já muda de
+regime quando o agente trabalha. Quasar deveria ser **o núcleo enquanto consome** — o disco e os
+jatos acendendo com a execução e apagando com ela. Isso troca uma classe por um estado, que é a
+mesma correção que a supernova já sofreu.
+
+⚠️ E o "1 em 10 com jato" é uma régua grátis: jato em todo núcleo ativo afirmaria uma frequência
+que a natureza não tem.
+
+### 2.7 O pulsar é o que SOBRA de uma supernova
+
+Pulsar é uma estrela de nêutrons **deixada para trás quando uma estrela massiva explode**. Ele pulsa
+porque o eixo magnético **não está alinhado** com o eixo de rotação — o feixe varre a linha de
+visada como um farol. Períodos vão de **1,4 ms a 8,5 s**, e os de milissegundo rivalizam com
+relógios atômicos.
+
+> Fontes: [NASA · Neutron Stars](https://imagine.gsfc.nasa.gov/science/objects/neutron_stars1.html) ·
+> [NASA · Lighthouse Pulsar](https://science.nasa.gov/missions/ixpe/nasa-space-telescope-maps-magnetic-fields-of-lighthouse-pulsar/)
+
+Duas consequências, e a primeira é uma **relação que o modelo não tem**:
+
+- **Pulsar vem DEPOIS de supernova.** Hoje as duas feições são independentes: supernova sai de surto
+  de churn, pulsar sai de regularidade de edição, e nada liga uma à outra. Na física, um é o
+  cadáver do outro. Se o céu respeitasse isso, pulsar só seria alcançável por um corpo que teve
+  supernova — e a classe deixaria de ter **população zero** por acaso, passando a tê-la por
+  dependência declarada.
+- **A obliquidade é a CAUSA do pulso, não um enfeite.** Hoje ela vem do hash do caminho, o que é
+  arbitrário mas inofensivo. Já a faixa de período do céu (1,55–3,58 s) é uma fatia estreita de uma
+  faixa real de quase quatro ordens de grandeza — o milissegundo, que é o caso espetacular, não
+  existe aqui.
+
+### 2.8 O universo é vazio, e isso é layout
+
+A estrutura em grande escala tem nós densos ligados por **filamentos**, envolvendo **vazios** — e
+**mais de 70% do volume do universo é vazio**. Superaglomerados medem 20–100 megaparsecs.
+
+> Fonte: [NASA/ESA e levantamentos SDSS via literatura de estrutura em grande escala](https://science.nasa.gov/universe/galaxies/)
+
+Isso não é curiosidade: é a instrução de distribuição que falta ao §3.1. A cena UNIVERSO **não deve
+espalhar sistemas uniformemente** — ela deve concentrá-los em nós, ligá-los por filamentos e deixar
+a maior parte do volume vazio. Céu uniforme é justamente o que produz a leitura de "campo de
+pontos" em vez de "estrutura".
+
+⚠️ Isto conflita com o layout atual por recência, que é **uniforme por construção** (`recency` é
+posição no ranking, feita para ser uniforme). Trocar o centro sem trocar a distribuição só muda o
+lugar do problema.
 
 ---
 
@@ -289,8 +353,80 @@ a fonte afirma e **o que isso decide aqui** — fonte sem consequência não ent
 | [NASA · Cassini FAQ](https://science.nasa.gov/mission/cassini/faq/) · [NASA · Saturn Facts](https://science.nasa.gov/saturn/facts/) · [NTRS · Narrow rings of Jupiter, Saturn and Uranus](https://ntrs.nasa.gov/citations/19800044425) | limite de Roche ≈ **2,5 raios** para densidades iguais; dentro dele o material não se acreta; Júpiter e Urano orbitam a ~1,8 raios, e o de Júpiter é *"a mere wisp"* de silicatos | **§2.4 — a inversão nº 4**, e a única medível contra um número do código. Confirma `ROCHE_FLUID = 2,44` e condena `jupiter reach 3,2`. Sustenta o anel FICAR com o aro no §5 |
 | [NASA · White Dwarfs](https://imagine.gsfc.nasa.gov/science/objects/dwarfs2.html) · [Chandra · White Dwarfs](https://chandra.harvard.edu/xray_sources/white_dwarfs.html) | massa do Sol no tamanho da Terra; sem fusão, sustentada por degenerescência eletrônica; esfria por bilhões de anos | **§5** — o vocabulário próprio dela é **massa/tamanho**, não contorno. Manda remover a borda implementada em 2026-08-07 |
 | [NASA · Characteristics of Galaxies](https://imagine.gsfc.nasa.gov/educators/galaxies/imagine/characteristics.html) · [ESA · Hubble tuning fork](https://sci.esa.int/web/hubble/-/52791-the-hubble-tuning-fork-classification-of-galaxies) | sequência de Hubble: espiral (braços mais ou menos enrolados), espiral barrada, elíptica (E0–E7), irregular; disco plano + bojo central | **§4** — galáxia = agregado é o único mapeamento que a pesquisa **não** contradiz. E dá vocabulário para o degrau: quem tem grupo vira espiral, quem não tem vira elíptica ou irregular |
+| [NASA · Active Galactic Nuclei](https://science.nasa.gov/mission/webb/science-overview/science-explainers/what-are-active-galactic-nuclei/) · [Chandra · Quasars](https://chandra.harvard.edu/xray_sources/quasars.html) | quasar e AGN **não são separados** do buraco negro supermassivo — são manifestações do mesmo objeto consumindo matéria; disco e jatos são estruturas da queda; só 1 em 10 tem jato | **§2.6 — a inversão nº 5.** Quasar deixa de ser classe e vira **estado** do núcleo cognitivo. O "1 em 10" vira régua de frequência do jato |
+| [NASA · Neutron Stars](https://imagine.gsfc.nasa.gov/science/objects/neutron_stars1.html) · [NASA · Lighthouse Pulsar](https://science.nasa.gov/missions/ixpe/nasa-space-telescope-maps-magnetic-fields-of-lighthouse-pulsar/) | pulsar é o que **sobra** de uma estrela massiva que explodiu; pulsa porque o eixo magnético é desalinhado do de rotação; períodos de 1,4 ms a 8,5 s | **§2.7** — cria a dependência supernova → pulsar que o modelo não tem, e mostra que a faixa de período do céu é uma fatia estreita da real |
+| levantamentos de estrutura em grande escala (SDSS, via [NASA · Galaxies](https://science.nasa.gov/universe/galaxies/)) | nós ligados por filamentos, envolvendo vazios; **>70% do volume é vazio**; superaglomerados de 20–100 Mpc | **§2.8** — instrução de distribuição para a cena UNIVERSO: concentrar em nós, não espalhar. Conflita com o layout uniforme por recência |
 
-⚠️ **O que a pesquisa NÃO cobriu, e portanto não sustenta nada aqui:** superaglomerado e filamento
-(o topo do briefing), objetos artificiais (a estação não tem análogo natural — ela é a única feição
-do céu que é *construída*, e isso é coerente com ela representar um agente) e a física de sistemas
-binários, que o catálogo já cita como fronteira `μ ≥ 5` sem fonte externa.
+⚠️ **O que a pesquisa continua NÃO cobrindo, e portanto não sustenta nada aqui:** objetos
+artificiais — a estação não tem análogo natural, e é a única feição do céu que é *construída*, o que
+por sinal é coerente com ela representar um agente — e a física de sistemas binários, que o catálogo
+cita como fronteira `μ ≥ 5` sem fonte externa. Os dois seguem valendo por decisão de produto, não
+por embasamento.
+
+---
+
+## 9. O briefing, conferido linha a linha
+
+`briefings/multi-scene.md` é a base desta branch. Ele **acerta a estrutura e erra as folhas**, e o
+motivo é sempre o mesmo: ele assume fatos que o corpus não tem. Abaixo, o que fica, o que cai e o
+que precisa de trabalho novo.
+
+### 9.1 O que o briefing resolve — e resolve melhor do que eu
+
+**A proposta final dele responde a minha §3.3 e a torna obsoleta.** Eu tratei "o buraco negro sai do
+centro" como perda; o briefing mostra que não é remoção, é **separação em dois universos**:
+
+| cena | pergunta | o buraco negro |
+|---|---|---|
+| **Agentic** | *como a IA está pensando* | **é o centro, e está certo** — tudo converge, gravidade = prioridade |
+| **Universe** | *onde o conhecimento vive* | não aparece; cada estrutura domina só a vizinhança |
+
+Isso também **confirma a inversão nº 5** por outro caminho: se o buraco negro é o cérebro e o quasar
+é ele consumindo, então quasar é estado da cena Agentic, não corpo da cena Universe.
+
+E o item **"separar contenção de relacionamento"** é o maior ganho do documento: posição comunica
+contenção (nunca linha), e a rede de conhecimento aparece **só na seleção**. Isso mata as linhas
+gigantes atravessando a cena sem perder o dado.
+
+### 9.2 O que está desatualizado ou não se sustenta no corpus de hoje
+
+| o briefing diz | o que a medida diz | veredito |
+|---|---|---|
+| **luas = dependências diretas** (`teste.spec.ts`, imagens, métodos) | as luas de hoje são as **`sections`** do arquivo. E dependência exigiria aresta lateral: **medido, `arestas laterais = 0`** | **não implementável hoje.** Ou se cria o fato, ou lua continua sendo seção |
+| **cometas = objetos temporários** (downloads, uploads, pesquisas web) | nada disso está indexado. A classe nasceria com **população zero** | **cai.** E a pesquisa dá a definição melhor: cometa é **atividade** (§2.3), que o `churn` já mede |
+| **asteroides = snippets, TODOs, comentários** | o indexador **não ingere código**: zero `.ts`/`.py` no índice | **cai como está.** Sobrevive se asteroide for *massa pequena* (§3), não *tipo de conteúdo* |
+| **rede de conhecimento** (imports, embeddings, similaridade) | o relacionamento semântico existe **no qdrant**, não no grafo | **trabalho novo**, não ajuste. Criar arestas que hoje não existem |
+| **Universo → Superaglomerado → Galáxia → Sistema → Estrela → Planeta → Lua** (6 níveis) | o corpus tem **4**: `repo → dir → file → section` | **precisa de colapso.** Ver 9.3 |
+
+⚠️ **O padrão é único e vale como aviso:** onde o briefing nomeia um tipo de CONTEÚDO (download,
+TODO, import), ele descreve um corpus que não existe aqui. Onde ele nomeia uma RELAÇÃO
+(contenção, domínio local, escala), ele acerta — porque relação é o que o grafo tem.
+
+### 9.3 Os seis níveis contra os quatro reais
+
+| briefing | corpus | n | como resolver |
+|---|---|---|---|
+| Universo | o workspace | 1 | direto |
+| Superaglomerado | — | — | **não existe fato.** 7 repos não são superaglomerado; ou se apoia em um agrupamento novo, ou o nível é cortado |
+| Galáxia | repo | 7 | direto (por contenção, 17 agregados se qualificariam) |
+| Sistema Estelar | pasta | **221** | direto |
+| Estrela | o corpo mais massivo da pasta | 221 | **um por sistema**, pela escada do §3 |
+| Planeta | os demais arquivos da pasta | **1 300** | MED 4 por estrela |
+| Lua | as `sections` | — | mantém o fato atual, não o do briefing |
+
+**Dois níveis do briefing não têm fato: superaglomerado e a lua-como-dependência.** Os outros
+cinco estão medidos e cabem.
+
+⚠️ E os **336 órfãos** (§3.1) continuam sem lugar nesta tabela — o briefing não os previu, porque
+ele descreve a hierarquia ideal e não a que o disco tem.
+
+### 9.4 O que o briefing pede e ainda não foi medido
+
+- **"só aquele sistema é simulado com detalhes; o resto vira LOD"** — a cena já tem escada de LOD
+  por pele, mas nunca foi medida com **sistemas locais**; o orçamento de hoje (0,31–0,35 ms para
+  213 instâncias) é de um céu plano.
+- **"sistemas separados por distâncias realistas"** — precisa da distribuição em nós e vazios do
+  §2.8, que contradiz o layout uniforme por recência.
+- **"escalar para milhões de entidades"** — o corpus tem 1 864 nós. A afirmação não é testável
+  aqui, e o `advance()` já foi medido linear até 10 000 (0,278 ms). Nada sugere problema, e nada
+  prova a escala pedida.
