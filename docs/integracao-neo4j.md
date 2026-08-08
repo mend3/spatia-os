@@ -38,7 +38,30 @@ E a física já dizia onde essas grandezas moram (§11.1 do replanejamento):
 critério.** Se uma dimensão nova só puder ser calculada com o Neo4j, ela tem de caber em brilho ou
 destaque — senão ela não entra.
 
-### 1.1 Degradar declarando, não silenciando
+### 1.1 A segunda lei: o Neo4j nunca está no caminho do quadro
+
+A primeira lei protege a IDENTIDADE do corpo. Esta protege o QUADRO.
+
+> **O renderer nunca consulta o Neo4j.** Ele recebe um `EntityPhysics` já resolvido, com
+> `centrality: number | null` dentro.
+
+```
+Neo4j → materialização em background → snapshot de física → estado do universo → renderer
+```
+
+E nunca `render entity → query → query → query`. Um céu de 1 636 corpos que consultasse o grafo por
+objeto teria o custo do banco multiplicado por corpo **e por quadro** — e ficaria refém da latência
+dele a 60 Hz.
+
+Isto também é o que torna a primeira lei executável: se a física é um snapshot, o Neo4j cair entre
+dois snapshots não muda nada na tela até a próxima materialização, e a mudança é **um número de
+brilho**, nunca uma reclassificação.
+
+⚠️ Vale para LEITURA, não só para escrita. O documento já dizia que ingestão fica fora de banda; a
+consulta também fica. **O Neo4j é fonte opcional de conhecimento sobre o universo, não o mecanismo
+que mantém o universo funcionando.**
+
+### 1.2 Degradar declarando, não silenciando
 
 O precedente existe e está medido nesta base: `server/units.py` distingue **falta** de **desligado
 por decisão**, e `voice.applyHealth` usa isso para desabilitar VOZ *antes* de falhar. O Neo4j entra
@@ -116,6 +139,43 @@ medida), e relação com muitos campos é o caso em que a documentação manda u
 Proposta: `(:Entity)-[:IN]->(:CoEdit {count, window, as_of})<-[:IN]-(:Entity)`. Sem isso, o score de
 similaridade vira propriedade solta que ninguém sabe quando expirou.
 
+### 3.2.1 ⚠️ `CO_EDITED` já foi medido, e ele é ESPARSO demais para carregar centralidade
+
+`medicoes-2026-08-07` §4.4 mediu as arestas deriváveis sem embedding no corpus real:
+
+| aresta | como | quantidade |
+|---|---|---|
+| **teste ↔ alvo** | convenção de nome (regex) | **627** (53% de 1 190 testes) |
+| **co-edição no git** | commits que tocam os dois | **44 pares** |
+
+**44 pares em 1 636 arquivos.** No melhor caso isso dá grau > 0 para 88 nós — **~5% do céu**. Os
+outros 95% teriam `centrality = null` não por o Neo4j estar fora, mas por não haver aresta.
+
+Isso muda a ordem: **`CO_EDITED` é o primeiro relacionamento por ser barato e objetivo, não por ser
+suficiente.** Ele serve para provar o caminho ponta a ponta — derivador, escrita, projeção, leitura,
+snapshot — com um volume que cabe na cabeça. Ele **não** entrega a dimensão.
+
+Quem tem densidade para isso é a aresta de **teste ↔ alvo**: 627 arestas, 14× mais, também sem LLM e
+sem Qdrant. Ela não estava no plano e deveria estar.
+
+⚠️ E a mesma §4.4 registra uma correção que vale repetir: *"o catálogo declarava as duas bloqueadas
+pela aresta semântica do Qdrant. **Não estão.**"* Duas arestas úteis foram consideradas impossíveis
+por dependerem de algo que elas não precisam.
+
+### 3.2.2 O que cada relação SIGNIFICA — a legenda que a seleção vai usar
+
+| relação | lê-se como |
+|---|---|
+| `REFERENCES` | dependência **documental** |
+| `IMPORTS` | dependência **estrutural** |
+| `CO_EDITED` | afinidade de **trabalho** |
+| `SIMILAR_TO` | afinidade **semântica** |
+| `TOUCHED` | **uso por agentes** |
+
+É por isso que os tipos são específicos em vez de um `RELATED_TO` genérico: cinco vínculos com o
+mesmo nome seriam cinco fatos diferentes desenhados com a mesma linha — a colisão dos três aros
+outra vez, agora nas arestas.
+
 ### 3.3 O que NÃO vira relação
 
 | tentação | por que não |
@@ -147,7 +207,31 @@ merece outro nome.
 
 ---
 
-## 5. Como o dado entra
+## 5. A regra visual: a teia só existe na seleção
+
+A rede só aparece quando alguém pergunta por ela — e o objeto selecionado vira o **centro temporário
+daquela topologia**.
+
+```
+fora da seleção          ●        ●        ●
+
+na seleção                        ●
+                                 /
+                        ● ───── ◎ ───── ●
+                                 \
+                                  ●
+```
+
+Isso não é preferência estética: é a única forma de a rede caber num céu de 1 636 corpos sem virar
+grafo-espaguete, e é o que o briefing já pedia ao separar contenção de relacionamento — *"posição
+comunica contenção; a linha aparece só na seleção"*.
+
+⚠️ E é aqui que a legenda do §3.2.2 paga: cinco vínculos desenhados com a mesma linha seriam cinco
+fatos com a mesma voz — a colisão dos três aros, de novo, agora nas arestas.
+
+---
+
+## 6. Como o dado entra
 
 Três escritores possíveis, do mais barato ao mais caro:
 
@@ -172,7 +256,7 @@ consulta devolve o nó do outro.
 
 ---
 
-## 6. O que medir antes de escrever código
+## 7. O que medir antes de escrever código
 
 1. **É a mesma instância do graphiti?** Decide isolamento e é bloqueante.
 2. **Quantas `CO_EDITED` o git produz** no corpus real, e com que janela — se forem dezenas de
@@ -186,21 +270,38 @@ consulta devolve o nó do outro.
 
 ---
 
-## 7. Ordem de integração
+## 8. Ordem de integração
 
-| passo | o que | destrava |
-|---|---|---|
-| **0** | `neo4j` no `/api/health` e no `units.json`, com os três estados do §1.1 | a tela para de mentir por omissão |
-| **1** | `CO_EDITED` a partir do git | `connectivity` com o fato mais barato |
-| **2** | `centrality` como **modulador de brilho**, degradando para `null` | a §11.1 do replanejamento |
-| **3** | `SIMILAR_TO` materializado do Qdrant | a rede de conhecimento do briefing (linha só na seleção) |
-| **4** | `TOUCHED` do diário | "usado por muitos agentes" vira fato |
-| **5** | `MENTIONS` por LLM | último, e só se os anteriores pagarem |
+**P0 — AUDITORIA DO GRAPHITI. Bloqueante, e nada é escrito antes dela.**
 
-O passo 0 pode ir hoje e não depende de nada: ele só torna verdadeiro o que o `metrics.py` já
-afirma.
+O workspace já roda graphiti sobre um Neo4j do `oracle`. Seis perguntas, e todas precisam de
+resposta antes do primeiro `CREATE`:
 
----
+1. é exatamente a mesma instância?
+2. mesmo `database`? (Community **não tem multi-database livre**)
+3. mesmo usuário?
+4. quais `labels` o graphiti usa?
+5. quais `constraints` e `indexes` já existem?
+6. qual convenção de isolamento já está em uso (`group_ids` por fonte)?
+
+Escrever `Entity` num banco onde outro grafo já mora, sem saber os rótulos dele, é o tipo de colisão
+que só aparece quando uma consulta devolve o nó do outro — e aí os dois grafos já estão misturados.
+
+| passo | o que | destrava | observação |
+|---|---|---|---|
+| **P1** | `neo4j` no `/api/health` e no `units.json`, com os quatro estados do §1.2 | a tela para de mentir por omissão | não depende de nada; torna verdadeiro o que o `metrics.py` já afirma |
+| **P2** | `Entity` + `CO_EDITED`, e **medir grau/distribuição** | prova o caminho ponta a ponta | ⚠️ 44 pares: prova o caminho, **não** entrega a dimensão (§3.2.1) |
+| **P2b** | **teste ↔ alvo por convenção de nome** | densidade real: **627 arestas** | não estava no plano original e deveria estar |
+| **P3** | `connectivity` → `centrality` → **influência → brilho** | a §11.1 do replanejamento | nunca `centrality → classe` |
+| **P4** | `SIMILAR_TO` materializado do Qdrant + a rede visível na seleção | a rede de conhecimento | com `score`, `k`, `window`, `as_of` |
+| **P5** | `Agent`, `Run`, `TOUCHED` | "quais objetos os agentes realmente usam" | influência por uso, não massa |
+| **P6** | `REFERENCES`, `IMPORTS` | dependência documental e estrutural | semanticamente mais fortes que "parecidos" |
+| **P7** | `MENTIONS`, `Concept` | inferência | só depois de o grafo provar valor **sem** LLM |
+
+⚠️ **Sobre a centralidade em P3:** não decidir de antemão que será PageRank. Primeiro medir
+distribuição de grau, componentes e concentração — com 80% dos nós em grau zero, PageRank não cria
+dimensão útil, só redistribui o nada. E a medida do §3.2.1 já avisa que esse é o cenário provável
+se `CO_EDITED` for a única aresta.
 
 ## Fontes
 
