@@ -35,7 +35,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-RAIZ = Path(os.environ.get("FIXTURE_ROOT") or "~/workspace/espatial-os").expanduser()
+RAIZ = Path(os.environ.get("FIXTURE_ROOT") or "~/workspace/espatial-fixtures").expanduser()
 QDRANT = "http://localhost:6333"
 COLECAO = "espatial_fixture"
 DIMENSAO = 384
