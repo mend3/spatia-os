@@ -1087,6 +1087,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
 
   function frame() {
     /*
+     * ⚠️ **A cena UNIVERSO atualiza AQUI, no topo do quadro e fora de todo bloco condicional.**
+     *
+     * Ela já morou em dois lugares errados, e os dois falharam em silêncio. Primeiro no `fanOut`
+     * (que é afinação, não quadro): o `elapsed` de lá não é o do quadro, as matrizes saíam com
+     * `NaN` e os corpos iam para lugar nenhum. Depois dentro do bloco `if (hubs.length)` da
+     * galáxia: ali o `update` simplesmente NUNCA rodava, e a prova foi um contador — `quadros = 0`
+     * com a cena montada e visível.
+     *
+     * Nenhum dos dois deu erro. `NaN` é posição e bloco não executado é ausência — os dois modos de
+     * falha favoritos deste projeto, no mesmo lugar.
+     */
+
+    /*
      * DOIS RELÓGIOS, e a divisão entre eles é a regra inteira do multiplicador global.
      *
      * `real` é o tempo da parede: RESPOSTA a gesto (suavização de órbita, zoom, âncora, decaimento
@@ -1104,6 +1117,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const delta = real * (tune.timeScale ?? 1);
     sceneTime += delta;
     const elapsed = sceneTime;
+    // A cena UNIVERSO, logo que o relógio dos objetos avança e ANTES de qualquer condicional.
+    if (modo === 'universo') universe.update(elapsed);
     const started = performance.now();
 
     // Deriva automática é movimento contínuo sem evento por trás — o primeiro a sair.
@@ -1626,15 +1641,6 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * `reduced` do catálogo é `freeze` para padrão: quem pediu menos movimento não perde
        * informação nenhuma aqui — a figura fica, só para de girar.
        */
-      /*
-       * ⚠️ O `update` da cena UNIVERSO vive AQUI, no laço de quadro, e não no `fanOut`.
-       *
-       * A primeira versão caiu no `fanOut` (que é afinação, não quadro) por eu ter ancorado no
-       * `blackHole.tune`. Lá o `elapsed` não é o do quadro: as matrizes saíam com `NaN`, os 1 636
-       * corpos iam para lugar nenhum, e a cena nova nascia VAZIA — sem uma linha no console, porque
-       * `NaN` não é erro, é posição.
-       */
-      if (modo === 'universo') universe.update(elapsed);
       galaxy.tune({ omega: motion.isReduced() ? 0 : rateOf(MOTION.patternSpin) });
       /*
        * ⚠️ A galáxia se REACENDE sozinha: o `update` dela repõe a visibilidade por instância, então

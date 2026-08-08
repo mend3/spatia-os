@@ -73,6 +73,26 @@ const ESCALA_CORPO = 4.5;
  */
 const RAIO_MINIMO = 0.7;
 
+/**
+ * BRILHO — e é aqui que a influência do §11.1 finalmente tem um leitor.
+ *
+ * A lei separa os eixos: **massa governa ESCALA, atividade governa ENERGIA, centralidade governa
+ * INFLUÊNCIA**. Escala já está no raio; este é o outro canal, e sem ele a `centrality` que o P3
+ * materializou seria mais uma invariante declarada sem ninguém que a consulte — o defeito que esta
+ * base já pagou cinco vezes.
+ *
+ * ⚠️ **`centrality` pode ser `null`, e aí o brilho cai para a atividade sozinha** — não para zero.
+ * Um corpo apagado porque o Neo4j não foi materializado seria o céu afirmando periferia sobre um
+ * fato que ninguém mediu. É a lei nº 1 da integração, do lado do pixel.
+ */
+function brilhoDe(node) {
+  const atividade = Math.min((node.churn || 0) / 12, 1);
+  const influencia = typeof node.centrality === 'number' ? node.centrality : null;
+  // Piso 0,55: nem o corpo mais periférico do céu desaparece. Ele fica DISCRETO, que é diferente.
+  const base = 0.55 + atividade * 0.35;
+  return influencia === null ? base : base + influencia * 0.9;
+}
+
 const hash01 = (texto, sal = 0) => {
   let v = 2166136261 ^ sal;
   for (let i = 0; i < texto.length; i++) { v ^= texto.charCodeAt(i); v = Math.imul(v, 16777619); }
@@ -111,10 +131,13 @@ export function createUniverse() {
    */
   const CORPO_VS = /* glsl */ `
     attribute vec3 aEstrela;
+    attribute float aBrilho;
     varying vec3 vNormal;
     varying vec3 vLuz;
     varying vec3 vCor;
+    varying float vBrilho;
     void main(){
+      vBrilho = aBrilho;
       // ⚠️ \`vInstanceColor\` só existe nos materiais NATIVOS do three — em ShaderMaterial o varying
       // tem de ser declarado e preenchido à mão. O atributo \`instanceColor\` em si o renderer
       // declara sozinho quando \`mesh.instanceColor\` existe.
@@ -130,11 +153,12 @@ export function createUniverse() {
     varying vec3 vNormal;
     varying vec3 vLuz;
     varying vec3 vCor;
+    varying float vBrilho;
     void main(){
       // Meia-lambert: o lado escuro nao vai a zero. Preto puro sobre fundo preto some, e some sem
       // avisar — o corpo deixa de existir em vez de ficar na sombra.
       float d = dot(normalize(vNormal), normalize(vLuz)) * 0.5 + 0.5;
-      gl_FragColor = vec4(vCor * (0.10 + 0.90 * d * d), 1.0);
+      gl_FragColor = vec4(vCor * (0.10 + 0.90 * d * d) * vBrilho, 1.0);
     }
   `;
   const ESTRELA_FS = /* glsl */ `
@@ -142,6 +166,7 @@ export function createUniverse() {
     varying vec3 vNormal;
     varying vec3 vLuz;
     varying vec3 vCor;
+    varying float vBrilho;
     void main(){
       // Estrela EMITE: sem terminador, e mais clara na BORDA — o limbo de um corpo emissivo nao
       // escurece, ao contrario do planeta. O ganho acima de 1 e o que da ao bloom o que amplificar.
@@ -149,7 +174,7 @@ export function createUniverse() {
       // dezenas caem no mesmo punhado de pixels e o brilho SOMA. Em 1,6 o miolo da teia virava uma
       // mancha branca e engolia os planetas — o bloom amplificava um estouro em vez de um astro.
       float borda = 1.0 - abs(normalize(vNormal).z);
-      gl_FragColor = vec4(vCor * (1.05 + borda * 0.45) * 1.15, 1.0);
+      gl_FragColor = vec4(vCor * (1.05 + borda * 0.45) * 1.15 * vBrilho, 1.0);
     }
   `;
   const matPlaneta = new THREE.ShaderMaterial({ vertexShader: CORPO_VS, fragmentShader: CORPO_FS });
@@ -161,6 +186,11 @@ export function createUniverse() {
   let centros = [];
   let rumo = new THREE.Vector3(1, 0.3, 0).normalize();
   let stats = { sistemas: 0, corpos: 0, colisoes: 0 };
+  /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
+     sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
+  const amostra = new THREE.Vector3();
+  let quadros = 0;
+  let ultimoElapsed = 0;
 
   const M4 = new THREE.Matrix4();
   const V3 = new THREE.Vector3();
@@ -205,7 +235,7 @@ export function createUniverse() {
 
   return {
     object: group,
-    stats: () => ({ ...stats }),
+    stats: () => ({ ...stats, quadros, elapsed: +ultimoElapsed.toFixed(2), amostra: [+amostra.x.toFixed(3), +amostra.y.toFixed(3), +amostra.z.toFixed(3)] }),
 
     /**
      * Monta a cena a partir do payload do grafo. Idempotente: recarregar refaz tudo.
@@ -265,12 +295,14 @@ export function createUniverse() {
 
       const corEstrela = [];
       const corPlaneta = [];
+      const brilhoE = [];
       centros = postos.map(({ pos, s }, i) => {
         const fisica = entityPhysics(s.estrela, { dominante: true, sistema: s.agg.id });
         classificar(fisica, s.estrela); // a classe é dele; aqui só o raio importa
         const raio = Math.max(raioPorMassa(s.estrela.chunks || 1) * ESCALA_CORPO, RAIO_MINIMO * 1.6);
         const cor = new THREE.Color(KIND_COLORS[s.estrela.kind] ?? 0xffd9a0);
         corEstrela.push(cor.r, cor.g, cor.b);
+        brilhoE.push(brilhoDe(s.estrela));
 
         // Inclinação própria por sistema: dois sistemas não compartilham plano orbital.
         const inc = (hash01(s.agg.id, 31) - 0.5) * 1.4;
@@ -283,7 +315,7 @@ export function createUniverse() {
           const c2 = new THREE.Color(KIND_COLORS[f.kind] ?? 0x8fb8ff);
           corPlaneta.push(c2.r, c2.g, c2.b);
           orbitas.push({ centro: i, a, e, rp, fase: hash01(f.id, 53) * Math.PI * 2, inc, giro,
-            n: 0.9 * Math.pow(a, -1.5) });
+            n: 0.9 * Math.pow(a, -1.5), brilho: brilhoDe(f) });
         });
         return { pos, raio, sistema: s.agg.id };
       });
@@ -295,14 +327,18 @@ export function createUniverse() {
        * iluminados por 228 fontes diferentes sem uma única luz de verdade na cena.
        */
       const luz = new Float32Array(Math.max(orbitas.length, 1) * 3);
+      const brilhoP = new Float32Array(Math.max(orbitas.length, 1));
       orbitas.forEach((o, i) => {
         const c = centros[o.centro].pos;
         luz[i * 3] = c.x; luz[i * 3 + 1] = c.y; luz[i * 3 + 2] = c.z;
+        brilhoP[i] = o.brilho;
       });
       planetas.geometry = geo.clone();
       planetas.geometry.setAttribute('aEstrela', new THREE.InstancedBufferAttribute(luz, 3));
+      planetas.geometry.setAttribute('aBrilho', new THREE.InstancedBufferAttribute(brilhoP, 1));
       estrelas.geometry = geo.clone();
       estrelas.geometry.setAttribute('aEstrela', new THREE.InstancedBufferAttribute(new Float32Array(Math.max(centros.length, 1) * 3), 3));
+      estrelas.geometry.setAttribute('aBrilho', new THREE.InstancedBufferAttribute(Float32Array.from(brilhoE), 1));
       estrelas.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(corEstrela), 3);
       planetas.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(corPlaneta), 3);
       estrelas.frustumCulled = false;
@@ -320,6 +356,8 @@ export function createUniverse() {
      * referencial parado, e mover cada sistema para um lado diferente afirmaria outra coisa.
      */
     update(elapsed) {
+      quadros++;
+      ultimoElapsed = elapsed;
       if (!estrelas || !planetas) return;
       const desloca = rumo.clone().multiplyScalar(elapsed * DERIVA);
       for (let i = 0; i < centros.length; i++) {
@@ -342,6 +380,7 @@ export function createUniverse() {
         V3.set(c.pos.x + xr, c.pos.y + zr * Math.sin(o.inc), c.pos.z + zr * Math.cos(o.inc)).add(desloca);
         M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp));
         planetas.setMatrixAt(k, M4);
+        if (k === 0) amostra.copy(V3);
       }
       estrelas.instanceMatrix.needsUpdate = true;
       planetas.instanceMatrix.needsUpdate = true;
