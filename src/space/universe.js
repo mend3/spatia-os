@@ -36,8 +36,15 @@ import { KIND_COLORS } from './graph.js';
  * troca só a escala absoluta, que ninguém lê.
  */
 const RAIO_UNIVERSO = 52;
-/** Nós da teia cósmica. Poucos e grandes: >70% do volume tem de sobrar vazio. */
-const NOS = 9;
+/**
+ * Nós da teia cósmica.
+ *
+ * ⚠️ Subiu de 9 para 16 depois de VER: com 9, cada nó recebia ~25 sistemas e o miolo virava uma
+ * massa única em que nenhum corpo se distinguia. Mais nós é menos aperto por nó, mantendo os
+ * vazios — que é o que a estrutura em grande escala afirma. Menos que isso vira nuvem; muito mais
+ * vira uniforme, e uniforme é a distribuição que esta cena existe para negar.
+ */
+const NOS = 16;
 /** Tentativas de reposicionamento antes de desistir. 30 zerou as colisões na bancada. */
 const TENTATIVAS = 30;
 /** Excentricidade base — faixa PLANETÁRIA. De cima lê como círculo; a elipse lateral é inclinação. */
@@ -57,6 +64,14 @@ const DERIVA = 0.35;
  * esfera deixa de ser um ponto.
  */
 const ESCALA_CORPO = 4.5;
+/**
+ * Piso de raio, em unidades de mundo. **Nada pode ser sub-pixel.**
+ *
+ * A 150 unidades, 1 unidade dá ~2,95 px — um asteroide de 1 chunk sai com 0,33 e desaparece. Corpo
+ * que some não é economia de LOD: é o céu afirmando que aquele arquivo não existe. O piso os mantém
+ * como PONTO, que é o que eles são nesta escala, em vez de nada.
+ */
+const RAIO_MINIMO = 0.7;
 
 const hash01 = (texto, sal = 0) => {
   let v = 2166136261 ^ sal;
@@ -82,12 +97,63 @@ export function createUniverse() {
   const geo = new THREE.SphereGeometry(1, 12, 8);
   /*
    * ⚠️ **Sem `vertexColors`.** Ele faz o shader procurar um atributo `color` na GEOMETRIA, que não
-   * existe aqui — e o resultado é preto, não erro. Quem colore instância é o `instanceColor`, e o
-   * three liga o define sozinho quando ele existe. A primeira versão trocou os dois e a cena
-   * inteira nasceu invisível, sem uma linha no console.
+   * existe aqui — e o resultado é preto, não erro. Quem colore instância é o `instanceColor`.
+   *
+   * ## Por que shader próprio, e não `MeshBasicMaterial`
+   *
+   * `MeshBasicMaterial` é cor CHAPADA: a esfera vira um disco, e um disco não lê como corpo — lê
+   * como adesivo. A diferença entre os dois é o TERMINADOR, e ele não é enfeite: é a única coisa
+   * que diz que aquilo tem volume.
+   *
+   * E a luz não pode ser global. Cada planeta é iluminado pela ESTRELA DELE, que é o fato inteiro
+   * desta cena — luz global afirmaria de novo um centro único, que é justamente o que ela nega.
+   * A posição da estrela viaja como atributo de instância; 228 luzes reais custariam o quadro.
    */
-  const matEstrela = new THREE.MeshBasicMaterial({ toneMapped: false });
-  const matPlaneta = new THREE.MeshBasicMaterial({ toneMapped: false });
+  const CORPO_VS = /* glsl */ `
+    attribute vec3 aEstrela;
+    varying vec3 vNormal;
+    varying vec3 vLuz;
+    varying vec3 vCor;
+    void main(){
+      // ⚠️ \`vInstanceColor\` só existe nos materiais NATIVOS do three — em ShaderMaterial o varying
+      // tem de ser declarado e preenchido à mão. O atributo \`instanceColor\` em si o renderer
+      // declara sozinho quando \`mesh.instanceColor\` existe.
+      vCor = instanceColor;
+      vNormal = normalize(mat3(instanceMatrix) * normal);
+      vec4 mundo = instanceMatrix * vec4(position, 1.0);
+      vLuz = normalize(aEstrela - mundo.xyz);
+      gl_Position = projectionMatrix * modelViewMatrix * mundo;
+    }
+  `;
+  const CORPO_FS = /* glsl */ `
+    precision highp float;
+    varying vec3 vNormal;
+    varying vec3 vLuz;
+    varying vec3 vCor;
+    void main(){
+      // Meia-lambert: o lado escuro nao vai a zero. Preto puro sobre fundo preto some, e some sem
+      // avisar — o corpo deixa de existir em vez de ficar na sombra.
+      float d = dot(normalize(vNormal), normalize(vLuz)) * 0.5 + 0.5;
+      gl_FragColor = vec4(vCor * (0.10 + 0.90 * d * d), 1.0);
+    }
+  `;
+  const ESTRELA_FS = /* glsl */ `
+    precision highp float;
+    varying vec3 vNormal;
+    varying vec3 vLuz;
+    varying vec3 vCor;
+    void main(){
+      // Estrela EMITE: sem terminador, e mais clara na BORDA — o limbo de um corpo emissivo nao
+      // escurece, ao contrario do planeta. O ganho acima de 1 e o que da ao bloom o que amplificar.
+      // ⚠️ O ganho ficou em 1,15 e nao em 1,6, e o motivo e medido: com 228 estrelas em 9 grumos,
+      // dezenas caem no mesmo punhado de pixels e o brilho SOMA. Em 1,6 o miolo da teia virava uma
+      // mancha branca e engolia os planetas — o bloom amplificava um estouro em vez de um astro.
+      float borda = 1.0 - abs(normalize(vNormal).z);
+      gl_FragColor = vec4(vCor * (1.05 + borda * 0.45) * 1.15, 1.0);
+    }
+  `;
+  const matPlaneta = new THREE.ShaderMaterial({ vertexShader: CORPO_VS, fragmentShader: CORPO_FS });
+  const matEstrela = new THREE.ShaderMaterial({ vertexShader: CORPO_VS, fragmentShader: ESTRELA_FS });
   let estrelas = null;
   let planetas = null;
   /** Estado por planeta: a que sistema pertence, semi-eixo, excentricidade, fase. */
@@ -202,7 +268,7 @@ export function createUniverse() {
       centros = postos.map(({ pos, s }, i) => {
         const fisica = entityPhysics(s.estrela, { dominante: true, sistema: s.agg.id });
         classificar(fisica, s.estrela); // a classe é dele; aqui só o raio importa
-        const raio = raioPorMassa(s.estrela.chunks || 1) * ESCALA_CORPO;
+        const raio = Math.max(raioPorMassa(s.estrela.chunks || 1) * ESCALA_CORPO, RAIO_MINIMO * 1.6);
         const cor = new THREE.Color(KIND_COLORS[s.estrela.kind] ?? 0xffd9a0);
         corEstrela.push(cor.r, cor.g, cor.b);
 
@@ -211,7 +277,7 @@ export function createUniverse() {
         const giro = hash01(s.agg.id, 37) * Math.PI * 2;
 
         s.planetas.forEach((f, j) => {
-          const rp = Math.min(raioPorMassa(f.chunks || 1) * ESCALA_CORPO, raio * 0.85);
+          const rp = Math.min(Math.max(raioPorMassa(f.chunks || 1) * ESCALA_CORPO, RAIO_MINIMO), raio * 0.85);
           const a = raio * 2.44 * Math.pow(1.38, j + 1);
           const e = Math.min(0.4, EXCENTRICIDADE * (0.6 + ((j * 7) % 5) * 0.2));
           const c2 = new THREE.Color(KIND_COLORS[f.kind] ?? 0x8fb8ff);
@@ -224,6 +290,19 @@ export function createUniverse() {
 
       estrelas = new THREE.InstancedMesh(geo, matEstrela, Math.max(centros.length, 1));
       planetas = new THREE.InstancedMesh(geo, matPlaneta, Math.max(orbitas.length, 1));
+      /*
+       * A posição da estrela de cada planeta, como atributo. É o que permite 1 408 corpos serem
+       * iluminados por 228 fontes diferentes sem uma única luz de verdade na cena.
+       */
+      const luz = new Float32Array(Math.max(orbitas.length, 1) * 3);
+      orbitas.forEach((o, i) => {
+        const c = centros[o.centro].pos;
+        luz[i * 3] = c.x; luz[i * 3 + 1] = c.y; luz[i * 3 + 2] = c.z;
+      });
+      planetas.geometry = geo.clone();
+      planetas.geometry.setAttribute('aEstrela', new THREE.InstancedBufferAttribute(luz, 3));
+      estrelas.geometry = geo.clone();
+      estrelas.geometry.setAttribute('aEstrela', new THREE.InstancedBufferAttribute(new Float32Array(Math.max(centros.length, 1) * 3), 3));
       estrelas.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(corEstrela), 3);
       planetas.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(corPlaneta), 3);
       estrelas.frustumCulled = false;
