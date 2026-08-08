@@ -640,3 +640,46 @@ quatro fatos ausentes do §11 resolvidos ou adiados por escrito.
 ⚠️ O §7 (ordem de construção) fica **subordinado a isto**. O passo 0 (raio do anel de Júpiter) e o
 passo 1 (a anã branca perde o aro) sobrevivem porque são correções de valor contra fonte, não
 morfologias novas. Os passos 3 a 5 esperam a Fase A.
+
+---
+
+## 15. O que a bancada já validou — 2026-08-07/08
+
+A cena começou pelos espécimes, e não pelo céu, porque a regra do cabeçalho proíbe morfologia nova
+antes da classificação. **Nenhuma linha de `src/space/` foi tocada.** O que existe são dois
+espécimes e quatro leis derivadas com medida.
+
+### `SISTEMA LOCAL` — um sistema
+
+| lei | como ficou | medida |
+|---|---|---|
+| **massa → raio** | **duas curvas**: planeta `R ∝ M^(1/3)`, estrela `R ∝ M^0.8`, encontrando-se no limiar | razão estrela/maior planeta **1,36 → 3,62**; faixa do corpus 3,6× → **23×** |
+| **órbita** | elipse com a estrela no **foco**, equação de Kepler por Newton | área varrida em tempos iguais **máx/mín = 1,0008**; v periélio/afélio converge para o `(1+e)/(1−e)` teórico |
+| **excentricidade** | **planetária** por default (0,018–0,042) | de cima lê como círculo (achatamento 0,01–0,08%); a elipse lateral é a inclinação |
+| **movimento** | o sistema **viaja**, e a composição orbita+translação é uma **hélice** | rastro amostrado em coordenadas de mundo |
+
+⚠️ **O achado que mudou o replanejamento:** a inversão nº 1 tem DUAS metades. Corrigir quem é
+estrela sem corrigir a lei de raio troca a inversão por um empate — a lei `log2` comprimia o corpus
+inteiro em 3,6×, e nenhuma escada de massa sobrevive a isso.
+
+### `UNIVERSO` — 221 deles
+
+| pergunta | resposta |
+|---|---|
+| 221 sistemas cabem? | **sim, com rejeição**: 30 tentativas → **0 colisões**, vizinho 12,02 (= 2× o raio, o limite de empacotamento) |
+| distribuição em teia funciona? | sim, mas **só com rejeição** — reservar volume não basta, é o problema do aniversário |
+| e a uniforme de hoje? | também converge, e é justamente esse o problema: ela não produz nós nem vazios |
+
+⚠️ Duas tentativas fracassadas ficaram registradas no código (vizinho 0,0 com queda cúbica; 132
+colisões estagnadas com volume reservado), porque a terceira só se entende contra elas.
+
+### O que a bancada NÃO valida, e continua bloqueado
+
+- **quem é estrela** — depende da escada de massa (§3), que depende da Fase A;
+- **de onde vem a excentricidade** — o candidato é atividade (cometa é o corpo excêntrico da
+  natureza), mas isso é classificação, não layout;
+- **os 336 órfãos** — arquivo sem pasta continua sem lugar;
+- **`MASSA_FUSAO = 20`** — âncora entre P75 e P90, marcada como expirável no código.
+
+**A ordem do §7 permanece.** O que a bancada fez foi derivar as leis de LAYOUT, que não são
+morfologia e por isso não esbarravam na regra. A cena no céu espera a Fase A.
