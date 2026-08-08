@@ -70,10 +70,14 @@ function carregarMapaSolar(aoChegar) {
        * contraste errado — o tipo de erro que parece "escolha de valor" e é conversão faltando.
        */
       t.colorSpace = THREE.SRGBColorSpace;
-      // A projeção equirretangular dá a volta em `u`; sem `RepeatWrapping` a costura vira uma
-      // faixa esticada no meridiano de trás.
-      t.wrapS = THREE.RepeatWrapping;
-      t.wrapT = THREE.ClampToEdgeWrapping;
+      /*
+       * ESPELHADA nos dois eixos. A projeção equirretangular dá a volta em `u`, e desde que a
+       * escala passou a seguir a temperatura o `v` também sai de [0,1] — com `ClampToEdge` a
+       * última linha da imagem viraria uma faixa esticada sobre o polo. Espelhar fecha a costura
+       * sem repetir o mesmo pedaço reconhecível lado a lado.
+       */
+      t.wrapS = THREE.MirroredRepeatWrapping;
+      t.wrapT = THREE.MirroredRepeatWrapping;
       t.anisotropy = 4;
       MAPA_SOLAR.pronta = true;
       aoChegar?.();
@@ -274,11 +278,23 @@ const FRAGMENT = /* glsl */ `
       vec3 d = normalize(corpo);
       d = vec3(d.x, d.y * cl - d.z * sl, d.y * sl + d.z * cl);
       vec2 uv = vec2(atan(d.z, d.x) / 6.2831853 + 0.5 + uSeed, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+      /*
+       * ⚠️ A ESCALA da foto segue a temperatura, e sem isso ela CANCELA a fisica.
+       *
+       * uCells ja diz quantos granulos cabem na volta — estrela fria tem granulo GRANDE. Amostrada
+       * em escala fixa, a foto impunha o mesmo tamanho de grao a todas as estrelas e apagava
+       * exatamente o eixo que separa uma da outra. Aqui ela e esticada ou repetida na razao entre o
+       * uCells do corpo e o do Sol, que e a referencia de onde a imagem veio.
+       */
+      uv *= uCells / ${glslFloat(CELLS)};
       vec3 amostra = texture2D(uMapa, uv).rgb;
       float lum = dot(amostra, vec3(0.2126, 0.7152, 0.0722));
       // Centrada: o que interessa e o DESVIO em relacao ao brilho medio da foto, que e o grao.
       // Somar a luminancia crua deslocaria a exposicao inteira e apagaria o escurecimento de limbo.
-      cells += (lum - 0.5) * 2.0 * uMapaForca;
+      // A forca tambem varia por corpo: com uma foto so para todo o ceu, um peso unico faz de
+      // todas as estrelas a mesma mistura. O desvio e do proprio hash do corpo.
+      float peso = uMapaForca * (0.55 + fract(uSeed * 13.7) * 0.9);
+      cells += (lum - 0.5) * 2.0 * peso;
       /*
        * O MATIZ da foto, separado do brilho dela.
        *
@@ -458,11 +474,46 @@ export function photosphereParams(node, hash01, kindColor) {
    * frio para o laranja (0,07). O tipo continua governando o traço de cor; a temperatura governa
    * de que lado do branco ele cai — que é o que separa um corpo do outro à primeira vista.
    */
-  const matizQuente = THREE.MathUtils.lerp(hsl.h, 0.58, temp * 0.55);
+  /*
+   * ⚠️ **A MATIZ BASE passou a ser a TEMPERATURA; o `kind` virou desvio.** Ela era o contrário — a
+   * matiz do tipo, empurrada um pouco para o azul conforme a temperatura — e nesta ontologia isso
+   * empata o céu: **13 das 17 estrelas são `kind: other`**, então 76% delas partiam da mesma matiz
+   * cinza-azulada e chegavam à mesma cor.
+   *
+   * Agora a temperatura varre a sequência real, de laranja (0,075) a branco-azulado (0,58), e o
+   * tipo entra como 30% de desvio — o suficiente para um `doc` e um `config` de mesma massa não
+   * serem gêmeos, sem devolver o empate. A regra do §4 do replanejamento continua valendo: o
+   * `kind` perdeu o CORPO e mantém a COR — ele só deixou de ser a única voz nela.
+   *
+   * E a SATURAÇÃO agora cai com a temperatura em vez de subir: estrela fria é laranja saturada,
+   * estrela quente é quase branca. Era o oposto, e por isso as frias saíam brancas como as
+   * quentes.
+   */
+  /*
+   * ⚠️ **O caminho entre laranja e azul passa pelo BRANCO, não pelo verde** — e interpolar a matiz
+   * direto foi um erro meu que a medida pegou: em `temp` 0,5 a matiz caía em 0,33, e o céu ganhava
+   * estrelas VERDES. Não existe estrela verde: o locus de Planck atravessa o branco, e é a
+   * SATURAÇÃO que vai a zero no meio, não a matiz que passeia pelo espectro.
+   *
+   * Então a matiz tem dois ancoradouros — laranja no frio, azul no quente — e quem varia
+   * continuamente é a saturação, que morre no tipo solar. É a mesma leitura de um diagrama H-R:
+   * K/M laranja saturada · G branca · B azul-clara.
+   */
+  const quente = temp >= 0.5;
+  const matizBase = quente ? 0.58 : 0.075;
+  /*
+   * O `kind` entra como DESVIO pequeno e limitado, nunca como matiz base: a diferença de matiz é
+   * medida pelo caminho curto no círculo e presa a ±0,06 (~22°). Sem a trava, um tipo azul puxando
+   * uma estrela fria devolveria o verde pela porta dos fundos.
+   */
+  const curto = ((hsl.h - matizBase + 1.5) % 1) - 0.5;
+  const desvio = THREE.MathUtils.clamp(curto * 0.35, -0.06, 0.06);
+  // A distância ao tipo solar é o que satura: 0 no meio (branca), 1 nos extremos.
+  const extremo = Math.abs(temp - 0.5) * 2;
   const hot = new THREE.Color().setHSL(
-    matizQuente,
-    Math.min(hsl.s, 0.34) * (0.6 + temp * 0.7),
-    THREE.MathUtils.lerp(0.88, 0.97, temp)
+    (matizBase + desvio + 1) % 1,
+    extremo * (quente ? 0.3 : 0.62) * (0.7 + Math.min(hsl.s, 0.5) * 0.6),
+    THREE.MathUtils.lerp(0.74, 0.97, temp)
   );
   const cool = new THREE.Color().setHSL(
     THREE.MathUtils.lerp(0.045, 0.11, temp),
@@ -587,9 +638,13 @@ export function createPhotosphere() {
         /*
          * Quanto do MATIZ da foto atravessa. Ela é uma imagem do SOL — uma anã G — e o céu tem
          * estrelas de outras temperaturas; deixar a cor dela dominar pintaria todas de laranja.
-         * 0,45 traz o calor das regiões ativas sem apagar o eixo que a massa governa.
+         * ⚠️ **Ele é um EQUALIZADOR, e por isso desceu de 0,45 para 0,22.** A foto é a mesma para
+         * todo o céu, então o matiz dela é a única coisa que TODAS as estrelas compartilham — em
+         * 0,45 ele pintava as dezessete do mesmo salmão e cobria a temperatura, que é justamente o
+         * eixo que as separa. Em 0,22 as regiões ativas continuam aquecendo o disco sem impor a
+         * cor de uma anã G a uma estrela azul.
          */
-        uCroma: { value: 0.45 },
+        uCroma: { value: 0.22 },
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
