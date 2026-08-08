@@ -25,6 +25,7 @@ uma consulta só.
 from __future__ import annotations
 
 import base64
+import json
 from typing import Optional
 
 from . import config, net
@@ -118,3 +119,31 @@ def describe() -> dict:
         # A tela precisa saber que este banco é compartilhado, senão "9 nós" parece nosso.
         "compartilhado": {"grupo": GRUPO, "rotulos": list(ROTULOS.values()), "alheios": list(ALHEIOS)},
     }
+
+
+#: Onde `scripts/centralidade.mjs` deixa o snapshot. Ler arquivo, e não o banco, é a lei nº 2.
+SNAPSHOT = config.ROOT / ".cache" / "influencia.json"
+
+
+def annotate_influence(nodes: list[dict]) -> Optional[dict]:
+    """Anexa `centrality` (0…1) a cada nó, do snapshot materializado.
+
+    Devolve os metadados do snapshot, ou `None` se ele não existe — e nesse caso **nenhum nó ganha
+    o campo**. Ausência do campo é "não medi"; `0` seria "medi e é periférico", e escrever zero em
+    1 636 corpos porque um arquivo não existe é exatamente a mentira que a lei nº 1 proíbe.
+
+    ⚠️ O snapshot é fotografia: ele envelhece com a reindexação e com o corpus. `as_of` viaja junto
+    para quem lê poder decidir se ainda vale — sem a data, um número velho é indistinguível de um
+    número novo.
+    """
+    try:
+        dados = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    tabela = dados.get("influencia") or {}
+    for node in nodes:
+        valor = tabela.get(node.get("source"))
+        if isinstance(valor, (int, float)):
+            node["centrality"] = valor
+    return {k: v for k, v in dados.items() if k != "influencia"}

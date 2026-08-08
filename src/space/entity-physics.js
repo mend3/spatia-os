@@ -53,7 +53,7 @@ const MASSA_REMANESCENTE = 13;
  */
 export const AUSENTES = Object.freeze({
   density: 'bytes por chunk — o indexador não emite. Conserta-se no indexador, não no grafo',
-  centrality: 'Neo4j (grau/PageRank sobre arestas laterais). Ver docs/integracao-neo4j.md',
+  centrality: 'RESOLVIDA — snapshot de scripts/centralidade.mjs. `null` quando não materializada',
   connectivity: 'Neo4j (arestas laterais). Hoje o grafo é 100% contenção',
   importance: 'RECUSADA como dimensão: é juízo, não fato. Derivá-la reconstrói o score composto',
 });
@@ -104,8 +104,15 @@ export function entityPhysics(node, contexto = {}) {
 
     /** Sem fato hoje. Ver `AUSENTES`. NUNCA zero. */
     density: null,
-    centrality: null,
     connectivity: null,
+    /**
+     * INFLUÊNCIA, do snapshot materializado — governa BRILHO, jamais escala ou classe.
+     *
+     * ⚠️ `null` quando o snapshot não existe, e isso é diferente de `0`. Um corpo sem o campo é um
+     * corpo que ninguém mediu; um corpo com `0` é o mais periférico do céu. Confundi-los faria uma
+     * materialização atrasada declarar periferia sobre 1 636 corpos.
+     */
+    centrality: typeof node.centrality === 'number' ? node.centrality : null,
 
     /** Contexto: este arquivo é o corpo mais massivo do sistema dele? */
     dominante: contexto.dominante === true,

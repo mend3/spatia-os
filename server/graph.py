@@ -14,7 +14,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, metrics, qdrant, recency, services
+from . import config, metrics, qdrant, recency, services, graphdb
 
 logger = logging.getLogger("espatial.graph")
 
@@ -29,7 +29,7 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # 7: `services` (as partes nomeadas de um compose) chega no nó de compose — 164 deles em 44
 #    arquivos, medido em 2026-08-07. Mesmo motivo do bump 5: campo novo não muda o fingerprint
 #    do corpus, e sem ele a nebulosa continuaria sem luas em qualquer clone com cache.
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -120,6 +120,10 @@ def build() -> dict:
     # Lê disco, então vem depois da recência (que também lê) e antes da hierarquia, que só
     # agrega. Arquivo ilegível sai sem o campo — a nebulosa fica como era.
     services.annotate(nodes)
+    # INFLUÊNCIA, do snapshot que `scripts/centralidade.mjs` materializa. Ler daqui e não do Neo4j
+    # é a lei nº 2 de `docs/integracao-neo4j.md`: o grafo nunca está no caminho do quadro, e cair
+    # entre duas materializações não muda nada na tela até a próxima.
+    graphdb.annotate_influence(nodes)
     hubs, edges = _hierarchy(nodes)
     payload = {
         "nodes": hubs + nodes,
