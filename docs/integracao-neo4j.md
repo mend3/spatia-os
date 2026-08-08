@@ -308,18 +308,22 @@ ninguém saberia de quem era o número.
 | passo | o que | destrava | observação |
 |---|---|---|---|
 | **P1** ✅ | `neo4j` no `/api/health` (`server/graphdb.py`) | a tela para de mentir por omissão | medido: sem credencial → `configured:false` e `corpos:null`; com credencial → `online:true` e `corpos:0`. **`null` ≠ `0`** funcionando |
-| **P2** | `Entity` + `CO_EDITED`, e **medir grau/distribuição** | prova o caminho ponta a ponta | ⚠️ 44 pares: prova o caminho, **não** entrega a dimensão (§3.2.1) |
-| **P2b** | **teste ↔ alvo por convenção de nome** | densidade real: **627 arestas** | não estava no plano original e deveria estar |
+| **P2** ✅ | `Astro` + `CO_EDITED` (`scripts/vinculos.mjs`) | provou o caminho ponta a ponta | **556 pares · 118 nós · 7,2% do céu.** Grau MED 9 · P90 17 · máx 48 |
+| **P2b** ❌ | teste ↔ alvo por convenção de nome | **CAI** | as 627 arestas foram medidas no DISCO; exigindo os dois lados indexados sobram **4** |
 | **P3** | `connectivity` → `centrality` → **influência → brilho** | a §11.1 do replanejamento | nunca `centrality → classe` |
 | **P4** | `SIMILAR_TO` materializado do Qdrant + a rede visível na seleção | a rede de conhecimento | com `score`, `k`, `window`, `as_of` |
 | **P5** | `Agent`, `Run`, `TOUCHED` | "quais objetos os agentes realmente usam" | influência por uso, não massa |
 | **P6** | `REFERENCES`, `IMPORTS` | dependência documental e estrutural | semanticamente mais fortes que "parecidos" |
 | **P7** | `MENTIONS`, `Concept` | inferência | só depois de o grafo provar valor **sem** LLM |
 
-⚠️ **Sobre a centralidade em P3:** não decidir de antemão que será PageRank. Primeiro medir
-distribuição de grau, componentes e concentração — com 80% dos nós em grau zero, PageRank não cria
-dimensão útil, só redistribui o nada. E a medida do §3.2.1 já avisa que esse é o cenário provável
-se `CO_EDITED` for a única aresta.
+⚠️ **A ORDEM MUDOU, e a medida obrigou.** P3 (centralidade) **não pode vir antes de P4**
+(`SIMILAR_TO`): com `CO_EDITED` como única aresta, **92,8% do céu fica com `centrality = null` por
+falta de aresta** — não por o Neo4j estar fora. PageRank sobre isso não cria dimensão útil, só
+redistribui o nada sobre 7,2% dos corpos.
+
+A ordem executável passa a ser **P4 → P3**: materializar a vizinhança semântica do Qdrant primeiro,
+porque ela é a única aresta que alcança todo o corpus (todo nó tem vizinho semântico; nem todo nó
+tem co-editor).
 
 ## Fontes
 
