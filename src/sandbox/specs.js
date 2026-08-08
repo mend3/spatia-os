@@ -33,6 +33,7 @@ import { PULSAR_SPEC } from './pulsar-rig.js';
 import { CROWN_SPEC } from './crown-rig.js';
 import { COMET_SPEC, NEBULA_SPEC, STATION_SPEC } from './skin-rigs.js';
 import { REMNANT_SPEC, LINKS_SPEC } from './field-rigs.js';
+import { SYSTEM_SPEC } from './system-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -577,6 +578,14 @@ export const SPECS = [
    */
   REMNANT_SPEC,
   LINKS_SPEC,
+
+  /*
+   * O primeiro espécime da cena UNIVERSO, e ele vem ANTES de qualquer corpo novo de propósito: a
+   * spec de transição proíbe morfologia nova enquanto a classificação não estiver correta, e o que
+   * falta provar primeiro é gravidade LOCAL — estrela segurando os planetas dela, sem centro
+   * global. Ver `docs/replanejamento-celeste.md` e o cabeçalho de `system-rig.js`.
+   */
+  SYSTEM_SPEC,
 
   ...RING_VARIANTS,
   /*
