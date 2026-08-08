@@ -97,6 +97,69 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 | Depth of field | não existe. Exigiria depth buffer e passe próprio; o desfoque de borda dá a sensação de lente |
 | Onda no fallback de voz | quando o TTS do servidor está fora, a fala cai no `speechSynthesis` do browser, que não expõe o buffer — aí a onda volta a ser envelope estimado, e a HUD diz qual motor está em uso |
 
+## Como ler o céu
+
+Nada aqui é decoração. **Cada feição visual é um fato do corpus**, e a regra que governa a leitura
+é uma só: a **forma** diz o que o arquivo É, o que está **em volta** dele diz o que está
+ACONTECENDO com ele.
+
+As fotos abaixo saíram da bancada (`/sandbox.html`), que desenha um objeto por vez, com o tempo
+parado e sem pós-processamento — é lá que dá para conferir cada um isolado.
+
+### Os corpos — o que o arquivo É
+
+A forma vem do **tipo do arquivo**, e o tamanho vem da **massa** (número de chunks).
+
+| | corpo | você está vendo | o fato |
+|---|---|---|---|
+| <img src="docs/screenshots/fotosfera.jpg" width="150"> | **fotosfera** | granulação fervendo, manchas escuras, borda escurecida | arquivo de texto denso — a pele padrão de um nó com massa |
+| <img src="docs/screenshots/planeta.jpg" width="150"> | **planeta** | crosta com relevo, oceano, nuvem e atmosfera no limbo | documento com seções — o relevo é a variação interna dele |
+| <img src="docs/screenshots/estacao.jpg" width="150"> | **estação** | módulos enfileirados e painéis solares | arquivo de configuração — **cada módulo é um serviço declarado**, cada painel uma seção |
+| <img src="docs/screenshots/cometa.jpg" width="150"> | **cometa** | núcleo escuro, coma brilhante e cauda longa | arquivo em atividade — o tamanho da coma e da cauda é a intensidade das reescritas recentes |
+| <img src="docs/screenshots/nebulosa.jpg" width="150"> | **nebulosa** | nuvem filamentar, **sem corpo central** | arquivo grande e difuso, sem estrutura interna que segure uma superfície |
+| <img src="docs/screenshots/pulsar.jpg" width="150"> | **pulsar** | feixe estreito girando, período regular | arquivo com ritmo de edição **regular** — hoje **0 corpos** no corpus real; só aparece na bancada ou no fixture |
+
+Falta desta lista, e é dívida assumida: **galáxia** (agregado — pasta ou repo, com braços quando há
+grupo a afirmar), **buraco negro** (o núcleo cognitivo, no centro), **casca de supernova** e
+**sistema de luas**. Os quatro existem na bancada; não estão fotografados aqui.
+
+### O que está em volta — o que está ACONTECENDO
+
+Estes se somam ao corpo, e vários podem ser verdade ao mesmo tempo.
+
+**Anel = estado do git.** É o único sinal *perecível* do céu: aparece com o trabalho aberto e some
+no commit. As três famílias não são estilo, são três estados diferentes:
+
+| | anel | estado | como distinguir |
+|---|---|---|---|
+| <img src="docs/screenshots/anel-saturno.jpg" width="150"> | **saturno** | `modificado` | dourado, cerrado, com divisão e a sombra do corpo atravessando |
+| <img src="docs/screenshots/anel-urano.jpg" width="150"> | **urano** | `preparado` (staged) | anéis finos e brilhantes, muito mais apertados |
+| <img src="docs/screenshots/anel-jupiter.jpg" width="150"> | **júpiter** | `não rastreado` | largo e difuso, espalhado bem para fora do corpo |
+
+Corpo que não aceita anel (cometa, nebulosa) recebe um **disco de detritos** pelo mesmo fato — e a
+recusa é nomeada, não silenciosa: *"cauda e anel juntos não descrevem nada"*.
+
+| em volta | significa | o fato exato |
+|---|---|---|
+| **envoltório filamentar**, grande e irregular | supernova: *está sendo martelado agora* | ≥ 5 toques na janela recente |
+| **borda fina azul-branca**, colada na silhueta | anã branca: *pesado e parado há muito* | ≥ 13 chunks · sem toque na janela · não dormente · no quarto mais antigo do céu |
+| **luas em órbita** | as seções do arquivo, quando a massa as segura | janela Roche→Hill; as que não cabem são reportadas, não somem |
+| **coroa acesa** que pulsa e passa | este nó foi **recuperado pela sua pergunta** | evento da busca — some quando ela termina |
+
+⚠️ **A anã branca não julga.** Massa parada tanto pode ser a peça madura que ninguém precisa tocar
+quanto o débito que ninguém quer tocar. Ela diz o fato; quem conhece o arquivo tira a conclusão.
+
+### ⚠️ Uma colisão conhecida, e ela é nossa
+
+**Três feições diferentes leem como "um aro em volta do corpo"**: o anel do git, a borda da anã
+branca e a coroa da busca. Elas dizem coisas sem nenhuma relação — *trabalho aberto*, *massa
+parada*, *foi recuperado agora* — e à distância de céu um usuário não as distingue com segurança.
+
+Isso viola o princípio de que a física comunica significado, e está registrado aqui em vez de
+escondido: quem for mexer na borda da anã branca (`src/space/graph.js`, `vDwarf`) está mexendo no
+lado errado da colisão se só ajustar o brilho. O conserto é dar a ela um vocabulário próprio —
+espessura, continuidade ou posição — que não seja "aro".
+
 ## Comandos
 
 | | |
