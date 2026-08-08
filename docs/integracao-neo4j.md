@@ -275,10 +275,42 @@ sobe sozinho conforme o diário cresce. **A mesma escala serve para 11 e para 10
 
 | dimensão | veredito | como |
 |---|---|---|
-| **`connectivity`** | **Neo4j** | grau ponderado das laterais. Degrada para `null` |
+| **`connectivity`** | **Neo4j** | ~~grau ponderado das laterais~~ → **ALCANCE**. Ver §4.1: o grau foi REFUTADO por medida. Degrada para `null` |
 | **`centrality`** | **Neo4j** | PageRank ou grau sobre as laterais + `TOUCHED`. Degrada para `null` |
 | **`density`** | **NÃO é do Neo4j** | é bytes por chunk — fato de corpus que o **indexador não emite**. Conserta-se no indexador, não no grafo |
 | **`importance`** | **cortar ou redefinir** | ver abaixo |
+
+### 4.1 ⚠️ `connectivity` NÃO é o grau — e quem decidiu foi a medida, em 2026-08-08
+
+Esta spec definia `connectivity` como *"grau ponderado das laterais"* e `centrality` como *"PageRank
+ou grau sobre as laterais"*: **o mesmo substrato, duas vezes.** E como o `SIMILAR_TO` tem `k` fixo,
+todo corpo nasce com 8 arestas de saída — o grau bruto é uma constante somada ao grau de ENTRADA,
+que é exatamente o que a centralidade normaliza.
+
+`scripts/conectividade.mjs` mediu três candidatas contra o que o céu já tem (188 corpos, Spearman):
+
+| candidata | × centralidade | × massa | × atividade | veredito |
+|---|---|---|---|---|
+| **grau** (o da spec) | **0,821** | 0,688 | 0,714 | **cai** — é a soma de três dimensões que já existem |
+| **agrupamento** (Watts–Strogatz) | −0,416 | **−0,609** | −0,239 | cai — a massa explica boa parte dela |
+| **alcance** | **−0,083** | **0,040** | **0,130** | **fica** — praticamente ortogonal |
+
+**ALCANCE = a fração dos vínculos laterais cujo destino está FORA do sistema (pasta) do corpo.**
+
+O motivo de ele ser a resposta certa não é só estatístico: ele mede **a parte da relação que a
+POSIÇÃO não comunica.** A cena já diz por contenção quem mora junto — é o §"separar contenção de
+relacionamento" do briefing. O que ela nunca disse é se o vizinho semântico de um corpo está dentro
+ou fora da pasta dele, e é justamente esse cruzamento que a rede da seleção desenha.
+
+Distribuição: min 0 · P10 0,31 · MED **0,60** · P90 0,89 · máx 1,0. Cobertura **188/188**.
+
+⚠️ **O confesso, publicado no snapshot:** ρ **−0,623** com o TAMANHO do sistema — filho único de
+pasta tem alcance 1,0 por construção (7 corpos em 1,0, dos quais 3 são filho único). O alcance é uma
+RAZÃO, então ele não sabe volume: 8 vínculos todos fora valem o mesmo que 85 todos fora. Volume é
+`centrality`, e misturar os dois refaria o score composto.
+
+⚠️ E as candidatas recusadas ficam gravadas **no próprio snapshot**, com o ρ de cada uma: sem isso a
+próxima sessão remede as três para descobrir o que esta já sabia.
 
 ### `importance` deve ser recusada como dimensão
 

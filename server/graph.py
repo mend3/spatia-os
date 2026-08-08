@@ -33,7 +33,11 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 #    `scripts/uso.mjs`. Mesmo motivo dos bumps 5 e 7, e aqui ele morde mais: o snapshot muda
 #    sozinho conforme o diário cresce, e sem o bump o primeiro clone com cache nunca veria a
 #    dimensão aparecer — ela nasceria morta justamente na base que mais a acumulou.
-SCHEMA_VERSION = 10
+# 11: `connectivity` (o ALCANCE — que fração dos vínculos laterais sai do sistema) chega no nó, do
+#     snapshot de `scripts/conectividade.mjs`. Mesmo motivo dos bumps 5, 7 e 10. ⚠️ E o bump não
+#     bastaria sozinho: o valor envelhece sem o corpus mudar, então a anotação também entra no
+#     overlay de `_reanexar_snapshots` — as duas coisas, sempre, ver `9fa42a1`.
+SCHEMA_VERSION = 11
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -133,6 +137,10 @@ def build() -> dict:
     # snapshots distintos: `centrality` é "quantos se parecem comigo", `usage` é "quantos me
     # abriram". Fundi-las num número só reconstruiria o score composto já refutado.
     uso = graphdb.annotate_usage(nodes)
+    # ALCANCE: que fração dos vínculos laterais deste corpo sai do sistema dele. É `connectivity`,
+    # a última das quatro dimensões sem fato — e ela não é o grau, que repetiria a centralidade
+    # (ρ 0,821, medido). Ver `graphdb.annotate_connectivity`.
+    conexao = graphdb.annotate_connectivity(nodes)
     hubs, edges = _hierarchy(nodes)
     payload = {
         "nodes": hubs + nodes,
@@ -147,6 +155,9 @@ def build() -> dict:
             # e a evidência é rala" em vez de calar. Omitir o veredito faria um `usage` pequeno
             # parecer medida forte de pouco uso, quando é medida fraca de uso nenhum.
             "uso": uso,
+            # Os metadados do alcance viajam pelo mesmo motivo que os do uso: o número sozinho não
+            # diz contra o que foi conferido, e esta dimensão nasceu de uma REFUTAÇÃO (o grau).
+            "conexao": conexao,
             "built_in_ms": round((time.monotonic() - started) * 1000),
         },
     }
@@ -164,14 +175,19 @@ _stamp_snapshots: tuple | None = None
 
 
 def _carimbo_snapshots() -> tuple:
-    """`mtime` dos dois snapshots — é o que acusa influência nova sem corpus novo."""
+    """`mtime` dos snapshots do grafo — é o que acusa dimensão nova sem corpus novo.
+
+    ⚠️ **Dimensão nova entra AQUI e no `_reanexar_snapshots`, sempre nos dois.** Anotar só na
+    construção é o defeito de `9fa42a1`: o cache casa (o fingerprint é do CORPUS), o script imprime
+    sucesso, e o céu serve zero sem uma linha no console.
+    """
     def quando(caminho) -> int:
         try:
             return caminho.stat().st_mtime_ns
         except OSError:
             return 0
 
-    return (quando(graphdb.SNAPSHOT), quando(graphdb.SNAPSHOT_USO))
+    return (quando(graphdb.SNAPSHOT), quando(graphdb.SNAPSHOT_USO), quando(graphdb.SNAPSHOT_CONEXAO))
 
 
 def _reanexar_snapshots(payload: dict) -> bool:
@@ -205,8 +221,10 @@ def _reanexar_snapshots(payload: dict) -> bool:
     for node in nodes:
         node.pop("centrality", None)
         node.pop("usage", None)
+        node.pop("connectivity", None)
     graphdb.annotate_influence(nodes)
     payload.setdefault("stats", {})["uso"] = graphdb.annotate_usage(nodes)
+    payload["stats"]["conexao"] = graphdb.annotate_connectivity(nodes)
     _stamp_snapshots = carimbo
     logger.info("snapshots do grafo reaplicados sobre a topologia em cache")
     return True

@@ -148,6 +148,21 @@ function desenhar(node, dirty, origin, vizinhos, rede) {
     if (node.churn) linhas.push(vital('REESCRITAS', `${node.churn}×`, 'em 30d'));
     if (dirty) linhas.push(vital('DISCO', DIRTY_LABELS[dirty] ?? dirty.toUpperCase()));
     if (node.indexed_at) linhas.push(vital('INDEXADO', node.indexed_at));
+    /*
+     * ALCANCE — e ele é o LEITOR de `connectivity`, não um enfeite.
+     *
+     * A dimensão nasceu materializada nesta sessão e sem consumidor ela seria mais um campo
+     * declarado que ninguém lê — o defeito que esta base já pagou cinco vezes. Aqui ela responde a
+     * pergunta que a rede acabou de levantar: dos vínculos deste corpo, quantos SAEM da pasta dele?
+     * A posição já comunica quem mora junto; isto é a outra metade.
+     *
+     * ⚠️ `typeof`, não `if (valor)`: `0` é uma medida — "todos os vínculos dele ficam em casa" — e
+     * um teste de verdade a apagaria justamente no corpo mais fechado do céu. `null` (não
+     * materializado) não escreve linha nenhuma, que é o silêncio honesto.
+     */
+    if (typeof node.connectivity === 'number') {
+      linhas.push(vital('ALCANCE', `${Math.round(node.connectivity * 100)}%`, 'fora do sistema'));
+    }
   }
 
   /*

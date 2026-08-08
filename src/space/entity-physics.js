@@ -107,7 +107,8 @@ export const AUSENTES = Object.freeze({
   density: 'bytes por chunk — o indexador não emite. Conserta-se no indexador, não no grafo',
   centrality: 'RESOLVIDA — snapshot de scripts/centralidade.mjs. `null` quando não materializada',
   usage: 'RESOLVIDA — snapshot de scripts/uso.mjs (P5). Dimensão DISPONÍVEL, evidência hoje esparsa: ver evidenciaDeUso()',
-  connectivity: 'Neo4j (arestas laterais). Hoje o grafo é 100% contenção',
+  connectivity: 'RESOLVIDA — snapshot de scripts/conectividade.mjs, e NÃO como a spec pedia: o grau '
+    + 'repete a centralidade (ρ 0,821). O que ficou é o ALCANCE, ρ −0,083 com ela',
   importance: 'RECUSADA como dimensão: é juízo, não fato. Derivá-la reconstrói o score composto',
 });
 
@@ -186,7 +187,27 @@ export function entityPhysics(node, contexto = {}) {
 
     /** Sem fato hoje. Ver `AUSENTES`. NUNCA zero. */
     density: null,
-    connectivity: null,
+
+    /**
+     * ALCANCE: que fração dos vínculos laterais deste corpo tem destino FORA do sistema dele.
+     *
+     * ⚠️ **Não é o "grau ponderado" que a spec pedia, e a troca foi obrigada por medida.** O grau
+     * repete a centralidade (ρ **0,821**), a massa (0,688) e a atividade (0,714): seria uma quarta
+     * dimensão que é a soma de três, que é o score composto já refutado nesta base.
+     *
+     * O alcance mede a parte da relação que a POSIÇÃO não comunica. A cena diz por contenção quem
+     * mora junto; nada dizia se o vizinho semântico está dentro ou fora da pasta — e é justamente
+     * esse cruzamento que a rede na seleção desenha. Medido: ρ **−0,083** com a centralidade,
+     * **0,040** com a massa, **0,130** com a atividade. Praticamente ortogonal ao que o céu já tem.
+     *
+     * ⚠️ O confesso, publicado no snapshot: ρ **−0,623** com o TAMANHO do sistema — filho único de
+     * pasta tem alcance 1,0 por construção (7 corpos, 3,7% do céu).
+     *
+     * ⚠️ Governa BRILHO ou destaque, jamais classe — `scripts/lei-neo4j.mjs` já perturbava este
+     * campo antes de ele ter valor, e continua exigindo classe idêntica. `null` é "não
+     * materializei"; `0` é "medi, e todos os vínculos dele ficam em casa".
+     */
+    connectivity: typeof node.connectivity === 'number' ? node.connectivity : null,
     /**
      * INFLUÊNCIA, do snapshot materializado — governa BRILHO, jamais escala ou classe.
      *

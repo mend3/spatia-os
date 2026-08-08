@@ -503,7 +503,7 @@ cinco vezes por campo declarado sem leitor:
 | `scale` | ~ | derivável de `mass`, mas é o que a escada do §3 precisa nomear | precisa dos limiares |
 | `density` | ❌ | não há bytes por chunk no nó | **sem fato** |
 | `centrality` | ❌ | só grau de contenção; **arestas laterais = 0** | **sem fato** |
-| `connectivity` | ❌ | idem — o semântico vive no qdrant, fora do grafo | **sem fato** |
+| `connectivity` | ✅ | **ALCANCE** — fração dos vínculos laterais que sai do sistema (`scripts/conectividade.mjs`, 08/08) | resolvida, e **não como pedida**: o grau repetia a centralidade (ρ 0,821) |
 | `importance` | ❌ | nada mede | **sem fato** |
 
 **Quatro das onze não têm fato, e duas delas (`centrality`, `connectivity`) são justamente as que

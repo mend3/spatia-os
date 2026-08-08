@@ -185,6 +185,40 @@ def annotate_usage(nodes: list[dict]) -> Optional[dict]:
     return {k: v for k, v in dados.items() if k != "uso"}
 
 
+#: Onde `scripts/conectividade.mjs` deixa o alcance por corpo. Mesma lei nº 2: arquivo em disco.
+SNAPSHOT_CONEXAO = config.ROOT / ".cache" / "conectividade.json"
+
+
+def annotate_connectivity(nodes: list[dict]) -> Optional[dict]:
+    """Anexa `connectivity` (0…1) a cada nó — a última das quatro dimensões sem fato do §11.
+
+    ⚠️ **E ela não é o que a spec pedia.** O §4 definia `connectivity` como *"grau ponderado das
+    laterais"*, e medido isso repete a centralidade: ρ de Spearman **0,821** contra a influência já
+    materializada, além de 0,688 com a massa e 0,714 com a atividade. Seria uma quarta dimensão que
+    é a soma de três — o score composto que esta base refutou com número.
+
+    O que ficou é o **ALCANCE**: a fração dos vínculos laterais cujo destino está FORA do sistema
+    do corpo. Ele mede exatamente a parte da relação que a POSIÇÃO não comunica — a cena já diz por
+    contenção quem mora junto, e nada dizia se o vizinho semântico está dentro ou fora da pasta.
+    Medido: ρ **−0,083** com a centralidade, **0,040** com a massa, **0,130** com a atividade.
+
+    ⚠️ O confesso: ρ **−0,623** com o TAMANHO do sistema — filho único de pasta tem alcance 1,0 por
+    construção (7 corpos, 3,7%). O snapshot publica os três ρ para quem lê o número saber contra o
+    que ele foi conferido.
+    """
+    try:
+        dados = json.loads(SNAPSHOT_CONEXAO.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    tabela = dados.get("conectividade") or {}
+    for node in nodes:
+        valor = tabela.get(node.get("source"))
+        if isinstance(valor, (int, float)):
+            node["connectivity"] = valor
+    return {k: v for k, v in dados.items() if k != "conectividade"}
+
+
 #: Onde `scripts/vizinhanca.mjs` deixa os vínculos laterais por corpo. Arquivo, nunca o banco.
 SNAPSHOT_REDE = config.ROOT / ".cache" / "vizinhanca.json"
 
