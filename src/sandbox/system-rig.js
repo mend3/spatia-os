@@ -43,8 +43,48 @@
 import * as THREE from 'three';
 import { KIND_COLORS } from '../space/graph.js';
 
-/** Massa → raio, a mesma lei do céu (`log2(1 + chunks)`), para o espécime não inventar escala. */
-const raioPorMassa = (chunks) => 0.06 + Math.log2(1 + Math.max(chunks, 0)) * 0.035;
+/** A lei do céu de hoje. Fica aqui para o A/B — é ela que o achado nº 1 acusa. */
+const raioLog = (chunks) => 0.06 + Math.log2(1 + Math.max(chunks, 0)) * 0.035;
+
+/**
+ * Massa em que um corpo passa a fundir, em chunks. **Constante calibrada, logo expira.**
+ *
+ * 20 fica entre o P75 (13) e o P90 (25) do corpus de 2026-08-07, o que põe ~13% dos arquivos acima
+ * dela — perto dos 221 sistemas em 1 636 arquivos que a contenção já produz. Não é derivação, é
+ * âncora: o número certo sai da escada do §3 do replanejamento, que ainda não está fechada.
+ */
+const MASSA_FUSAO = 20;
+
+/** Raio no limiar. As duas curvas se ENCONTRAM aqui, e é isso que torna a lei honesta. */
+const RAIO_FUSAO = 0.2;
+
+/**
+ * Massa → raio com DUAS curvas, porque a natureza tem duas.
+ *
+ * A lei única (`log2`) comprimia a faixa inteira do corpus em 3,6× e deixava a estrela 1,6× maior
+ * que o maior planeta — contra ~10× de Sol para Júpiter. O erro não era o expoente: era supor **uma
+ * curva só**.
+ *
+ * - **Planeta** (`c ≤ MASSA_FUSAO`): `R ∝ M^(1/3)` — a contribuição clássica dos íons, que é
+ *   densidade constante. Acima de Júpiter a degenerescência achata a curva (`R ∝ M^-1/8`), e é por
+ *   isso que um planeta de 10 massas de Júpiter é quase do tamanho de Júpiter.
+ * - **Estrela** (`c > MASSA_FUSAO`): `R ∝ M^0.8` — sequência principal.
+ *
+ * ⚠️ **As curvas se tocam no limiar, e isso é fato, não conveniência:** objetos perto do limite de
+ * queima de hidrogênio têm raio de Júpiter. O maior planeta e a menor estrela são do mesmo tamanho
+ * — a dominância nasce da massa ACIMA do limiar, não de um degrau pintado.
+ *
+ * Medido: faixa do corpus 3,6× → **23×**; estrela de 289 contra planeta no limiar 1,6× → **8,5×**.
+ *
+ * > Fontes: [ESA · Stars](https://sci.esa.int/web/gaia/-/40576-stars) ·
+ * > [Giant Planets (arXiv:1405.3752)](https://arxiv.org/pdf/1405.3752) — o máximo local perto de
+ * > 4 M_J e a degenerescência que achata a curva acima dele.
+ */
+const raioDuasCurvas = (chunks) => {
+  const c = Math.max(chunks, 0.001);
+  const razao = c / MASSA_FUSAO;
+  return RAIO_FUSAO * Math.pow(razao, c <= MASSA_FUSAO ? 1 / 3 : 0.8);
+};
 
 /**
  * Semi-eixo da órbita `i`, em raios da estrela.
@@ -77,6 +117,8 @@ export const SYSTEM_SPEC = {
     { key: 'inclinacao', label: 'INCLINAÇÃO DO SISTEMA', type: 'range', min: 0, max: 1.2, step: 0.01, value: 0.35 },
     { key: 'deriva', label: 'DERIVA DA ESTRELA', type: 'range', min: 0, max: 8, step: 0.1, value: 0 },
     { key: 'kepler', label: 'OBEDECER KEPLER', type: 'bool', value: true },
+    { key: 'lei', label: 'LEI DE RAIO', type: 'enum', options: ['duas curvas', 'log (a do céu)'], value: 'duas curvas' },
+    { key: 'orcamento', label: 'ORÇAMENTO DO SISTEMA', type: 'range', min: 0, max: 20, step: 0.5, value: 0 },
     { key: 'camera', label: 'DISTÂNCIA DA CÂMERA', type: 'range', min: 8, max: 90, step: 1, value: 34, roll: false },
   ],
   watch: [
@@ -86,6 +128,8 @@ export const SYSTEM_SPEC = {
     'nenhuma órbita cruza outra — o espaçamento é geométrico e o primeiro nasce fora de Roche (2,44 raios)',
     'PLANETAS em 0: sobra a estrela sozinha, e ela tem de continuar legível (é o caso dos 336 órfãos)',
     'RAIO DO SISTEMA no painel é o número que decide se 221 sistemas cabem sem se atravessar',
+    'LEI DE RAIO em «log»: a estrela encolhe até quase empatar com o planeta — é o achado nº 1 ao vivo',
+    'ORÇAMENTO acima de zero: o sistema muda de tamanho e as PROPORÇÕES internas não mudam',
   ],
   build(ctx) {
     const grupo = new THREE.Group();
@@ -130,7 +174,8 @@ export const SYSTEM_SPEC = {
         const n = Math.round(values.planetas);
         garante(n);
 
-        const raioEstrela = raioPorMassa(values.massaEstrela);
+        const raio = values.lei === 'log (a do céu)' ? raioLog : raioDuasCurvas;
+        const raioEstrela = raio(values.massaEstrela);
         estrela.scale.setScalar(raioEstrela);
         orbitas.rotation.x = values.inclinacao;
 
@@ -147,11 +192,11 @@ export const SYSTEM_SPEC = {
            * é o primeiro, e os demais decaem por razão fixa.
            */
           const massa = values.massaMaior * Math.pow(0.72, i);
-          const raio = raioPorMassa(massa);
-          maiorPlaneta = Math.max(maiorPlaneta, raio);
+          const rp = raio(massa);
+          maiorPlaneta = Math.max(maiorPlaneta, rp);
 
           const a = semiEixo(i, values.espaco) * raioEstrela;
-          raioSistema = Math.max(raioSistema, a + raio);
+          raioSistema = Math.max(raioSistema, a + rp);
 
           /*
            * Kepler: T ∝ a^(3/2), logo ω ∝ a^(-3/2). Com o portão desligado, ω é constante — e é
@@ -161,10 +206,24 @@ export const SYSTEM_SPEC = {
           const ang = clock.elapsed * omega + i * 1.7;
 
           const p = planetas[i];
-          p.malha.scale.setScalar(raio);
+          p.malha.scale.setScalar(rp);
           p.malha.position.set(Math.cos(ang) * a, 0, Math.sin(ang) * a);
           p.trilha.scale.setScalar(a);
         }
+        /*
+         * ORÇAMENTO acima de zero normaliza o sistema INTEIRO para caber num raio fixo.
+         *
+         * É a resposta ao achado nº 2: espaçamento geométrico explode (433 unidades com razão 2,0
+         * e 9 planetas), e 221 sistemas não cabem num universo se cada um escolhe o próprio
+         * tamanho. Normalizar preserva as PROPORÇÕES internas — que é o que a leitura usa — e
+         * troca a escala absoluta, que ninguém lê.
+         */
+        if (values.orcamento > 0 && raioSistema > 0) {
+          grupo.scale.setScalar(values.orcamento / raioSistema);
+        } else {
+          grupo.scale.setScalar(1);
+        }
+
         const razao = maiorPlaneta > 0 ? raioEstrela / maiorPlaneta : Infinity;
         ctx.report({
           'razão estrela/maior planeta': razao === Infinity ? '— (sem planeta)' : razao.toFixed(2),
@@ -172,6 +231,8 @@ export const SYSTEM_SPEC = {
           'raio do sistema': raioSistema.toFixed(2),
           'sistemas por 100 un.': (100 / Math.max(raioSistema * 2, 0.001)).toFixed(1),
           'kepler': values.kepler ? 'ligado (ω ∝ a^-3/2)' : 'DESLIGADO — carrossel',
+          'lei de raio': values.lei,
+          'orçamento': values.orcamento > 0 ? `${values.orcamento} un. (escala ${(values.orcamento / raioSistema).toFixed(3)}×)` : 'livre',
           'inversão de massa': razao >= 1 ? 'não' : 'SIM — planeta maior que a estrela',
         });
         camera.position.setLength(values.camera);
