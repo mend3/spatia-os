@@ -311,10 +311,29 @@ ninguém saberia de quem era o número.
 | **P2** ✅ | `Astro` + `CO_EDITED` (`scripts/vinculos.mjs`) | provou o caminho ponta a ponta | **556 pares · 118 nós · 7,2% do céu.** Grau MED 9 · P90 17 · máx 48 |
 | **P2b** ❌ | teste ↔ alvo por convenção de nome | **CAI** | as 627 arestas foram medidas no DISCO; exigindo os dois lados indexados sobram **4** |
 | **P3** | `connectivity` → `centrality` → **influência → brilho** | a §11.1 do replanejamento | nunca `centrality → classe` |
-| **P4** | `SIMILAR_TO` materializado do Qdrant + a rede visível na seleção | a rede de conhecimento | com `score`, `k`, `window`, `as_of` |
+| **P4** ✅ | `SIMILAR_TO` materializado (`scripts/similares.mjs`) | **8 130 arestas, k=5 derivado, 6,6% isolados** | contra 92,8% do `CO_EDITED`. A rede visível na seleção continua pendente |
 | **P5** | `Agent`, `Run`, `TOUCHED` | "quais objetos os agentes realmente usam" | influência por uso, não massa |
 | **P6** | `REFERENCES`, `IMPORTS` | dependência documental e estrutural | semanticamente mais fortes que "parecidos" |
 | **P7** | `MENTIONS`, `Concept` | inferência | só depois de o grafo provar valor **sem** LLM |
+
+### A derivação do `k`, e o que ela me corrigiu
+
+Montei a derivação em torno do **Gini do grau de entrada** — com `k` fixo o grau de SAÍDA é
+constante, então quem carrega sinal é a ENTRADA: ser vizinho de muitos é o que significa influência.
+
+Medido, o Gini é **quase plano**: 0,469 · 0,460 · 0,451 · 0,451 · 0,455 para k = 3 · 5 · 8 · 12 · 20.
+**A discriminação está no dado, não no parâmetro.** O critério que eu escolhi não escolhe nada — e
+quem decide de fato é a COBERTURA:
+
+| k | isolados | grau de entrada MED · P90 · máx |
+|---|---|---|
+| 3 | 196 (12,0%) | 2 · 6 · 75 |
+| **5** | **108 (6,6%)** | **4 · 11 · 86** |
+| 8 | 59 (3,6%) | 6 · 16 · 91 |
+| 20 | 24 (1,5%) | 14 · 38 · 148 |
+
+`k = 5` é o menor que fica abaixo de 10% de isolados. Subir mais compra cobertura pagando com
+densidade — e densidade alta é a outra morte da dimensão.
 
 ⚠️ **A ORDEM MUDOU, e a medida obrigou.** P3 (centralidade) **não pode vir antes de P4**
 (`SIMILAR_TO`): com `CO_EDITED` como única aresta, **92,8% do céu fica com `centrality = null` por
