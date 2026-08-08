@@ -316,7 +316,29 @@ export function fenomenos(fisica, node) {
   if ((node.supernova || 0) > 0.001) {
     lista.push({ tipo: 'supernova', motivo: 'surto de churn acima do piso' });
   }
-  if (fisica.activity > 0.08 && fisica.dormant === 0) {
+  /*
+   * ⚠️ **A guarda era `dormant === 0`, e ela lia `dormant` com o significado errado.**
+   *
+   * `dormant` não é "abandonado": é **toques na janela ANTIGA** (entre 30 e 180 dias, ver
+   * `server/recency.py`). Um arquivo criado há seis meses e reescrito 27 vezes ESTE MÊS tem
+   * `dormant ≥ 1` e `activity = 1,00` — é o corpo mais quente do repositório, e a guarda o
+   * excluía do fenômeno que existe justamente para descrevê-lo.
+   *
+   * O efeito só aparece comparando dois corpora, e é grotesco:
+   *
+   * | corpus | o que acontecia |
+   * |---|---|
+   * | `espatial_vivo` (repo novo, nenhum commit velho) | `dormant = 0` em todos → **188 de 188** exercem o fenômeno |
+   * | `espatial_fixture` (história sintética de meses) | `dormant ≥ 1` nos três saturados → **ZERO** |
+   *
+   * O mesmo `if` devolvendo 100% e 0% por causa da IDADE DO REPOSITÓRIO, não da atividade. Foi o
+   * stress test do fixture que expôs isso — que é exatamente para o que ele existe
+   * (`docs/cobertura.md`: fixture é CAPACIDADE, corpus real é COMPORTAMENTO).
+   *
+   * O caso abandonado já tem fenômeno PRÓPRIO logo abaixo (`extinto`, que exige `activity === 0`),
+   * então excluí-lo aqui era redundância que custava o caso principal.
+   */
+  if (fisica.activity > 0.08) {
     lista.push({ tipo: 'atividade-de-cometa', motivo: 'trabalho recente: coma e cauda' });
   }
   if (node.dwarf === 1 || (fisica.mass >= MASSA_REMANESCENTE && fisica.activity === 0 && fisica.dormant === 0 && fisica.age <= 0.25)) {
