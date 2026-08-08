@@ -38,6 +38,7 @@ const BASE = process.env.NEO4J_HTTP || 'http://127.0.0.1:7474';
 const USER = process.env.NEO4J_USER;
 const PASS = process.env.NEO4J_PASSWORD;
 const SAIDA = '.cache/influencia.json';
+const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
 const AMORTECIMENTO = 0.85;
 const ITERACOES = 40;
 
@@ -57,11 +58,34 @@ const cypher = async (statement) => {
 };
 
 // ─────────────────────────────────────────────────────── 1. as arestas
+/*
+ * ⚠️ **FILTRADO PELO CORPUS — e a falta disso já produziu um snapshot mentiroso.**
+ *
+ * O banco hospeda mais de um céu: o `Astro` é chaveado por `source`, e sources de corpora
+ * diferentes não colidem — eles COEXISTEM. Sem o filtro, esta consulta somava os dois e a
+ * influência saía calculada sobre um grafo que não é o de ninguém.
+ *
+ * Medido em 2026-08-08, apontado para o `espatial_fixture` (59 corpos): o snapshot saiu com
+ * **250 corpos**, e os "mais influentes" eram arquivos do corpus VIVO. Os escritores ganharam o
+ * carimbo de `corpus` e este LEITOR ficou de fora — carimbar quem escreve não basta se quem lê
+ * continua perguntando pelo banco inteiro.
+ *
+ * De onde vem o nome: do servidor, que é quem lê o `.env`. Ver `similares.mjs`.
+ */
+const graph = await fetch(`${SPATIA}/api/graph`).then((r) => r.json()).catch(() => null);
+if (!graph?.corpus) {
+  console.error(`sem \`corpus\` em ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
+  process.exit(1);
+}
+const CORPUS = graph.corpus.collection;
+console.log(`\x1b[1mcorpus\x1b[0m  ${CORPUS}`);
+
 const dados = await cypher(
-  'MATCH (a:Astro)-[r:SIMILAR_TO|CO_EDITED]->(b:Astro) RETURN a.source, b.source, type(r)'
+  `MATCH (a:Astro {corpus: '${CORPUS}'})-[r:SIMILAR_TO|CO_EDITED]->(b:Astro {corpus: '${CORPUS}'})
+   RETURN a.source, b.source, type(r)`
 );
 const arestas = dados.data.values.map(([a, b, t]) => ({ a, b, t }));
-const todos = await cypher('MATCH (a:Astro) RETURN a.source');
+const todos = await cypher(`MATCH (a:Astro {corpus: '${CORPUS}'}) RETURN a.source`);
 const fontes = todos.data.values.map((v) => v[0]);
 console.log(`\x1b[1msubstrato\x1b[0m  ${fontes.length} corpos · ${arestas.length} arestas`);
 
