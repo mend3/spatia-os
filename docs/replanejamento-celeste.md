@@ -514,6 +514,15 @@ o defeito que o modelo está tentando corrigir.
 qdrant. Ele existe, mas **não está no grafo** — hoje o grafo é 100% contenção. Criar essas arestas
 é a única dependência dura de `EntityPhysics`, e é trabalho, não configuração.
 
+**→ O plano está em [`integracao-neo4j.md`](./integracao-neo4j.md)**, e ele resolve as quatro:
+`connectivity` e `centrality` vêm do Neo4j; `density` **não é do Neo4j** (é bytes por chunk, fato
+que o indexador não emite); e `importance` é **recusada como dimensão** — ela é juízo, não fato, e
+derivá-la seria reconstruir o score composto que a §3.2 das medições já refutou.
+
+A lei que torna isso seguro, e que decide o desenho inteiro: **o Neo4j pode mudar o BRILHO, nunca a
+CLASSE.** Se `centrality` decidisse classe, um container caindo faria corpos trocarem de identidade
+— e o usuário aprenderia que a forma não significa nada.
+
 ### 11.1 A quinta dimensão: atividade ≠ massa
 
 A separação que a revisão acrescenta, e que este documento não explorava:
