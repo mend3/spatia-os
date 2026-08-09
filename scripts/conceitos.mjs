@@ -384,6 +384,10 @@ for (let i = 0; i < lista.length; i += 1000) {
  */
 const snapshot = {
   as_of: new Date().toISOString(),
+  // ⚠️ DE QUE CÉU — e aqui vale duplamente, porque esta é a única dimensão que não é FATO: quem lê
+  // o assunto já precisa saber quem o afirmou (`modelo`) e quando (`as_of`); saber sobre QUAL
+  // corpus fecha a terna. O servidor recusa snapshot alheio (`graphdb._recusa_de_corpus`).
+  corpus: CORPUS,
   modelo: MODELO,
   modelo_embed: EMBED_MODELO,
   limiar: melhor.limiar,

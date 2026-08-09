@@ -131,7 +131,11 @@ def build() -> dict:
     # INFLUÊNCIA, do snapshot que `scripts/centralidade.mjs` materializa. Ler daqui e não do Neo4j
     # é a lei nº 2 de `docs/integracao-neo4j.md`: o grafo nunca está no caminho do quadro, e cair
     # entre duas materializações não muda nada na tela até a próxima.
-    graphdb.annotate_influence(nodes)
+    # ⚠️ O retorno era DESCARTADO, e isso ficou insustentável quando a anotação passou a poder
+    # RECUSAR (snapshot de outro corpus, `graphdb._recusa_de_corpus`): sem publicar o cabeçalho, a
+    # recusa seria tão silenciosa quanto o defeito que ela conserta — `centrality` some do céu e
+    # ninguém sabe por quê. As outras duas dimensões já publicavam; esta era a exceção.
+    influencia = graphdb.annotate_influence(nodes)
     # USO (P5): quantas execuções de agente tocaram o corpo. Mesma lei — snapshot em disco, nunca
     # consulta no caminho do quadro. Vem depois da influência porque são dimensões distintas com
     # snapshots distintos: `centrality` é "quantos se parecem comigo", `usage` é "quantos me
@@ -154,6 +158,8 @@ def build() -> dict:
             # Os metadados do uso viajam com a topologia para a tela poder dizer "a dimensão existe
             # e a evidência é rala" em vez de calar. Omitir o veredito faria um `usage` pequeno
             # parecer medida forte de pouco uso, quando é medida fraca de uso nenhum.
+            # O cabeçalho da influência, pelo mesmo motivo dos outros dois — e ver `annotate_influence`.
+            "influencia": influencia,
             "uso": uso,
             # Os metadados do alcance viajam pelo mesmo motivo que os do uso: o número sozinho não
             # diz contra o que foi conferido, e esta dimensão nasceu de uma REFUTAÇÃO (o grau).
@@ -222,8 +228,8 @@ def _reanexar_snapshots(payload: dict) -> bool:
         node.pop("centrality", None)
         node.pop("usage", None)
         node.pop("connectivity", None)
-    graphdb.annotate_influence(nodes)
-    payload.setdefault("stats", {})["uso"] = graphdb.annotate_usage(nodes)
+    payload.setdefault("stats", {})["influencia"] = graphdb.annotate_influence(nodes)
+    payload["stats"]["uso"] = graphdb.annotate_usage(nodes)
     payload["stats"]["conexao"] = graphdb.annotate_connectivity(nodes)
     _stamp_snapshots = carimbo
     logger.info("snapshots do grafo reaplicados sobre a topologia em cache")

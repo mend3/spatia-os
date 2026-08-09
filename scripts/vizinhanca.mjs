@@ -220,6 +220,11 @@ if (SO_MEDIR) process.exit(0);
 // ─────────────────────────────────────────────────────── 6. o snapshot
 const snapshot = {
   as_of: new Date().toISOString(),
+  // ⚠️ DE QUE CÉU. O servidor recusa snapshot cujo corpus não é o servido
+  // (`graphdb._recusa_de_corpus`) — sem o campo não há o que conferir. Este arquivo já foi servido
+  // sobre outro corpus: `disponivel: true · corpos: 188 · vinculos: 4226` e `vizinhanca: null` em
+  // 12 de 12 amostrados. A cena não desenhava um arco e o painel anunciava 4 226.
+  corpus: graph.corpus.collection,
   teto: TETO,
   corpos: Object.keys(vizinhanca).length,
   vinculos: desenhados,

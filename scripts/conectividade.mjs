@@ -216,6 +216,10 @@ for (const s of fontes) conectividade[s] = Number(alcance(s).toFixed(4));
 const valores = Object.values(conectividade);
 const snapshot = {
   as_of: new Date().toISOString(),
+  // ⚠️ DE QUE CÉU. O servidor recusa snapshot cujo corpus não é o servido
+  // (`graphdb._recusa_de_corpus`) — sem o campo não há o que conferir. Este arquivo já foi servido
+  // sobre outro corpus e chegou a ZERO dos 72 corpos, com `stats.conexao` de cabeçalho cheio.
+  corpus: graph.corpus.collection,
   metrica: ESCOLHA,
   definicao: 'fração dos vínculos laterais cujo destino está FORA do sistema (pasta) do corpo',
   spearman_centralidade: Number(rho[ESCOLHA].toFixed(4)),

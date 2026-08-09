@@ -165,6 +165,11 @@ ordenado.forEach(([s], i) => { influencia[s] = Number((i / (ordenado.length - 1)
 
 const snapshot = {
   as_of: new Date().toISOString(),
+  // ⚠️ DE QUE CÉU é esta foto. Sem este campo o servidor não tem como recusar snapshot alheio, e
+  // recusar é a única saída: `as_of` envelhece, mas um snapshot de OUTRO corpus não envelhece —
+  // ele nunca foi deste. Medido em 09/08: a vizinhança do vivo (188 corpos) servida sobre o
+  // fixture (72) devolvia `null` para 12 de 12 corpos com o cabeçalho anunciando 4 226 vínculos.
+  corpus: CORPUS,
   metrica: escolha,
   spearman_grau_pagerank: Number(rho.toFixed(4)),
   corpos: fontes.length,

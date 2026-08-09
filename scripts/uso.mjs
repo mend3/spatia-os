@@ -319,6 +319,11 @@ const snapshot = {
   // ⚠️ Quem lê precisa saber se olha CAPACIDADE ou COMPORTAMENTO. Sem este carimbo, um snapshot
   // semeado é indistinguível de uso real, e a bancada contaminaria a leitura do céu.
   origem: path.resolve(DIARIO) === path.resolve(DIARIO_REAL) ? 'diario' : 'semeado',
+  // ⚠️ E de que CÉU ele é — o mesmo argumento do `origem` aplicado ao corpus, e a outra metade da
+  // mesma guarda: `origem` separa bancada de diário, `corpus` separa céu de céu. O servidor recusa
+  // snapshot cujo corpus não é o servido (`graphdb._recusa_de_corpus`); sem o campo não há o que
+  // conferir, e um snapshot alheio passa com cabeçalho cheio e carga vazia.
+  corpus: CORPUS,
   diario: DIARIO,
   saturacao: USO_CHEIO,
   ...meta,

@@ -128,6 +128,52 @@ def describe() -> dict:
     }
 
 
+def _recusa_de_corpus(dados: dict, script: str) -> Optional[str]:
+    """`None` se este snapshot é do céu SERVIDO; o motivo da recusa se não é.
+
+    ## Por que existe
+
+    Todo snapshot deste módulo é uma FOTOGRAFIA, e `as_of` responde só metade da pergunta: ele diz
+    QUANDO a foto foi tirada e cala sobre DE QUE CÉU. Uma foto velha do céu certo ainda descreve
+    corpos que existem; uma foto nova do céu ERRADO não descreve nenhum — e as duas chegavam aqui
+    indistinguíveis, porque o leitor casa por `source` e `source` de outro corpus simplesmente não
+    casa com ninguém.
+
+    ⚠️ **O modo de falha não é o campo faltar: é o CABEÇALHO afirmar.** Medido em 2026-08-09, com
+    o servidor no fixture (72 corpos) e os snapshots do vivo (188):
+
+        GET /api/vizinhanca?source=<qualquer corpo do fixture>
+          → disponivel: true · corpos: 188 · vinculos: 4226     ← cabeçalho de OUTRO céu
+          → vizinhanca: null                                    ← 12 de 12 amostrados
+
+    A cena não desenhava **um único arco** e o painel anunciava 4 226 vínculos disponíveis. Junto,
+    `connectivity` chegava a **0 de 72 corpos** enquanto `stats.conexao` saía com cabeçalho cheio
+    (`as_of`, `metrica`, a definição por extenso, `spearman_centralidade: −0,0706`). Isso é pior do
+    que faltar, porque quem lê o cabeçalho **para de procurar**.
+
+    ## Por que a recusa é o desfecho certo, e não um aviso
+
+    É `null` ≠ `0` aplicado ao snapshot INTEIRO em vez de a um valor. Servir carga vazia sob
+    cabeçalho cheio afirma "medi e não há"; recusar afirma "não medi ESTE céu", que é o fato. E a
+    recusa é barata de desfazer — o motivo já vem com o comando que a resolve.
+
+    ⚠️ **Sem carimbo também é recusa**, e não tolerância. Um snapshot sem `corpus` é exatamente o
+    estado que produziu o defeito: o leitor não tem como saber, e "não tenho como saber" não
+    autoriza afirmar. Todo script de `scripts/` carimba desde 2026-08-09, e o nome sai do
+    `/api/graph` — do servidor, que é quem lê o `.env` — nunca de palpite (ver `graph._corpus`).
+    """
+    servido = config.get("QDRANT_COLLECTION")
+    carimbo = dados.get("corpus")
+    if not carimbo:
+        return f"snapshot sem carimbo de corpus — rematerialize com `node scripts/{script}`"
+    if carimbo != servido:
+        return (
+            f"snapshot é do corpus `{carimbo}` e o servido é `{servido}` — "
+            f"rematerialize com `node scripts/{script}`"
+        )
+    return None
+
+
 #: Onde `scripts/centralidade.mjs` deixa o snapshot. Ler arquivo, e não o banco, é a lei nº 2.
 SNAPSHOT = config.ROOT / ".cache" / "influencia.json"
 
@@ -141,19 +187,24 @@ def annotate_influence(nodes: list[dict]) -> Optional[dict]:
 
     ⚠️ O snapshot é fotografia: ele envelhece com a reindexação e com o corpus. `as_of` viaja junto
     para quem lê poder decidir se ainda vale — sem a data, um número velho é indistinguível de um
-    número novo.
+    número novo. E `corpus` viaja pela outra metade: foto de OUTRO céu não envelhece, ela nunca foi
+    desta — ver `_recusa_de_corpus`, que decide isso antes de qualquer nó ser tocado.
     """
     try:
         dados = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
 
+    recusa = _recusa_de_corpus(dados, "centralidade.mjs")
+    if recusa:
+        return {"disponivel": False, "motivo": recusa, "as_of": dados.get("as_of")}
+
     tabela = dados.get("influencia") or {}
     for node in nodes:
         valor = tabela.get(node.get("source"))
         if isinstance(valor, (int, float)):
             node["centrality"] = valor
-    return {k: v for k, v in dados.items() if k != "influencia"}
+    return {"disponivel": True, **{k: v for k, v in dados.items() if k != "influencia"}}
 
 
 #: Onde `scripts/uso.mjs` (P5) deixa o snapshot de uso. Mesma lei nº 2: arquivo, nunca o banco.
@@ -165,9 +216,12 @@ def annotate_usage(nodes: list[dict]) -> Optional[dict]:
 
     Devolve os metadados **com o veredito de evidência junto**, ou `None` se não há snapshot.
 
-    ⚠️ Aqui há três estados, não dois, e confundi-los foi o que esta integração existe para evitar:
+    ⚠️ Aqui há QUATRO estados, não dois, e confundi-los foi o que esta integração existe para evitar:
 
     - **sem snapshot** → nenhum nó ganha o campo. "Não materializei."
+    - **snapshot de OUTRO corpus** → nenhum nó ganha o campo, e `disponivel` é falso COM MOTIVO.
+      "Materializei, mas não este céu." Ver `_recusa_de_corpus` — este estado existia e era servido
+      como se fosse o terceiro, que é a diferença entre ausência e mentira.
     - **snapshot com evidência RALA** → os nós ganham o número, e `evidencia.suficiente` é falso.
       A dimensão EXISTE e é publicada; ela só não tem poder para influenciar nada ainda.
     - **snapshot com evidência suficiente** → idem, com o veredito verdadeiro.
@@ -184,12 +238,16 @@ def annotate_usage(nodes: list[dict]) -> Optional[dict]:
     except (OSError, ValueError):
         return None
 
+    recusa = _recusa_de_corpus(dados, "uso.mjs")
+    if recusa:
+        return {"disponivel": False, "motivo": recusa, "as_of": dados.get("as_of")}
+
     tabela = dados.get("uso") or {}
     for node in nodes:
         valor = tabela.get(node.get("source"))
         if isinstance(valor, (int, float)):
             node["usage"] = valor
-    return {k: v for k, v in dados.items() if k != "uso"}
+    return {"disponivel": True, **{k: v for k, v in dados.items() if k != "uso"}}
 
 
 #: Onde `scripts/conectividade.mjs` deixa o alcance por corpo. Mesma lei nº 2: arquivo em disco.
@@ -218,12 +276,19 @@ def annotate_connectivity(nodes: list[dict]) -> Optional[dict]:
     except (OSError, ValueError):
         return None
 
+    # ⚠️ Esta é a dimensão em que o defeito foi mais caro: medido em 09/08, `connectivity` chegava a
+    # **0 de 72 corpos** e `stats.conexao` saía com cabeçalho completo. O §3 declarava a dimensão ✅
+    # com dono, e neste corpus ela não existia. Recusar é o que separa as duas afirmações.
+    recusa = _recusa_de_corpus(dados, "conectividade.mjs")
+    if recusa:
+        return {"disponivel": False, "motivo": recusa, "as_of": dados.get("as_of")}
+
     tabela = dados.get("conectividade") or {}
     for node in nodes:
         valor = tabela.get(node.get("source"))
         if isinstance(valor, (int, float)):
             node["connectivity"] = valor
-    return {k: v for k, v in dados.items() if k != "conectividade"}
+    return {"disponivel": True, **{k: v for k, v in dados.items() if k != "conectividade"}}
 
 
 #: Onde `scripts/vizinhanca.mjs` deixa os vínculos laterais por corpo. Arquivo, nunca o banco.
@@ -273,9 +338,19 @@ def network(source: Optional[str] = None) -> dict:
     dados = _rede_atual()
     if dados is None:
         return {"disponivel": False, "motivo": "sem snapshot: rode scripts/vizinhanca.mjs"}
+    # ⚠️ A recusa vem ANTES do cabeçalho, e é aí que estava o defeito: o cabeçalho era montado com
+    # `corpos` e `vinculos` do snapshot e `disponivel: True` fixo, então um snapshot de outro céu
+    # anunciava 4 226 vínculos e devolvia `vizinhanca: null` para todo mundo. Ver `_recusa_de_corpus`.
+    recusa = _recusa_de_corpus(dados, "vizinhanca.mjs")
+    if recusa:
+        return {"disponivel": False, "motivo": recusa, "as_of": dados.get("as_of")}
     cabecalho = {
         "disponivel": True,
         "as_of": dados.get("as_of"),
+        # O corpus viaja no cabeçalho, e não só é conferido: quem lê a resposta consegue provar de
+        # que céu ela é sem uma segunda chamada. `corpos: 188` sozinho não acusa nada — foi
+        # justamente ele que passou por medida durante um dia inteiro.
+        "corpus": dados.get("corpus"),
         "teto": dados.get("teto"),
         "corpos": dados.get("corpos"),
         "vinculos": dados.get("vinculos"),
@@ -327,7 +402,12 @@ def conceitos(source: Optional[str] = None) -> Optional[dict]:
             _conceitos_mtime = agora
         except (OSError, ValueError):
             return None
-    cabecalho = {k: v for k, v in _conceitos.items() if k != "porCorpo"}
+    # Mesma guarda das outras quatro dimensões: assunto extraído sobre outro céu não descreve
+    # nenhum corpo deste, e o `modelo`/`as_of` no cabeçalho faria a lista vazia parecer veredito.
+    recusa = _recusa_de_corpus(_conceitos, "conceitos.mjs")
+    if recusa:
+        return {"disponivel": False, "motivo": recusa, "as_of": _conceitos.get("as_of")}
+    cabecalho = {"disponivel": True, **{k: v for k, v in _conceitos.items() if k != "porCorpo"}}
     if source is None:
         return cabecalho
     return {**cabecalho, "lista": (_conceitos.get("porCorpo") or {}).get(source)}

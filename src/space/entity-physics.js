@@ -79,6 +79,13 @@ export const EVIDENCIA_USO_MINIMA = Object.freeze({ grauMax: 5, cobertura: 0.072
  * o primeiro é "não materializei", o segundo é "materializei e é rala".
  */
 export function evidenciaDeUso(meta) {
+  // ⚠️ O servidor RECUSA snapshot cujo corpus não é o servido, e a recusa vem com motivo próprio
+  // (`graphdb._recusa_de_corpus`). Sem esta linha ela cairia no ramo de baixo e seria reescrita
+  // como "sem snapshot de uso" — que é falso: o snapshot existe, e é de outro céu. Trocar o motivo
+  // certo por um genérico é a mesma perda que a recusa existe para impedir.
+  if (meta && meta.disponivel === false) {
+    return { disponivel: false, suficiente: false, motivo: meta.motivo || 'uso indisponível' };
+  }
   if (!meta || typeof meta.grau_max !== 'number') {
     return { disponivel: false, suficiente: false, motivo: 'sem snapshot de uso' };
   }
