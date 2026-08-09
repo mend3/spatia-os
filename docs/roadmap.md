@@ -117,7 +117,8 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `done` | — | — | KR3.3 |
 | **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
 | **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `todo` | — | T-16 | KR1.2 |
-| **T-34** | Malha `glb` para asteroide e estação (engine vem de outro projeto) | `todo` | — | — | — |
+| **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | — | — |
+| **T-35** | **FAVORITOS** — o operador marca corpos para acompanhar, e escolhe a aparência nomeada | `todo` | — | T-34 | KR2.1 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
 
@@ -136,6 +137,17 @@ acontece nada?"*, que é o Princípio Final ao contrário.
   no barramento. **Não existe `bus.on('notice')` em `src/`**: nenhum pixel muda. O que desenhar já
   está decidido no `EVENTS.md` — `severity` escolhe a cor, `action` é o texto acionável, `at` dá a
   idade, e `info` no mesmo `topic` apaga o de pé.
+- **T-35** — é a peça que torna corpo NOMEADO legítimo: quem escolhe *"este é o meu Marte"* é o
+  operador, então a textura vira MARCA e não afirmação derivada do dado. ⚠️ **Três condições, e sem
+  elas volta a ser o defeito:** (a) a marca **não entra em `classificar()`** — classe, física e pele
+  continuam saindo do corpus, e `lei-cena.mjs` continua valendo; (b) mora no OPERADOR (`prefs`), não
+  no corpus — dois operadores veem marcas diferentes sobre a mesma topologia, e é isso que a torna
+  marca; (c) a tela **diz que é escolha**, senão é a única forma de isto virar mentira.
+  ⚠️ **Quando o arquivo muda de classe**, a marca guarda a escolha POR CLASSE ou degrada anunciando
+  — *"não marquei"* e *"marquei e não vale mais aqui"* são fatos diferentes.
+  ⭑ Ela **muda o que vale baixar**: com favoritos, planeta nomeado passa a ter uso, e a lista do
+  Solar System Scope (Terra, Marte, Júpiter, Saturno, Vênus, Mercúrio, Netuno, Urano) deixa de ser
+  inútil aqui. **T-35 vem antes de T-34.**
 - **T-34** — os links por modelo estão em [`../assets/CREDITS.md`](../assets/CREDITS.md).
   ⚠️ Malha resolve FORMA, não CLASSE: usar um asteroide para todos repete o erro que a textura de
   planeta cometeria. Sortear por semente do caminho, como o terreno do planeta já faz. E o custo de

@@ -128,11 +128,19 @@ precisa de FORMA, não de pele.
 
 | modelo | serviria a | link |
 |---|---|---|
-| **Bennu** (101955) — OSIRIS-REx, malha global | **asteroide** | [science.nasa.gov](https://science.nasa.gov/resource/bennu-3d-model/) · [SVS 5069](https://svs.gsfc.nasa.gov/5069) |
+| ⭑ **CubeSat 1 RU / 2 RU — GENÉRICO** | **estação** | [acervo `3D Models`](https://github.com/nasa/NASA-3D-Resources/tree/master/3D%20Models) |
+| **Bennu** (101955) — OSIRIS-REx, malha global | **asteroide** | [science.nasa.gov](https://science.nasa.gov/resource/bennu-3d-model/) · [SVS 5069](https://svs.gsfc.nasa.gov/5069) · [`1999 RQ36` no espelho](https://github.com/nasa/NASA-3D-Resources/tree/master/3D%20Models) |
 | **Itokawa** (25143) — Hayabusa | **asteroide** | [science.nasa.gov](https://science.nasa.gov/resource/asteroid-itokawa-3d-model/) |
 | **Eros** (433) — NEAR Shoemaker | **asteroide** | [science.nasa.gov](https://science.nasa.gov/resource/eros-3d-model/) |
 | **OSIRIS-REx** (a sonda) | **estação** | [solarsystem.nasa.gov](https://solarsystem.nasa.gov/resources/2360/osiris-rex-3d-model/) |
 | acervo completo, espelhado | ambos | [github.com/nasa/NASA-3D-Resources](https://github.com/nasa/NASA-3D-Resources) |
+
+⭑ **O CubeSat genérico é o melhor item de todo o acervo para esta base, e é por ser GENÉRICO.** A
+ESTAÇÃO representa um AGENTE — objeto CONSTRUÍDO, sem análogo natural. Voyager, Kepler ou a ISS
+trariam a identidade de uma missão real junto; o CubeSat não traz identidade nenhuma, e é
+exatamente isso que o faz servir. ⚠️ E `modelo-de-renderizacao.md:462` já recusou por escrito a
+alternativa: *"estação orbital, não nave — nave implica posição independente, e posição
+independente quebra a estabilidade espacial"*.
 
 ⚠️ **Malha resolve FORMA, não CLASSE.** Os três asteroides são corpos distintos com silhuetas
 distintas — usar um deles para todo asteroide do céu repete o erro que a textura de planeta cometeria
@@ -149,6 +157,52 @@ adotar N delas.**
 |---|---|---|
 | **Lunar** (terreno, sítios Apollo) | **lua** | terreno local, não mapa global — não casa com esfera |
 | **Pillars of Creation** | nebulosa | ⚠️ já coberto pelos fundos JWST |
+
+### ⚠️ O que este acervo NÃO resolve — e por que o catálogo "Sistema Solar" não se aplica
+
+Um levantamento externo propôs Earth · Mars · Phobos · Gale Crater · Apollo landing sites · ISS ·
+Voyager · Kepler, com zoom progressivo *Sistema Solar → Terra → Lua → superfície → sítio de pouso*.
+**Isso descreve um visualizador do Sistema Solar, e esta cena não é um.**
+
+☠️ **Aqui não existe Marte.** Um "planeta" é `docs/guia.md`; a forma de um corpo é uma AFIRMAÇÃO
+sobre um arquivo. Todo corpo nomeado do catálogo pressupõe corpos com IDENTIDADE, e os desta cena
+têm identidade de arquivo, não de astro.
+
+E três colisões com medida já feita:
+
+| a proposta | o que a medida diz |
+|---|---|
+| escada de LOD `billboard → low-poly → textured → displacement → terrain` | *"a pele não é alcançável por zoom, só por foco"*, com geometria **P50 1,55 px**. Os dois níveis de cima agiriam numa faixa de **0 corpos** |
+| zoom progressivo até o sítio de pouso | o princípio 8 tem OUTRA escada: Universo → Workspace → Agentes → Objetos → Chunks → Embeddings → Tokens |
+| CDN de assets | isto liga em `127.0.0.1` **sem autenticação** — distribuir é outra decisão de produto |
+
+⭑ **O que sobrevive dele, e é bom:** separar a GEOMETRIA VISUAL do DADO (é a mesma forma de *"a cena
+é uma lente"*), o pipeline GLB + KTX2 + LOD, e *"não baixar tudo"*.
+
+### ⭑ E há UM caminho em que corpo nomeado passa a ser legítimo: o FAVORITO
+
+Se quem escolhe *"este é o meu Marte"* é o **operador**, a textura nomeada deixa de ser afirmação
+derivada do dado e vira **marca**. Ela não decide o que o arquivo É — registra o que alguém quer
+acompanhar, e isso é fato próprio, com dono e com data.
+
+⚠️ **As três condições que mantêm isso honesto**, e sem elas volta a ser o defeito:
+1. **A marca não pode entrar em `classificar()`.** Classe, física e pele continuam saindo do corpus;
+   o nomeado é uma CAMADA de aparência por cima, e `lei-cena.mjs` continua exigindo que a cena não
+   decida o que um corpo é.
+2. **Ela mora no operador, não no corpus** — `prefs`, como a pose da câmera. Dois operadores veem
+   céus com marcas diferentes sobre a MESMA topologia, e é isso que a torna marca.
+3. **A tela tem de dizer que é escolha, não medida.** O resto da HUD publica procedência de tudo; um
+   corpo com cara de Júpiter sem dizer *"você marcou"* é a única forma de isto virar mentira.
+
+⚠️ **E o que acontece quando o arquivo muda de classe:** textura de planeta sobre um corpo que virou
+estrela é absurdo. A marca guarda a escolha **por classe**, ou degrada para a pele procedural
+anunciando a degradação — nunca fica presa. É `null` ≠ `0` aplicado à escolha: *"não marquei"* e
+*"marquei e a marca não vale mais aqui"* são fatos diferentes.
+
+Ver **T-35** no [`roadmap`](../docs/roadmap.md). É ele que decide quais texturas nomeadas valem a
+pena baixar — e a resposta muda: com favoritos, **planeta nomeado passa a ter uso**, e a lista do
+Solar System Scope (Terra, Marte, Júpiter, Saturno, Vênus, Mercúrio, Netuno, Urano) deixa de ser
+inútil para esta cena.
 
 ### O que eu recomendaria medir primeiro
 
