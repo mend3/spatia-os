@@ -115,11 +115,11 @@ const SHININESS = 12;
 const SHELL_MARGIN = 0.035;
 
 /*
- * Régua da massa. `graph.js:360` já usa `log2(1 + chunks)` para o tamanho do ponto; 8 é o topo
- * porque o maior arquivo citado em `docs/catalogo-celeste.md` tem 226 chunks e log2(227)≈7,8.
- * É calibragem por um único caso, não estatística do corpus — PALPITE com âncora.
+ * Régua do VOLUME DE CONHECIMENTO. `graph.js:360` já usa `log2(1 + chunks)` para o tamanho do
+ * ponto; 8 é o topo porque o maior arquivo citado em `docs/catalogo-celeste.md` tem 226 chunks e
+ * log2(227)≈7,8. É calibragem por um único caso, não estatística do corpus — PALPITE com âncora.
  */
-const MASS_LOG_FULL = 8;
+const CHUNKS_LOG_FULL = 8;
 
 /* Largura do sorteio da geografia, em unidades do domínio do ruído. Ver `planetParams.origin`. */
 const ORIGIN_SPAN = 64;
@@ -355,7 +355,23 @@ export function planetParams(node = {}) {
   const seedB = hash01(path, 23);
   const seedC = hash01(path, 41);
   const chunks = Number.isFinite(node.chunks) ? node.chunks : 1;
-  const mass = THREE.MathUtils.clamp(Math.log2(1 + chunks) / MASS_LOG_FULL, 0, 1);
+  /*
+   * ⚠️ **ESTE CAMPO SE CHAMAVA `mass`, e era o SEGUNDO `mass` desta base.** O primeiro morreu em
+   * 08/08 (`EntityPhysics.mass` → `chunks`) porque com `mass` no contrato `gravity = mass * k`
+   * passa em revisão. Este aqui nunca atravessou para a luz — governa relevo, mar e atmosfera —
+   * mas era a mesma confusão com outro dono: um número normalizado 0–1 chamado de massa, num
+   * arquivo cujos comentários dizem "corpo de pouca massa não retém gás".
+   *
+   * `chunksNorm` diz o que ele é: `log2(1+chunks)/8`, contagem de conhecimento em escala log,
+   * saturada em 1. Com este nome, `gravity = chunksNorm * k` se lê como o absurdo que é — e é
+   * esse o serviço que o nome presta, o guarda mais barato que existe.
+   *
+   * ⚠️ A METÁFORA CONTINUA VÁLIDA e é o que faz a cena significar algo: mais conhecimento → menos
+   * relevo relativo, mais mar, mais atmosfera. O que a FRONTEIRA (§11.2 do `replanejamento-celeste`)
+   * proíbe é uma grandeza cognitiva atravessar para onde a matemática precisa ser física. Aqui ela
+   * não atravessa: relevo e mar são apresentação, e nenhum deles vira `R_s/R`.
+   */
+  const chunksNorm = THREE.MathUtils.clamp(Math.log2(1 + chunks) / CHUNKS_LOG_FULL, 0, 1);
 
   /*
    * O relevo é EXAGERADO, e o exagero é o ponto.
@@ -365,7 +381,7 @@ export function planetParams(node = {}) {
    * com relevo relativo maior, que é o fato físico (a montanha máxima cai com a gravidade, e é
    * por isso que Vesta é amassada e a Terra é lisa).
    */
-  const amplitude = THREE.MathUtils.lerp(0.115, 0.038, mass) * (0.82 + seed * 0.36);
+  const amplitude = THREE.MathUtils.lerp(0.115, 0.038, chunksNorm) * (0.82 + seed * 0.36);
   // Mais massa segura mais volátil: mais água, e menos terreno exposto.
   /*
    * ⚠️ Era `lerp(0,1 → 0,5)`, e ele é a SEGUNDA de duas compressões em série.
@@ -378,12 +394,12 @@ export function planetParams(node = {}) {
    * Nenhuma das duas compressões errava sozinha; elas se multiplicavam. Esta cai junto com o
    * `sharpness` porque corrigir só uma trocaria "tudo submerso" por "tudo pico".
    */
-  const sea = amplitude * THREE.MathUtils.lerp(0.05, 0.3, mass) * (0.55 + seedB * 0.9);
+  const sea = amplitude * THREE.MathUtils.lerp(0.05, 0.3, chunksNorm) * (0.55 + seedB * 0.9);
   const palette = planetPalette(node.kind ?? 'other', seed);
 
   return Object.freeze({
     seed,
-    mass,
+    chunksNorm,
     /*
      * ONDE, no campo de ruído, este planeta é amostrado — a geografia dele.
      *
@@ -404,7 +420,7 @@ export function planetParams(node = {}) {
     amplitude,
     sea,
     // Corpo leve não arredonda: o relevo cristado (`1 - |ruído|`) é a assinatura dele.
-    ridged: THREE.MathUtils.clamp(1.12 - mass * 1.45, 0, 1),
+    ridged: THREE.MathUtils.clamp(1.12 - chunksNorm * 1.45, 0, 1),
     /*
      * ⚠️ Era `1,7 + seed·1,5` (1,70–3,20), e a faixa assumia um campo UNIFORME.
      *
@@ -426,7 +442,7 @@ export function planetParams(node = {}) {
      * A transição é suave porque a retenção depende também da temperatura, e o corte duro
      * afirmaria uma fronteira que a física não tem.
      */
-    atmosphere: THREE.MathUtils.smoothstep(mass, 0.24, 0.68) * (0.6 + seedC * 0.7),
+    atmosphere: THREE.MathUtils.smoothstep(chunksNorm, 0.24, 0.68) * (0.6 + seedC * 0.7),
     // Retrógrado é possível — Vênus e Urano giram ao contrário, e um céu em que todo mundo gira
     // para o mesmo lado lê como carimbo. A largura da faixa e a fatia retrógrada vêm do
     // `motion-catalog.js`; a assimetria entre os dois sentidos está documentada lá.

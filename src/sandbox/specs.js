@@ -308,7 +308,7 @@ export const SPECS = [
           const near = planet.update(params, camera, px, clock.elapsed);
 
           ctx.report({
-            'massa': base.mass.toFixed(2),
+            'chunksNorm': base.chunksNorm.toFixed(2),
             'relevo': params.amplitude.toFixed(3),
             'mar': params.sea.toFixed(3),
             'cristas': base.ridged.toFixed(2),
