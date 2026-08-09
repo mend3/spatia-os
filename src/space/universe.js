@@ -1058,6 +1058,25 @@ export function createUniverse() {
       }));
     },
 
+    /**
+     * O corpo mais PRÓXIMO de um ponto — e ele existe para o piso do zoom.
+     *
+     * ⚠️ Não confundir com `candidatosAPele`, que ordena por PIXEL. As duas perguntas são
+     * diferentes: "quem tem mais a mostrar" e "em quem eu vou esbarrar". Usar uma no lugar da outra
+     * poria o piso do zoom a obedecer o corpo mais VISÍVEL em vez do mais perto, e a câmera
+     * atravessaria uma lua para parar longe de uma estrela.
+     */
+    corpoMaisProximo(ponto) {
+      if (!posicoes || !raiosPorIndice || !corpos.length) return null;
+      let melhor = null;
+      for (let i = 0; i < corpos.length; i++) {
+        const dx = posicoes[i * 3] - ponto.x, dy = posicoes[i * 3 + 1] - ponto.y, dz = posicoes[i * 3 + 2] - ponto.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (!melhor || d2 < melhor.d2) melhor = { d2, i };
+      }
+      return melhor && { source: corpos[melhor.i]?.source ?? null, radius: raiosPorIndice[melhor.i], dist: Math.sqrt(melhor.d2) };
+    },
+
     cederPara(source) {
       const i = source ? indiceDe.get(source) : undefined;
       cedidos.clear();

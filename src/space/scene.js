@@ -256,6 +256,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * `update` próprios, e o fixture tem 3 cometas e ZERO das outras três. Pool para população que não
    * existe seria código sem quem o exerça, que é o que a REGRA DO CATÁLOGO proíbe pelo avesso.
    */
+  /*
+   * Pixels de raio que um corpo ANEXADO recebe na chegada. 1,5× o piso de pele (90) — acende a pele
+   * com margem e não enche a tela, que é o que separa anexar de travar.
+   */
+  const CHEGADA_PX = 135;
   const PELES_VIZINHAS_MAX = 4;
   const poolPlaneta = [];
   const poolFotosfera = [];
@@ -1261,9 +1266,28 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * body, so the floor cannot drift from the geometry it is protecting.
    */
   function clampDistance(value) {
-    const floor = focusGeometry
-      ? Math.max(focusGeometry.radius * FOCUS_FLOOR_RADII, CAMERA.near * 4)
-      : ZOOM_RANGE.min;
+    /*
+     * ⚠️ **`ZOOM_RANGE.min` PRESSUPÕE UM CENTRO, e no UNIVERSO não há um.**
+     *
+     * As 12 unidades existem para a câmera não entrar no buraco negro da cena AGENTE — ali a âncora
+     * é o núcleo, um objeto real, e o piso protege dele. Em voo livre a âncora é um ponto no vazio:
+     * o mesmo 12 vira um chão sem dono, e ele impede de chegar perto de qualquer corpo. Medido em
+     * 08/08: a roda encosta em 12 unidades com o maior corpo em 34 px, contra um piso de pele de 90
+     * — e o §2.1 do `distancia-e-forma` já dizia que o corpo mediano precisa de 3,4 unidades para
+     * alcançar 90 px. Nenhum planeta era alcançável, e a causa não era a pele.
+     *
+     * É a mesma forma do defeito da âncora: uma constante da outra cena viajando junto com o modelo
+     * de câmera. O piso é para não ATRAVESSAR um corpo, então ele tem de vir do corpo mais próximo —
+     * a mesma regra que o foco já usa (`FOCUS_FLOOR_RADII`), aplicada a quem está por perto em vez
+     * de a quem está travado.
+     */
+    let floor = ZOOM_RANGE.min;
+    if (focusGeometry) {
+      floor = Math.max(focusGeometry.radius * FOCUS_FLOOR_RADII, CAMERA.near * 4);
+    } else if (modo === 'universo') {
+      const perto = universe.corpoMaisProximo(anchor);
+      floor = Math.max((perto?.radius ?? 0) * FOCUS_FLOOR_RADII, CAMERA.near * 4);
+    }
     return THREE.MathUtils.clamp(value, floor, ZOOM_RANGE.max);
   }
 
@@ -1553,12 +1577,27 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       alvoDaCena = ancoraLivre;
     }
     anchorTarget.copy(alvoDaCena || ZERO);
-    if (alvoAnterior && alvoAnteriorDe === focusedNode && bodyAt) {
+    /*
+     * ⚠️ **A CORREÇÃO ANTI-PERSEGUIÇÃO VALE PARA QUALQUER CORPO QUE A ÂNCORA SIGA, não só o em foco.**
+     *
+     * O comentário acima explica por que um `lerp` de taxa fixa contra alvo em MOVIMENTO tem erro
+     * permanente. A correção existia, e só olhava `focusedNode` — então o objeto ANEXADO, que também
+     * orbita, era perseguido com amortecimento e a âncora ficava para trás dele. Medido em 08/08:
+     * anexar um planeta e chegar a 3,03 unidades dava **89,7 px** onde a conta pedia 135 — abaixo do
+     * piso de pele de 90, então a pele não acendia por 0,3 px. O sintoma era "anexei, cheguei perto,
+     * e a forma não aparece", que não aponta para a câmera em lugar nenhum.
+     *
+     * `seguindo` é a identidade do que a âncora persegue — o corpo em foco, ou o anexado. Uma
+     * pergunta, uma variável: usar `focusedNode` para decidir isso era o modelo antigo (só o foco
+     * movia a âncora) sobrevivendo dentro do novo.
+     */
+    const seguindo = focusedNode ?? (modo === 'universo' ? objetoAnexado : null);
+    if (alvoAnterior && alvoAnteriorDe === seguindo && seguindo) {
       anchor.add(ANCHOR_DELTA.copy(anchorTarget).sub(alvoAnterior));
     }
     anchor.lerp(anchorTarget, 1 - Math.exp(-2.6 * real));
     alvoAnterior = (alvoAnterior || new THREE.Vector3()).copy(anchorTarget);
-    alvoAnteriorDe = focusedNode;
+    alvoAnteriorDe = seguindo;
 
     // A câmera olha para o núcleo, mas se inclina na direção do que foi recuperado: o
     // sistema aponta a atenção para onde a memória acendeu, e depois relaxa de volta.
@@ -2457,8 +2496,25 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      *
      * @param {string|null} source  `null` desanexa e devolve a câmera ao voo livre
      */
-    universeAttach(source) {
+    universeAttach(source, chegar = true) {
       objetoAnexado = source && universe.sistemaDe(source) !== null ? source : null;
+      /*
+       * ANEXAR TAMBÉM CHEGA — senão a câmera adota o corpo e continua a 150 unidades dele, que é
+       * adotar sem visitar. `irPara` já chega no sistema pelo envelope; a assimetria era um descuido,
+       * e ela aparecia como "anexei e não mudou nada".
+       *
+       * ⚠️ A distância NÃO é a do foco. `FOCUS_FIT_PX` (260) enche a tela com o corpo, que é a pose
+       * de quem TRAVOU nele. Anexar não é travar: o corpo vira a casa da câmera e o sistema tem de
+       * continuar visível em volta. `CHEGADA_PX` é 1,5× o piso de pele — o bastante para a pele
+       * acender com margem, longe o bastante para o resto continuar na tela.
+       */
+      if (objetoAnexado && chegar) {
+        const anc = universe.ancoraDe(objetoAnexado);
+        if (anc) {
+          const k = canvas.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+          orbit.targetDistance = clampDistance((k * anc.radius) / CHEGADA_PX);
+        }
+      }
       return this.universeAnchor();
     },
 
