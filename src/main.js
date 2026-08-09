@@ -741,6 +741,8 @@ async function main() {
     renderCost: (n) => scene.sampleRenderCost(n),
     /** Raio aparente, nível de detalhe e distância do planeta em foco — ou `null`. */
     planet: () => scene.planetProbe(),
+    /** Onde o DOCUMENTO do corpo em foco está ancorado, e por quê. Ver `space/ancora-de-documento.js`. */
+    ancora: () => scene.ancoraDoDocumento(),
     /** Tempo, taxa e instâncias que o campo de galáxias está de fato recebendo. */
     galaxy: () => scene.galaxyProbe(),
     /** Recuo × piso de detalhe de cada pele, com a tela de verdade. Ver `space/lod.js`. */

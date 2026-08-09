@@ -97,7 +97,7 @@ globalThis.document ??= { documentElement: { dataset: {} } };
 // `import()` e não `import` estático: os esboços acima têm de existir ANTES do módulo carregar, e
 // o `import` estático é içado para o topo do arquivo.
 const { planetParams } = await import(new URL('../src/space/planet.js', import.meta.url));
-const { SURFACE } = await import(new URL('../src/space/solver.js', import.meta.url));
+const { SUPERFICIE } = await import(new URL('../src/space/superficies.js', import.meta.url));
 const { indexar } = await import(new URL('../src/space/sistemas.js', import.meta.url));
 const { WET_EDGE } = await import(new URL('../src/space/planet-palette.js', import.meta.url));
 
@@ -136,14 +136,14 @@ const arquivos = grafo.nodes.filter((n) => n.type === 'file');
  * ACRESCENTA modificadores, e nenhuma classe troca de superfície por causa dele.
  */
 const indice = indexar(grafo);
-const peleDe = (n) => indice.identidadeDe(n)?.pele ?? SURFACE.NONE;
+const peleDe = (n) => indice.identidadeDe(n)?.pele ?? SUPERFICIE.NENHUMA;
 const peles = new Map();
 for (const n of arquivos) {
   const pele = peleDe(n);
   peles.set(pele, (peles.get(pele) || 0) + 1);
 }
 const planetas = arquivos
-  .filter((n) => peleDe(n) === SURFACE.PLANET)
+  .filter((n) => peleDe(n) === SUPERFICIE.PLANETA)
   .map((n) => ({ node: n, p: planetParams(n) }));
 
 if (!planetas.length) {
@@ -319,9 +319,9 @@ function spearman(xs, ys) {
 
 console.log(`\x1b[1mCENSO DOS PLANETAS\x1b[0m  ·  ${URL_GRAFO}`);
 
-titulo('1. QUEM É PLANETA (pele resolvida por solver.js)');
+titulo('1. QUEM É PLANETA (pele resolvida por superficies.js)');
 for (const [pele, n] of [...peles].sort((a, b) => b[1] - a[1])) {
-  const marca = pele === SURFACE.PLANET ? ' ←' : '';
+  const marca = pele === SUPERFICIE.PLANETA ? ' ←' : '';
   console.log(`  ${String(pele).padEnd(12)} ${String(n).padStart(5)}  ${frac(n, arquivos.length).padStart(6)}${marca}`);
 }
 console.log(`  ${'—'.repeat(30)}`);

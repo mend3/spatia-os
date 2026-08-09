@@ -7,8 +7,7 @@
 >
 > ⚠️ **Se o texto vale igual daqui a dez sessões, ele NÃO é handoff.** Lei, doutrina, armadilha e
 > número medido são duráveis e moram em outro lugar — o §3 diz qual. Handoff que acumula durável
-> deixa de ser lido, e foi assim que este arquivo chegou a **1.112 linhas** com o que importa
-> perdido no meio.
+> deixa de ser lido.
 >
 > ⭑ **O par deste arquivo é [`roadmap.md`](./roadmap.md), e os dois mudam JUNTOS.** Ele responde
 > *"para onde, em que ordem, e o que cada peça destrava"*; este responde *"em que ambiente se mede e
@@ -19,9 +18,8 @@
 
 ## 0. ⚠️ AMBIENTE — confira ANTES de medir qualquer coisa
 
-**Este documento já afirmou o oposto do que o `.env` dizia, por meia sessão.** O arquivo é a verdade;
-isto aqui é lembrança. Um censo rodado contra o corpus errado responde com convicção total sobre um
-céu que ninguém está vendo.
+O `.env` é a verdade; isto aqui é lembrança. Um censo rodado contra o corpus errado responde com
+convicção total sobre um céu que ninguém está vendo.
 
 ```bash
 grep -E 'AGENT_CWD|QDRANT_COLLECTION|CORPUS_PREFIX' .env    # a verdade
@@ -41,13 +39,11 @@ premissa. Os scripts atuais conferem ou ignoram o override; **script novo precis
 | vivo | `espatial_vivo` | o próprio projeto | 188 corpos · 191 arq | COMPORTAMENTO — o `git status` casa com os nós por construção |
 | real | `workspace_embedding` | `~/workspace/devshell` (prefixo `vault/`) | 1.432 arq | ZERO código; e **não tem anel** (os sujos não estão indexados) |
 
-Trocar é `cp .cache/env.<x>.bak .env` **e REINICIAR o servidor**.
-☠️ **`env.vivo.bak` e `env.real.bak` NÃO EXISTEM** — esta linha prometeu backup por várias sessões e
-`ls .cache/env.*.bak` não casa nada. Existe **`env.fixture.bak`**, escrito em 09/08 antes de uma
-troca. Trocar hoje é editar as três chaves à mão (a tabela acima tem os valores) e **guardar o atual
-primeiro**. Recriar o fixture:
+☠️ **Só existe `.cache/env.fixture.bak`** — confira com `ls .cache/env.*.bak` antes de contar com um
+backup. Trocar de corpus é **guardar o `.env` atual primeiro**, editar as três chaves à mão (a tabela
+acima tem os valores) e **REINICIAR o servidor**. Recriar o fixture:
 `FIXTURE_ROOT=~/workspace/espatial-fixtures uv run --with fastembed python scripts/fixture.py`
-(⚠️ o `rmtree` continua nas linhas 220 e 409 — passar `FIXTURE_ROOT` explícito é hábito, não paranoia).
+(⚠️ há `rmtree` em `fixture.py` — passar `FIXTURE_ROOT` explícito é hábito, não paranoia).
 
 ⚠️ **A coleção precisa de DOIS vetores nomeados** (denso `fast-<modelo>` + esparso `bm25` com
 `modifier: idf`) — declarar só um derruba a busca inteira.
@@ -78,10 +74,6 @@ cair. ⚠️ **Quantos são sai do próprio comando**, nunca deste parágrafo �
 quem NÃO roda é MEDIDO (efeito colateral), não declarado à mão. Está no `pre-commit`; clone novo pede
 **`make hooks`** (aponta o git para `.githooks/`, que é versionado — `.git/hooks/` não é).
 
-⚠️ **A tabela por-guarda não mora aqui.** Ela dizia *quando* rodar cada um, e escolher era exatamente
-como os defeitos passavam — quatro guardas foram flagrados sem guardar o que diziam na mesma sessão.
-O que cada um responde está no cabeçalho dele e no `CLAUDE.md`; **quando** rodar tem uma resposta só.
-
 **Rematerialização — a ordem é obrigatória.** A rede lê o SNAPSHOT, não o banco:
 
 ```
@@ -99,63 +91,40 @@ falso nesta base.
 
 ---
 
-## 2. O estado agora
+## 2. Por onde continuar
 
-**Branch `main`.** O trabalho da `cena-universo` foi mesclado pelo [PR #1](https://github.com/mend3/spatia-os/pull/1).
+**Branch `main`.** Status de tarefa vive no [`roadmap.md`](./roadmap.md); esta seção é só a ORDEM, e
+ela é por dívida de MODELO, não por tamanho.
 
-☠️ **O que está aberto vive no [`roadmap.md`](./roadmap.md), como tarefa com status** — não aqui.
-Tabela de item em voo envelhece a cada commit e vira a primeira linha errada que alguém lê; foi assim
-que este arquivo carregou por sessões dois itens (`0b`, `0f`) **já fechados no código**, contradizendo
-o roadmap ao lado.
+1. **T-82, a segunda metade** — a âncora do documento está no ar; falta *"não um retângulo preto
+   sólido"*, profundidade e parallax, e essa metade é SHADER.
+2. **T-40** — a marca de favorito não tem consumidor.
+3. **T-58** — o `prefs` vence o endereço pedido no deeplink de FOCO.
 
-☠️ **A DÍVIDA MAIS BARATA DA BASE É UMA SESSÃO DE NAVEGADOR, e ela não é opcional.** O vocabulário
-diz que `done` é *"entregue **e provado** — número, oráculo ou foto"*, e **sete tarefas esperam a
-prova que só a tela dá**: T-13 · T-16 · T-35 · T-39 · T-47 · T-51 · T-52. Seis delas já estão
-escritas como fechadas. Cada uma nomeia no `roadmap.md` exatamente o que a foto tem de julgar, e
-**nenhuma pede navegação nova** — é o mesmo boot, as mesmas rotas. Enquanto ela não acontece, o
-roadmap afirma seis vezes o que ninguém viu.
-⚠️ Antes de medir qualquer coisa ali, o §1 e [`armadilhas.md`](./armadilhas.md) §A: aba VISÍVEL,
-janela em FOCO, `quadros` andando. Comando de shell rouba o foco de volta.
+⭑ **T-41 · T-42 · T-43 · T-45 · T-64 são um CLUSTER, não cinco tarefas soltas:** todas são
+*"declarado sem leitor"* ou *"dois donos para um estado"*. O corolário da REGRA DO CATÁLOGO
+(`CLAUDE.md`) diz como a auditoria se faz, e fazê-las juntas cobra uma varredura só.
+⚠️ **T-83 é vizinho e NÃO é do cluster** — lá o leitor existe e é imposto; o que não tem guarda é a
+POPULAÇÃO da lista que ele lê.
 
-**Por onde continuar depois dela, e a ordem é por dívida de MODELO, não por tamanho:**
+**O que ainda espera a TELA**, e o vocabulário cobra: `done` é *"entregue **e provado** — número,
+oráculo ou foto"*.
 
-1. **T-69 → T-70** — as duas pontas que a convergência das cenas (T-39) deixou, e a ordem entre elas
-   é obrigatória. `SURFACE` e `SUPERFICIE` são dois nomes do mesmo vocabulário (48 sítios, e as
-   chaves DIVERGEM — `SURFACE` tem `GALAXY`, que a tabela nova não roteia, então não é alias); só
-   depois disso `resolveBody` pode parar de calcular a pele que **nenhum leitor em `src/` consome**.
-2. **T-40** — a marca de favorito **não tem consumidor**: ela só aparece no painel do corpo em que o
-   operador JÁ está, então responde uma pergunta que ele não pode ter. É o Princípio Final ao
-   contrário, e as três condições de T-35 fecharam sem tocar na que faz a marca valer: alguém ler.
-3. **T-58** — o `prefs` vence o endereço pedido no deeplink de FOCO. Endereço PEDIDO e último
-   visitado são fatos diferentes, e o pedido tem precedência quando existe.
+| tarefa | o que falta julgar |
+|---|---|
+| **T-13** | a foto da tela de entrada |
+| T-16 · T-35 · T-52 | ☠️ **não é esforço — não há OCORRÊNCIA para julgar**: nenhuma aferição vencida na tela, `favoritos().degradadas` é 0, e a linha que vira ponteiro exige um painel de fonte ABERTO (o acordeão não abre por clique programático). **Fabricá-las mede outra coisa** — quem vir a primeira ocorrência julga nela |
 
-⭑ **E há um CLUSTER, não cinco tarefas soltas:** T-41 · T-42 · T-43 · T-45 · T-64 (com T-70) são
-todas *"declarado sem leitor"* ou *"dois donos para um estado"* — a família que esta base já pagou
-cinco vezes, e o corolário da REGRA DO CATÁLOGO no `CLAUDE.md` diz como a auditoria se faz (varra
-cada chave declarada e procure um leitor). Fazê-las juntas cobra uma varredura só.
+⚠️ Antes de medir ali, o §1 e [`armadilhas.md`](./armadilhas.md) §A: aba VISÍVEL, janela em FOCO,
+detector de quadro andando. Comando de shell rouba o foco de volta.
 
-⚠️ **T-83 é vizinho do cluster e NÃO é dele — é o guarda que não guarda o próprio alcance.**
-`lei-residentes.mjs` derruba quem tira um residente de uma ROTA (visto saindo **1**, acusando pelo
-nome) e passa quem tira o mesmo residente da TABELA: o conjunto guardado encolhe e o rodapé só troca
-*"4 residentes"* por *"3"*. ⭑ **O achado veio de provar o portão por MUTAÇÃO antes de um commit** —
-é exatamente para isso que a mutação existe, e é o motivo de verde não ser review. A medida e as
-duas mutações estão na linha de T-83 no [`roadmap.md`](./roadmap.md).
-
-☠️ **A FRENTE DE UI/HUD tem QUATRO briefings, e três estavam mal cobertos pelo roadmap** (mapeado em
-09/08, com as decisões do operador já tomadas):
-
-| briefing | o roadmap dava | o que faltava, e virou tarefa |
-|---|---|---|
-| `hud-e-canvas.md` | T-46…T-53 — **bem coberto**, 6 dos 7 passos entregues | T-72 (altura por fenda) · T-73 (`sec-effective`) · T-75 (atlas de glifo) |
-| `menu-iniciar.md` | T-14, uma linha | T-74 (medir o vidro 3D) · e o "Action Ring" é T-78 |
-| `features-widgets.md` | T-21 — **só a §5 dele** | T-76 · T-77 · T-78 |
-| `integracao-organica.md` | T-23 — **uma tabela dele** | T-79, a ponte evento→fenômeno |
-
-⭑ **A bancada das superfícies (`bancada-hud.html`) é a ferramenta dessa frente**, e ela monta o app
-DE VERDADE num `<iframe>` — painéis reais, retráteis, conteúdo real. `bancada.rotas()` varre as dez
-rotas; o inventário está em [`medidas.md`](./medidas.md).
-⚠️ **O que ela ainda NÃO faz:** dirigir o app até a composição que motivou a discussão (documento
-aberto + resposta no palco). Enquanto isso, `palco` sai 0,0% e o número de FOCUS está subestimado.
+⭑ **A FRENTE DE UI/HUD sai de quatro briefings**, e o mapa briefing → tarefa está na tabela final do
+[`roadmap.md`](./roadmap.md) — não aqui, senão são duas listas divergindo.
+A ferramenta dela é **`bancada-hud.html`**, que monta o `index.html` DE VERDADE num `<iframe>`;
+`bancada.rotas()` varre as dez rotas e o inventário está em [`medidas.md`](./medidas.md).
+⚠️ **O que ela NÃO faz:** dirigir o app até documento aberto + resposta no palco. Ali ela sai
+`palco 0,0%` e o número de FOCUS fica subestimado. A composição com o documento aberto está medida
+no APP, à mão, em [`medidas.md`](./medidas.md).
 
 ⚠️ **As decisões que são do usuário não são `blocked` por engenharia e nenhum agente as resolve
 sozinho** — estão nomeadas no fim do `roadmap.md`.

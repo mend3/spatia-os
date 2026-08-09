@@ -170,9 +170,9 @@ com ou sem produtor.
 | **T-79** | **AUDITADOS os 17 «Quem reage»** — 9 têm fenômeno de cena, 0 declarados sem leitor | `done` | — | T-23 | KR1.1 |
 | **T-80** | O inspector tem TRÊS estados (recolhido → **resumo** → aberto) e ganha AÇÕES | `todo` | — | T-71 | KR2.1 |
 | **T-81** | Comprimir o cabeçalho — ⚠️ colide com refutação escrita sobre esconder dado atrás de gesto | `todo` | decisão do usuário | — | KR2.1 |
-| **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora e profundidade, não janela | `todo` | T-53 | — | KR2.1 |
-| **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) são DOIS nomes do mesmo vocabulário | `todo` | — | T-70 | KR2.4 |
-| **T-70** | `resolveBody()` ainda decide uma PELE que ninguém lê — sobrou o modificador | `todo` | T-69 | — | KR2.4 |
+| **T-82** | O documento como EXTENSÃO ESPACIAL do astro — ⭑ a ÂNCORA entregue; a PROFUNDIDADE (shader) fica | `doing` | T-53 | — | KR2.1 |
+| **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) eram DOIS nomes do mesmo vocabulário — sobrou `SUPERFICIE` | `done` | — | T-70 | KR2.4 |
+| **T-70** | `resolveBody()` decidia uma PELE que ninguém lia — hoje ele só resolve MODIFICADOR | `done` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos | `todo` | — | — | KR3.1 |
 | **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |
@@ -186,7 +186,7 @@ com ou sem produtor.
 | **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `done` | — | — | — |
 | **T-51** | Zona morta do palco — ⭑ **medido nas 10 rotas: o corpo reivindica, a moldura cede** | `done` | — | — | — |
 | **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
-| **T-53** | O que sobe para o MUNDO — ⭑ **DECIDIDO: só o DOCUMENTO EM FOCO** | `todo` | — | T-82 | — |
+| **T-53** | O que sobe para o MUNDO — ⭑ **DECIDIDO e ENTREGUE: só o DOCUMENTO EM FOCO** | `done` | — | T-82 | — |
 | **T-54** | A cena AGENTE voltava PRETA ao voltar do UNIVERSO — era a PARIDADE DE SWAPS, e o par agora é FIXADO | `done` | — | — | KR2.3 |
 | **T-55** | Enxugar a BANCADA — ela é o storybook dos objetos 3D, e tem espécimes depreciados | `blocked` | T-26 | — | — |
 | **T-56** | Satélites estão com LUAS — não existe e não faz sentido | `todo` | — | — | — |
@@ -254,16 +254,23 @@ com ou sem produtor.
   gesto — *"dado que exige gesto para aparecer deixa de ser monitorado"*, com ganho medido de ~4% de
   pixel. Mandar custo e janela para um popover é exatamente isso. **Ou a refutação cai com medida
   nova, ou o cabeçalho encolhe sem esconder** (menos rótulo, mais densidade). É decisão de produto.
-- **T-82** — ⭑ **O review acerta o diagnóstico e a base já tem a peça construída e DESLIGADA.** Ele
-  diz que o documento *"flutua no centro sem relação espacial clara com o astro"* e que o operador
-  não sabe se aquilo pertence ao planeta, ao buraco negro, ao sistema ou à cena. A saída que ele
-  propõe — âncora, profundidade, parallax, o conteúdo emergindo da SUPERFÍCIE do corpo — é o que
-  `space/bodies.js` faz: posiciona HTML pela projeção da câmera **com oclusão pelo horizonte de
-  eventos** (`bodies.js:216-260`), e `installApps` não tem chamador.
-  ⚠️ **O desligamento de 07/08 foi por MOBÍLIA DE UI, e conteúdo não é mobília** — o próprio roadmap
-  já registra que *"o motivo do desligamento não alcança CONTEÚDO"*. Por isso isto depende de T-53,
-  que é a decisão de o que sobe para o mundo, e não é tarefa nova de engenharia: é religar com
-  escopo. ⚠️ *"Não um retângulo preto sólido"* também é parte do pedido, e essa metade é shader.
+- **T-82 · A ÂNCORA ESTÁ ENTREGUE E PROVADA NA TELA; falta a PROFUNDIDADE.** O documento do corpo
+  travado nasce colado no limbo dele e anda com a câmera — `space/ancora-de-documento.js`, chamado
+  pelo laço de quadro de `scene.js`, portão `scripts/lei-ancora.mjs` (16 leis, 9 mutações vistas
+  caindo). Os números estão em [`medidas.md`](./medidas.md).
+  ☠️ **«VOLTAR A MONTAR É UMA LINHA» APONTAVA PARA A PEÇA ERRADA, e seguir a linha teria desfeito
+  uma decisão do usuário.** `installApps` monta os CORPOS DE APP e os interruptores — a mobília
+  tirada do céu em 07/08. Religá-lo traz de volta exatamente o que foi desligado. O que se
+  reaproveita de `bodies.js` é o PADRÃO (projetar pela câmera, ocluir pelo horizonte), nunca aquele
+  chamador; `installApps` continua sem chamador, e isso está certo.
+  ⚠️ **A oclusão pergunta se o horizonte está DESENHADO (`blackHole.group.visible`), não se ele
+  existe.** No UNIVERSO o grupo é invisível pela tabela `CENAS`, e esconder o documento por um
+  horizonte que a cena não desenha seria feição sem fato.
+  ⭑ **T-51 continua valendo, e é MEDIDA:** `palcoAoPonteiro` sai **533 pontos com e sem a âncora**.
+  Ancorar move a caixa que já pintava — não cria superfície nova sobre o céu.
+  ⚠️ **O que FICA, e é a outra metade do pedido:** *"não um retângulo preto sólido"*, profundidade e
+  parallax. É shader. E o limite geométrico está medido: com o corpo em 173 px de raio não cabe
+  corpo + folga + painel numa janela de 1426, e o painel sobrepõe metade do astro.
   ⭑ **A estrutura já tem casa nesta base, e isso é o que a torna barata:** `CENAS` (`scene.js`) já é
   tabela declarativa, `RESIDENTES` (`apps/residentes.js`) já declara o que cada rota monta COM o
   motivo, e `spatia.hud().widgets` já separa `recolhidos` de `naoMontados` de `ausentes` — o
@@ -345,13 +352,14 @@ com ou sem produtor.
   por decisão**, porque é ele que instala — e é lá que o risco mora, inteiro.
   ⚠️ **A fronteira tem de ficar no CÓDIGO, não no combinado:** um botão «instalar» num catálogo
   somente-leitura é a forma como esta partição morre. Quem construir T-76/T-77 declara a ausência.
-- **T-53 DECIDIDA, com escopo de UM caso: o DOCUMENTO EM FOCO.** O motivo do desligamento de 07/08 é
-  *"um corpo de UI no meio do céu compete por atenção com os astros que são o conteúdo"* — e o corpo
-  TRAVADO não compete: ele é o assunto, e o operador acabou de dizer isso com o gesto. Quotas,
-  métricas e permissões continuam fora, e a decisão vale só para o conteúdo do corpo em foco.
-  ⭑ `space/bodies.js` já posiciona HTML pela projeção da câmera **com oclusão pelo horizonte de
-  eventos**, e *"voltar a montar é uma linha"*. ⚠️ **Medir antes e depois na bancada** — a oclusão
-  custa e ninguém pesou.
+- **T-53 FECHADA — o escopo de UM caso está no ar: o DOCUMENTO EM FOCO.** O motivo do desligamento
+  de 07/08 é *"um corpo de UI no meio do céu compete por atenção com os astros que são o conteúdo"*
+  — e o corpo TRAVADO não compete: ele é o assunto, e o operador disse isso com o gesto. Quotas,
+  métricas e permissões continuam fora, e a fronteira está no CÓDIGO: a âncora procura **um seletor
+  só** (`[data-widget="fs-content"]`), não «widget de palco».
+  ⭑ **A oclusão foi pesada, e a resposta é que ela não custa: 0,9 µs por quadro** — 0,011% do
+  orçamento a 120 Hz. ☠️ **`renderCost` NÃO responderia isso** (é timer de GPU e a âncora é CPU), e
+  o FPS travado em 120 não discrimina nada. Ver [`medidas.md`](./medidas.md).
 - **T-76 / T-77 / T-78** — `features-widgets.md` é 5× maior que o T-21 que o roadmap lhe dava. As
   três peças abaixo dele são independentes entre si e todas dependem da postura de segurança (T-21),
   que é decisão sua: instalar coisa de terceiro é a premissa das três.
@@ -753,14 +761,33 @@ mesmo fato).
   ☠️ **Fica por ver com o OLHO** (a medida acima é do índice, não do pixel): que os 7 corpos que
   desenhavam ESTAÇÃO no AGENTE desenham bem o que a ontologia diz, e que a troca de cena não pisca
   pele. As sondas que enquadram são `spatia.cena()` e `spatia.universo.peles()`.
-- **T-69 / T-70** — ☠️ **Duas pontas soltas da convergência, e as duas são "declarado sem leitor".**
-  `SURFACE` (`solver.js`) e `SUPERFICIE` (`superficies.js`) são o MESMO vocabulário com dois nomes —
-  o segundo já diz por escrito *"os valores têm de bater com `SURFACE`"*, que é uma cópia com
-  portão em vez de uma fonte. São **48 sítios** de `SURFACE.` em `src/`, e as chaves divergem
-  (`SURFACE` tem `GALAXY`, que a tabela nova não roteia), então não é alias: é decisão de qual
-  vocabulário sobrevive. Feito isso, `resolveBody()` para de calcular uma `surface` que **nenhum
-  leitor em `src/` consome** — o que sobra dele, e é legítimo, é ANEL · DISCO DE DETRITOS ·
-  ENVOLTÓRIO, que a ontologia não produz. ⚠️ A ordem importa: T-69 antes de T-70.
+- **T-69 / T-70 FECHADAS — sobrou `SUPERFICIE`, e o solver não decide mais pele.** As 40 citações
+  fora do solver passaram a ler `SUPERFICIE` (`superficies.js`); `SURFACE`, `SURFACE_BY_MORPHOLOGY`
+  e os quatro ramos de pele saíram de `solver.js`, que hoje devolve `{modifiers, rejected}` — ANEL ·
+  DISCO DE DETRITOS · ENVOLTÓRIO, que a ontologia não produz.
+  ⭑ **Qual sobreviveu, e por quê:** o vocabulário que fica é o do lado cujo PRODUTOR está vivo.
+  `superficieDe` decide a pele nas duas cenas desde T-39; o `SURFACE` do solver era alimentado pelo
+  `kind` que a Fase B refutou, e a saída dele **não tinha um leitor em `src/`**.
+  ⭑ **`GALAXY` não migrou, e não é omissão: AGREGADO NÃO TEM PELE.** `superficieDe` devolve
+  `NENHUMA` para tudo que não é `FAMILIA.CORPO`, e a galáxia da cena AGENTE **nunca saiu de uma
+  decisão de pele** — `scene.js` filtra `type === 'dir' || 'repo'` e chama `galaxyParams` num campo
+  INSTANCIADO sobre os hubs. `SURFACE.GALAXY` tinha produtor e **zero leitores**.
+  ☠️ **DOIS «declarado sem leitor» apareceram ao puxar o fio, e nenhum dos dois tinha sintoma:**
+  (1) `probe.classe` lia `decisao.klass`, que `decisaoOntologica` nunca devolveu — a sonda saía
+  **`null` em TODO corpo desde a convergência das cenas**; hoje lê `classe.tipo` e sai `estrela`
+  sobre o pulsar, provado na tela; (2) `allows()` (`catalog.js`) perdeu o último chamador junto com
+  o ramo de pele e saiu, com o motivo no lugar dela.
+  ⭑ **A lei subiu junto:** `lei-cena.mjs` §5 tinha só a varredura *"ninguém escreve
+  `resolveBody().surface`"*. Ganhou §5-B (o RETORNO não carrega valor de pele — por VALOR, nunca por
+  nome de chave, senão renomear `surface` para `pele` burlaria) e §5-C (um vocabulário só no `src/`,
+  com `motion-catalog.js` declarado como HOMÔNIMO — os `allowed` dele são ATORES de animação).
+  ☠️ **E a §5-C nasceu MORTA: ela lia `soCodigo`, que apaga STRING junto com comentário.** Uma lei
+  que procura literal sobre esse texto varre um arquivo do qual toda aspa já foi removida — uma
+  `SURFACE` recriada com três literais passou verde. Quem achou foi a MUTAÇÃO, e a saída foi
+  `semComentarios`, que tira a prosa e mantém as strings.
+  ⚠️ **A medida que sai de cena com esta entrega, e fica escrita porque impede refazê-la:** religar
+  a taxonomia por `kind` trocava a pele de **32 dos 72 corpos** do fixture. O oráculo a calculava a
+  cada rodada; ele não pode mais, porque o caminho de `kind` até pele deixou de existir.
 
 - **T-13** — ☠️ **Splash como CAMADA PRÓPRIA está refutada por uso**: ela virou uma SEGUNDA parede
   entre o diagnóstico e o céu, e chegou a desenhar a marca **por cima do céu vivo**. E o que ela
@@ -1008,18 +1035,19 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
    sobreposições em 17.578 pares** que uma coordenada nova pode destruir.
 3. **T-23 · Agente como corpo.** É **pipeline novo, não limiar** — e há recusa por escrito em
    `modelo-de-renderizacao.md:462`: *"estação orbital, não nave"*.
-4. **T-53 · O que sobe para o MUNDO.** A preferência escrita é *"fazer tudo em canvas"*, e o pedágio
-   está medido nos dois sentidos (`hud-e-canvas.md` §5). ⭑ **O meio-termo não é proposta: está
-   construído e desligado** — `space/bodies.js` posiciona HTML pela projeção da câmera
-   (`bodies.js:251,263-264`) **com oclusão pelo horizonte de eventos** (`bodies.js:216-260`), e
-   `installApps` **não tem chamador** (`grep -rn "installApps" src/` devolve a definição em
-   `scene.js:2607` e dois comentários). O desligamento é decisão do usuário de 07/08
-   (`main.js:208-225`): *"um corpo de UI no meio do céu compete por atenção com os astros que são o
-   conteúdo"* — e o mesmo bloco declara que *"voltar a montar é uma linha"*.
-   ⚠️ **O motivo do desligamento não alcança CONTEÚDO.** Uma fonte de corpus não é mobília de UI: a
-   estrela dela já acende no céu por `memory` (`scene.js:993-1002`). A pergunta binária é **o que
-   TEM lugar no mundo** — e QUOTAS, MÉTRICAS e PERMISSÕES não têm, então ocluí-las por um planeta
-   seria feição sem fato.
+4. **T-53 · O que sobe para o MUNDO — DECIDIDA E ENTREGUE. A linha fica pelo ESCOPO**, que continua
+   sendo decisão sua a cada item novo. A preferência escrita é *"fazer tudo em canvas"*, e o pedágio
+   está medido nos dois sentidos (`hud-e-canvas.md` §5).
+   ⭑ **O que subiu, e só isto: o DOCUMENTO do corpo em foco** — `space/ancora-de-documento.js`, com
+   oclusão pelo horizonte. **QUOTAS, MÉTRICAS e PERMISSÕES não têm lugar no mundo**, então ocluí-las
+   por um planeta seria feição sem fato — e a fronteira está no CÓDIGO, num seletor só
+   (`[data-widget="fs-content"]`), nunca em «widget de palco».
+   ☠️ **`installApps` continua sem chamador, e isso está CERTO.** Ele monta os corpos de app e os
+   interruptores — a mobília tirada do céu em 07/08 (`main.js`, *"um corpo de UI no meio do céu
+   compete por atenção com os astros que são o conteúdo"*). O *"voltar a montar é uma linha"*
+   daquele bloco descreve a mobília, **não o conteúdo**: seguir a linha desfaria a sua decisão. O
+   que se reaproveitou de `space/bodies.js` foi o PADRÃO — projetar pela câmera, ocluir pelo
+   horizonte —, nunca o chamador.
 
 ---
 
@@ -1052,7 +1080,7 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |
 | `integracao-organica.md` | T-23, **T-79** | ⚠️ T-23 é UMA tabela dele; o corpo é a arquitetura evento→fenômeno, e a PONTE não existe (`grep notice src/space/` = 0) |
 | `features-widgets.md` | T-21, **T-76, T-77, T-78** | ⚠️ T-21 era só a §5 dele. ☠️ `capabilities.py` é HOMÔNIMO — permissão, não registry |
-| `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; faltam T-53 estar decidida, e T-72/T-73/T-75, que ele levanta e o roadmap não cobria |
+| `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; e T-53 fechou com o DOCUMENTO ancorado no corpo (T-82, a âncora). Faltam T-72/T-73/T-75, que ele levanta e o roadmap não cobria |
 
 ---
 

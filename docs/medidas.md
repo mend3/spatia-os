@@ -330,6 +330,54 @@ isso que a régua dele é a do corpo e não a do trilho (T-51).
 
 ⚠️ **Estes números descrevem o app OCIOSO na rota:** `palco` sai 0,0% de texto porque não há
 documento aberto nem resposta na tela. A composição que motivou a discussão (documento + resposta)
-mede MAIS, e a bancada ainda não a dirige.
+mede MAIS, e a bancada ainda não a dirige — mas o APP já foi dirigido até lá, na tabela abaixo.
+
+---
+
+## O DOCUMENTO ANCORADO NO CORPO — a composição que faltava, medida no APP (09/08)
+
+☠️ **A linha acima dizia que esta composição não tinha número.** Ela tem: o app foi levado à mão
+até *documento aberto sobre corpo TRAVADO* — `#/files/…/remanescente.md`, pele `pulsar`, raio
+aparente **173 px**, janela **1426×742**, `spatia.hud()` com passo 16 px e **4 230 pontos**, aba
+visível e em foco. Não é a bancada: é o app, dirigido.
+
+**Antes (o palco no lugar do flex):** `painelDePalco.widget` `fs-content` · caixa **13,49%** da
+janela · **574 pontos** ao ponteiro · céu ao canvas **64,4%** · reivindicado **32,4%**.
+Custo do quadro no UNIVERSO: `comCadeia` **6,693 ms**, `semCadeia` 1,972, `custoDoPos` 4,721.
+
+**A/B da âncora, MESMA cena e mesmo quadro** — o `transform` neutralizado por uma regra `!important`
+e depois removida, com a leitura voltando ao valor exato:
+
+| grandeza | sem âncora | com âncora | volta |
+|---|---|---|---|
+| céu ao canvas | 64,92% | **70,45%** | 70,45% |
+| reivindicado | 31,87% | **26,34%** | 26,34% |
+| palco AO PONTEIRO | **533 pontos** | **533 pontos** | 533 |
+| fenda `right` | 432 | 198 | 198 |
+| `conservacao.bate` · `desconhecidos` | ✓ · 0 | ✓ · 0 | ✓ · 0 |
+
+⭑ **`palcoAoPonteiro` NÃO MUDA — 533 dos dois lados, e é esse o número que fecha T-51.** Ancorar
+MOVE a caixa que já pintava; não cria superfície nova sobre o céu. A regra continua *quem pinta
+reivindica, quem só posiciona cede*, e a moldura segue em `pointer-events: none`.
+
+⚠️ **Os 5,5 pontos de céu a mais NÃO são área devolvida — são sobreposição.** O documento passa a
+cobrir o painel de CONTEXTO (fenda `right` 432 → 198), e pontos antes contados na direita passam a
+ser do palco. Isso está na ORDEM que a REGRA DO FOCO pede (② conteúdo do objeto acima de ④ contexto),
+mas é consequência, não desenho: quem for mexer no trilho direito começa por aqui.
+
+☠️ **A OCLUSÃO NÃO CUSTA, e `renderCost` NUNCA responderia isso** — ela é timer de GPU, e a âncora é
+CPU. Medida pelo que ela FAZ por quadro (achar o painel, ler a caixa, escrever duas variáveis),
+2 000 repetições: **0,9 µs por quadro**, contra os **8 333 µs** do orçamento a 120 Hz — **0,011%**.
+FPS travado em 120,0 antes e 120,5 depois, o que não discrimina nada e por isso não é a medida.
+
+⚠️ **E o limite geométrico está medido, não escondido:** com o pulsar em 173 px de raio (346 px de
+disco) e o painel com 662 px de largura numa janela de 1426, não cabe corpo + folga + painel. O
+painel encosta na borda (`ancora().noTeto: true`) e SOBREPÕE a metade direita do astro. A caixa
+continua inteira dentro da janela — `[752, 257, 1414, 472]` —, que é a invariante que `lei-ancora.mjs`
+§6 guarda.
+
+☠️ **A primeira versão limitava o DESLOCAMENTO e não a CAIXA, e a §6 passava verde com o defeito na
+tela:** `dx = −484,8` estava dentro do teto de 34% da janela e a borda esquerda do painel ficava em
+**−102 px**. Um oráculo que mede proxy afirma sobre a coisa errada com convicção total.
 
 ---

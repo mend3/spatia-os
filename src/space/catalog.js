@@ -397,8 +397,17 @@ export function classify(node, facts = {}) {
   return BY_PRIORITY.find((entry) => entry.test(node, facts)) ?? UNKNOWN;
 }
 
-/** A classe deste nó pode carregar esta feição? Consulta o `forbids` declarado. */
-export const allows = (entry, feature) => !(entry.forbids && feature in entry.forbids);
+/*
+ * ☠️ **`allows(entry, feature)` SAIU daqui, e ela perdeu o último leitor no mesmo commit em que
+ * deixou de ter sentido.** O único chamado era o ramo `allows(klass, 'surface') → PLANET` do
+ * `solver.js`, e a pele deixou de sair de lá: quem decide é `superficieDe`, que pergunta à
+ * ONTOLOGIA (família, tipo, fenômeno) e não ao `forbids` do catálogo.
+ *
+ * ⭑ **`forbids` continua vivo e é lido diretamente** — `klass.forbids?.ring` e `?.envelope`, no
+ * solver, que é onde as proibições que sobraram valem. Um invólucro genérico sobre uma consulta de
+ * uma linha, sem chamador, é o convite escrito para alguém voltar a perguntar ao catálogo o que a
+ * ontologia responde.
+ */
 
 /**
  * O ANEL, por estado do git — a feição que se ANEXA a um corpo, não uma classe dele.

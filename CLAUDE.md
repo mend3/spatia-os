@@ -656,6 +656,21 @@ para a declaração; transcrever a lista lá foi como ela divergiu, e `#/securit
 com a regra escrita em dois lugares e imposta em nenhum. O §5 é censo (medida, não lei) e é de onde
 sai o número de rotas por widget.
 
+## Ao mexer no documento ancorado no corpo em foco
+
+    node scripts/lei-ancora.mjs
+
+Prova, num DOM de mentira com geometria conhecida, que o painel do corpo travado **não foge** (a
+caixa de `getBoundingClientRect` já inclui o `transform`, e ler a caixa deslocada realimenta — o
+painel anda `dx` por quadro até sair da janela, **sem erro nenhum**), que a caixa PINTADA fica
+dentro da JANELA nos 180 enquadramentos varridos, que as quatro causas de *"não se moveu"* saem por
+NOME (sem corpo · painel não montado · atrás da câmera · eclipsado) e que ele **só escreve
+`--ancora-dx`/`--ancora-dy`** — `pointer-events` daqui derrubaria a regra do palco.
+☠️ **O piso da §6 é a JANELA, não a `MARGEM_PX` do módulo:** a lei importa a constante, então
+conferir contra ela é tautologia — visto por mutação, baixar a margem relaxava a lei junto.
+☠️ **E a primeira versão media o DESLOCAMENTO em vez da CAIXA:** `dx` dentro do teto com a borda
+esquerda do painel em **−102 px** na tela. Oráculo que mede proxy afirma sobre a coisa errada.
+
 ## Ao mexer no teclado
 
     node scripts/lei-teclado.mjs
@@ -673,7 +688,7 @@ jeito só: a tecla presa não tem sintoma além do movimento que não para (arma
 | `censo-ontologia.mjs` | a ontologia nova — família, tipo, porte, fenômeno |
 | `censo-superficies.mjs` | ⚠️ **obrigatório após tocar em roteamento de pele:** nenhuma pele roteada pode nascer vazia |
 | `lei-neo4j.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `entity-physics.js`.** Perturba `centrality`, `usage` e `connectivity` em todo corpo e exige que **nenhuma** mude família, tipo, porte, fenômeno ou escala — a 1ª lei do Neo4j deixando de ser invariante declarada |
-| `lei-cena.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `CENAS`/`aplicarCena`, `entity-physics.js` ou `superficies.js`.** A cena é uma LENTE: ela decide o que ACENDE e de onde se OLHA, nunca o que um corpo É. Audita o vocabulário da tabela, os argumentos de todo call site dos três em `src/`, a pureza dos módulos, e perturba enfiando a cena por todo canal exposto |
+| `lei-cena.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `CENAS`/`aplicarCena`, `entity-physics.js`, `superficies.js` ou `solver.js`.** A cena é uma LENTE: ela decide o que ACENDE e de onde se OLHA, nunca o que um corpo É. Audita o vocabulário da tabela, os argumentos de todo call site dos três em `src/`, a pureza dos módulos, e perturba enfiando a cena por todo canal exposto. **A §5 guarda o VOCABULÁRIO DE PELE**: `resolveBody` não pode devolver valor de pele (conferido por VALOR, nunca por nome de chave) e só `superficies.js` o declara — homônimo entra em `VOCABULARIO_ALHEIO` com o motivo |
 
 O `censo-corpus` existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
 com 71 hubs, aplicada em 228), `DENSITY_K` (corpus 5,6× maior, **297 luas viraram 0**) e o piso do
@@ -795,7 +810,7 @@ tela agora**, que é uma pergunta diferente da que qualquer script offline pode 
 
 `spatia.session()` · `.state()` · `.tela()` · `.favoritos()` · `.hud()` · `.renderCost(n)` ·
 `.planet()` · `.galaxy()` · `.lod()` · `.moons()` · `.bloom({…})` · `.core({…})` · `.pele(ajuste)` ·
-`.peleAB(condições, ler)` · `.aroAB(condições, ler)` · `.cena()` (com `.composicao`) ·
+`.peleAB(condições, ler)` · `.aroAB(condições, ler)` · `.cena()` (com `.composicao`) · `.ancora()` ·
 `.universo.{sobreposicoes,entre,pixels,ancora,irPara,anexar,peles}()`
 
 ⚠️ **`spatia.hud()` mede LAYOUT, não quadro** — é a única que não precisa de `quadros` andando, e a

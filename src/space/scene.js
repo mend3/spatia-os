@@ -22,7 +22,7 @@ import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
 import { createUniverse } from './universe.js';
 // A ontologia nova, e a tabela que a traduz em pele. Ver `decisaoOntologica`.
-import { NOME_DA_SUPERFICIE } from './superficies.js';
+import { SUPERFICIE, NOME_DA_SUPERFICIE } from './superficies.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
 import { createGraph, hash01, starSeed } from './graph.js';
@@ -30,6 +30,7 @@ import * as motion from '../core/motion.js';
 import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
 import { createBodies } from './bodies.js';
+import { criarAncoraDeDocumento } from './ancora-de-documento.js';
 import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams, LOD_FAR_PX as PLANETA_FAR } from './planet.js';
 import { RS_POR_RAIO } from './astrofisica.js';
@@ -38,7 +39,7 @@ import { createGalaxy, galaxyParams, diskPx, LOD_ARM_PX, LOD_FULL_PX } from './g
 import { createQuasars, quasarParams } from './quasar.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
-import { resolveBody, SURFACE } from './solver.js';
+import { resolveBody } from './solver.js';
 import * as sistemas from './sistemas.js';
 import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown, BODY_SPAN } from './lod.js';
 import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } from './photosphere.js';
@@ -198,6 +199,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const satellites = createSatellites();
   const wormholes = createWormholes();
   const bodies = createBodies(labelLayer || document.body);
+  /*
+   * O DOCUMENTO DO CORPO EM FOCO ganha endereço no mundo — T-53/T-82.
+   *
+   * ⚠️ O painel é procurado A CADA QUADRO, e não guardado: ele monta e desmonta com a rota
+   * (`fs-content` só existe em `#/files`), e uma referência guardada escreveria num nó órfão.
+   * A consulta é um `querySelector` de atributo, e o custo dela está medido em `docs/medidas.md`.
+   */
+  const ancoraDoDocumento = criarAncoraDeDocumento(
+    () => document.querySelector('.widget[data-panel-surface][data-widget="fs-content"]')
+  );
+  /* Reusados por quadro — alocar `Vector3` no laço é lixo por quadro, como o resto da cena faz. */
+  const ndcDoFoco = new THREE.Vector3();
+  const limboDoHorizonte = new THREE.Vector3();
   const backdrop = createBackdrop();
   /*
    * UM planeta, reaproveitado. Nunca 460.
@@ -318,7 +332,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   }
 
   const ROTAS_DO_POOL = {
-    [SURFACE.PLANET]: {
+    [SUPERFICIE.PLANETA]: {
       pool: poolPlaneta, criar: createPlanet, far: PLANETA_FAR,
       params: (node) => ({ ...planetParams(node), mapa: texturaDeAparencia(node.source) }),
       desenhar: (pele, base, c, elapsed) => {
@@ -331,14 +345,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // por fora deixaria a pele sem saber que parou — e ela reapareceria no meio da rampa.
       esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
     },
-    [SURFACE.PHOTOSPHERE]: {
+    [SUPERFICIE.FOTOSFERA]: {
       pool: poolFotosfera, criar: createPhotosphere, far: FOTOSFERA_FAR,
       params: (node) => photosphereParams(node, hash01, graph.kindColor(node.kind)),
       // A fotosfera EMITE: não tem terminador e não pede direção de luz nenhuma.
       desenhar: (pele, base, c, elapsed) => pele.update(base, camera, c.px, elapsed),
       esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
     },
-    [SURFACE.COMET]: {
+    [SUPERFICIE.COMETA]: {
       pool: poolCometa, criar: createComet, far: COMETA_FAR,
       params: (node) => cometParams(node, graph.kindColor(node.kind)),
       desenhar: (pele, base, c, elapsed) => {
@@ -361,7 +375,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * FOCO — uma lente por pulsar visível estouraria o quadro (o pós já é 89–97% dele). O oráculo
      * `lente-estelar.mjs` audita aquele caminho, não este.
      */
-    [SURFACE.PULSAR]: {
+    [SUPERFICIE.PULSAR]: {
       pool: poolPulsar, criar: createPulsar, far: PULSAR_FAR,
       params: (node) => pulsarParams(node, graph.kindColor(node.kind)),
       desenhar: (pele, base, c, elapsed) => pele.update(base, c.px, elapsed, motion.isReduced(), camera),
@@ -1625,8 +1639,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     return {
       surface: pele,
       modifiers: modificadores.modifiers,
-      rejected: pele === SURFACE.NONE
-        ? [...modificadores.rejected, { feature: 'surface', motivo: `classe ${classe.tipo} não roteia pele` }]
+      /*
+       * ⚠️ O campo é `reason`, e não `motivo` — a linha acima diz que o contrato de saída é o do
+       * `resolveBody`, e uma entrada com chave própria no MESMO array faria a sonda mostrar metade
+       * das recusas sem frase. Foi assim que a segunda voz sobre a ausência de pele nasceu.
+       */
+      rejected: pele === SUPERFICIE.NENHUMA
+        ? [...modificadores.rejected, { feature: 'surface', reason: `classe ${classe.tipo} não roteia pele` }]
         : modificadores.rejected,
       // O que a ontologia concluiu, para a sonda poder dizer por que esta pele e não outra.
       classe,
@@ -2221,6 +2240,40 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * taxonomias se separavam. Ver o cabeçalho de `decisaoOntologica`.
      */
     const decisao = pouso ? decisaoOntologica(pouso.node) : null;
+
+    /*
+     * O DOCUMENTO ANCORADO NO CORPO — T-53/T-82, e o escopo é UM caso: o corpo em foco.
+     *
+     * ⚠️ **A oclusão pergunta se o horizonte está DESENHADO, não se ele existe.** `blackHole.group`
+     * é invisível no UNIVERSO (a tabela `CENAS` o declara), e esconder o documento por um horizonte
+     * que a cena não desenha seria feição sem fato — o operador veria o texto sumir sobre céu
+     * limpo. `bodies.js` passa o raio sem essa pergunta porque os rótulos dele saíram do céu.
+     */
+    if (pouso) {
+      ndcDoFoco.copy(pouso.position).project(camera);
+      let eclipsado = false;
+      if (blackHole.group.visible) {
+        limboDoHorizonte
+          .set(blackHole.horizonRadius, 0, 0)
+          .applyQuaternion(camera.quaternion)
+          .project(camera);
+        const raioDoHorizonte = Math.hypot(limboDoHorizonte.x, limboDoHorizonte.y);
+        eclipsado =
+          raioDoHorizonte > 0 &&
+          camera.position.distanceTo(pouso.position) > camera.position.length() &&
+          Math.hypot(ndcDoFoco.x, ndcDoFoco.y) < raioDoHorizonte;
+      }
+      ancoraDoDocumento.atualizar({
+        ndc: { x: ndcDoFoco.x, y: ndcDoFoco.y, z: ndcDoFoco.z },
+        px: pouso.px,
+        larguraPx: canvas.clientWidth,
+        alturaPx: canvas.clientHeight,
+        eclipsado,
+      });
+    } else {
+      ancoraDoDocumento.atualizar(null);
+    }
+
     if (pouso) {
       const distancia = camera.position.distanceTo(pouso.position);
       focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
@@ -2280,15 +2333,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * permissão explícita.
      */
     /*
-     * O SOLVER decide, e este bloco só obedece.
+     * A ONTOLOGIA decide, e este bloco só obedece.
      *
      * Antes eram duas condições soltas aqui — `allows(classe,'surface')` e
      * `classe.features.photosphere` — que juntas formavam a regra sem que nada a chamasse de
      * regra. Cada superfície nova exigiria uma terceira condição e a chance de duas se
-     * sobreporem crescia com o número delas. Agora existe UM lugar que responde "o que este
-     * corpo desenha de perto", e ele responde também o que RECUSOU e por quê.
+     * sobreporem crescia com o número delas. Hoje existe UM lugar que responde "o que este corpo
+     * desenha de perto" — `superficieDe`, via `sistemas.identidadeDe` —, e a decisão traz junto o
+     * que foi RECUSADO e por quê.
+     *
+     * ☠️ **Esta linha lia `decisao.klass` e devolvia `undefined` desde a convergência das cenas.**
+     * `decisaoOntologica` devolve `classe` (a da ontologia, com `tipo`/`familia`/`porte`), nunca
+     * o `klass` do catálogo — então `probe.classe` saía **`null` em todo corpo**, calado. É a
+     * forma que esta base já pagou: a sonda continua respondendo, e a resposta é vazia.
      */
-    const classe = decisao?.klass ?? null;
+    const classe = decisao?.classe ?? null;
     /*
      * A sonda carrega a decisão INTEIRA, e `recusados` é a metade que não existia.
      *
@@ -2297,8 +2356,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * agora se lê pelo nome, com a frase do catálogo junto — que é como os 27 corpos de
      * `supernova` deixam de ser um mistério e viram um item de trabalho.
      */
-    probe.classe = classe?.id ?? null;
-    probe.tipo = decisao?.surface ?? SURFACE.NONE;
+    probe.classe = classe?.tipo ?? null;
+    probe.tipo = decisao?.surface ?? SUPERFICIE.NENHUMA;
     probe.recusados = decisao?.rejected ?? [];
     // Qual dos DOIS modos de `haloOf` esta pele pediu. Sem isto, "o sprite sumiu" e "a coroa
     // cedeu porque devia" seriam a mesma imagem sem jeito de distinguir por sonda.
@@ -2307,17 +2366,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       ultimaSuperficie = decisao.surface;
       trace('solver', {
         corpo: pouso?.node?.label,
-        classe: classe?.id,
+        classe: classe?.tipo,
         superficie: decisao.surface,
         modificadores: decisao.modifiers,
         recusados: decisao.rejected.map((r) => r.feature),
       });
     }
-    // `tipo` é o que o solver DECIDIU; `desenhado`, o que a tela fez. Enquanto a galáxia só
-    // existir na bancada os dois divergem nos 71 hubs, e é assim que a pendência fica legível.
+    // `tipo` é a pele DECIDIDA pela ontologia; `desenhado`, o que a tela fez. Corpo sem pele
+    // roteada (`NENHUMA`) decide e não desenha, e é assim que a diferença fica legível em vez de
+    // virar uma sonda afirmando uma imagem que não está lá.
     probe.desenhado = false;
 
-    if (pouso && decisao.surface === SURFACE.PHOTOSPHERE) {
+    if (pouso && decisao.surface === SUPERFICIE.FOTOSFERA) {
       if (focusedNode !== starSource) {
         starParamsCache = photosphereParams(pouso.node, hash01, graph.kindColor(pouso.node.kind));
         starSource = focusedNode;
@@ -2349,16 +2409,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * isso o ponto aditivo somaria brilho por cima da peça e apagaria o contorno, que é justamente
      * o que distingue estas quatro.
      */
-    const MORFOLOGICAS = [SURFACE.STATION, SURFACE.COMET, SURFACE.PULSAR, SURFACE.NEBULA];
+    const MORFOLOGICAS = [SUPERFICIE.ESTACAO, SUPERFICIE.COMETA, SUPERFICIE.PULSAR, SUPERFICIE.NEBULOSA];
     if (pouso && MORFOLOGICAS.includes(decisao.surface)) {
       const cor = graph.kindColor(pouso.node.kind);
       if (focusedNode !== morphSource) {
         morphSource = focusedNode;
         morphParams = {
-          [SURFACE.STATION]: () => stationParams(pouso.node, cor),
-          [SURFACE.COMET]: () => cometParams(pouso.node, cor),
-          [SURFACE.PULSAR]: () => pulsarParams(pouso.node, cor),
-          [SURFACE.NEBULA]: () => nebulaParams(pouso.node, cor),
+          [SUPERFICIE.ESTACAO]: () => stationParams(pouso.node, cor),
+          [SUPERFICIE.COMETA]: () => cometParams(pouso.node, cor),
+          [SUPERFICIE.PULSAR]: () => pulsarParams(pouso.node, cor),
+          [SUPERFICIE.NEBULOSA]: () => nebulaParams(pouso.node, cor),
         }[decisao.surface]();
       }
       for (const pele of [station.object, comet.object, pulsar.object, nebula.object]) {
@@ -2366,15 +2426,15 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         pele.scale.setScalar(pouso.radius);
       }
       let level = 0;
-      if (decisao.surface === SURFACE.STATION) level = station.update(morphParams, pouso.px, elapsed);
+      if (decisao.surface === SUPERFICIE.ESTACAO) level = station.update(morphParams, pouso.px, elapsed);
       else station.object.visible = false;
-      if (decisao.surface === SURFACE.COMET) {
+      if (decisao.surface === SUPERFICIE.COMETA) {
         level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());
       } else comet.object.visible = false;
-      if (decisao.surface === SURFACE.PULSAR) {
+      if (decisao.surface === SUPERFICIE.PULSAR) {
         level = pulsar.update(morphParams, pouso.px, elapsed, motion.isReduced(), camera);
       } else pulsar.object.visible = false;
-      if (decisao.surface === SURFACE.NEBULA) {
+      if (decisao.surface === SUPERFICIE.NEBULOSA) {
         level = nebula.update(morphParams, camera, pouso.px, elapsed, motion.isReduced());
       } else nebula.object.visible = false;
 
@@ -2396,7 +2456,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       morphParams = null;
     }
 
-    if (pouso && decisao.surface === SURFACE.PLANET) {
+    if (pouso && decisao.surface === SUPERFICIE.PLANETA) {
       if (focusedNode !== planetSource) {
         planetParamsCache = planetParams(pouso.node);
         planetSource = focusedNode;
@@ -2513,7 +2573,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * Um só chamador, uma só lista — ver `universe.cederParaVarios`.
      */
     universe.cederParaVarios([
-      ...(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE && focusedNode
+      ...(modo === 'universo' && decisao && decisao.surface !== SUPERFICIE.NENHUMA && focusedNode
         ? [{ source: focusedNode, span: BODY_SPAN[decisao.surface] ?? 1 }]
         : []),
       // Cada pele cede conforme o PORTE dela: a esfera vira o núcleo sob o corpo desenhado, e não
@@ -2542,7 +2602,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * limiar próprio para discordar do corpo que está iluminando.
      */
     universe.coroar(
-      modo === 'universo' && decisao?.surface === SURFACE.PHOTOSPHERE ? focusedNode : null,
+      modo === 'universo' && decisao?.surface === SUPERFICIE.FOTOSFERA ? focusedNode : null,
       probe.level ?? 0
     );
 
@@ -2698,8 +2758,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * forte de perto e invisível de longe. Ela alcança o interior da silhueta de propósito — ver o
      * bloco em `lensing.js`, e a escolha foi do usuário.
      */
-    const corpoDaLente = pouso && decisao?.surface === SURFACE.PULSAR
-      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SURFACE.PULSAR] * RS_POR_RAIO.pulsar }
+    const corpoDaLente = pouso && decisao?.surface === SUPERFICIE.PULSAR
+      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SUPERFICIE.PULSAR] * RS_POR_RAIO.pulsar }
       : null;
     lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente });
     lensing.setTime(elapsed);
@@ -2718,6 +2778,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   return {
     focusBody,
     installApps: (apps) => bodies.install(apps),
+    /**
+     * Onde o documento do corpo em foco está, e POR QUE ele está lá.
+     *
+     * ☠️ *"O documento não se moveu"* tem quatro causas que a tela não separa — sem corpo travado,
+     * painel não montado, corpo atrás da câmera, corpo eclipsado pelo horizonte. O `motivo` as
+     * separa por nome, e `noTeto` diz quando o painel parou de seguir para não sair do quadro.
+     */
+    ancoraDoDocumento: () => ancoraDoDocumento.estado(),
     focusedBody: () => focusedBody,
     /**
      * O que a galáxia está REALMENTE recebendo — tempo, taxa e quantas instâncias.

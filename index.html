@@ -971,6 +971,32 @@
   .widget[data-panel-surface] > .widget-body > * {
     flex: 0 0 auto;
   }
+  /*
+    ---------------- o DOCUMENTO ancorado no CORPO (T-53 / T-82) ----------------
+
+    O conteúdo do astro travado flutuava no centro **sem relação espacial com o astro**, e o
+    operador não sabia se aquilo pertencia ao planeta, ao sistema ou à cena. Aqui ele passa a ter
+    endereço: encosta no limbo do corpo e anda com a câmera. Quem calcula é
+    `space/ancora-de-documento.js`; este bloco só CONSOME as duas variáveis que ele escreve.
+
+    ☠️ **É `transform`, e não `left`/`top`.** A composição não invalida layout; posição absoluta
+    reescrita a 120 Hz forçaria reflow do painel inteiro por quadro. É a mesma razão de `bodies.js`
+    usar `visibility` em vez de `display` nos rótulos.
+
+    ⚠️ **QUEM RECEBE O GESTO NÃO MUDA, e é por isso que `lei-palco.mjs` continua valendo.** O que
+    se move é o `.widget-body`, que é quem PINTA e por isso reivindica; a moldura
+    (`[data-panel-surface]`) continua `pointer-events: none` e continua onde o flex a põe. A área
+    reivindicada acompanha a tinta porque é a MESMA caixa, deslocada — não é área nova sobre o céu.
+
+    ☠️ **SEM `transition`, e isso não é economia — é correção.** A âncora é reescrita a cada
+    quadro; uma transição de N ms seria RE-MIRADA antes de terminar, virando um filtro de atraso
+    que faz o documento nadar atrás do corpo. A suavidade já vem do quadro. Sem `data-ancorado`
+    (sem corpo travado, painel eclipsado, corpo atrás da câmera) nada é aplicado e o painel volta
+    ao lugar que o flex escolheu.
+  */
+  .widget[data-panel-surface][data-ancorado="sim"] > .widget-body {
+    transform: translate(var(--ancora-dx, 0px), var(--ancora-dy, 0px));
+  }
   .widget[data-panel-surface] .fs-title {
     /* O caminho do arquivo fica fixo ao rolar: sem isso você perde de vista o que está lendo. */
     position: sticky; top: -12px; z-index: 1;

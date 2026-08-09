@@ -70,8 +70,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { entityPhysics, classificar, fenomenos, dominanteDe } from '../src/space/entity-physics.js';
-import { superficieDe } from '../src/space/superficies.js';
-// ⚠️ A taxonomia da cena AGENTE — a §5 existe para medir o quanto ela discorda da ontologia.
+import { superficieDe, SUPERFICIE } from '../src/space/superficies.js';
+/*
+ * ⚠️ IMPORTADO para ser PERTURBADO, não para decidir nada: a §5 exige que o solver não devolva pele
+ * — nem `surface`, nem chave nenhuma cujo valor esteja no vocabulário de `SUPERFICIE`.
+ */
 import { resolveBody } from '../src/space/solver.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -436,6 +439,42 @@ for (const arquivo of PUROS) {
  * ramo por cena, e é isso que se varre.
  */
 
+/**
+ * O fonte sem COMENTÁRIO, **com as strings intactas** — e ele não é `soCodigo`.
+ *
+ * ☠️ **`soCodigo` apaga string junto com comentário**, e é isso que ele precisa fazer: ele procura
+ * CHAMADOS, e uma citação em prosa não é um chamado. Mas uma lei que procura LITERAL sobre esse
+ * texto não pode achar nada — ela varre um arquivo do qual toda aspa já foi removida. Visto por
+ * mutação: uma `SURFACE` recriada em `solver.js` com três literais passou verde.
+ *
+ * As strings ficam; os comentários saem — senão a prosa que EXPLICA por que `'planet'` não pode ser
+ * redeclarado satisfaria a lei que o proíbe, que é a armadilha do `lei-fontes.mjs`.
+ */
+function semComentarios(texto) {
+  const saida = [];
+  for (let i = 0; i < texto.length; i++) {
+    const dois = texto.slice(i, i + 2);
+    if (dois === '//' || dois === '/*') {
+      const fim = dois === '//'
+        ? (texto.indexOf('\n', i) < 0 ? texto.length : texto.indexOf('\n', i))
+        : (texto.indexOf('*/', i + 2) < 0 ? texto.length : texto.indexOf('*/', i + 2) + 2);
+      saida.push(' '.repeat(fim - i));
+      i = fim - 1;
+      continue;
+    }
+    /* String: copiada INTEIRA e de uma vez — dentro dela um `//` não abre comentário. */
+    const c = texto[i];
+    if (c === '"' || c === "'" || c === '`') {
+      const fim = pulaOQueNaoEhCodigo(texto, i);
+      saida.push(texto.slice(i, fim));
+      i = fim - 1;
+      continue;
+    }
+    saida.push(c);
+  }
+  return saida.join('');
+}
+
 /** O fonte só com CÓDIGO — a prosa desta base explica os defeitos que a lei proíbe. */
 function soCodigo(texto) {
   const mascara = mascaraDeCodigo(texto);
@@ -470,29 +509,94 @@ if (!corpoDaDecisao) {
 }
 
 /*
- * E a MEDIDA que não pode se perder: quanto o céu MUDARIA se alguém religasse a taxonomia velha.
- * Ela não descreve a tela de hoje — descreve o preço de desfazer a convergência.
+ * ─────────────────────── §5-B · O SOLVER NÃO DEVOLVE PELE — e isto é PERTURBAÇÃO, não varredura
+ *
+ * ☠️ **A varredura acima é necessária e não é suficiente.** Ela prova que ninguém ESCREVEU
+ * `resolveBody(...).surface`; ela não prova que a chave deixou de existir. Enquanto o solver
+ * continuasse calculando pele em silêncio, a próxima pessoa a abrir o arquivo teria uma segunda
+ * fonte da verdade pronta para ler — foi assim que as duas taxonomias conviveram por 32 de 72
+ * corpos. O que fecha é perguntar ao RETORNO.
+ *
+ * ⚠️ **E a pergunta não é pelo NOME da chave.** Renomear `surface` para `pele` burlaria um teste
+ * por nome sem mudar nada. A pergunta é pelo VALOR: nenhum campo do que o solver devolve pode ser
+ * um valor de `SUPERFICIE`. É a mesma disciplina de varrer o COMPORTAMENTO e não a string.
  */
-const divergentes = [];
+const VALORES_DE_PELE = new Set([...Object.values(SUPERFICIE), 'galaxy']);
+/** Toda string alcançável no retorno, com o caminho até ela — para a acusação nomear o campo. */
+function stringsDe(valor, caminho = '', saida = []) {
+  if (typeof valor === 'string') saida.push({ caminho, valor });
+  else if (Array.isArray(valor)) valor.forEach((v, i) => stringsDe(v, `${caminho}[${i}]`, saida));
+  else if (valor && typeof valor === 'object') {
+    for (const [k, v] of Object.entries(valor)) stringsDe(v, caminho ? `${caminho}.${k}` : k, saida);
+  }
+  return saida;
+}
+const peleNoSolver = new Map();
 for (const node of corpos) {
-  const fis = entityPhysics(node, { dominante: dominantes.has(node.id), sistema: node.dir });
-  const cls = classificar(fis, node);
-  const naOntologia = superficieDe(cls, fis, fenomenos(fis, node).map((x) => x.tipo));
-  const naTaxonomiaVelha = resolveBody(node, {}).surface;
-  if (naOntologia !== naTaxonomiaVelha) divergentes.push({ naTaxonomiaVelha, naOntologia });
+  /* Os dois estados: sem sujo e com sujo. O ramo do anel só existe no segundo. */
+  for (const facts of [{}, { dirty: 'modified' }]) {
+    for (const s of stringsDe(resolveBody(node, facts))) {
+      if (VALORES_DE_PELE.has(s.valor)) peleNoSolver.set(s.caminho, s.valor);
+    }
+  }
+}
+if (peleNoSolver.size) {
+  const campos = [...peleNoSolver].map(([c, v]) => `\`${c}\` = ${v}`).join(', ');
+  nota('§5', `\`resolveBody\` voltou a devolver PELE — ${campos}. O vocabulário de pele é `
+    + '`SUPERFICIE` (`superficies.js`) e a decisão é `superficieDe`, via `sistemas.identidadeDe`. '
+    + 'Uma segunda tabela de pele no solver é o `kind` que a Fase B refutou voltando pela porta '
+    + 'de trás — e ela não precisa ter leitor para fazer estrago: basta estar lá para ser lida.');
+}
+
+/*
+ * ─────────────────────── §5-C · UM VOCABULÁRIO DE PELE, e ele mora num arquivo só
+ *
+ * ☠️ **Havia DOIS — `SURFACE` (solver) e `SUPERFICIE` (superficies) —, com os valores iguais de
+ * propósito e um comentário de cada lado mandando o outro bater.** Cópia com portão não é fonte: o
+ * portão era humano, e as chaves já tinham DIVERGIDO (`SURFACE` carregava `GALAXY`, que a tabela
+ * nova não roteia e que nenhuma cena lia).
+ *
+ * A conferência é no FONTE porque o que pode falhar é alguém DECLARAR a segunda tabela; e ela é
+ * por LITERAL, porque uma tabela indexada por `[SUPERFICIE.X]` está importando, não redeclarando.
+ *
+ * ⚠️ **E ela lê `semComentarios`, NUNCA `soCodigo`** — o segundo apaga as strings junto com a
+ * prosa, e uma lei que procura literal sobre ele não pode acusar nada. Visto por mutação.
+ *
+ * ⚠️ **HOMÔNIMO tem de ser declarado, nunca ignorado em silêncio** — é o que `docs/identidade.md`
+ * existe para proteger, e o motivo de um `sed` neste nome ser proibido.
+ */
+const VOCABULARIO_ALHEIO = Object.freeze({
+  'src/space/superficies.js': 'é A declaração — a fonte única do vocabulário de pele',
+  'src/space/motion-catalog.js': 'os `allowed` nomeiam ATORES de animação, não peles: `file`, '
+    + '`moon`, `ring` e `ignition` estão na MESMA lista. Homônimo — ver `docs/identidade.md`',
+});
+const segundasTabelas = [];
+for (const f of todosOsFontes(path.join(RAIZ, 'src'))) {
+  const rel = path.relative(RAIZ, f);
+  const codigo = semComentarios(fs.readFileSync(f, 'utf8'));
+  const achadas = [...VALORES_DE_PELE].filter((v) => new RegExp(`(['"\`])${v}\\1`).test(codigo));
+  if (achadas.length >= 2 && !(rel in VOCABULARIO_ALHEIO)) segundasTabelas.push({ rel, achadas });
+}
+if (segundasTabelas.length) {
+  for (const { rel, achadas } of segundasTabelas) {
+    nota('§5', `${rel} declara ${achadas.length} valores de pele como LITERAL (${achadas.join(', ')}) `
+      + '— é uma segunda tabela do mesmo vocabulário. Importe `SUPERFICIE` de `superficies.js`, ou, '
+      + 'se for HOMÔNIMO, declare-o em `VOCABULARIO_ALHEIO` com o motivo.');
+  }
+}
+/* Entrada que não casa mais nada é tabela velha — a mesma recusa que `lei-palco.mjs` faz. */
+for (const rel of Object.keys(VOCABULARIO_ALHEIO)) {
+  if (!fs.existsSync(path.join(RAIZ, rel))) {
+    nota('§5', `\`VOCABULARIO_ALHEIO\` isenta ${rel}, que não existe — tabela velha isentando o vazio.`);
+  }
 }
 
 console.log(`\n\x1b[1m§5 AS DUAS CENAS\x1b[0m  a mesma lente para o mesmo corpo?`);
 console.log(`  \x1b[32m✓\x1b[0m a pele do corpo em foco sai de \`sistemas.identidadeDe\` nas DUAS cenas`);
-console.log(`  \x1b[2mo que voltaria a divergir religando o \`kind\`: ${divergentes.length} de ${corpos.length} corpos\x1b[0m`);
-const paresDiv = new Map();
-for (const d of divergentes) {
-  const k = `${d.naTaxonomiaVelha} → ${d.naOntologia}`;
-  paresDiv.set(k, (paresDiv.get(k) || 0) + 1);
-}
-for (const [par, n] of [...paresDiv].sort((a, b) => b[1] - a[1])) {
-  console.log(`  \x1b[2m·\x1b[0m ${par.padEnd(30)} ${n}`);
-}
+console.log(`  \x1b[32m✓\x1b[0m \`resolveBody\` não devolve pele  \x1b[2m(${corpos.length} corpos × 2 estados de git, `
+  + `${VALORES_DE_PELE.size} valores proibidos, por VALOR e não por nome de chave)\x1b[0m`);
+console.log(`  \x1b[32m✓\x1b[0m um vocabulário de pele no \`src/\`  \x1b[2m(\`SUPERFICIE\`, `
+  + `${Object.keys(SUPERFICIE).length} chaves; ${Object.keys(VOCABULARIO_ALHEIO).length - 1} homônimo declarado)\x1b[0m`);
 
 // ───────────────────── §4 a perturbação: se a cena chegar, ela não muda o que o corpo É
 

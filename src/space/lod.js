@@ -47,7 +47,7 @@ import { LOD_FAR_PX as STATION_FAR, LOD_NEAR_PX as STATION_NEAR, BODY_SPAN as ST
 import { LOD_FAR_PX as COMET_FAR, LOD_NEAR_PX as COMET_NEAR, BODY_SPAN as COMET_BODY } from './comet.js';
 import { LOD_FAR_PX as PULSAR_FAR, LOD_NEAR_PX as PULSAR_NEAR, BODY_SPAN as PULSAR_BODY } from './pulsar.js';
 import { LOD_FAR_PX as NEBULA_FAR, LOD_NEAR_PX as NEBULA_NEAR, BODY_SPAN as NEBULA_BODY } from './nebula.js';
-import { SURFACE } from './solver.js';
+import { SUPERFICIE } from './superficies.js';
 
 /**
  * ZOOM SCOPED TO THE FOCUSED BODY — and why a distance in world units could never work.
@@ -166,12 +166,12 @@ export const SKIN_EXTENT = Object.freeze({ nebula: 3.4, comet: 1.6, pulsar: 1.2,
  * então não há recuo para conferir contra o piso dele. Os números seguem comparáveis com estes.
  */
 const THRESHOLD = Object.freeze({
-  [SURFACE.PHOTOSPHERE]: { far: PHOTO_FAR, near: PHOTO_NEAR },
-  [SURFACE.PLANET]: { far: PLANET_FAR, near: PLANET_NEAR },
-  [SURFACE.STATION]: { far: STATION_FAR, near: STATION_NEAR },
-  [SURFACE.COMET]: { far: COMET_FAR, near: COMET_NEAR },
-  [SURFACE.PULSAR]: { far: PULSAR_FAR, near: PULSAR_NEAR },
-  [SURFACE.NEBULA]: { far: NEBULA_FAR, near: NEBULA_NEAR },
+  [SUPERFICIE.FOTOSFERA]: { far: PHOTO_FAR, near: PHOTO_NEAR },
+  [SUPERFICIE.PLANETA]: { far: PLANET_FAR, near: PLANET_NEAR },
+  [SUPERFICIE.ESTACAO]: { far: STATION_FAR, near: STATION_NEAR },
+  [SUPERFICIE.COMETA]: { far: COMET_FAR, near: COMET_NEAR },
+  [SUPERFICIE.PULSAR]: { far: PULSAR_FAR, near: PULSAR_NEAR },
+  [SUPERFICIE.NEBULOSA]: { far: NEBULA_FAR, near: NEBULA_NEAR },
 });
 
 /**
@@ -184,12 +184,12 @@ const THRESHOLD = Object.freeze({
  * a coroa da ESTAÇÃO, que é justamente a pose aprovada no olho em 2026-08-07.
  */
 export const BODY_SPAN = Object.freeze({
-  [SURFACE.PHOTOSPHERE]: PHOTO_BODY,
-  [SURFACE.PLANET]: PLANET_BODY,
-  [SURFACE.STATION]: STATION_BODY,
-  [SURFACE.COMET]: COMET_BODY,
-  [SURFACE.PULSAR]: PULSAR_BODY,
-  [SURFACE.NEBULA]: NEBULA_BODY,
+  [SUPERFICIE.FOTOSFERA]: PHOTO_BODY,
+  [SUPERFICIE.PLANETA]: PLANET_BODY,
+  [SUPERFICIE.ESTACAO]: STATION_BODY,
+  [SUPERFICIE.COMETA]: COMET_BODY,
+  [SUPERFICIE.PULSAR]: PULSAR_BODY,
+  [SUPERFICIE.NEBULOSA]: NEBULA_BODY,
 });
 
 /**
@@ -220,7 +220,7 @@ const CROWN_FLOOR = 0.8;
 /**
  * Esta pele mantém a coroa do sprite, ou o sprite cede inteiro sob ela?
  *
- * @param {string} surface  um valor de `SURFACE`
+ * @param {string} surface  um valor de `SUPERFICIE`
  * @returns {boolean} `true` = sobra a coroa (a pele é o corpo); `false` = o sprite sai
  */
 export const keepsCrown = (surface) => (BODY_SPAN[surface] ?? 0) >= CROWN_FLOOR;

@@ -25,7 +25,7 @@ import { createPointMaterial, hash01, KIND_COLORS } from '../space/graph.js';
 import { VISIBLE_CORE } from '../space/rings.js';
 import { diskPx } from '../space/galaxy.js';
 import { BODY_SPAN, keepsCrown } from '../space/lod.js';
-import { SURFACE } from '../space/solver.js';
+import { SUPERFICIE } from '../space/superficies.js';
 import { createPhotosphere, photosphereParams } from '../space/photosphere.js';
 import { createStation, stationParams } from '../space/station.js';
 import { createComet, cometParams } from '../space/comet.js';
@@ -109,10 +109,10 @@ export const CROWN_SPEC = {
     grupo.add(pontos);
 
     const peles = {
-      fotosfera: { surface: SURFACE.PHOTOSPHERE, mod: createPhotosphere() },
-      'estação': { surface: SURFACE.STATION, mod: createStation() },
-      cometa: { surface: SURFACE.COMET, mod: createComet() },
-      nebulosa: { surface: SURFACE.NEBULA, mod: createNebula() },
+      fotosfera: { surface: SUPERFICIE.FOTOSFERA, mod: createPhotosphere() },
+      'estação': { surface: SUPERFICIE.ESTACAO, mod: createStation() },
+      cometa: { surface: SUPERFICIE.COMETA, mod: createComet() },
+      nebulosa: { surface: SUPERFICIE.NEBULOSA, mod: createNebula() },
     };
     for (const { mod } of Object.values(peles)) grupo.add(mod.object);
 

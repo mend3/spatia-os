@@ -246,6 +246,25 @@ e continuam indo para o painel onde há texto para rolar, selecionar e clicar. N
 o painel ocupa o mesmo espaço, com o mesmo conteúdo. `scripts/lei-palco.mjs` impede a volta, e
 varre o CSS inteiro atrás de qualquer superfície nova que tome o mouse sem desenhar nada.
 
+### O documento pertence ao astro, e a tela mostra isso
+
+O conteúdo do arquivo travado abria como um retângulo no meio da tela, sem relação nenhuma com o
+corpo — dava para ler sem nunca saber se aquilo era do planeta, do sistema ou da cena.
+
+> **Agora ele nasce colado no limbo do astro e anda com a câmera.**
+
+Orbite: o texto acompanha o corpo. Leve o corpo para trás do horizonte de eventos: o texto some
+junto, porque ele é do corpo. Destrave, e ele volta ao lugar de sempre.
+
+⚠️ **Ele nunca sai da janela.** Quando o astro chega perto da borda o painel encosta e para — a
+direção continua legível, o texto continua inteiro. Onde ele está e **por que** está lá sai em
+`spatia.ancora()`, com as quatro causas separadas por nome: sem corpo travado, painel não montado,
+corpo atrás da câmera, corpo eclipsado.
+
+⭑ **A área que ele tira do céu é a mesma de antes** — a caixa que já pintava mudou de lugar, não de
+tamanho: 533 pontos ao ponteiro com e sem a âncora. Seguir a câmera custa **0,9 µs por quadro**,
+0,011% do orçamento a 120 Hz. `scripts/lei-ancora.mjs` guarda as duas coisas.
+
 ## Arquitetura
 
 Quatro camadas que **não se conhecem**. Todas assinam o mesmo barramento de eventos.

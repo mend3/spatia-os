@@ -32,6 +32,10 @@ três vezes seguidas e se foi caçar defeito na câmera; o valor era de um voo a
 
 > **O detector é `spatia.cena().quadros` (ou `.universo.pixels().quadros`) ANDAR entre duas leituras.**
 > Se não andou, nenhum número daquela sonda é do presente.
+> ☠️ **`cena().quadros` conta SÓ o UNIVERSO — na cena AGENTE ele fica em 0 com o céu vivo**, e aí o
+> detector afirma "congelou" sobre uma cena que desenha. Medido: contador parado e **180 `rAF` em
+> 1,5 s**. Na AGENTE o detector é contar `requestAnimationFrame` à mão:
+> `let n=0; const t=()=>{n++;requestAnimationFrame(t)}; requestAnimationFrame(t)`.
 
 ⚠️ **A aba do MCP costuma ser uma aba de FUNDO** — `document.hidden` fica `true` mesmo com o Chrome em
 foco, e `renderCost`/`pixels()` devolvem zeros do nascimento. Pior: **cada `Bash` que você roda tira o

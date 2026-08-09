@@ -39,9 +39,10 @@
 /**
  * `R_s / R` por classe de corpo — **adimensional**, e cada uma com a conta que a sustenta.
  *
- * `R_s = 2GM/c²` = 2,953 km por massa solar. As chaves espelham `SURFACE` de `solver.js`, pelo mesmo
- * motivo que `SUPERFICIE` espelha: quem lê isto é o renderer, e um literal solto do outro lado seria
- * uma segunda fonte da verdade livre para divergir em silêncio.
+ * `R_s = 2GM/c²` = 2,953 km por massa solar. As chaves são os VALORES de `SUPERFICIE`
+ * (`superficies.js`) — o vocabulário único de pele —, mais os cadáveres estelares, que são fenômeno
+ * e não pele. Quem lê isto é o renderer, e um literal solto do outro lado seria uma segunda fonte
+ * da verdade livre para divergir em silêncio.
  */
 export const RS_POR_RAIO = Object.freeze({
   /** `R_s` É o raio, por definição do horizonte. */

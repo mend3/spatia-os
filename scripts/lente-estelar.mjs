@@ -47,6 +47,14 @@ import { dirname, join } from 'node:path';
  * é uma obrigação de sincronia a menos, e este oráculo já carrega uma (a do GLSL, travada abaixo).
  */
 import { RS_POR_RAIO, deflexao, raiosParaAnelVisivel } from '../src/space/astrofisica.js';
+/*
+ * ⚠️ O vocabulário de pele, IMPORTADO — e não o nome da chave em minúsculas, que era o que este
+ * oráculo fazia. Aquilo só funcionava enquanto chave e valor coincidiam em inglês (`PULSAR` →
+ * `pulsar`); com `SUPERFICIE.FOTOSFERA` o palpite daria `fotosfera` e a classe `photosphere`
+ * jamais seria encontrada — a lente passaria a ser autorizada por uma classe INEXISTENTE, que é
+ * falhar para o lado inseguro. As chaves de `RS_POR_RAIO` são os VALORES da pele; resolva por eles.
+ */
+import { SUPERFICIE } from '../src/space/superficies.js';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ler = (rel) => readFileSync(join(RAIZ, rel), 'utf8');
@@ -193,26 +201,37 @@ if (!bloco) {
     'o oráculo perdeu o alvo e não pode mais afirmar nada sobre quem dobra a luz.');
 } else {
   const trecho = bloco[0];
-  // `Set`: o mesmo SURFACE aparece no teste e no `BODY_SPAN[...]` do mesmo trecho.
-  const surfaces = [...new Set([...trecho.matchAll(/SURFACE\.([A-Z_]+)/g)].map((m) => m[1].toLowerCase()))];
+  /*
+   * `Set`: a mesma pele aparece no teste e no `BODY_SPAN[...]` do mesmo trecho.
+   *
+   * ⚠️ A chave citada é RESOLVIDA pela tabela, nunca adivinhada: nome que `SUPERFICIE` não tem é
+   * defeito de leitura do oráculo — ele estaria afirmando sobre uma constante que não existe.
+   */
+  const citadas = [...new Set([...trecho.matchAll(/SUPERFICIE\.([A-Z_]+)/g)].map((m) => m[1]))];
+  const desconhecidas = citadas.filter((k) => !(k in SUPERFICIE));
+  for (const k of desconhecidas) {
+    falhar(`o trecho da lente cita \`SUPERFICIE.${k}\`, que NÃO existe em \`superficies.js\`. ` +
+      `O oráculo perdeu o vocabulário e não pode dizer que corpo dobra a luz.`);
+  }
+  const surfaces = citadas.filter((k) => k in SUPERFICIE).map((k) => SUPERFICIE[k]);
   const temRs = /\brs\s*:/.test(trecho);
   if (!surfaces.length && temRs) {
-    falhar('há um `rs:` alimentando a lente sem nenhuma SURFACE nomeada no trecho — origem indecidível.');
+    falhar('há um `rs:` alimentando a lente sem nenhuma SUPERFICIE nomeada no trecho — origem indecidível.');
   }
   for (const s of surfaces) {
     const classe = CLASSES.find((c) => c.id === s);
     if (!classe) {
-      falhar(`SURFACE.${s.toUpperCase()} alimenta a lente e NÃO tem razão R_s/R declarada neste oráculo. ` +
+      falhar(`a pele \`${s}\` alimenta a lente e NÃO tem razão R_s/R declarada neste oráculo. ` +
         `Ou ela é um corpo com âncora física — e então declare a razão, com fonte — ou a lente dela ` +
         `deriva de \`chunks\`, e aí é curva artística vestida de física.`);
       continue;
     }
     if (!classe.lenteAutorizada) {
-      falhar(`SURFACE.${s.toUpperCase()} alimenta a lente, mas R_s/R = ${classe.rsPorR.toExponential(2)} ` +
+      falhar(`a pele \`${s}\` alimenta a lente, mas R_s/R = ${classe.rsPorR.toExponential(2)} ` +
         `só produz ${(2 * classe.rsPorR * K_PX_POR_RAD).toExponential(2)} px. Abaixo do piso de ${PISO_PX} px.`);
       continue;
     }
-    console.log(`  ${C.ok}✓${C.fim} SURFACE.${s.toUpperCase().padEnd(10)} R_s/R ${classe.rsPorR}  ${C.fraco}razão adimensional declarada em astrofisica.js${C.fim}`);
+    console.log(`  ${C.ok}✓${C.fim} pele ${s.padEnd(12)} R_s/R ${classe.rsPorR}  ${C.fraco}razão adimensional declarada em astrofisica.js${C.fim}`);
   }
   /*
    * ⚠️ E o R_s tem de sair de uma RAZÃO aplicada ao raio desenhado — nunca de `chunks`, `mass` ou

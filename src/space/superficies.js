@@ -22,15 +22,32 @@
  * ⚠️ **Módulo PURO** — sem `three`, como o `entity-physics.js`. É isso que deixa o censo e o céu
  * usarem a MESMA derivação em vez de duas cópias que envelhecem em ritmos diferentes.
  *
- * ⚠️ Os valores têm de bater com `SURFACE` do `solver.js`, que é quem o renderer consulta. Eles são
- * strings iguais de propósito, e `scripts/censo-superficies.mjs` falha se alguma pele ficar sem
- * população — que é a outra metade da regra do catálogo: nomear o que a classe ACEITA, e provar que
- * existe quem a exerça.
+ * ⚠️ `scripts/censo-superficies.mjs` falha se alguma pele ficar sem população — a outra metade da
+ * REGRA DO CATÁLOGO: nomear o que a classe ACEITA, e provar que existe quem a exerça.
  */
 
 import { FAMILIA } from './entity-physics.js';
 
-/** As peles que o céu sabe desenhar. Espelha `SURFACE` de `solver.js`. */
+/**
+ * As peles que o céu sabe desenhar — **e este é o único vocabulário de pele do `src/`**.
+ *
+ * ☠️ **Havia dois, com nomes diferentes e a mesma grandeza:** este e o `SURFACE` do `solver.js`.
+ * Os valores eram strings iguais *de propósito*, com um comentário de cada lado mandando o outro
+ * bater — que é uma cópia com portão no lugar de uma fonte. Dois nomes para uma grandeza é como o
+ * modelo velho fala por cima do novo sem que nada acuse: quem editasse um lado só teria o céu
+ * roteando por uma tabela e a HUD nomeando pela outra, em silêncio.
+ *
+ * ⚠️ **Elas não eram alias — as chaves DIVERGIAM.** `SURFACE` tinha `GALAXY`, e esta tabela não o
+ * roteia. E não é omissão: **agregado não tem pele.** `superficieDe` devolve `NENHUMA` para tudo
+ * que não é `FAMILIA.CORPO`, e a galáxia da cena AGENTE nunca saiu de uma decisão de pele — ela é
+ * um campo INSTANCIADO sobre os hubs (`scene.js` filtra `type === 'dir' || 'repo'` e chama
+ * `galaxyParams`, sem passar pelo solver). `GALAXY` tinha produtor e **zero leitores**: era um
+ * valor que nenhuma cena consultava.
+ *
+ * ⚠️ **E existe HOMÔNIMO vivo, que não é este vocabulário:** os `allowed` de `motion-catalog.js`
+ * repetem estas strings como ATORES de animação (`file`, `moon`, `ring` e `ignition` estão na mesma
+ * lista). Mesma string, grandeza diferente — ver `docs/identidade.md`, e **nunca varra por `sed`**.
+ */
 export const SUPERFICIE = Object.freeze({
   NENHUMA: 'none',
   FOTOSFERA: 'photosphere',

@@ -18,9 +18,11 @@
  * A metade paramétrica precisa das funções `*Params` de cada pele, que importam `three` — o Node
  * deste projeto não resolve o import (ele vem do `importmap` da página). Cole no console da cena:
  *
- *     const [sol, cm] = await Promise.all([import('/src/space/solver.js'), import('/src/space/comet.js')]);
+ *     const [sis, sup, cm] = await Promise.all(['sistemas', 'superficies', 'comet']
+ *       .map(m => import(`/src/space/${m}.js`)));
  *     const g = await (await fetch('/api/graph')).json();
- *     const v = g.nodes.filter(n => sol.resolveBody(n)?.surface === sol.SURFACE.COMET)
+ *     const ix = sis.indexar(g);
+ *     const v = g.nodes.filter(n => ix.identidadeDe(n)?.pele === sup.SUPERFICIE.COMETA)
  *                      .map(n => cm.cometParams(n).tail);
  *     [Math.min(...v), Math.max(...v)];   // piso 1,98 · teto 9,0
  *
@@ -33,7 +35,8 @@
  * Quem responde é a cena: `window.espatial.moons()`.
  */
 import { classify, MORPHOLOGY_BY_KIND, RING_BY_STATE } from '../src/space/catalog.js';
-import { resolveBody, SURFACE, MODIFIER } from '../src/space/solver.js';
+import { resolveBody, MODIFIER } from '../src/space/solver.js';
+import { SUPERFICIE } from '../src/space/superficies.js';
 import { indexar } from '../src/space/sistemas.js';
 
 const BASE = 'http://127.0.0.1:8787';
@@ -72,7 +75,7 @@ for (const node of graph.nodes) {
   const estado = estadoDe(node.source);
   const klass = classify(node, { dirty: estado });
   const decisao = resolveBody(node, { dirty: estado });
-  const pele = indice.identidadeDe(node)?.pele ?? SURFACE.NONE;
+  const pele = indice.identidadeDe(node)?.pele ?? SUPERFICIE.NENHUMA;
   conta(classes, klass?.id ?? '(nenhuma)');
   conta(peles, pele);
   if (node.type === 'file') conta(kinds, `${node.kind ?? 'other'} → ${MORPHOLOGY_BY_KIND[node.kind]?.body ?? 'estrela'}`);
@@ -81,7 +84,7 @@ for (const node of graph.nodes) {
     if (m === MODIFIER.RING) conta(aneisPorFamilia, `${estado} → ${RING_BY_STATE[estado]?.family ?? '?'}`);
   }
   for (const r of decisao?.rejected ?? []) conta(recusas, `${r.feature}`);
-  if (pele !== SURFACE.NONE) comCoroaPossivel += 1;
+  if (pele !== SUPERFICIE.NENHUMA) comCoroaPossivel += 1;
 }
 
 const total = graph.nodes.length;
