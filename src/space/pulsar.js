@@ -25,6 +25,7 @@
  * com um feixe só lê como defeito de desenho.
  */
 import * as THREE from 'three';
+import { ESCADA } from './entity-physics.js';
 import { createPulse } from './pulsar-pulse.js';
 import { createWind } from './pulsar-wind.js';
 import { GLSL_SIMPLEX3 } from './planet-noise.js';
@@ -67,6 +68,43 @@ export const BODY_SPAN = CORE_FLOOR + CORE_GAIN;
 const BEAM_LENGTH = 1.3;
 /** Período de rotação, em segundos: rápido para o corpo leve, lento para o pesado. */
 const SPIN_PERIOD = { fast: 0.9, slow: 4.2 };
+
+/**
+ * O LIMIAR que fez este corpo colapsar, e a régua de massa do rig — em CHUNKS, não em posto.
+ *
+ * ## Por que o posto não servia, e por que o defeito piorava com o corpus
+ *
+ * O rig lia `node.massRank`, que é PERCENTIL de `chunks` no céu inteiro (`graph.js`). Mas o pulsar
+ * só nasce de `porteEstelar === 'gigante'` (`ESCADA.ESTRELA × 4`), ou seja da CAUDA de cima — e o
+ * percentil de uma cauda encolhe conforme a população cresce, porque os mesmos poucos gigantes
+ * passam a dividir o céu com mais corpos. O eixo não estava mal calibrado: ele fechava sozinho.
+ *
+ * | corpus | corpos | pulsares | `massRank` deles | fatia do eixo |
+ * |---|---|---|---|---|
+ * | `espatial_fixture` | 72 | 1 | 0,9014 | — (n=1) |
+ * | gigantes do fixture | 72 | 3 | 0,831 – 1,000 | **16,9%** |
+ * | `workspace_embedding` | 276 | 2 | 0,9964 – 1,0000 | ☠️ **0,36%** |
+ *
+ * Medido em 2026-08-09: no corpus real os dois pulsares saíam com `period` **4,188 s e 4,200 s** e
+ * `core` **0,1598 e 0,1600** — idênticos a três casas. A metade RÁPIDA do `SPIN_PERIOD`, que é a
+ * razão declarada de o período ser inverso da massa (*"o de milissegundo é o velho reciclado por
+ * acreção"*), era **inalcançável por construção**. Não é constante degradada como `SPAN` ou
+ * `DENSITY_K` — aquelas funcionaram e expiraram; esta nunca varreu nada.
+ *
+ * ## A saída, e por que é esta
+ *
+ * A REGRA DA FRONTEIRA já fixa a forma: **razão adimensional ancorada num fato de CLASSE**, como o
+ * `R_s/R` da lente. Aqui a âncora é o próprio portão que criou o corpo — `chunks / GIGANTE` diz
+ * "quantas vezes o limiar de colapso", e não depende de mais ninguém no céu. Um pulsar sozinho num
+ * corpus tem a mesma leitura que teria entre mil.
+ *
+ * ⚠️ **Uma DUPLICAÇÃO acima do limiar varre o eixo inteiro**, e o número não é gosto: estrelas de
+ * nêutrons reais vivem entre ~1,1 e ~2,2 M☉ — um fator de 2. Daí `log2`, que devolve 0 no limiar e
+ * 1 ao dobro dele. Nos dois pulsares do corpus real: 99/80 → **0,307** e 151/80 → **0,917**,
+ * amplitude **0,61** contra 0,0036. E o teto é declarado, não implícito: massa acima do dobro
+ * satura em vez de sair da escala.
+ */
+export const GIGANTE = ESCADA.ESTRELA * 4;
 
 const hash01 = (text, salt) => {
   let value = 2166136261 ^ salt;
@@ -591,16 +629,24 @@ const HALO_FRAGMENT = /* glsl */ `
 /**
  * Parâmetros do pulsar de um nó. Puro e congelado.
  *
- * @param {{source?: string, id?: string, chunks?: number, massRank?: number}} node
+ * @param {{source?: string, id?: string, chunks?: number}} node — `massRank` NÃO é lido: ver `GIGANTE`.
  * @param {number} color
  */
 export function pulsarParams(node = {}, color = 0xffffff) {
   const path = node.source ?? node.id ?? 'sem-caminho';
   const seed = hash01(path, 43);
   const seedB = hash01(path, 47);
-  const massa = Number.isFinite(node.massRank)
-    ? node.massRank
-    : THREE.MathUtils.clamp(Math.log2(1 + (node.chunks || 1)) / 8, 0, 1);
+  /*
+   * ⚠️ `node.massRank` NÃO entra aqui, e o fallback antigo (`log2(1+chunks)/8`) tinha o mesmo
+   * defeito pelo outro caminho: 80 chunks já dava 0,79 e 255 dava 1,00, então ele também só
+   * enxergava a ponta de cima do eixo. Os dois liam uma escala do CÉU para descrever um corpo cuja
+   * existência depende de um LIMIAR. Ver `GIGANTE`.
+   */
+  const massa = THREE.MathUtils.clamp(
+    Math.log2(Math.max(node.chunks || 1, 1) / GIGANTE),
+    0,
+    1
+  );
 
   return Object.freeze({
     seed,

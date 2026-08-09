@@ -20,14 +20,22 @@
  * vê, que é a classe de mentira que esta bancada existe para não cometer.
  */
 import * as THREE from 'three';
-import { createPulsar, pulsarParams, LOD_FAR_PX, LOD_NEAR_PX } from '../space/pulsar.js';
+import { createPulsar, pulsarParams, LOD_FAR_PX, LOD_NEAR_PX, GIGANTE } from '../space/pulsar.js';
 import { diskPx } from '../space/galaxy.js';
 
-/** O nó mínimo — só os campos que `pulsarParams` lê. `massRank` entra direto, sem passar por chunks. */
+/**
+ * O nó mínimo — só os campos que `pulsarParams` lê.
+ *
+ * ⚠️ **Era `massRank` direto, e parou de funcionar em 2026-08-09** sem quebrar nada: o rig deixou
+ * de ler posto e passou a ler `chunks` contra o limiar de colapso (ver `GIGANTE` em `pulsar.js`),
+ * então o slider continuaria andando com o objeto PARADO — a falha silenciosa de sempre. Aqui o
+ * slider é invertido de volta para chunks pela mesma lei, `chunks = GIGANTE · 2^massa`, para a
+ * bancada varrer exatamente o eixo que a cena varre e não uma segunda régua livre para divergir.
+ */
 function noFalso(values) {
   return {
     source: `bancada/pulsar/${values.seed.toFixed(3)}`,
-    massRank: values.massa,
+    chunks: GIGANTE * Math.pow(2, values.massa),
   };
 }
 
