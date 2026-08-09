@@ -337,6 +337,13 @@ dois na hora (máx/mín 23,96× é fase; ~1× seria aro). É a armadilha nº 5 d
 
 ---
 
+☠️ **`cena().quadros` CONTA SÓ O UNIVERSO — no AGENTE ele congela.** Usá-lo como prova de vida ao
+medir a cena AGENTE devolve "não mudou" com a tela parada, que é a armadilha do §4 com o contador
+errado. **A contagem que não pertence a cena nenhuma é o `requestAnimationFrame`**, e é ela que vale
+quando a medida atravessa as duas cenas.
+
+---
+
 ## 5. Armadilhas de código que falham CALADAS
 
 1. **CRASE dentro de bloco `/* glsl */` fecha o template do JS.** Mordeu **oito** vezes, sempre em
@@ -595,7 +602,7 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 | `src/space/entity-physics.js` | `evidenciaDeUso` propaga o motivo da recusa |
 | `src/space/pulsar.js` | `GIGANTE` — a massa do rig vira razão ao limiar |
 | `src/sandbox/pulsar-rig.js` | o slider inverte pela MESMA lei |
-| `docs/briefings/cena-como-lente.md` | novo, não rastreado — o plano da camada de cena |
+| `src/space/scene.js` | `CENAS` + `aplicarCena` extraídos de `setMode` |
 
 **Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
 
@@ -618,6 +625,11 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
   tamanho vindo do **raio já desenhado** — nunca de `chunks` outra vez, que seriam duas leis de
   tamanho para o mesmo fato. ⚠️ `uHaloYield = 1` **aqui** e 0 no AGENTE: em 0 o miolo do sprite é
   esvaziado e sobra o aro, que sobre uma esfera desenhada lê como *"o planeta está transparente"*.
+- **A cena é uma TABELA** (`CENAS` em `scene.js`), não um `if`: cada entrada declara `passes`,
+  `camadas`, `chegada()` e `aoEntrar()`. ⚠️ `passes` é campo de primeira classe — esconder o GRUPO
+  do buraco negro não desliga a LENTE, que deforma o quadro inteiro com o disco invisível.
+  ⚠️ A cena não pode declarar o que um corpo É: classe, física e pele saem de `entity-physics.js` e
+  `superficies.js`, e nenhuma das duas recebe a cena.
 - **`mesmoQuadro()` é a lei; `skinAB`/`universeAB` só a chamam.** Duas cópias do laço envelheceriam
   em ritmos diferentes, e o laço é justamente o que dá o controle em 0 pixels.
 

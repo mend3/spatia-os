@@ -48,7 +48,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 |---|---|---|
 | KR2.1 | **estado de tela** tem dono único | ✗ **quatro** donos que não se conhecem (`#boot`, `modo`, `router.current`, `session.js`) |
 | KR2.2 | **pose da câmera** tem nome próprio | ✗ `orbit.distance` serve de proxy a **sete** consumidores |
-| KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ✗ |
+| KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
 | KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ✗ (`lei-cena.mjs` proposto) |
 
 ### O3 — Nenhuma afirmação sem substrato
@@ -92,14 +92,14 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-01** | Portão de corpus nos cinco overlays + carimbo nos scripts | `done` | — | T-12 | KR3.1 |
 | **T-02** | Eixo do pulsar ancorado no limiar (`GIGANTE`) | `done` | — | — | KR3.2 |
 | **T-03** | Foto do pulsar na bancada (o A/B é numérico) | `todo` | T-02 | — | KR3.2 |
-| **T-04** | `SceneDefinition` extraída de `setMode`, **sem mudar um número** | `todo` | — | T-05, T-06, T-08 | KR2.3 |
-| **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `todo` | T-04 | — | KR2.4 |
-| **T-06** | `src/core/tela.js` — dono único do estado de tela | `todo` | T-04 | T-13, T-14 | KR2.1 |
+| **T-04** | `SceneDefinition` extraída de `setMode`, **sem mudar um número** | `done` | — | T-05, T-06, T-08 | KR2.3 |
+| **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `todo` | — | — | KR2.4 |
+| **T-06** | `src/core/tela.js` — dono único do estado de tela | `todo` | — | T-13, T-14 | KR2.1 |
 | **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) — **conferir na tela** | `todo` | — | — | KR4.1 |
-| **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `todo` | T-04 | T-15 | KR2.2 |
+| **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `todo` | — | T-15 | KR2.2 |
 | **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `todo` | — | T-16 | KR1.1, KR1.2 |
 | **T-10** | `--resume` no `brain.py` | `todo` | — | — | KR4.2 |
-| **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | T-04 | — | — |
+| **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
 | **T-12** | Força do vínculo no arco | `todo` | — | — | — |
 | **T-13** | Splash | `blocked` | T-06 | — | KR2.1 |
 | **T-14** | Launcher / menu iniciar | `blocked` | T-06 | — | KR2.1 |

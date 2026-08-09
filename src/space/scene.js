@@ -585,6 +585,91 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * sessão. Sair de um app tem que devolver ao enquadramento DO OPERADOR, não ao de fábrica.
    */
   const HOME = { polar: startOrbit.polar, distance: startOrbit.distance };
+
+  /**
+   * AS CENAS, DECLARADAS — e o que muda entre elas é DADO, não `if`.
+   *
+   * ## O que uma cena É, aqui
+   *
+   * Uma cena é uma **LENTE sobre o mesmo mundo**, nunca uma dona dele. Ela decide o que se
+   * ACENDE e de onde se OLHA; ela não decide o que um corpo é. Essa fronteira não é preferência de
+   * arquitetura — é a mesma forma da 1ª lei do Neo4j (*muda o brilho, nunca a classe*), aplicada a
+   * um eixo que ainda não a tinha, e esta base já pagou duas vezes pelo oposto: o modo de olhar
+   * fazendo uma lua resolver como galáxia, e a taxonomia velha virando 228 de 228 agregados em
+   * galáxia.
+   *
+   * ⚠️ **`passes` é campo de primeira classe, e não "mais uma camada".** Esconder o GRUPO do buraco
+   * negro NÃO o tira da cena: ele é, acima de tudo, um PASSE de pós-processamento, e a lente
+   * gravitacional deforma o quadro inteiro com o disco invisível. Foi o que aconteceu na primeira
+   * versão do switcher — a cena trocou, os corpos sumiram, e a distorção do espaço-tempo ficou.
+   * Desligar o passe é o que de fato muda de universo, e devolve o orçamento junto: a lente custa
+   * **3,8–5,1 ms** contra **0,31–0,35 ms** do céu inteiro com 213 instâncias.
+   *
+   * ⚠️ **`galaxia` sai no UNIVERSO e não é economia:** aquela camada desenha TODO agregado como
+   * galáxia, que é o modelo refutado. Deixá-la ligada faria a cena nova afirmar a taxonomia velha
+   * por cima da nova.
+   *
+   * ## Por que a chegada é FUNÇÃO e não número
+   *
+   * A escala muda com o mundo: o céu AGENTE cabe em ~60 unidades e o UNIVERSO tem raio 150. E a
+   * volta ao AGENTE **com um astro travado** tem de voltar ao enquadramento DELE — sem isso a
+   * câmera recuava para a casa com o foco intacto, e a tela afirmava duas coisas diferentes sobre o
+   * mesmo estado: o astro travado, o painel nomeando-o, e o céu inteiro no quadro.
+   *
+   * ⚠️ **Trocar de cena ENQUADRA A CENA, não mergulha no astro travado** — *"me mostre o universo"*
+   * e *"me leve até este corpo"* são gestos diferentes. Por isso `fitPending` só religa na volta ao
+   * AGENTE, onde a distância de foco é do outro céu e precisa ser refeita pelo raio real.
+   *
+   * ⭑ **Cena nova é uma entrada nesta tabela**, no mesmo idioma de `ROTAS_DO_POOL`. ⚠️ O que ela
+   * **não** pode declarar é o que um corpo é: classe, física e pele saem de `entity-physics.js` e
+   * `superficies.js`, e nenhuma das duas recebe a cena.
+   */
+  const CENAS = Object.freeze({
+    agente: Object.freeze({
+      id: 'agente',
+      passes: Object.freeze({ lensing: true }),
+      camadas: Object.freeze({ blackHole: true, graph: true, galaxy: true, universe: false }),
+      chegada: () => (focusedNode ? NODE_FOCUS_DISTANCE : HOME.distance),
+      aoEntrar: () => {
+        if (focusedNode) {
+          orbit.targetPolar = NODE_FOCUS_POLAR;
+          fitPending = true;
+        }
+        /*
+         * O desenho do vínculo é derivado do FOCO, e o foco sobrevive à troca de cena: sem esta
+         * linha, sair do UNIVERSO deixava a rede acesa por baixo do céu AGENTE — o grupo some, a
+         * lista não.
+         */
+        universe.selecionar(null, null);
+      },
+    }),
+    universo: Object.freeze({
+      id: 'universo',
+      passes: Object.freeze({ lensing: false }),
+      camadas: Object.freeze({ blackHole: false, graph: false, galaxy: false, universe: true }),
+      // O universo já foi normalizado para caber no zoom de hoje (ver `universe.js`), então aqui
+      // basta recuar até enquadrá-lo.
+      chegada: () => HOME_UNIVERSO,
+    }),
+  });
+
+  /**
+   * Aplica uma cena. **A ORDEM É A DO CÓDIGO QUE ISTO SUBSTITUIU** e não é livre: as camadas antes
+   * da câmera, a câmera antes do `aoEntrar` (que pode religar `fitPending`), e o vínculo por
+   * último, porque ele lê o foco depois de tudo já ter mudado.
+   */
+  function aplicarCena(cena) {
+    lensing.pass.enabled = cena.passes.lensing;
+    blackHole.group.visible = cena.camadas.blackHole;
+    graph.group.visible = cena.camadas.graph;
+    galaxy.object.visible = cena.camadas.galaxy;
+    universe.setVisible(cena.camadas.universe);
+    orbit.targetDistance = cena.chegada();
+    fitPending = false;
+    cena.aoEntrar?.();
+    paintLinks();
+  }
+
   const pointer = new THREE.Vector2(-2, -2);
   const raycaster = new THREE.Raycaster();
   const clock = new THREE.Clock();
@@ -2484,67 +2569,17 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * recência. O campo estelar de fundo fica — ele é cenário, não afirmação.
      */
     setMode: (proximo) => {
-      if (proximo !== 'agente' && proximo !== 'universo') return modo;
-      modo = proximo;
-      const universo = modo === 'universo';
-
       /*
-       * ⚠️ **Esconder o GRUPO do buraco negro não o tira da cena.** Ele é, acima de tudo, um PASSE
-       * de pós-processamento — a lente gravitacional deforma o quadro inteiro, e ela continua
-       * rodando com o disco invisível. Foi o que aconteceu na primeira versão deste switcher: a
-       * cena trocou, os corpos sumiram, e a distorção do espaço-tempo ficou.
-       *
-       * Desligar o passe é o que de fato muda de universo — e devolve o orçamento junto: a lente
-       * custa 3,8–5,1 ms de GPU contra 0,31–0,35 ms do céu inteiro com 213 instâncias. A cena
-       * UNIVERSO nasce, por construção, uma ordem de grandeza mais barata.
+       * ⚠️ `Object.hasOwn`, e não `CENAS[proximo]` direto. A lista branca explícita que estava aqui
+       * (`!== 'agente' && !== 'universo'`) recusava qualquer coisa; indexar um objeto literal aceita
+       * a CADEIA DE PROTÓTIPOS junto — `CENAS['constructor']` devolve valor truthy, e a cena
+       * trocaria para `undefined` sem erro nenhum. E este caminho é alcançável de fora
+       * (`spatia.cena(...)`, a rota).
        */
-      lensing.pass.enabled = !universo;
-      blackHole.group.visible = !universo;
-      graph.group.visible = !universo;
-      /*
-       * A camada de galáxia sai junto, e não é economia: ela desenha TODO agregado como galáxia,
-       * que é o modelo que a nova ontologia refutou (228 de 228). Deixá-la ligada faria a cena
-       * nova afirmar a taxonomia velha por cima da nova.
-       */
-      galaxy.object.visible = !universo;
-      universe.setVisible(universo);
-
-      /*
-       * A escala muda com o mundo. O céu AGENTE cabe em ~60 unidades; o UNIVERSO tem raio 150, e
-       * entrar nele com a câmera do outro deixaria o operador dentro de um sistema sem saber que
-       * existe um universo em volta. O limite superior da órbita sobe junto, senão a câmera bate
-       * no teto do modo anterior.
-       */
-      // O universo foi normalizado para caber no zoom de hoje (ver `universe.js`), então aqui basta
-      // recuar até enquadrá-lo. Sem isto o operador entra na cena nova dentro de um sistema, sem
-      // saber que existe um universo em volta.
-      /*
-       * ⚠️ Voltar ao AGENTE com um astro TRAVADO tem de voltar ao enquadramento DELE. Sem isto a
-       * câmera recuava para a casa (`HOME.distance`) com o foco intacto: o astro continuava
-       * travado, o painel continuava nomeando-o, e a tela mostrava o céu inteiro — a cena
-       * afirmando duas coisas diferentes sobre o mesmo estado. `fitPending` volta junto porque é
-       * ele que deixa o quadro seguinte corrigir a distância pelo raio real do corpo.
-       */
-      orbit.targetDistance = universo ? HOME_UNIVERSO : (focusedNode ? NODE_FOCUS_DISTANCE : HOME.distance);
-      /*
-       * ⚠️ Trocar de cena ENQUADRA A CENA, não mergulha no astro travado. São gestos diferentes:
-       * "me mostre o universo" e "me leve até este corpo". Por isso `fitPending` só religa no
-       * caminho de volta ao AGENTE, onde a distância de foco é do outro céu e precisa ser refeita.
-       */
-      fitPending = false;
-      if (!universo && focusedNode) {
-        orbit.targetPolar = NODE_FOCUS_POLAR;
-        fitPending = true;
-      }
-      /*
-       * Trocar de cena repinta o vínculo, e sem isto ele fica preso na cena anterior: sair do
-       * UNIVERSO deixava a rede acesa por baixo do céu AGENTE (o grupo some, a lista não), e entrar
-       * nele com um astro já travado não desenhava rede nenhuma até alguém clicar de novo. As duas
-       * metades são o mesmo esquecimento — o desenho é derivado do FOCO, e o foco sobrevive à
-       * troca de cena.
-       */
-      if (!universo) universe.selecionar(null, null);
-      paintLinks();
+      const cena = Object.hasOwn(CENAS, proximo) ? CENAS[proximo] : null;
+      if (!cena) return modo;
+      modo = cena.id;
+      aplicarCena(cena);
       /*
        * ⚠️ **A CENA ANUNCIA A TROCA — quem a pediu não é responsável por contar aos outros.**
        *
