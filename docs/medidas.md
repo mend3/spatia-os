@@ -277,3 +277,59 @@ mais velhas deste documento e **são daquele corpus** — a FORMA das conclusõe
 magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra 72.
 
 ---
+
+## INVENTÁRIO DA HUD POR ROTA — as 10 rotas do menu, medidas na TELA (09/08)
+
+Varrido por `bancada-hud.html` (`bancada.rotas()`), que monta o `index.html` de verdade num
+`<iframe>` e percorre os endereços. Janela **1426×712**, grade de 12 px, **7 021 pontos** por rota,
+corpus `espatial_fixture`, corpo `bloco-04.md` travado.
+
+⚠️ **Três grandezas, e elas não se substituem.** `texto` e `tinta` são desta bancada (glifo e
+superfície); `ponteiro` é `spatia.hud().ponteiro.fracaoReivindicada`, do app, e responde *"o gesto
+de órbita morre aqui?"*. Céu limpo é o que não é nem texto nem tinta.
+
+| rota | montados | recolhidos | não montados | ausentes | texto | tinta | céu limpo | ponteiro |
+|---|---|---|---|---|---|---|---|---|
+| raiz | 9 | 6 | 37 | **0** | 5,4% | 6,2% | 88,4% | 7,9% |
+| files | 8 | 4 | 38 | **0** | 5,0% | 8,6% | 86,4% | 12,9% |
+| system | 9 | 2 | 37 | **0** | 11,1% | 14,7% | 74,2% | 31,0% |
+| web | 7 | 3 | 39 | **0** | 5,0% | 6,2% | **88,8%** | 11,4% |
+| bridge | 8 | 3 | 38 | **0** | 9,1% | 8,3% | 82,6% | 22,1% |
+| **journal** | 9 | 4 | 37 | **0** | **24,7%** | 15,1% | **60,2%** | 28,4% |
+| metrics | 9 | 4 | 37 | **0** | 10,3% | 16,6% | 73,1% | **33,1%** |
+| security | **10** | 3 | 36 | **0** | 11,1% | 9,7% | 79,1% | 29,6% |
+| activity | 8 | 2 | 38 | **0** | 6,3% | 7,8% | 85,9% | 13,2% |
+| storage | 7 | 2 | 39 | **0** | 10,1% | 15,1% | 74,8% | 31,0% |
+
+⭑ **`ausentes: 0` nas DEZ, e isto é prova de TELA para o que só tinha oráculo.** «Ausente» é
+declarado-e-não-montado — o defeito que T-48 fechou. `scripts/lei-residentes.mjs` provava por
+perturbação, sem navegador; agora o app montado concorda em todas as rotas.
+
+☠️ **`journal` é o extremo por uma margem grande:** 24,7% de texto (2,4× a mediana) e **60,2% de céu
+limpo**, a única abaixo de 74%. Quem for discutir "a HUD ocupa demais" tem de discutir ESTA rota —
+na raiz o mesmo argumento fala de 5,4%.
+
+☠️ **O ponteiro varia 4,2× entre rotas — 7,9% na raiz contra 33,1% em `metrics`.** É a grandeza de
+INTERAÇÃO: em `metrics` um terço da tela CANCELA órbita e zoom, e isso não aparece em texto nem em
+tinta (a rota tem só 10,3% de glifo). Três grandezas, três respostas — trocá-las fabrica número
+plausível e falso.
+
+⚠️ **«recolhidos» é estado do OPERADOR e persiste ATRAVESSANDO a rota** (`espatial.collapsed.v1`,
+`kernel/widgets.js`). A coluna descreve ESTA máquina, não um app recém-instalado — e o acordeão
+recolhe os irmãos ao abrir um, então «todos abertos» não é alcançável pelo gesto normal. O número
+fica publicado em vez de normalizado: normalizar esconderia justamente a variável que faz duas
+pessoas verem telas diferentes.
+
+⚠️ **`naoMontados` fica entre 36 e 39** de ~46 widgets do catálogo — a maior parte do vocabulário
+não está no ar em rota nenhuma, por desenho. Não confundir com `ausentes`.
+
+⭑ **Os três residentes aparecem nas dez**, e a tela concorda com `RESIDENTES` (`apps/residentes.js`):
+`TIMELINE PERFIL REAL` (left), `CONTEXTO SOB ATENÇÃO` (right) e `JANELA DO TEMPO ÚLTIMO COMMIT`
+(strip). ⚠️ O palco monta 1–2 molduras **sem título** em toda rota — é o painel de palco, e é por
+isso que a régua dele é a do corpo e não a do trilho (T-51).
+
+⚠️ **Estes números descrevem o app OCIOSO na rota:** `palco` sai 0,0% de texto porque não há
+documento aberto nem resposta na tela. A composição que motivou a discussão (documento + resposta)
+mede MAIS, e a bancada ainda não a dirige.
+
+---
