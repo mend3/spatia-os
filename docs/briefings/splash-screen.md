@@ -12,7 +12,7 @@
 >
 > | pedido | por quê |
 > |---|---|
-> | `PRESS ANY KEY TO START` | pergunta de resposta única. Recusa por escrito no `HANDOFF.md` §7-B. A camada sai no primeiro gesto **sem pedi-lo**, e o gesto atravessa |
+> | `PRESS ANY KEY TO START` | pergunta de resposta única. Recusa por escrito no REFUTADO do `roadmap.md`. A camada sai no primeiro gesto **sem pedi-lo**, e o gesto atravessa |
 > | `SYSTEM ONLINE` · `AI CORE READY` · `UNIVERSE STABLE` | é a *"sequência falsa de SISTEMAS OK que ensinaria o operador a não ler a tela"*. O `#boot` já responde os três com `/api/health` REAL |
 > | respiração de ±3%, *light sweep*, especular seguindo o cursor | decoração — princípio 7. **Esta camada não anima nada de si**: o que se move atrás dela é a cena |
 > | paleta cyan/teal, *"jamais amarelo"* | a identidade desta base é âmbar (`--amber`), e a marca sai da MESMA regra do `#boot` para não saltar na troca |

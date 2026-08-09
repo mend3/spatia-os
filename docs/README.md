@@ -9,7 +9,9 @@ documentação* — leia-a antes de acrescentar arquivo ou parágrafo.
 | arquivo | responde |
 |---|---|
 | [`roadmap.md`](roadmap.md) | os objetivos, as tarefas com status, e **o que cada peça destrava** |
-| [`HANDOFF.md`](HANDOFF.md) | o que está aberto AGORA, e **as armadilhas que mentem** ao medir |
+| [`HANDOFF.md`](HANDOFF.md) | **o ambiente de medida e o estado agora** — curto de propósito |
+| [`armadilhas.md`](armadilhas.md) | o que **mente** ao medir na tela, e o que falha **calado** no código |
+| [`medidas.md`](medidas.md) | números já medidos — **não remeça** |
 
 ⭑ **Os dois mudam JUNTOS** — são a mesma verdade por dois lados.
 

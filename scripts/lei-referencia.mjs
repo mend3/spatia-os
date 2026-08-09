@@ -35,7 +35,7 @@
  *
  * Ele modela só a regra que `testemunhaVisivel` consome — subir até a moldura, ler `dataset`,
  * casar atributo com valor — e **explode** no seletor que não conhece, em vez de devolver lista
- * vazia. Zero vindo de esboço incompleto é o defeito nº 20 do `HANDOFF.md`: a lei ficaria verde
+ * vazia. Zero vindo de esboço incompleto é o armadilha §B-20 de `docs/armadilhas.md`: a lei ficaria verde
  * afirmando que ninguém acha a linha, que é exatamente o estado que ela deveria acusar.
  *
  * ## O que ele NÃO prova

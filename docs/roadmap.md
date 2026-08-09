@@ -4,7 +4,7 @@
 > juntos.
 > O handoff responde *"o que está aberto AGORA e como não cair nas armadilhas"*; este responde
 > *"para onde vamos, em que ordem, e o que cada peça destrava"*. Fechar uma tarefa aqui **obriga** a
-> tirar o item do handoff (movendo o resíduo para §5/§6), e abrir um item lá obriga a criar a
+> tirar o item do handoff (movendo o resíduo para `armadilhas.md`/`medidas.md`), e abrir um item lá obriga a criar a
 > tarefa aqui. Divergiram, os dois estão errados — e o sintoma é sempre o mesmo: alguém lê um e
 > decide contra o que o outro já mediu.
 >
@@ -30,7 +30,7 @@ são do usuário por natureza — nenhum agente deve "destravá-las" resolvendo 
 
 > Princípio 6 e a Regra dos Cinco Minutos. ☠️ **A fila tem produtor e continua em silêncio, e isso
 > é o desenho certo:** o vigia de `ambient.py` dispara por TRANSIÇÃO, e num sistema parado não há
-> transição. Medido: **0 eventos em 301 s** (handoff §6). **"Vivo" não pode significar "tem
+> transição. Medido: **0 eventos em 301 s** ([`medidas.md`](./medidas.md)). **"Vivo" não pode significar "tem
 > novidade"** — quem depende de novidade para parecer vivo acaba inventando repetição. Significa
 > que o que a tela afirma é do presente, ou diz de quando é.
 
@@ -38,7 +38,7 @@ são do usuário por natureza — nenhum agente deve "destravá-las" resolvendo 
 |---|---|---|
 | KR1.1 | existe produtor ambiental emitindo **sem pergunta do operador** | ⭑ `server/ambient.py` — vigia de 5 observadores por TRANSIÇÃO, a cada `SCAN_SECONDS` |
 | KR1.2 | `notice` carrega `severity` e a tela distingue ruído de aviso | ⭑ cabeça da timeline (`hud/streams.js`): `warn`/`alert` de pé com `action`, `info` apaga |
-| KR1.3 | cinco minutos parado produzem evento legítimo (não sintético) | ☠️ **0 eventos em 301 s**, medido na assinatura real — e está CERTO: 3 dos 5 observadores não têm como disparar hoje, 2 são eco de comando humano (handoff §6) |
+| KR1.3 | cinco minutos parado produzem evento legítimo (não sintético) | ☠️ **0 eventos em 301 s**, medido na assinatura real — e está CERTO: 3 dos 5 observadores não têm como disparar hoje, 2 são eco de comando humano ([`medidas.md`](./medidas.md)) |
 | KR1.4 | cinco minutos parado, o que a tela afirma no presente **foi medido no presente** | ⭑ `watchHealth` + a idade da aferição; leitura vencida para de afirmar sem apagar o medido |
 
 ☠️ **KR1.3 mede a coisa errada, e a medida é que mostrou.** Contar EVENTOS faz "vivo" depender de o
@@ -54,7 +54,7 @@ operador a não ler a tela (`ambient.py` recusa por escrito). O que a Regra dos 
 
 | KR | medida | hoje |
 |---|---|---|
-| KR2.1 | **estado de tela** tem dono único | ⭑ `core/tela.js` — camada · cena · rota num objeto só, `spatia.tela()`. ⚠️ `session.route` sobrevive **sem leitor** (handoff 0e) |
+| KR2.1 | **estado de tela** tem dono único | ⭑ `core/tela.js` — camada · cena · rota num objeto só, `spatia.tela()`. ⚠️ `session.route` sobrevive **sem leitor** (T-64) |
 | KR2.2 | **pose da câmera** tem nome próprio | ⭑ `escalaLocal()` · `porteLocal()` · `orbit.distance`, provado na tela |
 | KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
 | KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 11 call sites · 1.080 perturbações) |
@@ -130,9 +130,9 @@ com ou sem produtor.
 | **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
 | **T-16** | Modo Assistir — **não é um modo**: é a AFERIÇÃO do que a tela já afirma | `done` | — | — | KR1.3 |
 | **T-17** | `keyup` + `blur` no teclado — `keys.isHeld` e a lei da tecla que não fica presa | `done` | — | T-15 | — |
-| **T-18** | Um diretório sem agregado é um sistema? (handoff 0b) | `done` | — | — | — |
+| **T-18** | Um diretório sem agregado é um sistema? — o censo agrupa por `dir`, a cena por nó AGREGADO | `done` | — | — | — |
 | **T-36** | `conectividade.mjs` agrupa como a cena agrupa — e o ρ com o tamanho do sistema NÃO era o filho único | `done` | — | — | KR3.1 |
-| **T-19** | Quebrar a dependência de `M_total` nas luas (handoff 0c) | `postponed` | — | — | — |
+| **T-19** | Quebrar a dependência de `M_total` nas luas — RISCO DE EXPIRAÇÃO, não defeito vivo | `postponed` | — | — | — |
 | **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
 | **T-21** | Marketplace × a postura de segurança escrita | `blocked` | decisão do usuário | — | — |
 | **T-22** | Gravidade cognitiva (uso movendo órbita) | `blocked` | decisão do usuário | — | — |
@@ -173,8 +173,67 @@ com ou sem produtor.
 | **T-60** | Melhorar o visual do PULSAR — luz FLAT (devia expandir em 360°) e nuvem estática | `todo` | — | — | — |
 | **T-61** | Texturas: asteroide, cometa, anel — pedregulho, poeira, colisão eventual | `todo` | T-34 | — | — |
 | **T-62** | Camada externa do BURACO NEGRO — poeira, detritos, profundidade e volume | `todo` | — | — | — |
+| **T-63** | `orbital-zones.js` empresta nome de FÍSICA a metáfora — é DECISÃO, não renomeação | `todo` | decisão do usuário | — | KR3.2 |
+| **T-64** | `session.route` sobrevive **sem leitor** — apagá-lo ou dar-lhe um leitor | `todo` | — | — | KR2.1 |
+| **T-65** | Levar a REDE à cena AGENTE — o dado e o desenho já existem; falta decidir | `blocked` | decisão do usuário | — | — |
+| **T-66** | O sistema APERTADO — 38 arquivos numa pasta dão planetas de 0,10 unidade | `todo` | — | — | — |
+| **T-67** | Segunda textura de estrela (K/M, fria), escolhida pela TEMPERATURA | `todo` | — | — | — |
+| **T-68** | Passo 2 — feição no SPRITE, e **não** aro no corpo: é lá que os corpos vivem | `todo` | — | — | — |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-20** — ☠️ **está MEDIDO, e não é defeito de código.** O "planeta transparente" é o corpo em foco
+  iluminado por trás: o que se vê é um **CRESCENTE**. A/B no mesmo quadro, controle em **0 pixels** —
+  o limbo por setor varia **23,96×** entre o lado aceso e o apagado, e desligar os dois termos de
+  atmosfera deixa em **24,53×**, inalterado. Não é aro; é fase. Vale o corolário da REGRA DA FÍSICA:
+  a física produziu o fenômeno esperado, então o que sobra é **linguagem visual**. ⚠️ Mudar a direção
+  da luz conserta a leitura **e muda a composição que o usuário chama de "mais bonita"** — decisão dele.
+- **T-24** — a borda do planalto anda com a pose (**3 px a 260 un · 4 a 150 e 116 · 4,5 a 58**): a
+  FORMA da conclusão sobrevive, a magnitude não. Mais sistemas no mesmo `OCUPACAO` dão envelopes
+  menores, e é por isso que o `PISO` não se congela contra o fixture.
+- **T-19** — ⭑ **a expiração, escrita como conta:** `slack = a_pai / (2,44 · DENSITY_K · ∛(3M))`.
+  `inner` escala com `DENSITY_K` e `outer` (Hill) **não** — é essa assimetria que fecha a janela.
+
+**As quatro dimensões do grafo têm dono, e duas foram RECUSADAS por escrito:** `centrality` ✅ ·
+`usage` ✅ · `connectivity` ✅ (como **ALCANCE**, porque o grau repetia a centralidade) · `density`
+**adiada** (é bytes por chunk; conserta-se no indexador) · `importance` **recusada** (é juízo, não
+fato).
+
+- **T-63** — ☠️ **É o TERCEIRO `mass`, e o pior dos três.** Os dois primeiros caíram por renomeação
+  (`mass` → `chunks`, `planetParams.mass` → `chunksNorm`), mas em `orbital-zones.js` o
+  `const mass = node.chunks || 0` alimenta `physicalRadius`, `rocheLimit` e `hillRadius` — nomes que
+  **são** físicos, e uma função chamada `rocheLimit` afirma um limite de maré. `DENSITY_K` é
+  constante CALIBRADA (já degradou uma vez: corpus 5,6× maior, **297 luas viraram 0**), não constante
+  física com unidade. É o caminho curto e calado que a FRONTEIRA proíbe. **Não é renomeação:** ou os
+  nomes deixam de ser físicos, ou a razão vira adimensional como no `astrofisica.js`.
+  ⭑ `hillRadius` está ABSOLVIDO — `∛(m/3M)` é razão de massas, o mesmo argumento que salva o `R_s/R`.
+- **T-64** — **duas verdades sobre a mesma rota, e a segunda não tem leitor.** `core/tela.js` guarda a
+  rota que o kernel resolveu; `core/session.js` continua lendo o hash CRU. **Divergem em 7 de 12
+  endereços**, medido recortando os dois decodificadores do próprio código: sub-rota, app inexistente,
+  caixa e escape. ⚠️ **Unificar MUDA valor observável** — `route` sai `''` na raiz pela `session` e
+  `core` pela `tela`. Hoje o campo **não tem nenhum leitor** além de `spatia.session()` (`grep` em
+  `src/` devolve 0): a decisão é apagá-lo ou dar-lhe leitor, e ela é de quem opera.
+- **T-65** — hoje só o UNIVERSO desenha os quatro tipos. O dado é o mesmo (`/api/vizinhanca`) e o
+  desenho é o mesmo (`links.js`); falta decidir se as duas cenas devem afirmar a mesma coisa —
+  **isso é produto, não engenharia**.
+- **T-66** — as três saídas: aceitar o LOD, subir `OCUPACAO` pagando com os vazios, ou desenhar o
+  sistema apertado como agregado e resolvê-lo na aproximação. ⚠️ **Agregar de longe vai na direção
+  OPOSTA ao relato do usuário** — é resposta para ESCALA, não para distância.
+- **T-67** — com uma foto só, o que resta de parecido entre as estrelas é inerente: `FORCA_DO_MAPA` e
+  `uCroma` já estão no limite útil.
+- **T-68** — ☠️ **A régua mudou, e para pior.** `CORPO_FS` é meia-lambert puro (`0,10 + 0,90·d²`) e
+  **não tem aro nenhum** — o passo 2 CRIA um termo, não afina um. E o único aro desta cena (o `borda`
+  do `ESTRELA_FS`) é potente e **mesmo assim não responde o relato**: no enquadramento de casa a
+  geometria tem P50 **1,55 px**, então a luz do aro é espalhada pelo bloom em vez de desenhada como
+  borda. Vira brilho, não vira forma — e a faixa que ele conserta (8–90 px) tem **0 corpos** ali.
+  ⭑ **O sprite é onde os corpos REALMENTE vivem**, e `distancia-e-forma.md` §2.5 mediu que 6 das 8
+  feições do sprite rodam sobre fatos que o UNIVERSO já carrega. **Não medido:** quanto disso
+  sobrevive ao bloom num disco de 4 px. ⚠️ `aSupernova`/`aDwarf` ficam em zero pelo mesmo motivo.
+
+**Parados por DECISÃO, não por falta de trabalho:** `usage` no brilho (é POPULAÇÃO — sobe sozinha
+conforme o `/api/ask` rodar; gerar à mão é o que `--semear` recusa fazer) · `connectivity` no pixel
+(o alcance é o número que os arcos já desenham; um canal visual próprio seria segunda codificação do
+mesmo fato).
 
 - **T-55** — a bancada é o **storybook** dos objetos 3D: ver, testar, renderizar, depurar e criar
   antes de levar para as cenas. ⚠️ **`V1 GRÃO · V2 ENXAME · V3 PEDREGULHO · V4 LAJE` NÃO são lixo —
@@ -417,8 +476,7 @@ com ou sem produtor.
   ninguém mediu o disco. Quem transformar `null` em medida é o carregador de textura de T-34, por
   `declararEmDisco()`.
 - **T-16** — ☠️ **MODO ASSISTIR COMO MODO ESTÁ REFUTADO POR MEDIDA.** A fila que ele assistiria
-  entregou **0 eventos em 301 s** de assinatura real ao `/api/system-events` (handoff §6, com a
-  tabela dos cinco observadores). Uma superfície que assiste ao vazio CRIA a pergunta *"por que não
+  entregou **0 eventos em 301 s** de assinatura real ao `/api/system-events` (`medidas.md`). Uma superfície que assiste ao vazio CRIA a pergunta *"por que não
   acontece nada?"* — o Princípio Final ao contrário — e um terceiro eixo de estado ao lado de
   `view.cinematic` seria o segundo lugar pintando estado, já medido como defeito.
   ⭑ **O que a medida achou no lugar:** a tela afirmava o presente com uma leitura do BOOT. Entregue
@@ -487,6 +545,120 @@ com ou sem produtor.
   caminho. ⭑ **Fica o portão, sai a zona:** `MU_MIN = 5` continua recusando 9 dos 72 corpos e
   agora se justifica pelo caso degenerado (`N^(-1/3)` = 1,000 com uma seção).
 
+## O que já está PRONTO — confira ANTES de abrir tarefa
+
+> ⚠️ **Os briefings não sabem disto, e é a forma mais cara de desperdício desta base:**
+> reimplementar o que já existe com outro nome. Cada linha abaixo foi conferida NO CÓDIGO.
+
+- **O traço de explicabilidade** — que o usuário chamou de *"talvez a feature mais importante"* —
+  **está pronto, endereço incluído**: sete eventos do `EVENTS.md` em ledger encadeado por hash, tela
+  em `src/apps/journal.js`, e `router.parse()` devolvendo `{app, arg}` com `journal.js:190`
+  resolvendo o alvo. Provado em carga fria: aba do dia ativa, linha marcada, detalhe preenchido.
+- **`cogload{tokens}` → `blackHole.setLoad`** existe ponta a ponta. O item favorito do autor do
+  `black-hole-router` é o mais barato dos dez dele.
+- **A soft collision** do `ship-navigator` já tem o fato **e o padrão implementado**:
+  `corpoMaisProximo()` devolve `{source, radius, dist}` e o piso do zoom já o consome por quadro.
+- **A órbita elíptica** do `orbita-eliptica` está feita e medida: estrela no FOCO, Kepler por Newton
+  (**área varrida máx/mín 1,0008**), e excentricidade **derivada da folga da banda**, não escolhida.
+- **Os braços da galáxia já são campo de densidade** (Lin–Shu, com órbita kepleriana proibida por
+  escrito), a poeira já é extinção, o bojo existe, o jato tem beaming Doppler e o "1 em 10" é
+  portão medido em 9,7%. O `quasar-enhance` pede sete coisas e **quatro já existem**.
+- **`anexar` já é meia nave**: prende a câmera a um corpo que viaja com ele, e `scene.js` já declara
+  por escrito o destino *"uma sonda 3D representando o operador"*.
+
+---
+
+## A POSE da câmera são QUATRO grandezas, e uma delas nem é distância
+
+   `escalaLocal()` (*quão longe está o que eu olho* — quem lê são a escala do pan e a amplitude da
+   paralaxe), `porteLocal()` (*que RAIO tem o que está aqui* — quem lê é o piso do zoom), e
+   `orbit.distance`/`.targetDistance`, que volta a significar só o raio da órbita (posição da
+   câmera, roda, amortecimento, `prefs`, a sonda).
+   ⚠️ **A quarta é a distância de CHEGADA e não passa por nenhuma das outras:** ela sai de um alvo
+   NOMEADO (o envelope daquele sistema, o raio daquele corpo, `FOCUS_FIT_PX`/`CHEGADA_PX`), nunca de
+   "onde eu estou" — forçá-la por `escalaLocal` trocaria o número de todas as chegadas.
+   ⚠️ **`prefs` grava `camera.distance` e a chave NÃO é renomeável** — renomear não migra o que já
+   está salvo, e a afinação do operador evapora em silêncio.
+   ⚠️ **Falta a prova de tela** (T-08), e ela é uma RENOMEAÇÃO: as quatro sondas têm de sair
+   idênticas com e sem o diff. **Numa chamada só**, com as duas guardas do §4 abertas e `quadros`
+   andando, e sem tocar na câmera entre as duas leituras (a deriva envelhece COORDENADA):
+   `spatia.cena('universo')` → congele com um `wheel deltaY:0` → leia
+   `{ancora: spatia.universo.ancora(), pixels: spatia.universo.pixels(), sobrep:
+   spatia.universo.sobreposicoes(), cena: spatia.cena()}`. Repita com `git stash`. **Esperado:**
+   `ancora().distancia`/`alvoDeDistancia` e os percentis de `pixels().geometria` ao dígito, e
+   `sobreposicoes()` em **0 pares**. Os três gestos que passam pelas grandezas separadas são a
+   RODA (piso), o **SHIFT + arraste** (escala do pan) e o **movimento do ponteiro parado**
+   (paralaxe) — o piso do zoom só se prova rodando a roda até o fim e lendo `ancora().distancia`.
+
+⚠️ **`prefs` grava `camera.distance` e a chave NÃO é renomeável** — renomear não migra o
+que já está salvo, e a afinação do operador evapora em silêncio.
+
+---
+
+## As decisões de cena já FECHADAS — o mínimo para não reabrir
+
+> Não são refutações (essas estão abaixo) nem tarefas: é como a cena UNIVERSO se comporta HOJE,
+> por decisão já tomada. Está aqui porque cada linha destas já foi reaberta por alguém que não
+> sabia que havia decisão — e reabrir custa a medida de novo.
+
+- **Câmera em VOO LIVRE** (decisão do usuário: *"não existe centro no universo real"*). A âncora
+  translada com **SHIFT + arraste** ou **botão do meio**, só no UNIVERSO e só fora de foco. O
+  centroide sobrou como alvo do PRIMEIRO quadro e morre no instante em que o operador voa.
+  `spatia.universo.anexar(source)` prende a câmera a um corpo — PoC do operador como objeto.
+- **Duas poses, e elas afirmam coisas diferentes:** `irPara` põe **o sistema no quadro**
+  (envelope × 2,6); `anexar` põe **um corpo com pele** (`CHEGADA_PX` 135 = 1,5× o piso).
+  ⚠️ Amarrar as duas não afina a primeira — transforma-a na segunda em todos os sistemas, e isso
+  está **refutado por medida** (§7-B).
+- **Pele sem foco é POOL** (`spatia.universo.peles()`), teto 4, `cortadas` publicado. Entram
+  fotosfera, planeta, cometa e pulsar. Estação e nebulosa ficam fora — e **não por população**:
+  `superficieDe()` não tem ramo que as devolva (`AUSENTES_NA_TABELA` diz o motivo de cada uma).
+  ⭑ `ROTAS_DO_POOL` em `scene.js`: pele nova é **uma linha**. É o exemplar desta base para
+  "tabela em vez de `if`".
+- **A lei do sprite:** `px_sprite = max(px_geometria, PISO)`, `PISO = 4 px` de raio de framebuffer,
+  tamanho vindo do **raio já desenhado** — nunca de `chunks` outra vez, que seriam duas leis de
+  tamanho para o mesmo fato. ⚠️ `uHaloYield = 1` **aqui** e 0 no AGENTE: em 0 o miolo do sprite é
+  esvaziado e sobra o aro, que sobre uma esfera desenhada lê como *"o planeta está transparente"*.
+- **A cena é uma TABELA** (`CENAS` em `scene.js`), não um `if`: cada entrada declara `passes`,
+  `camadas`, `chegada()` e `aoEntrar()`. ⚠️ `passes` é campo de primeira classe — esconder o GRUPO
+  do buraco negro não desliga a LENTE, que deforma o quadro inteiro com o disco invisível.
+  ⚠️ A cena não pode declarar o que um corpo É: classe, física e pele saem de `entity-physics.js` e
+  `superficies.js`, e nenhuma das duas recebe a cena.
+  ⭑ **É invariante PROVADA, não declarada:** `scripts/lei-cena.mjs` audita o vocabulário da
+  tabela (chave fora de `id`/`passes`/`camadas`/`chegada`/`aoEntrar` reprova), lê os argumentos de
+  todo chamado dos três em `src/`, e perturba cada corpus enfiando a cena por todo canal exposto.
+  ⚠️ **`CENAS` não é importável** — é `const` dentro da fábrica, e alcançá-la exigiria WebGL. O
+  oráculo RECORTA o bloco do `scene.js` real e o avalia como literal (as arrows não são chamadas),
+  então tabela nova entra na varredura sozinha. **Ele não tem tabela de reserva de propósito.**
+- **`mesmoQuadro()` é a lei; `skinAB`/`universeAB` só a chamam.** Duas cópias do laço envelheceriam
+  em ritmos diferentes, e o laço é justamente o que dá o controle em 0 pixels.
+
+---
+
+## O que está REFUTADO — não reabra sem medida NOVA
+
+> ⚠️ **Refutado não é `archived` por desânimo:** cada linha tem uma MEDIDA por trás, e é ela
+> que fica. Reabrir custa uma medida nova que a contradiga — não um argumento.
+
+| proposta | por quê |
+|---|---|
+| progressive disclosure por ZOOM (2 briefings) | *"a pele não é alcançável por zoom, só por foco"*; `LOD_FAR_PX` menor **refutado por medida** |
+| otimizar corpos / LOD por sistema para ganhar quadro | o orçamento está no pós e na lente (céu 0,23 ms × lente 3,8–5,1 ms) |
+| sensação de velocidade pelas estrelas (`ship-navigator`) | a casca estelar é raio **150–400 centrada na ORIGEM** e o universo inteiro cabe em **±41,6** — a cena mora dentro do miolo vazio. Voar não aproxima estrela nenhuma |
+| `km/s` no HUD | não existe unidade de comprimento, e inventá-la é a FRONTEIRA. A leitura honesta é adimensional (`un/s`, envelopes/s, raios do corpo mais próximo) |
+| buraco negro curvando a trajetória da nave | ele está **desligado** no UNIVERSO (`lensing.pass.enabled = !universo`), por decisão de cena E por custo |
+| acender pele em tudo por onde a nave passa | cometa 1,23 ms · pulsar **quadro 5,66 ms**. *"Quem subir o teto remede aqui"* |
+| excentricidade ou gravidade ∝ importância | `importance` **recusada por escrito**; e `EXCENTRICIDADE_MAX` é TETO, não valor |
+| "PRESS ANY KEY TO START" substituindo o boot | o boot atual responde uma pergunta **com duas respostas legítimas** (som), e mostra diagnóstico REAL. *"Uma sequência falsa de SISTEMAS OK ensinaria o operador a não ler a tela"* |
+| tirar as "linhas orbitais artificiais" do quasar | diagnóstico errado de objeto: os braços já são densidade; as curvas laranja são os **arcos de vínculo** |
+| amarrar a chegada num sistema ao piso da pele | a tangência NUNCA existiu: o maior corpo chega entre **19,8 e 69,9 px** (mediana 48,5) e **0 de 21 sistemas** alcançam o piso de 90. Amarrar não afina `irPara` — transforma-a em `anexar`, e o resto do sistema sai do quadro |
+| `rocheLimit(raio)` para apagar o `DENSITY_K` (item 0c) | `rocheLimit(mass)` **já é** `2,44·R`; a constante mora em `physicalRadius`, e o outro raio da cena está na régua do SPRITE, que não é conversível |
+| normalizar a massa do pulsar DENTRO da faixa gigante (item 0d) | é a mesma família do defeito — faria o período de um corpo depender de quem mais está no céu, e com população 1 é degenerada |
+| a massa mover o `core` do pulsar (T-29) | os 60% da faixa não têm leitor visual (as duas ampliações do miolo saem idênticas) **e** o corpo variável punha o `R_s/R` da lente em 0,640 contra os 0,400 do fato de classe. Subir o ganho até ele agir é pior: a 0,40 de âncora o corpo engole o lobo (87 px contra 89–165) e o `R_s` da lente cresce junto |
+| renderizar duas vezes na troca de cena para curar o preto (T-54) | esconde a PARIDADE em vez de removê-la, e ela volta no primeiro passe que alguém acrescentar. O que remove é fixar o par de buffers no começo do quadro, e a conferência é `lei-paridade.mjs` |
+| as ZONAS por razão de massa como classificação graduada (T-28) | a terceira zona é vazia por aritmética, a do meio leva **81,8% dos sistemas**, e a cena desenha a mesma imagem nas três. Quem tem leitor é o fato BINÁRIO (`dominanteDe`); a zona exigiria um segundo corpo em 81,8% dos sistemas — pipeline, não limiar |
+
+---
+
 ### As decisões que são do usuário
 
 Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozinho**:
@@ -542,3 +714,20 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `integracao-organica.md` | T-23 | decisão do usuário |
 | `features-widgets.md` | T-21 | decisão do usuário |
 | `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; faltam T-49/T-50 e T-53 estar decidida |
+
+---
+
+## Onde procurar a HISTÓRIA
+
+O `git log` é a fonte. Estes explicam decisões vivas:
+
+| assunto | commit |
+|---|---|
+| a órbita vira BANDA DISJUNTA (a lei das luas) e três constantes calibradas caem | `f55013e` |
+| a sonda que separa COLISÃO de OCLUSÃO | `b96f576` |
+| a PELE volta ao céu decidida pela ontologia nova (início da Fase D) | `25d34d3` |
+| o corpus deixa de ter default — fallbacks calados morrem | `01df3e2` |
+| P6: as duas relações com SETA | `07f9706` · P7: `4cdc7a4` |
+| a coroa do sprite, o teto do driver e o portão `BODY_SPAN` | `efe13fa` |
+| o anel deixa de ser classe e vira modificador | `git log --grep=modificador` |
+| a segunda lente do buraco negro | `git log --grep=lente` |

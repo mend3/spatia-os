@@ -83,7 +83,7 @@ Logo, para janela entre 1 150 px e 2 118 px de largura:
 > em 230 px cada e a fração CRESCE. Abaixo de 900 px `aside { display: none }` (`index.html:1308-1312`).
 
 No ambiente de medida já usado por esta base (buffer 2582×1484 · DPR 2 → **1291×742 px CSS**,
-`HANDOFF.md` §6), a conta fecha assim:
+`medidas.md`), a conta fecha assim:
 
 | superfície | régua no CSS | tamanho | fração da janela |
 |---|---|---|---|
@@ -372,7 +372,7 @@ mede o pedágio dos dois lados, para que a decisão saiba o que compra.
 | UNIVERSO | **0,23 ms** | 2,3–2,6 ms | ~2,5 ms | **~90%** |
 | AGENTE | 1,95 ms | 1,42 ms | 3,37 ms | 42% |
 
-(`HANDOFF.md` §6; a lente sozinha custa **3,8–5,1 ms** contra **0,31–0,35 ms** do céu inteiro com 213
+(`medidas.md`; a lente sozinha custa **3,8–5,1 ms** contra **0,31–0,35 ms** do céu inteiro com 213
 instâncias.)
 
 **Texto em canvas é PASSE ou TEXTURA, e os dois bolsos são diferentes:**
@@ -402,10 +402,10 @@ de contar o peso. E:
   passa a ser conta à mão, e é justamente o eixo em que a HUD tem 17 valores.
 - ☠️ **A armadilha de unidade desta base morde aqui na hora:** *"`canvas.height` (framebuffer),
   nunca `clientHeight` (CSS). Em DPR 2 a bancada dividiu por dois todo número que o shader via"*
-  (`HANDOFF.md` §5 item 10). Um atlas medido em CSS sai borrado em retina e nada acusa.
+  (`armadilhas.md` §B-10). Um atlas medido em CSS sai borrado em retina e nada acusa.
 - ☠️ **E o bloom come hairline.** Já está medido em outro objeto: a luz do aro de estrela move
   +25,9% da luz total e mesmo assim *"é espalhada pelo bloom em vez de desenhada como borda. Vira
-  brilho, não vira forma"* (`HANDOFF.md` §7 item 2, com a geometria a P50 1,55 px). Um rótulo de
+  brilho, não vira forma"* (`roadmap.md`, com a geometria a P50 1,55 px). Um rótulo de
   8 px com traço de 1 px dentro do mesmo pós é o mesmo caso, com menos luz.
 
 **(c) ACESSIBILIDADE, SELEÇÃO E COPIAR — o que o DOM dá de graça.**
@@ -606,4 +606,4 @@ relato de forma idêntica a este.
 ⚠️ **E há um pré-requisito fora deste documento:** `espatial.collapsed.v1` é um dono de estado de
 tela que `core/tela.js` não conhece (§3.1). Enquanto ele não tiver leitor nem sonda, **"o painel não
 apareceu" tem três causas indistinguíveis a olho** — recolhido, não declarado no manifesto, ou
-defeito. É a armadilha que `HANDOFF.md` §4 registra por escrito, e ela é a razão da ordem do §8.
+defeito. É a armadilha que `armadilhas.md` §A registra por escrito, e ela é a razão da ordem do §8.

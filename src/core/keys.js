@@ -236,7 +236,7 @@ export function install() {
 
   /*
    * As duas perdas de foco, e são DUAS porque respondem coisas diferentes — a mesma distinção que
-   * o handoff §4 faz para medir: `blur` é a janela indo para trás (⌘Tab, outro app), onde o
+   * `docs/armadilhas.md` §A faz para medir: `blur` é a janela indo para trás (⌘Tab, outro app), onde o
    * `keyup` acontece em quem recebeu o foco; `visibilitychange` é a aba indo para o fundo, onde o
    * motor estrangula o `rAF` e nem o quadro que leria a tecla existe.
    */

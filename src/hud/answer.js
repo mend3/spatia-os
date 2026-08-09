@@ -442,7 +442,7 @@ export function createAnswer(root) {
    *
    * ☠️ O router emite `ui.route` ANTES de montar os widgets (`kernel/router.js`: o `host.apply`
    * mora dentro do `setTimeout` do voo). Repintar nesse evento leria o mount ANTERIOR — é a
-   * armadilha do §4 do `HANDOFF.md`, «a sonda lida na mesma chamada que emite vem VELHA», e o
+   * armadilha de `docs/armadilhas.md` §A, «a sonda lida na mesma chamada que emite vem VELHA», e o
    * conserto por temporizador seria um número sem procedência escolhido para a foto fechar.
    *
    * O que muda a resposta são dois fatos observáveis, e cada um tem seu observador:

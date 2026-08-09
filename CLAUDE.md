@@ -321,6 +321,73 @@ Cada nova funcionalidade deve tornar o sistema mais inteligente, não apenas mai
 
 ---
 
+# As leis desta base
+
+Escritas pelo usuário. **Valem sobre qualquer decisão técnica**, e sobre os Princípios acima
+quando os dois se cruzarem: um princípio diz para onde ir, uma lei diz o que não se faz para
+chegar lá.
+
+**A REGRA DA FÍSICA** — *Nenhuma decisão de composição pode alterar a simulação. Se um problema pode
+ser resolvido fora da simulação, ele deve ser resolvido fora dela.*
+Proíbe de imediato: reduzir `R_s` para o buraco negro incomodar menos, enfraquecer a lente de perto,
+alterar a geodésica por distância, trocar física por curva artística.
+**O corolário vale mais que a regra:** quando a física produz exatamente o fenômeno esperado, o
+defeito costuma estar em **linguagem visual**.
+
+**A REGRA DA INSPEÇÃO** — *Todo objeto tem de poder ser rotacionado.*
+O padrão que a satisfaz: **em foco vira MUNDO; fora de foco continua billboard.**
+Dois modos de falha silenciosos: (1) a malha virou mundo mas o **ÂNGULO** não chegou ao shader — um
+uniform servindo a dois donos (tela × física); (2) **objeto com dois modos precisa dos dois na
+bancada**, senão o caminho onde o defeito mora não é desenhável.
+Ainda violam (auditado, nada consertado): `remnant.js:145`, `nebula.js`, `comet.js:577`,
+`pulsar-pulse.js:169`, `bodies.js:236`, `satellites.js:189,263`. ⚠️ Varra o COMPORTAMENTO, não a
+string — a galáxia não tinha `quaternion.copy` e era billboard no vértice.
+
+**A REGRA DO CATÁLOGO** — *Nomeie os tipos que a classe ACEITA; nunca exclua os que ela não aceita.
+Ponha a proibição em `forbids`.*
+Classificar por exclusão (`type !== 'file'`) fazia uma LUA em foco resolver como GALÁXIA.
+**E o corolário que esta base já pagou CINCO vezes: declarar uma invariante não a implementa.** A
+auditoria que acha isso é barata (varra cada chave declarada e procure um leitor) e vale rodar depois
+de toda entrada nova no catálogo, no `tuning.SPEC` ou num vocabulário de métrica.
+
+**A FRONTEIRA FÍSICA × COGNITIVA** — *Nenhuma grandeza física é derivada de uma variável cognitiva
+sem uma unidade e uma constante física explicitamente definidas.* Escrita em 08/08.
+`EntityPhysics` não tem grandezas SI: `chunks` é contagem de conhecimento, `scale` é degrau,
+`activity` é toque em 30 dias. São metáforas — legítimas, e é o que faz a cena significar algo. O que
+não pode é uma delas atravessar para onde a matemática precisa ser física, porque o caminho é curto e
+calado: `chunks → "massa" → gravidade → órbita → lente`, e no fim ninguém sabe onde a metáfora
+terminou.
+⭑ **A saída é RAZÃO, não massa:** `alfa = 2·(R_s/R)` e `R_s/R` é ADIMENSIONAL — atravessa qualquer
+escala sem `G`, sem `c`, sem quilograma. Basta a razão da CLASSE. O buraco negro é legítimo porque
+`R_s` É a propriedade definidora dele; o pulsar porque `0,4` é o fato de uma estrela de nêutrons.
+O portão é `scripts/lente-estelar.mjs`. Detalhe e tabela: §11.2 do `replanejamento-celeste.md`.
+
+**As duas leis do Neo4j:** (1) ele muda o **BRILHO, nunca a CLASSE** — se `centrality` decidisse
+classe, um container caindo faria corpos trocarem de identidade; (2) ele **nunca está no caminho do
+quadro** (materialização → snapshot → servidor anexa → renderer lê pronto). E **`null` ≠ `0`**:
+`null` é "não medi", `0` é "medi e é periférico".
+
+**A distinção que vale para toda dimensão nova:** *"a dimensão existe" ≠ "a dimensão tem poder
+estatístico para classificar"*. Dimensão presente e fraca vale um número pequeno **com o veredito ao
+lado** (`evidenciaDeUso()`), nunca um número que finge.
+
+---
+
+# Commit — o que ele exige aqui
+
+⚠️ **Commit exige REVIEW antes** — e review aqui é rodar `node scripts/leis.mjs` **e provar por
+MUTAÇÃO** que os oráculos reprovam. ☠️ **Oráculo que nunca foi visto falhando não é guarda: é teste
+verde.** E a mutação tem de ser vista derrubando a lei que ela ataca **pelo nome** — verde depois de
+mutar é resultado a INVESTIGAR, nunca a comemorar.
+
+⚠️ **Commite por ARQUIVO, nunca por diretório**, quando houver outra sessão escrevendo — `git add
+docs/` já varreu trabalho alheio para dentro de um commit uma vez.
+
+⭑ **O corpo do commit é LONGO aqui de propósito**, com a medida que decidiu cada número: ele é o
+lugar da história, e é o que permite aos docs não a contarem.
+
+---
+
 # Manter a documentação — o que ela é, e o que ela não é
 
 Um doc desta base responde **duas** perguntas: *"o que é verdade AGORA"* e *"como não cair na
@@ -544,7 +611,7 @@ sai o número de rotas por widget.
 
 Prova, simulando eventos num `window` de mentira, que **nenhuma tecla sobrevive a perder o foco** —
 e que o despacho de atalho continua idêntico. Existe porque estado de tecla pressionada falha de um
-jeito só: a tecla presa não tem sintoma além do movimento que não para (armadilha 23 do handoff).
+jeito só: a tecla presa não tem sintoma além do movimento que não para (armadilha §B-23 de `docs/armadilhas.md`).
 
 ## Ao mexer em classificação, limiar ou constante calibrada
 
@@ -677,7 +744,7 @@ tela agora**, que é uma pergunta diferente da que qualquer script offline pode 
 
 `spatia.session()` · `.state()` · `.tela()` · `.favoritos()` · `.hud()` · `.renderCost(n)` ·
 `.planet()` · `.galaxy()` · `.lod()` · `.moons()` · `.bloom({…})` · `.core({…})` · `.pele(ajuste)` ·
-`.peleAB(condições, ler)` · `.aroAB(condições, ler)` · `.cena()` ·
+`.peleAB(condições, ler)` · `.aroAB(condições, ler)` · `.cena()` (com `.composicao`) ·
 `.universo.{sobreposicoes,entre,pixels,ancora,irPara,anexar,peles}()`
 
 ⚠️ **`spatia.hud()` mede LAYOUT, não quadro** — é a única que não precisa de `quadros` andando, e a

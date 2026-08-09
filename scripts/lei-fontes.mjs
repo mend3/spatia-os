@@ -62,7 +62,7 @@ const conferir = (nome, condicao, detalhe = '') => {
   else falhas.push(`${nome}${detalhe ? ` — ${detalhe}` : ''}`);
 };
 
-/** A janela de referência da base (§6 do `HANDOFF.md`: buffer 2582×1484 · DPR 2). */
+/** A janela de referência da base (`docs/medidas.md`: buffer 2582×1484 · DPR 2). */
 const ALTURA_DE_REFERENCIA = 742;
 
 // ═══════════════════════════════════════════════════ o CSS, lido como cascata

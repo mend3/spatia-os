@@ -13,7 +13,7 @@
  * registro, ninguém o lia, e o defeito aparecia como um painel de palco sem fundo — o disco de
  * acreção atravessando o texto (`index.html:811-814`). Um campo ignorado não erra: ele SOME.
  *
- * A regra que fecha isso é a REGRA DO CATÁLOGO (`HANDOFF.md` §2): nomeie o que a classe ACEITA,
+ * A regra que fecha isso é a REGRA DO CATÁLOGO (as leis do `CLAUDE.md`): nomeie o que a classe ACEITA,
  * ponha a proibição em campo próprio, e **declarar uma invariante não a implementa**. Aqui ela
  * tem três faces, e é preciso as três:
  *
