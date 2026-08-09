@@ -7,6 +7,29 @@
  *
  * Ferramenta aparece com a cor da família (`tool.kind`), a mesma do wormhole na cena. O
  * operador aprende a associação uma vez e passa a ler a cena sem ler o texto.
+ *
+ * ## O que acontece SOZINHO — `notice`
+ *
+ * A timeline conta o ciclo, que só existe porque alguém perguntou. O `notice` é o contrário: o
+ * sistema mudou sem pergunta. Ele entra por aqui, e não numa superfície própria, porque a
+ * pergunta *"o que o sistema fez enquanto eu não olhava"* já tem dono — este widget.
+ *
+ * O que ele acrescenta é VIDA, não lugar. Uma linha de timeline é um instante e rola embora; um
+ * `warn`/`alert` é uma CONDIÇÃO que continua verdadeira, e some quando um `info` do mesmo tópico
+ * a apaga. Por isso os avisos de pé são um bloco à parte no topo do mesmo nó (`.avisos`), e as
+ * linhas passam a viver em `.timeline-rows` — o `feed` poda pelo ÚLTIMO filho, e um aviso de pé
+ * como irmão das linhas seria podado pela poda da timeline.
+ *
+ * ⚠️ **`warn`/`alert` NÃO escrevem linha de timeline.** O `/api/system-events` repõe os avisos
+ * de pé a cada assinatura, e `api.watchSystem` reconecta com backoff: uma linha por entrega
+ * transformaria toda queda de rede numa repetição do mesmo aviso — que é exatamente o que ensina
+ * o operador a não ler a tela. A reentrega é reconhecida pelo par (`topic`, `at`): mesmo fato,
+ * zero pixel novo. Quem escreve linha é o `info`, que não tem aviso de pé para representá-lo.
+ *
+ * ☠️ **Uma reconexão não sabe o que foi APAGADO enquanto ela esteve fora.** A reposição só
+ * carrega os de pé; um `info` emitido durante a queda não é reentregue, e o aviso correspondente
+ * fica na tela envelhecendo. Fechar isso exige que a assinatura se ANUNCIE no barramento
+ * (`core/api.js`), para o bloco ser reconstruído a partir da reposição em vez de acumulado.
  */
 import { on } from '../core/bus.js';
 import { el, set, feed, shortPath, clock } from './dom.js';
@@ -44,6 +67,44 @@ const TIMELINE_LABELS = {
   done: () => 'CICLO ENCERRADO',
 };
 
+/*
+ * A FAMÍLIA DO FATO, como `tool.kind` é a família da ferramenta (`docs/EVENTS.md`).
+ *
+ * O tópico é o que dá ao aviso de pé a sua unicidade: um tópico tem no máximo UM aviso de pé, e
+ * é por ele que o `info` sabe o que apagar. Tópico que o cliente não conhece cai em `other` em
+ * vez de sumir — um aviso sem casa ainda tem um `action` para o operador seguir.
+ */
+const NOTICE_TOPICOS = {
+  corpus: 'CORPUS',
+  topology: 'TOPOLOGIA',
+  index: 'ÍNDICE',
+  graphdb: 'GRAFO',
+  credential: 'CREDENCIAL',
+  other: 'SISTEMA',
+};
+
+// A rampa de idade é a MESMA da célula ÍNDICE do cabeçalho (`hud/frame.js`): o operador aprende
+// uma vez o que 3 dias e 7 dias significam nesta tela.
+const IDADE_AMBAR_D = 3;
+const IDADE_VERMELHA_D = 7;
+const IDADE_MS = 1000;
+
+/**
+ * A idade do FATO, tirada do `at` do evento — nunca do instante da entrega.
+ *
+ * Um aviso de pé é reposto a quem assina depois com o `at` original, e é ele que impede um aviso
+ * de ontem de parecer recém-nascido. A escala é grossa de propósito: o que decide o que fazer é a
+ * ordem de grandeza, não o segundo.
+ */
+function idadeDe(at) {
+  const segundos = Math.max(0, Date.now() / 1000 - (at || 0));
+  const dias = Math.floor(segundos / 86_400);
+  if (segundos < 60) return { texto: `HÁ ${Math.floor(segundos)}S`, dias };
+  if (segundos < 3_600) return { texto: `HÁ ${Math.floor(segundos / 60)}MIN`, dias };
+  if (segundos < 86_400) return { texto: `HÁ ${Math.floor(segundos / 3_600)}H`, dias };
+  return { texto: `HÁ ${dias}D`, dias };
+}
+
 /** O que a linha não mostra e o hover revela. Vazio = sem `title`. */
 const TIMELINE_TITLES = {
   brain: (e) => [
@@ -55,7 +116,16 @@ const TIMELINE_TITLES = {
 };
 
 export function createStreams(root, { toolColor }) {
-  const timeline = feed(root.querySelector('[data-timeline]'), TIMELINE_LIMIT);
+  /*
+   * Dois containers dentro do MESMO nó adotado pelo widget: os avisos de pé em cima, as linhas
+   * embaixo. O `feed` remove o último filho ao passar do limite — com os dois misturados, a 27ª
+   * linha apagaria um aviso de pé, e o sintoma seria um alerta sumindo sozinho sem causa.
+   */
+  const trilho = root.querySelector('[data-timeline]');
+  const avisos = el('div', 'avisos');
+  const linhas = el('div', 'timeline-rows');
+  trilho.append(avisos, linhas);
+  const timeline = feed(linhas, TIMELINE_LIMIT);
   const memory = feed(root.querySelector('[data-memory]'), MEMORY_LIMIT);
   const tools = feed(root.querySelector('[data-tools]'), TOOL_LIMIT);
   const web = feed(root.querySelector('[data-web]'), WEB_LIMIT);
@@ -152,6 +222,101 @@ export function createStreams(root, { toolColor }) {
       tone: event.ok === false ? 'bad' : 'dim',
       duration: event.ms ?? null,
     });
+  });
+
+  /*
+   * OS AVISOS DE PÉ.
+   *
+   * `dePe` é tópico → aviso na tela, e é o mapa que faz valer o contrato do protocolo: um tópico
+   * tem no máximo UM aviso de pé. Levantar o segundo aviso do mesmo tópico substitui o primeiro;
+   * o `info` do mesmo tópico o apaga.
+   */
+  const dePe = new Map();
+  let relogio = null;
+
+  function pintarIdade(aviso) {
+    const { texto, dias } = idadeDe(aviso.at);
+    set(aviso.idade, texto);
+    const tom = dias >= IDADE_VERMELHA_D ? 'bad' : dias >= IDADE_AMBAR_D ? 'warn' : '';
+    if (tom) aviso.idade.dataset.tone = tom;
+    else delete aviso.idade.dataset.tone;
+  }
+
+  /*
+   * O tique existe SÓ enquanto há aviso de pé, e é o único movimento deste bloco.
+   *
+   * Ele não é enfeite nem repetição do aviso: o que anda é a IDADE, que é o fato de a condição
+   * continuar de pé. `set()` só escreve quando o texto muda, então na escala grossa quase todo
+   * tique é uma comparação e nenhum layout.
+   */
+  function tiquetaquear() {
+    if (dePe.size && !relogio) {
+      relogio = setInterval(() => dePe.forEach(pintarIdade), IDADE_MS);
+    } else if (!dePe.size && relogio) {
+      clearInterval(relogio);
+      relogio = null;
+    }
+  }
+
+  function baixar(topic) {
+    dePe.get(topic)?.node.remove();
+    dePe.delete(topic);
+  }
+
+  function levantar(topic, event) {
+    baixar(topic);
+    const node = el('div', 'aviso');
+    node.dataset.severity = event.severity;
+    const cabeca = el('div', 'aviso-head');
+    const idade = el('span', 'aviso-age');
+    cabeca.append(
+      el('i', 'aviso-mark'),
+      el('span', 'aviso-topic', NOTICE_TOPICOS[topic]),
+      el('span', 'aviso-label', event.label),
+      idade
+    );
+    node.append(cabeca);
+    if (event.detail) node.append(el('div', 'aviso-detail', event.detail));
+    // `→` é o mesmo sinal que a linha de ferramenta usa para o RETORNO: o que vem depois do fato.
+    node.append(el('div', 'aviso-action', `→ ${event.action}`));
+    avisos.append(node);
+
+    const aviso = { at: event.at, node, idade };
+    dePe.set(topic, aviso);
+    pintarIdade(aviso);
+    tiquetaquear();
+  }
+
+  on('notice', (event) => {
+    /*
+     * ⚠️ Nomeie o que a tela ACEITA — `Object.hasOwn`, nunca `NOTICE_TOPICOS[t]` sozinho: um
+     * `topic: 'constructor'` acha a cadeia de protótipos e desenha uma função como rótulo.
+     * E `warn`/`alert` sem `action` é a definição de ruído — o servidor já recusa, e a tela
+     * recusa de novo em vez de desenhar `→ undefined`, que é ruído com cara de instrução.
+     */
+    const topic = Object.hasOwn(NOTICE_TOPICOS, event.topic) ? event.topic : 'other';
+    if (!['info', 'warn', 'alert'].includes(event.severity)) {
+      console.error(`[notice] severity ${event.severity} fora do catálogo — nada a desenhar`, event);
+      return;
+    }
+    if (event.severity !== 'info' && !event.action) {
+      console.error(`[notice] ${event.severity} sem action: diga o que o operador faz`, event);
+      return;
+    }
+
+    if (event.severity === 'info') {
+      // "Mudou, e não há o que fazer" — a tela para de afirmar o que afirmava, e a linha registra
+      // o instante. Sem `action` de propósito: o protocolo recusa `info` que traga um.
+      baixar(topic);
+      tiquetaquear();
+      stamp([NOTICE_TOPICOS[topic], event.label, event.detail].filter(Boolean).join(' · '));
+      return;
+    }
+
+    // Reentrega do MESMO fato: mesmo tópico e mesmo `at`. O aviso já está na tela com a idade
+    // certa, e repô-lo seria apagar e redesenhar (a animação anunciaria um aviso novo).
+    if (dePe.get(topic)?.at === event.at) return;
+    levantar(topic, event);
   });
 
   on('web', (event) => {

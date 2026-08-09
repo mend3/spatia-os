@@ -37,7 +37,7 @@ o recorder nasce sem contador.
 | `limit` | janela de uso | `status`, `window`, `resets_at` | medidor de janela |
 | `answer` | resposta completa | `text`, `ms`, `api_ms`, `turns`, `cost_usd`, `tokens{}`, `sources[]` | fecha a resposta, relaxa o som |
 | `error` | falha de serviço | `service`, `message` | glitch/interferência |
-| `notice` | o sistema mudou sem ninguém perguntar | `severity`, `topic`, `label`, `detail`, `at`, `action` (só em `warn`/`alert`) | ☠️ **ninguém — não há `bus.on('notice')` em `src/`** |
+| `notice` | o sistema mudou sem ninguém perguntar | `severity`, `topic`, `label`, `detail`, `at`, `action` (só em `warn`/`alert`) | cabeça da timeline: `warn`/`alert` ficam de pé, `info` escreve linha e apaga |
 | `done` | fim do stream | — | volta a ocioso |
 
 `state` ∈ `thinking · retrieving · searching · answering · idle · error`.
@@ -76,11 +76,20 @@ fato mudou; repetir o mesmo aviso a cada volta é o que a regra acima existe par
 Fato que o sistema não sabe (Neo4j nunca configurado, ponto sem carimbo de data) **não vira
 evento** — anunciá-lo seria afirmar sobre o que ninguém mediu.
 
-☠️ **O `notice` chega ao barramento do cliente e MORRE lá: não existe `bus.on('notice')` em
-`src/`.** O produtor está provado ponta a ponta (`/api/system-events` entrega, `/metrics`
-conta), e nenhum pixel muda. O assinante é uma linha, e o que ele precisa desenhar já está
-decidido aqui: `severity` escolhe a cor, `action` é o texto que dá para seguir, `at` é a idade
-do aviso, e `info` no mesmo `topic` apaga o que estava de pé.
+**Onde ele vira pixel:** `src/hud/streams.js`, na CABEÇA da timeline. `warn`/`alert` ficam de
+pé com `label`, `detail`, `action` e a idade tirada do `at`; `info` escreve uma linha de timeline
+e apaga o aviso de pé do mesmo tópico. A severidade colore o que aconteceu, a idade colore há
+quanto tempo (3d âmbar, 7d vermelho — a mesma rampa da célula ÍNDICE do cabeçalho).
+
+⚠️ **`warn`/`alert` NÃO escrevem linha de timeline.** A reposição dos de pé acontece a cada
+assinatura, e `api.watchSystem` reconecta com backoff: uma linha por entrega faria de toda queda
+de rede uma repetição do mesmo aviso. A reentrega é reconhecida pelo par (`topic`, `at`) — mesmo
+fato, zero pixel novo.
+
+☠️ **A reconexão não sabe o que foi APAGADO enquanto esteve fora.** A reposição só carrega os de
+pé; um `info` emitido durante a queda não é reentregue, e o aviso correspondente fica na tela
+envelhecendo. Fechar isso é a assinatura se ANUNCIAR no barramento (`core/api.js`), para o bloco
+ser reconstruído a partir da reposição em vez de acumulado.
 
 ## Regras que o protocolo impõe
 

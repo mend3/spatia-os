@@ -88,6 +88,7 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 | As citações `[n]` | apontam para o arquivo que entrou no prompt; citação sem fonte aparece riscada |
 | Custo, turnos, tokens, janela de uso | vêm do stream do CLI, não de estimativa |
 | A timeline | horário e `ms` medidos por estágio |
+| Os avisos de pé, no topo da timeline | o servidor observa índice, corpus, topologia, Neo4j e credenciais e avisa por TRANSIÇÃO — nunca por relógio. Cada aviso diz o que fazer, e quanto tempo faz que está de pé |
 | A forma de onda | amplitude medida por `AnalyserNode` — do microfone gravando, ou do MP3 que o TTS devolveu |
 
 | Aproximação | Por quê |

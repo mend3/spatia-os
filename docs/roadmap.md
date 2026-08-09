@@ -36,7 +36,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 | KR | medida | hoje |
 |---|---|---|
 | KR1.1 | existe produtor ambiental emitindo **sem pergunta do operador** | ✗ 1 produtor, reativo |
-| KR1.2 | `notice` carrega `severity` e a tela distingue ruído de aviso | ✗ |
+| KR1.2 | `notice` carrega `severity` e a tela distingue ruído de aviso | ⭑ cabeça da timeline (`hud/streams.js`): `warn`/`alert` de pé com `action`, `info` apaga |
 | KR1.3 | cinco minutos parado produzem evento legítimo (não sintético) | ✗ |
 
 ### O2 — Todo estado tem UM dono
@@ -134,7 +134,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-28** | Zonas por razão de massa — declaradas, sem leitor | `archived` | — | — | KR3.3 |
 | **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `done` | — | — | KR3.3 |
 | **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
-| **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `todo` | — | T-16 | KR1.2 |
+| **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `done` | — | T-16 | KR1.2 |
 | **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | — | — |
 | **T-35** | **FAVORITOS** — o operador marca corpos para acompanhar, e escolhe a aparência nomeada | `todo` | — | T-34 | KR2.1 |
 
@@ -157,10 +157,6 @@ acontece nada?"*, que é o Princípio Final ao contrário.
   foram removidos (só `TYER 2025` e o encoder sobraram) e a origem não declara direito nenhum.
   Uso local não é distribuição — o bloqueio é a publicação, e vale para o repositório, não só para o
   build. As saídas e as fontes licenciadas estão em [`../assets/CREDITS.md`](../assets/CREDITS.md).
-- **T-33** — o servidor já emite `notice` com `severity` e `action`, e `api.watchSystem()` já despeja
-  no barramento. **Não existe `bus.on('notice')` em `src/`**: nenhum pixel muda. O que desenhar já
-  está decidido no `EVENTS.md` — `severity` escolhe a cor, `action` é o texto acionável, `at` dá a
-  idade, e `info` no mesmo `topic` apaga o de pé.
 - **T-35** — é a peça que torna corpo NOMEADO legítimo: quem escolhe *"este é o meu Marte"* é o
   operador, então a textura vira MARCA e não afirmação derivada do dado. ⚠️ **Três condições, e sem
   elas volta a ser o defeito:** (a) a marca **não entra em `classificar()`** — classe, física e pele

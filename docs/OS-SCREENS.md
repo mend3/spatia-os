@@ -135,7 +135,7 @@ vários citam esta seção pelo número, então **os números não podem ser ren
 | 2.2 | unidades de serviço: desejado vs real | ⭑ `server/units.py` + `config/units.json` |
 | 2.3 | o que é um pacote, e o que é instalar | ⭑ `src/kernel/registry.js` (citado por `router.js`) |
 | 2.4 | ledger, não log | ⭑ `server/journal.py` (citado por ele e por `budget.py`) |
-| **2.5** | **notificação como evento, não como caixa** | ☠️ **ABERTO** — `severity` tem **zero ocorrências** em `src/` e `server/`. É o **T-09** do roadmap, e vai junto com o produtor ambiental: `notice` sem produtor é vocabulário sem leitor |
+| 2.5 | notificação como evento, não como caixa | ⭑ `server/ambient.py` emite, `src/hud/streams.js` desenha na cabeça da timeline — sem caixa, sem heartbeat, e `warn`/`alert` só existem com `action` |
 | 2.6 | sessão, e o que "bloquear" significa | ⭑ `src/core/session.js` |
 | 2.7 | cotas, e a falta é a que importa | ⭑ `server/budget.py` |
 | 2.8 | recuperação de falha | ⭑ `server/hookqueue.py` — a fila de entregas EM DISCO |
