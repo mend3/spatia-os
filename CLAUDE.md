@@ -367,6 +367,50 @@ classe, um container caindo faria corpos trocarem de identidade; (2) ele **nunca
 quadro** (materialização → snapshot → servidor anexa → renderer lê pronto). E **`null` ≠ `0`**:
 `null` é "não medi", `0` é "medi e é periférico".
 
+**A REGRA DO FOCO** — *Nada deve competir com o objeto que está em foco.* Escrita em 09/08.
+A superfície não é fixa: ela segue o que o operador está FAZENDO.
+
+| ele está | quem domina |
+|---|---|
+| navegando | o universo |
+| lendo | o conteúdo |
+| conversando | o agente, e **temporariamente** |
+| inspecionando | o inspector abre |
+| navegando pela árvore | a árvore abre |
+
+⭑ **É mais forte que "deixar os painéis menores", e a diferença é de natureza:** encolher trata todos
+os estados como o mesmo estado. Esta regra diz que a tela tem MODO, e que o modo sai do gesto.
+
+☠️ **A LEI VALE PARA A UI INTEIRA, não para a cena principal.** Ela nasceu de um review sobre a cena
+de foco, e ali é onde ela MENOS rende: medido nas dez rotas, a raiz é a mais leve (**5,4% de glifo ·
+88,4% de céu**) e `journal` é a mais pesada (**24,7% · 60,2%**). *"O objeto em foco"* não é sempre um
+astro — em `journal` é a execução sob leitura, em `metrics` é o gráfico, em `files` é o arquivo.
+**Aplicar a regra só ao céu é consertar a tela menos quebrada.**
+
+☠️ **"DOMINAR" É ADJETIVO ATÉ ALGUÉM DIZER DE QUE GRANDEZA SE FALA** — e são três, medidas em
+`bancada-hud.html`: **texto** (glifo disputando o olho), **tinta** (superfície cobrindo o céu) e
+**ponteiro** (`spatia.hud()`, onde o gesto de órbita morre). Elas não se substituem: `metrics`
+reivindica **33,1%** ao ponteiro com apenas **10,3%** de glifo. Quem afirmar que algo "domina" diz
+em qual das três, ou não afirmou nada.
+
+☠️ **RECOLHER NÃO É DESMONTAR, e é essa distinção que impede a regra de virar defeito.** O conjunto
+residente (`apps/residentes.js`) declara, com o motivo escrito, o que TODA rota monta. Ceder espaço
+é `data-collapsed`; tirar da tela é outra coisa, e `timeline` diz por quê — *"sair dele numa rota é
+PERDER a continuidade, não escondê-la"*.
+
+⚠️ **A exceção, e ela é MEDIDA, não gosto: CONTROLE DE ESTADO ATIVO NÃO CEDE.** `sky-time` governa a
+janela temporal do céu, que está ligada em toda rota — *"fora da tela ela fica ativa e sem controle,
+filtrando o corpus por uma data que ninguém vê"*. Um controle escondido não deixa de agir; ele deixa
+de ser corrigível, e o operador passa a ver um corpus filtrado sem saber por quê. **Some o que
+INFORMA; fica o que COMANDA algo que está ligado.**
+
+⭑ `answer` já é o exemplar da regra: sem resposta ele **não desenha nada**. Residente e de custo zero
+quando não tem o que dizer — é assim que os outros deviam se comportar.
+
+A tarefa é **T-71**; a bancada é onde ela se julga antes de ir para o app.
+
+---
+
 **A distinção que vale para toda dimensão nova:** *"a dimensão existe" ≠ "a dimensão tem poder
 estatístico para classificar"*. Dimensão presente e fraca vale um número pequeno **com o veredito ao
 lado** (`evidenciaDeUso()`), nunca um número que finge.
