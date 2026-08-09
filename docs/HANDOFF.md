@@ -94,7 +94,9 @@ o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
 | `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla fica presa |
 | `node scripts/lei-notice.mjs` | após tocar em `hud/streams.js` ou no contrato de `notice` |
 | `node lei-thread.mjs` | após tocar em `hud/streams.js` ou no contrato de `thread` — prova que `broken` não passa calado. ⚠️ **O lugar dele é `scripts/`**; a RAIZ se acha sozinha nos dois, então mover é só mover |
+| `node scripts/lei-afericao.mjs` | após tocar em `hud/frame.js`, no laço `watchHealth` de `main.js` ou em `SCAN_SECONDS` do `server/ambient.py` — os pontos de subsistema param de afirmar o presente quando a leitura vence. ⚠️ Ele TRANSCREVE o `SCAN_SECONDS` do vigia: mudou lá, o oráculo reprova aqui |
 | `node scripts/lei-favoritos.mjs` | após tocar em `space/favoritos.js` — a marca não vaza para a ontologia |
+| `node scripts/lei-favoritos-ui.mjs` | após tocar em `hud/favoritos-ui.js`, em quem desenha a marca, ou no agrupamento de `universe.load()` — a tela diz *"você marcou"* e separa os quatro estados. ⚠️ Ele TRANSCREVE as chamadas de `universe.load()`: a HUD não alcança `universe.ehDominante`, e o rótulo de `tipoDe()` é texto de tela |
 | `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla sobrevive a perder o foco |
 | `node scripts/lei-cena.mjs` | após tocar em `CENAS`/`aplicarCena`, ou em `entity-physics.js`/`superficies.js` |
 | `node scripts/censo-superficies.mjs` | após tocar em roteamento de pele — nenhuma pele pode nascer vazia |
@@ -534,6 +536,48 @@ erro com o motivo do portão. Retomar não é porta lateral: a settings é por E
 ⚠️ **O custo de continuar CRESCE com o fio** — é `cache_read`, não `input`, e por isso é barato, não
 grátis. Fio longo é decisão de quem opera; `POST /api/thread` corta.
 
+**QUANTOS FATOS POR HORA ESTE SISTEMA EMITE SOZINHO — a medida que decide o Modo Assistir**
+(09/08, fixture servido, servidor de pé). ☠️ **`/api/system-events` entregou 0 eventos em 301 s**,
+com 301 pings de keep-alive na mesma janela — e 301 s é exatamente a janela da Regra dos Cinco
+Minutos. **Não é acaso de amostra; é estrutura**, e os cinco observadores de `ambient.py` dizem por
+quê:
+
+| observador | dispara quando | hoje |
+|---|---|---|
+| `index` | idade ≥ 30 d (`recency.CHURN_WINDOW_DAYS`) | **impossível** — `index_age_days: 0`, faltam 30 dias |
+| `credential` | `expires_at` a ≤ 24 h | **impossível** — nenhum provedor declara `expires_at` |
+| `graphdb` | Neo4j cai ou volta | de pé (62 corpos · 208 vínculos); só dispara por queda |
+| `corpus` | `fingerprint`/`files`/`chunks` mudam | **eco de um comando humano** (reindexar) |
+| `topology` | `as_of` de influência/uso/alcance muda | **eco de um comando humano** (rodar o script) |
+
+O outro produtor da fila é `webhooks`, e ele exige `WEBHOOK_SECRET_<FONTE>`: **zero configurados**
+no `.env` e no ambiente, então `deliver` recusa tudo com 401. ⭑ **O diário concorda:** 130 registros
+em 21,9 h de janela nos três dias (7,3 · 10,8 · 10,0 por hora), e **os quatro tipos são 100% eco de
+gesto** — 63 `boot` + 45 `shutdown` (alguém reiniciou o `serve.py`), 55 `denial` e 22 execuções
+(alguém perguntou). ⚠️ A contagem do dia sai do `.cache/journal/*.jsonl`, nunca deste parágrafo.
+
+> **A conclusão que fecha o T-16:** o produtor ambiental está certo — dispara por TRANSIÇÃO, e
+> transições legítimas são raras. **Uma superfície que assista a essa fila assiste ao VAZIO**, e o
+> Princípio Final proíbe: ela CRIA a pergunta *"por que não acontece nada?"*. Modo Assistir **não é
+> um modo** (ver a AFERIÇÃO, abaixo).
+
+**A AFERIÇÃO — os pontos de subsistema afirmavam o presente com uma leitura do BOOT** (09/08).
+`/api/health` era chamado **uma vez** (`main.js`, no boot) e o cabeçalho repintava aquele valor a
+cada 1 s, para sempre: cinco minutos parado deixavam MEMORY verde sobre um Qdrant que podia ter
+caído no minuto dois. ☠️ **Não era `notice` faltando** — falha de serviço é o evento `error`, que só
+existe dentro de uma pergunta, e o vigia observa corpus, topologia, índice, Neo4j e credencial,
+**nunca qdrant/ollama/TTS**. Era afirmação sem substrato e sem dono.
+⭑ Hoje `watchHealth` afere a cada `AFERICAO_MS`, e a idade da leitura fica colada nos pontos;
+vencida (3 aferições perdidas), o grupo declara `data-afericao="vencida"` e para de afirmar agora —
+**sem apagar o que foi medido**. `/api/health` custa **0,02 s** medido três vezes no `curl`, então
+120 chamadas/h são ~2,4 s de servidor por hora.
+⚠️ **`AFERICAO_MS` é TRANSCRITO de `ambient.SCAN_SECONDS`**, não escolhido: aferir mais fino que o
+vigia afirmaria um frescor que não existe em lugar nenhum do sistema. `lei-afericao.mjs` §9 compara
+os dois.
+☠️ **São TRÊS idades nesta tela e nenhuma é a outra** — a célula `ÍNDICE` mede DIAS do corpus, a
+`.aviso-age` mede o FATO de um aviso de pé, e a aferição mede quando o cliente OLHOU. Rampas e
+símbolos separados de propósito; o oráculo §10 reprova quem emprestar os do vizinho.
+
 **Céu (corpus vivo, 08/08):** 188 corpos · 203 nós · uma estrela por sistema.
 `CO_EDITED` 897 pares (85,1%) · `SIMILAR_TO` 1.504 (**k=8 derivado** — k=5 deixa 10,6% de isolados,
 acima do corte de 10%) · `REFERENCES` 452 (88,8%) · `IMPORTS` 313 (59,6%) · `ABOUT` 100 conceitos /
@@ -890,16 +934,16 @@ relação ou fato.**
 
 **O gargalo não é desenho. São TRÊS AUSÊNCIAS DE DONO, e nenhuma é shader.**
 
-1. **Ninguém tem o direito de emitir sem o operador perguntar.** `/api/system-events` é SSE vivo, o
-   cliente despeja no barramento e a cena já desenha — e do outro lado da fila há **um único
-   produtor** (`webhooks.subscribe()`). Não há cron, scheduler nem daemon; as únicas threads são
-   `embed-warm` e `graph-refresh`, e a segunda recarrega topologia **em silêncio**. Metade da
-   `entrevista-usuario.md` (universo vivo, modo assistir, a Regra dos Cinco Minutos) não está
-   bloqueada por render: está bloqueada por isso. **O tubo está montado e vazio.**
-⭑ **A segunda e a terceira caíram.** O estado de TELA tem dono único em `src/core/tela.js` —
-camada (pilha declarada), cena e rota num objeto só, lido por `spatia.tela()`. E a cena é `CENAS`
-em `scene.js`, com `scripts/lei-cena.mjs` provando que ela não decide o que um corpo é. Resta a de
-cima e a de baixo.
+⭑ **As três caíram.** O direito de emitir sem pergunta é do vigia de `server/ambient.py`; o estado
+de TELA tem dono único em `src/core/tela.js` (camada, cena e rota num objeto só, lido por
+`spatia.tela()`); e a cena é `CENAS` em `scene.js`, com `scripts/lei-cena.mjs` provando que ela não
+decide o que um corpo é.
+
+☠️ **E a primeira ensinou o que a fila não resolve.** Com o produtor de pé, a `entrevista-usuario.md`
+continua sem *"universo vivo"*, porque a fila entrega **0 eventos em 301 s** por construção (§6).
+**Emitir e AFIRMAR são obrigações diferentes:** a fila conta o que MUDOU, e a tela precisa dizer de
+quando é o que ela mostra mesmo quando nada mudou. Quem confundir as duas resolve a segunda com
+repetição — e repetição é o que ensina o operador a não ler a tela.
 
 3. **A POSE da câmera são QUATRO grandezas, e uma delas nem é distância.** Nomeadas em `scene.js`:
    `escalaLocal()` (*quão longe está o que eu olho* — quem lê são a escala do pan e a amplitude da

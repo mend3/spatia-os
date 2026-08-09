@@ -150,8 +150,25 @@ com ou sem produtor.
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `todo` | — | T-35 | KR2.4 |
 | **T-39** | A cena AGENTE não usa a ontologia — `lei-cena.mjs` não alcança esse caminho | `todo` | — | — | KR2.4 |
+| **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
+| **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos | `todo` | — | — | KR3.1 |
+| **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |
+| **T-43** | A repintura da marca (`context.js`) é invariante DECLARADA sem oráculo | `todo` | — | — | KR2.4 |
+| **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
+| **T-45** | `.row.warn` não existe no CSS — quatro emissores de um tom sem leitor | `todo` | — | — | — |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
+  T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
+  está**, então ela responde uma pergunta que ele não pode ter. Depois de marcar, ele precisa fazer
+  MAIS perguntas — *"quais eu marquei?"*, *"como volto lá?"* — que é o Princípio Final ao
+  contrário. As três condições de T-35 estão fechadas e **nenhuma delas é a que faz a marca VALER:
+  alguém ler.**
+- **T-41** — a idade carimba os cinco pontos do cabeçalho e só `brain`/`qdrant`/`ollama` vêm do
+  `/api/health`. `graph` é leitura de BOOT afirmada como presente; `stream` é repintado a cada 1 s
+  do store local e apagado como "vencido" **no mesmo tique em que foi escrito**. É o defeito que a
+  entrega diz ter fechado, sobrevivendo em dois dos cinco.
 
 - **T-38 / T-39** — relatado com foto: o painel diz `ESTAÇÃO · agent` e o favorito oferece TERRA,
   MARTE, JÚPITER… Medido em `atlas/.claude/agents/revisor.md`:

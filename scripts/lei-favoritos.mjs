@@ -2,14 +2,10 @@
 /**
  * A LEI DO FAVORITO — a marca é ESCOLHA DE GENTE, e ela não decide o que um corpo É.
  *
- *     node src/space/lei-favoritos.mjs        # sai 0 quando as cinco leis valem
+ *     node scripts/lei-favoritos.mjs        # sai 0 quando as cinco leis valem
  *
- * ☠️ **ESTE ARQUIVO ESTÁ NO LUGAR ERRADO, e isso é temporário por escrito.** A casa dele é
- * `scripts/lei-favoritos.mjs`, ao lado dos outros oráculos e da tabela de guardas do `HANDOFF.md` §1.
- * Ele nasceu aqui porque a rodada que o escreveu tinha `scripts/` proibido (duas outras sessões
- * mexendo lá). **Movê-lo é a primeira coisa da rodada seguinte** — oráculo fora da tabela de guardas
- * é oráculo que ninguém roda, e invariante provada uma vez e sem portão é invariante declarada na
- * sessão seguinte.
+ * ⭑ O par dele é `scripts/lei-favoritos-ui.mjs`: aqui se prova o MODELO, lá a TELA. Os dois rodam
+ * juntos — a marca legítima precisa das duas metades.
  *
  * ## A lei
  *

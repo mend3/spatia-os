@@ -210,6 +210,25 @@
   .svc { display: flex; align-items: center; cursor: default; padding: 2px; }
   .status-services { gap: 9px; }
 
+  /*
+    A IDADE DA AFERIÇÃO — de quando é o que os pontos ao lado afirmam.
+
+    Menor e mais apagada que tudo à volta de propósito: ela qualifica os pontos, não compete
+    com eles. Quem lê o cabeçalho vê a cor do ponto; quem duvida dela acha a idade a 4px.
+  */
+  .svc-afericao {
+    font-size: 8px; letter-spacing: 0.18em; color: var(--ink-faint);
+    padding-left: 4px; white-space: nowrap;
+  }
+  .svc-afericao[data-tone="bad"] { color: var(--bad); }
+  /*
+    Leitura vencida: o grupo inteiro para de afirmar o presente.
+
+    Nada é apagado — o que foi medido continua na tela. O que sai é a CERTEZA: sem brilho, os
+    pontos deixam de ler como "isto está vivo agora" e passam a ler como o registro que são.
+  */
+  .status-services[data-afericao="vencida"] .dot { box-shadow: none; opacity: 0.45; }
+
   /* ---------------- systray ---------------- */
 
   .header-right { display: flex; align-items: flex-start; gap: 16px; }
@@ -1005,6 +1024,30 @@
                margin-bottom: 6px; }
   /* Os resultados rolam; o campo de busca acima deles nunca sai da tela. */
   .fs-results { display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; }
+
+  /*
+    FAVORITO. A marca é a única coisa deste painel que não é medida, e os quatro estados dela têm
+    de se distinguir SEM texto extra — quem lê de relance vê o glifo e a tinta.
+
+    `nao-marcado` não chega aqui: ele é uma linha de ação (`btn[data-variant="row"]`), sem faixa,
+    porque não há nada a anunciar. `degradada` é ANÚNCIO e usa `--busy`, o âmbar de atenção da HUD:
+    desenhá-la em cinza a faria ler como ausência, que é o oposto de "marquei e não vale mais aqui".
+    `--bad` seria errado — a marca não quebrou, ela continua guardada.
+  */
+  .marca { display: grid; grid-template-columns: auto 1fr; gap: 6px; align-items: baseline;
+           padding: 4px 0 2px; }
+  .marca-glifo { color: var(--ink-faint); font-size: 10px; }
+  .marca-texto { color: var(--ink-dim); font-size: 9px; letter-spacing: 0.18em; }
+  .marca[data-estado="marcada"] .marca-glifo,
+  .marca[data-estado="sem-aparencia"] .marca-glifo { color: var(--amber); }
+  .marca[data-estado="degradada"] .marca-glifo,
+  .marca[data-estado="degradada"] .marca-texto { color: var(--busy); }
+  /* O motivo do modelo, na íntegra: é ele que nomeia QUAL das três causas degradou a marca. */
+  .marca-motivo { grid-column: 2; color: var(--ink-faint); font-size: 8px; line-height: 1.5; }
+  /* A procedência tem a identidade do rótulo sem o peso dele — ela é assinatura, não valor. */
+  .marca-proveniencia { color: var(--amber-faint); font-size: 8px; letter-spacing: 0.14em;
+                        padding-bottom: 4px; }
+  .marca-aparencias { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
 
   /*
     Scrubber da janela temporal. Hairline: a pista é uma linha, a frente revelada é a mesma

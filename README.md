@@ -58,6 +58,12 @@ exibido, e a data em que o índice mudou.
 A tela de boot mostra o estado **real** de cada subsistema antes de deixar entrar. Se algo
 estiver degradado, ela diz o quê — e o observatório abre em modo parcial em vez de fingir.
 
+Depois de entrar, os pontos de subsistema no alto da tela continuam sendo aferidos, e **ao lado
+deles fica a idade da última aferição**. É a diferença entre *"MEMORY está online"* e *"MEMORY
+estava online quando eu olhei"* — se o servidor parar de responder, os pontos perdem o brilho e a
+idade fica vermelha em vez de o verde continuar afirmando um serviço que caiu. Nada é apagado: o
+que foi medido continua na tela, com o de quando ao lado.
+
 ### Ambientes
 
 Não há build de produção, e isso é decisão: o sistema é um processo local, com bind em

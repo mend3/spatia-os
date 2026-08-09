@@ -42,6 +42,7 @@ import * as attention from '../core/attention.js';
 import { button } from '../hud/button.js';
 import { classify, morphologyOf } from '../space/catalog.js';
 import { DIRTY_LABELS } from '../space/rings.js';
+import { desenharFavorito, aoMudar } from '../hud/favoritos-ui.js';
 
 /**
  * Vazio que ENSINA o gesto, em vez de afirmar a ausência.
@@ -80,6 +81,16 @@ export function registerContextWidget() {
       );
 
       /*
+       * A MARCA repinta do STORE, não de um evento próprio.
+       *
+       * Marcar não muda o que está sob atenção — nenhum `ui.links` sai daí —, então sem isto o
+       * operador clicaria em MARCAR e o painel continuaria oferecendo MARCAR: a tela contradizendo
+       * um gesto que já aconteceu, que é o mesmo defeito do leitor que pedia um gesto já feito.
+       * A repintura sai do `prefs`, então vale também para escrita vinda do console numa medida.
+       */
+      const offMarca = aoMudar(() => pintar(attention.snapshot()));
+
+      /*
        * Mount reads the STORE, not the last event — and this is the fix for a bug seen on screen.
        *
        * This widget is destroyed and rebuilt on every route change, and the notification that
@@ -89,7 +100,7 @@ export function registerContextWidget() {
        * present instead of waiting for the operator to move the mouse again.
        */
       pintar(attention.snapshot());
-      return { destroy: off };
+      return { destroy: () => { off(); offMarca(); } };
     },
   });
 }
@@ -164,6 +175,16 @@ function desenhar(node, dirty, origin, vizinhos, rede, conceitos) {
       linhas.push(vital('ALCANCE', `${Math.round(node.connectivity * 100)}%`, 'fora do sistema'));
     }
   }
+
+  /*
+   * A MARCA fecha o bloco DESTE corpo, antes dos vínculos, que já falam de outros.
+   *
+   * ⚠️ Ela é a única seção do painel que não é medida, e por isso ela mesma diz de que natureza é —
+   * a mesma disciplina de ASSUNTOS logo abaixo. As linhas acima saem de disco, de git e do snapshot;
+   * esta saiu de um gesto de gente, e a legitimidade da aparência nomeada depende de a tela dizer
+   * isso (`space/favoritos.js`, a condição 3).
+   */
+  linhas.push(...desenharFavorito(node));
 
   /*
    * VÍNCULOS antes de SEÇÕES, e a ordem foi corrigida OLHANDO.

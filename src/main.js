@@ -14,7 +14,7 @@ import * as attention from './core/attention.js';
 import * as api from './core/api.js';
 import { createScene } from './space/scene.js';
 import { createAudio } from './audio/engine.js';
-import { createFrame } from './hud/frame.js';
+import { createFrame, AFERICAO_MS } from './hud/frame.js';
 import { createStreams } from './hud/streams.js';
 import { createAnswer } from './hud/answer.js';
 import { createTerminal } from './hud/terminal.js';
@@ -25,6 +25,7 @@ import { createVoice } from './hud/voice.js';
 import { createSpeechPanel } from './hud/speech-panel.js';
 import { createSystray } from './hud/systray.js';
 import { createCenaSwitch } from './hud/cena.js';
+import * as favoritos from './hud/favoritos-ui.js';
 import { registrarTipoDeCorpo } from './core/cena-atual.js';
 import { createYield } from './hud/yield.js';
 import { createWidgetHost } from './kernel/widgets.js';
@@ -179,6 +180,14 @@ async function main() {
    */
   // A HUD passa a poder perguntar o tipo à CENA, em vez de deduzi-lo do catálogo antigo.
   registrarTipoDeCorpo((source) => scene.bodyTypeOf(source));
+  /*
+   * O guardador das MARCAS, com o `prefs` injetado — o modelo é puro e nunca importa o storage.
+   *
+   * Antes de qualquer painel, porque o widget de CONTEXTO desenha a marca no primeiro `mount` e um
+   * store ligado depois faria o painel nascer dizendo "favoritos não ligados" na única tela em que
+   * ninguém está olhando para descobrir o motivo.
+   */
+  favoritos.instalarFavoritos(prefs);
   const cenaSwitch = createCenaSwitch(hud, {
     scene,
     onChange: (modo) => {
@@ -321,6 +330,15 @@ async function main() {
      * e rota lidas em leituras diferentes podem discordar sem que nada acuse. Ver `core/tela.js`.
      */
     tela: () => tela.estado(),
+    /**
+     * As MARCAS do operador: quem marcou, quando, de qual céu, e em que estado cada uma está.
+     *
+     * ⚠️ Ela distingue o que o modelo distingue e a tela desenha: `degradadas` conta a marca que não
+     * vale mais AQUI, `foraDoCeu` a que foi feita em outro corpus, `ausentes` a que aponta para um
+     * corpo que sumiu da topologia, e `emDisco` é `null` porque ninguém mediu o disco — não é `0`,
+     * que diria "medi e não há". Ver `space/favoritos.js`.
+     */
+    favoritos: () => favoritos.sonda(),
     /** Custo da cadeia de pós-processamento, medido na hora. Ver `scene.sampleRenderCost`. */
     renderCost: (n) => scene.sampleRenderCost(n),
     /** Raio aparente, nível de detalhe e distância do planeta em foco — ou `null`. */
@@ -442,6 +460,14 @@ async function main() {
   try {
     const graph = await api.graph();
     scene.loadGraph(graph);
+    /*
+     * O MESMO payload que a cena leu — não uma segunda busca.
+     *
+     * O contexto de aparência sai de `classificar()`/`superficieDe()`, e as duas dependem de quem é
+     * o dominante do sistema. Derivar de outra leitura abriria a porta para a HUD oferecer TERRA a
+     * um corpo que a cena desenha como fotosfera.
+     */
+    favoritos.carregarTopologia(graph);
     corpos = graph.stats?.files ?? null;
     // Sem contagem o medidor fica no travessão de nascença: `0 arq` seria uma medida inventada.
     if (corpos !== null) frame.applyGraph(corpos);
@@ -469,6 +495,9 @@ async function main() {
 
   // Sem topologia não há estrela para receber anel — sondar o disco só gastaria `git status`.
   if (corpos) watchDirty(scene, streams, boot);
+  // Sem condição: os pontos de subsistema afirmam com ou sem céu, e é a afirmação que precisa
+  // de idade.
+  watchHealth(frame);
 
   // O router entra em cena depois de saúde e topologia: um app que carrega dados no onEnter
   // não deve fazê-lo antes de o sistema saber o que está no ar.
@@ -630,6 +659,58 @@ const PROFILE_PROBE_MS = 12_000;
  * servidor); custa um GET, e é o preço de o anel acompanhar mesmo o Ctrl+S.
  */
 const DIRTY_POLL_MS = 6_000;
+
+/**
+ * Mantém os pontos de subsistema afirmando o PRESENTE.
+ *
+ * `/api/health` era lido uma vez, no boot, e os pontos ficavam com aquela leitura para sempre:
+ * cinco minutos parado deixavam MEMORY verde sobre um Qdrant que podia ter caído no minuto dois,
+ * e nada na tela mudava. ☠️ **Isso não é um `notice` que falta** — falha de serviço é o evento
+ * `error`, que só existe dentro de uma pergunta, e o vigia de `server/ambient.py` observa corpus,
+ * topologia, índice, Neo4j e credencial, **nunca qdrant/ollama/TTS**. A afirmação não tinha
+ * substrato e não tinha dono.
+ *
+ * ⚠️ **Só `frame.applyHealth` é realimentado.** Os outros três consumidores do boot MONTAM coisa
+ * (`scene.installProviders` põe corpo no céu, `streams.showProviders` redesenha a lista,
+ * `voice.applyHealth` depende de uma segunda chamada a `/api/units`): remontar não é aferir, e
+ * um laço que remonta a cada volta é decoração cara com cara de atualização.
+ *
+ * ⚠️ **Falha não repinta nada.** O `catch` é vazio de propósito — sem `applyHealth`, a idade
+ * segue subindo e o cabeçalho declara a leitura vencida sozinho. Repintar com o `health` velho
+ * carimbaria uma aferição que não houve; apagar os pontos jogaria fora a última medida boa. É a
+ * mesma escolha do anel sujo, pelo outro lado: lá não se sabe mais, aqui sabe-se de quando é.
+ *
+ * ⚠️ **Ele não emite no barramento e não escreve linha de timeline.** Um evento por volta seria
+ * a mesma frase a cada 30 s, que é exatamente o que ensina o operador a não ler a tela.
+ */
+function watchHealth(frame) {
+  async function poll() {
+    // Aba escondida não afere: a leitura chegaria para ninguém, e ao voltar a idade dela já
+    // estaria velha de qualquer jeito. O retorno à aba afere na hora.
+    if (document.hidden) return;
+    try {
+      const saude = await api.health();
+      frame.applyHealth(saude);
+      /*
+       * ⚠️ **Quem sabe do disco é o SERVIDOR** — o navegador não lista sistema de arquivos, e
+       * sondar arquivo por arquivo confundiria 404 de rede com arquivo ausente. O modelo de
+       * favoritos distingue TRÊS estados (`true | false | null`), e adivinhação devolveria `false`
+       * onde o fato é `null`.
+       *
+       * `texturas` ausente do payload deixa `emDisco` em `null` — servidor velho não vira "medi e
+       * não há". É a mesma leitura que já vinha, sem chamada nova.
+       */
+      favoritos.declararEmDisco(Array.isArray(saude?.texturas) ? new Set(saude.texturas) : null);
+    } catch {
+      // Sem leitura não há o que carimbar. A idade que sobe é o anúncio.
+    }
+  }
+
+  setInterval(poll, AFERICAO_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) poll();
+  });
+}
 
 /**
  * Mantém os anéis em dia com o disco.
@@ -857,6 +938,37 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
   });
 
   keys.bind({ code: 'KeyR', alt: true, label: 'SOLTAR CÂMERA', group: 'CENA' }, () => scene.release());
+
+  /*
+   * F marca e desmarca o corpo SOB ATENÇÃO — o mesmo que o painel de CONTEXTO está nomeando.
+   *
+   * ⚠️ O sujeito sai de `attention.snapshot()`, e não de `scene.focusedNode()`, porque é ele que o
+   * painel desenha: dois sujeitos para o mesmo gesto fariam a tecla marcar um corpo enquanto a tela
+   * mostra a marca de outro. Na cena UNIVERSO o cursor não troca o sujeito (`paintLinks` só repinta
+   * no foco), então ali a tecla age sobre o corpo TRAVADO; no AGENTE o cursor vence enquanto existe,
+   * que é a mesma precedência do arco.
+   *
+   * ⚠️ **Colisão de tecla falha no REGISTRO** — `keys.bind` recusa combinação já tomada e derruba o
+   * boot com o nome do dono. É por isso que ela mora aqui, junto dos outros atalhos globais, e não
+   * no `mount` do widget: registrada por rota, a duplicidade só apareceria na rota que a montasse.
+   *
+   * A recusa do modelo (marca sem carimbo de corpus) vira NOTA, não exceção: ela traz o conserto
+   * dentro do motivo, e engoli-la deixaria a tecla falhando em silêncio.
+   */
+  keys.bind({ code: 'KeyF', label: 'FAVORITAR', group: 'CENA' }, () => {
+    const alvo = attention.snapshot().subject;
+    if (!alvo) {
+      streams.note('NENHUM CORPO SOB ATENÇÃO — PASSE O CURSOR OU TRAVE UM ASTRO', 'warn');
+      return;
+    }
+    const r = favoritos.alternar(alvo);
+    if (!r.ok) {
+      streams.note(`MARCA RECUSADA — ${r.erro}`, 'bad');
+      return;
+    }
+    streams.note(`${r.marcada ? 'MARCADO' : 'DESMARCADO'} · ${alvo.source || alvo.id}`, 'good');
+    audio.click({ frequency: r.marcada ? 660 : 330, gain: 0.04, decay: 0.3 });
+  });
 
   /*
    * ⌘S grava o enquadramento. Vale COM foco no prompt (`whileTyping`) porque o modificador não
