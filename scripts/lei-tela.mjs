@@ -199,9 +199,30 @@ function varrer(dir) {
  * ⚠️ Acrescentar um nome a `PERMITIDOS` é uma DECISÃO: cada escritor novo é mais um lugar de onde o
  * estado de tela pode sair, que é exatamente o que a `tela.js` existe para não haver.
  */
+/*
+ * ⚠️ **LER a tela não é ESCREVER nela, e a lei mede a segunda.** A varredura pegava qualquer
+ * `import` de `core/tela.js` — e acusou um LEITOR legítimo (`hud/favoritos-ui.js` lê `estado()`
+ * para saber que cena está na tela). Somar leitor à lista branca afrouxaria a lei; o que ela
+ * precisa distinguir é quem MUTA a pilha: `registrar`, `mostrar`, `sair`, `install`.
+ *
+ * Leitor não é perigo: `estado()` devolve objeto congelado, e quem lê não cria dono novo. Quem
+ * escreve, sim — cada escritor é mais um lugar de onde o estado de tela pode sair.
+ */
+const MUTADORES = ['registrar', 'mostrar', 'sair', 'install'];
 const PERMITIDOS = ['src/hud/boot.js', 'src/main.js'];
 const escritores = varrer('src')
-  .filter((arquivo) => /from '[^']*core\/tela\.js'/.test(src(arquivo)))
+  .filter((arquivo) => {
+    const texto = src(arquivo);
+    if (!/from '[^']*core\/tela\.js'/.test(texto)) return false;
+    // O que ele IMPORTA da tela decide: só quem traz um mutador é escritor.
+    // Duas formas de importar, e as duas precisam ser cobertas — foi um `import * as` que
+    // escapou da primeira versão desta guarda.
+    const nomeados = texto.match(/import\s*\{([^}]*)\}\s*from\s*'[^']*core\/tela\.js'/);
+    if (nomeados) return MUTADORES.some((m) => new RegExp(`\\b${m}\\b`).test(nomeados[1]));
+    const alias = texto.match(/import\s*\*\s*as\s+(\w+)\s*from\s*'[^']*core\/tela\.js'/);
+    if (alias) return MUTADORES.some((m) => texto.includes(`${alias[1]}.${m}(`));
+    return true;   // forma desconhecida: acusa, nunca tolera
+  })
   .sort();
 conferir('§8 só os escritores DECLARADOS importam a tela',
   escritores.join(',') === PERMITIDOS.join(','),

@@ -148,8 +148,8 @@ com ou sem produtor.
 | **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | — | — |
 | **T-35** | **FAVORITOS** — fase 1 (modelo + persistência) `done`; a INTERFACE é a fase 2 | `doing` | — | T-34 | KR2.1 |
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
-| **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `todo` | — | T-35 | KR2.4 |
-| **T-39** | A cena AGENTE não usa a ontologia — `lei-cena.mjs` não alcança esse caminho | `todo` | — | — | KR2.4 |
+| **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
+| **T-39** | As duas cenas discordam sobre **32 de 72 corpos** — a lei agora MEDE e recusa crescimento | `doing` | — | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos | `todo` | — | — | KR3.1 |
 | **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |

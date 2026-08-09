@@ -190,6 +190,8 @@ const SURFACE_FRAGMENT = /* glsl */ `
   precision highp float;
 
   uniform sampler2D uRamp;
+  uniform sampler2D uMapa;
+  uniform float uUsaMapa;
   uniform float uAmplitude, uSharpness, uSea;
   uniform float uPeriod, uPersistence, uLacunarity, uDetail, uRidged;
   uniform float uScale, uBump, uBumpStrength, uWet, uFade;
@@ -245,6 +247,24 @@ const SURFACE_FRAGMENT = /* glsl */ `
     // Altura NORMALIZADA: a rampa de biomas nao pode andar quando a massa muda o relevo.
     float t = clamp(h / uScale, 0.0, 1.0);
     vec3 albedo = texture2D(uRamp, vec2(t, 0.5)).rgb;
+
+    /*
+     * APARENCIA NOMEADA — a MARCA do operador, e ela substitui SO o albedo.
+     *
+     * O relevo, a nuvem, a atmosfera e a luz continuam saindo do corpus: e a mesma esfera, com a
+     * mesma fisica, vestida com outra pele. Trocar a geometria junto faria a marca decidir a FORMA,
+     * e forma e afirmacao sobre o arquivo — a marca nao afirma nada sobre ele.
+     *
+     * A UV sai de vSphere, a posicao na esfera UNITARIA, e nao de um atributo: equiretangular e
+     * funcao da direcao, entao derivar aqui dispensa varying novo e nao muda o vertex shader.
+     *
+     * uUsaMapa e 0 quando ninguem marcou — e com 0 o mix devolve a rampa BIT A BIT, entao o
+     * corpo nao marcado desenha exatamente como desenhava. E a REGRA DA FISICA: composicao nao
+     * altera a simulacao.
+     */
+    vec3 n = normalize(vSphere);
+    vec2 uvMapa = vec2(atan(n.z, n.x) / 6.2831853 + 0.5, asin(clamp(n.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+    albedo = mix(albedo, texture2D(uMapa, uvMapa).rgb, uUsaMapa);
 
     // NUVEM: mesmo fbm, direcao GIRADA por conta propria. Ela mora na superficie e nao na casca
     // porque nuvem esta dentro da atmosfera, nao em volta dela — na casca ela apareceria como
@@ -518,6 +538,9 @@ export function createPlanet() {
       new THREE.ShaderMaterial({
         uniforms: {
           uRamp: { value: null },
+          // A aparencia nomeada. `uUsaMapa` em 0 devolve a rampa bit a bit — ver o fragmento.
+          uMapa: { value: null },
+          uUsaMapa: { value: 0 },
           uAmplitude: { value: 0.08 },
           uSharpness: { value: 2.2 },
           uSea: { value: 0.02 },
@@ -626,6 +649,18 @@ export function createPlanet() {
         rampKey = key;
         surface.material.uniforms.uRamp.value = ramp;
       }
+
+      /*
+       * A APARÊNCIA NOMEADA, se o operador escolheu uma. Ela chega por `params.mapa` — uma
+       * `THREE.Texture` já carregada — e **quem carrega não é este módulo**: o planeta não sabe o
+       * que é um favorito, e não pode saber. Ele recebe uma textura ou não recebe.
+       *
+       * ⚠️ Sem mapa, `uUsaMapa` é 0 e o `mix` do fragmento devolve a rampa BIT A BIT: corpo não
+       * marcado desenha exatamente como desenhava. É a REGRA DA FÍSICA — composição não altera a
+       * simulação, e a marca é composição.
+       */
+      surface.material.uniforms.uMapa.value = params.mapa ?? null;
+      surface.material.uniforms.uUsaMapa.value = params.mapa ? 1 : 0;
 
       // A altura útil é o que sobra do relevo depois do mar. Casca e rampa saem os dois daqui —
       // divergir move a linha de costa ou faz a montanha furar a atmosfera.

@@ -287,10 +287,40 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * Aqui, pele nova é uma linha; e quem esquecer o `far` não compila um caso silencioso, porque a
    * rota inteira falta.
    */
+
+  /**
+   * AS APARÊNCIAS NOMEADAS — `source` → caminho do arquivo de textura.
+   *
+   * ⚠️ **A cena não sabe o que é um favorito, e não pode saber.** Ela recebe *"este corpo quer este
+   * arquivo"* e carrega; quem decidiu, por que decidiu e se a decisão ainda vale é assunto de quem
+   * declara. Importar o módulo de favoritos aqui faria a marca do operador entrar no caminho do
+   * quadro, e a marca é composição — a REGRA DA FÍSICA proíbe composição alterar a simulação.
+   *
+   * ⚠️ O carregamento é ASSÍNCRONO e a falta de um arquivo NÃO pode apagar o corpo: enquanto a
+   * textura não chega, `mapa` é `undefined` e o planeta desenha a rampa procedural, como sempre.
+   * É o mesmo contrato da pele solar (`photosphere.js`).
+   */
+  const aparenciaDe = new Map();
+  const texturasDeAparencia = new Map();
+
+  function texturaDeAparencia(source) {
+    const arquivo = aparenciaDe.get(source);
+    if (!arquivo) return null;
+    let tex = texturasDeAparencia.get(arquivo);
+    if (tex === undefined) {
+      tex = new THREE.TextureLoader().load(`/${arquivo}`);
+      // O JPEG está em sRGB e o shader calcula em linear — sem isto o mapa sai com gama embutida,
+      // que é o mesmo conserto que a pele solar já carrega.
+      tex.colorSpace = THREE.SRGBColorSpace;
+      texturasDeAparencia.set(arquivo, tex);
+    }
+    return tex;
+  }
+
   const ROTAS_DO_POOL = {
     [SURFACE.PLANET]: {
       pool: poolPlaneta, criar: createPlanet, far: PLANETA_FAR,
-      params: (node) => planetParams(node),
+      params: (node) => ({ ...planetParams(node), mapa: texturaDeAparencia(node.source) }),
       desenhar: (pele, base, c, elapsed) => {
         // A luz vem da ESTRELA DO SISTEMA, não da origem: iluminar de outra direção poria o
         // terminador em desacordo com o que se vê, e é o terminador que faz a esfera ler como esfera.
@@ -2263,6 +2293,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         planetParamsCache = planetParams(pouso.node);
         planetSource = focusedNode;
       }
+      // A aparência é lida FORA do cache: ela muda por gesto do operador, e o cache só invalida
+      // quando o corpo em foco troca — sem esta linha a marca só apareceria ao trocar de corpo.
+      planetParamsCache = { ...planetParamsCache, mapa: texturaDeAparencia(pouso.node.source) };
+      {
+      }
       planet.object.position.copy(pouso.position);
       planet.object.scale.setScalar(pouso.radius);
       /*
@@ -2618,6 +2653,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * O que sai no modo UNIVERSO é o que afirma um centro: o buraco negro e o campo de corpos por
      * recência. O campo estelar de fundo fica — ele é cenário, não afirmação.
      */
+    /**
+     * Declara quais corpos vestem aparência nomeada: `Map<source, caminho>` ou objeto simples.
+     *
+     * ⚠️ Declaração VAZIA é um fato ("nenhum corpo veste"), e é diferente de nunca declarar. Quem
+     * não chama deixa o céu como está.
+     */
+    declararAparencias: (mapa) => {
+      aparenciaDe.clear();
+      const entradas = mapa instanceof Map ? mapa.entries() : Object.entries(mapa || {});
+      for (const [source, arquivo] of entradas) if (source && arquivo) aparenciaDe.set(source, arquivo);
+      return aparenciaDe.size;
+    },
     setMode: (proximo) => {
       /*
        * ⚠️ `Object.hasOwn`, e não `CENAS[proximo]` direto. A lista branca explícita que estava aqui

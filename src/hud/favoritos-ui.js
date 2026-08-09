@@ -41,6 +41,8 @@ import {
 } from '../space/favoritos.js';
 import { entityPhysics, classificar, fenomenos, dominanteDe } from '../space/entity-physics.js';
 import { superficieDe } from '../space/superficies.js';
+import { resolveBody } from '../space/solver.js';
+import { estado as telaEstado } from '../core/tela.js';
 
 let store = null;
 let corpusAtual = null;
@@ -86,13 +88,40 @@ export function aoMudar(fn) {
  * ⚠️ `sistema` não é lido por `classificar()` nem por `superficieDe()` — vai junto porque é o que a
  * cena passa, e uma transcrição que simplifica deixa de ser comparável com a fonte.
  */
+/**
+ * A pele que a CENA CORRENTE desenha — e são DUAS, não uma.
+ *
+ * ☠️ **As duas cenas discordam sobre 32 dos 72 corpos do fixture (44%)**, medido em 2026-08-09: o
+ * UNIVERSO decide por `superficieDe` (a ontologia da Fase D) e o AGENTE por `resolveBody`
+ * (`solver.js`, a taxonomia por `kind`). O mesmo `revisor.md` é ESTAÇÃO num e planeta no outro.
+ *
+ * ⚠️ **Por que isso decide o que a marca pode oferecer:** a aparência nomeada é um mapa
+ * equiretangular que substitui o ALBEDO do planeta (`planet.js`, `uMapa`). Num corpo desenhado como
+ * estação, cometa ou pulsar ela **não tem onde ser aplicada** — oferecê-la é oferecer o que não
+ * funciona, e o operador escolheria TERRA para nada acontecer.
+ *
+ * Enquanto as duas taxonomias não convergirem (T-39), o honesto é a marca seguir a cena que está
+ * na tela. ⚠️ Consequência que a tela precisa dizer: o mesmo corpo oferece opções diferentes em
+ * cada cena, **porque ele é desenhado diferente em cada uma**.
+ */
+function peleDaCenaCorrente(node, classe, fisica, ativos) {
+  const cena = telaEstado()?.cena;
+  // `null` é "ninguém anunciou a cena ainda" — e aí vale a ontologia, que é a fonte normativa.
+  if (cena === 'agente') return resolveBody(node, {}).surface;
+  return superficieDe(classe, fisica, ativos);
+}
+
 function ontologiaDe(node, dominante, sistema) {
   const fis = entityPhysics(node, { dominante, sistema });
   const classe = classificar(fis, node);
-  const pele = superficieDe(classe, fis, fenomenos(fis, node).map((x) => x.tipo));
-  return Object.freeze({
-    classe, pele, contexto: contextoDe(classe, pele), caso: casoSemAparencia(classe, pele),
-  });
+  const ativos = fenomenos(fis, node).map((x) => x.tipo);
+  /*
+   * ⚠️ **A pele NÃO é cacheada aqui, e isso é o conserto.** Ela depende da CENA, a cena troca
+   * depois do carregamento, e guardá-la congelaria a decisão no modo em que o operador entrou —
+   * o corpo ofereceria opções da cena anterior. O que se guarda é a MATÉRIA-PRIMA (a física, a
+   * classe, os fenômenos); a pele e o que sai dela se resolvem na LEITURA.
+   */
+  return Object.freeze({ node, classe, fisica: fis, ativos });
 }
 
 /**
@@ -161,12 +190,17 @@ export function leitura(node) {
         + 'aparência de planeta a uma estrela',
     };
   }
-  const base = store.ler({ id, contexto: onto.contexto, caso: onto.caso, emDisco });
+  // A pele da cena que está na tela AGORA — ver `peleDaCenaCorrente`.
+  const pele = peleDaCenaCorrente(onto.node, onto.classe, onto.fisica, onto.ativos);
+  const contexto = contextoDe(onto.classe, pele);
+  const caso = casoSemAparencia(onto.classe, pele);
+  const base = store.ler({ id, contexto, caso, emDisco });
   return Object.freeze({
     ...base,
-    caso: onto.caso,
+    caso,
     /** As aparências que ESTE contexto aceita, por nome — a REGRA DO CATÁLOGO no pixel. */
-    aceitas: APARENCIAS[onto.contexto] || {},
+    aceitas: APARENCIAS[contexto] || {},
+    pele,
     corpusAtual,
     /*
      * ⚠️ Divergência de céu ANUNCIA. `null` é "não sei de que céu esta sessão é" (topologia não

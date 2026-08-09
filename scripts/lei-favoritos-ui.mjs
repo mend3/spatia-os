@@ -170,8 +170,23 @@ const PARES = [
   ['quem é o dominante', 'const dono = dominanteDe(meus);', 'dominanteDe(meus)'],
   ['a física, com o contexto', 'entityPhysics(f, { dominante: f.id === dono.id, sistema: agg.id })', 'entityPhysics(node, { dominante, sistema })'],
   ['a classe', 'classificar(fis, f)', 'classificar(fis, node)'],
-  ['a pele, com os fenômenos', 'superficieDe(classe, fis, fenomenos(fis, f).map((x) => x.tipo))', 'superficieDe(classe, fis, fenomenos(fis, node).map((x) => x.tipo))'],
+  // ⚠️ Na UI a pele NÃO sai mais no carregamento: ela depende da CENA e se resolve na leitura
+  // (`peleDaCenaCorrente`). O que a lei continua exigindo é que a derivação seja a REAL, com os
+  // fenômenos — e que a matéria-prima (`ativos`) venha da mesma função, não de uma cópia.
+  ['a pele, com os fenômenos', 'superficieDe(classe, fis, fenomenos(fis, f).map((x) => x.tipo))', 'superficieDe(classe, fisica, ativos)'],
+  ['os fenômenos como matéria-prima', 'fenomenos(fis, f).map((x) => x.tipo)', 'fenomenos(fis, node).map((x) => x.tipo)'],
 ];
+/*
+ * ☠️ **A pele tem de seguir a CENA CORRENTE, e isto é o que impede a marca de oferecer o que a
+ * cena não sabe aplicar.** As duas cenas discordam sobre 32 dos 72 corpos do fixture (44%,
+ * medido em 09/08): o UNIVERSO decide por `superficieDe`, o AGENTE por `resolveBody`. A aparência
+ * nomeada substitui o albedo do PLANETA — num corpo desenhado como estação ela não tem onde ser
+ * aplicada, e oferecê-la faria o operador escolher TERRA para nada acontecer.
+ */
+conferir('§1 a pele segue a CENA corrente, não uma taxonomia fixa',
+  uiSrc.includes("resolveBody(node, {}).surface") && uiSrc.includes("cena === 'agente'"),
+  'a UI voltou a decidir a pele por uma taxonomia só — o favorito passa a oferecer o que a cena não aplica');
+
 for (const [nome, naFonte, naCopia] of PARES) {
   conferir(`§1 fonte · ${nome}`, universo.includes(naFonte),
     `\`${naFonte}\` sumiu de src/space/universe.js — a cópia da HUD deixou de ser cópia`);

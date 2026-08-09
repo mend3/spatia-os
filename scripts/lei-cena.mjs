@@ -71,6 +71,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { entityPhysics, classificar, fenomenos, dominanteDe } from '../src/space/entity-physics.js';
 import { superficieDe } from '../src/space/superficies.js';
+// ⚠️ A taxonomia da cena AGENTE — a §5 existe para medir o quanto ela discorda da ontologia.
+import { resolveBody } from '../src/space/solver.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
@@ -414,6 +416,52 @@ for (const arquivo of PUROS) {
   if (globais.length) nota('§3', `${nomeCurto} lê ${globais.join(', ')} — a cena pode chegar por fora do argumento`);
   const marca = proibidos.length || globais.length ? '\x1b[31m✗\x1b[0m' : '\x1b[32m✓\x1b[0m';
   console.log(`  ${marca} ${nomeCurto.padEnd(28)} imports: ${imports.length ? imports.join(', ') : '\x1b[2mnenhum\x1b[0m'}`);
+}
+
+// ─────────────────────────────────────────── §5 · AS DUAS CENAS OLHAM PELA MESMA ONTOLOGIA?
+
+/*
+ * ☠️ **A LEI PASSAVA ENQUANTO AS DUAS CENAS DISCORDAVAM SOBRE O MESMO CORPO.**
+ *
+ * As §1–§4 provam que a cena não CONTAMINA a ontologia — e não alcançam a cena AGENTE, porque ela
+ * não a chama: quem decide a pele lá é `resolveBody` (`solver.js`), a taxonomia por `kind` que a
+ * Fase B refutou (228 de 228 agregados virando galáxia). Provar *"a cena é uma lente"* exige
+ * provar que as duas OLHAM PELA MESMA lente, e hoje isso é falso.
+ *
+ * ⚠️ Esta seção **não pode reprovar pela divergência existir** — ela é o estado de hoje, e
+ * derrubar o oráculo por ela deixaria a base sem guarda nenhum até a convergência. O que ela faz é
+ * **declarar o número e recusar que ele CRESÇA**: divergência silenciosa é como 44% do céu chegou
+ * aqui sem ninguém medir.
+ */
+const DIVERGENCIA_DECLARADA = 32;
+
+const divergentes = [];
+for (const node of corpos) {
+  const fis = entityPhysics(node, { dominante: dominantes.has(node.id), sistema: node.dir });
+  const cls = classificar(fis, node);
+  const noUniverso = superficieDe(cls, fis, fenomenos(fis, node).map((x) => x.tipo));
+  const noAgente = resolveBody(node, {}).surface;
+  if (noUniverso !== noAgente) divergentes.push({ source: node.source, noAgente, noUniverso });
+}
+
+console.log(`\n\x1b[1m§5 AS DUAS CENAS\x1b[0m  a mesma lente para o mesmo corpo?`);
+console.log(`  \x1b[2m${corpos.length - divergentes.length} de ${corpos.length} corpos recebem a MESMA pele nas duas cenas\x1b[0m`);
+const paresDiv = new Map();
+for (const d of divergentes) {
+  const k = `${d.noAgente} → ${d.noUniverso}`;
+  paresDiv.set(k, (paresDiv.get(k) || 0) + 1);
+}
+for (const [par, n] of [...paresDiv].sort((a, b) => b[1] - a[1])) {
+  console.log(`  \x1b[33m✗\x1b[0m ${par.padEnd(30)} ${n}`);
+}
+if (divergentes.length > DIVERGENCIA_DECLARADA) {
+  nota('§5', `${divergentes.length} corpos recebem pele diferente nas duas cenas, contra `
+    + `${DIVERGENCIA_DECLARADA} declarados — a AGENTE e a UNIVERSO afastaram-se mais. `
+    + 'Convirja (T-39) ou redeclare o número COM MEDIDA');
+}
+if (divergentes.length < DIVERGENCIA_DECLARADA - 4) {
+  nota('§5', `${divergentes.length} corpos divergem, contra ${DIVERGENCIA_DECLARADA} declarados — `
+    + 'a divergência CAIU. Aperte o número, senão ele para de acusar crescimento');
 }
 
 // ───────────────────── §4 a perturbação: se a cena chegar, ela não muda o que o corpo É

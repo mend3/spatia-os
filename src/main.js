@@ -26,6 +26,7 @@ import { createSpeechPanel } from './hud/speech-panel.js';
 import { createSystray } from './hud/systray.js';
 import { createCenaSwitch } from './hud/cena.js';
 import * as favoritos from './hud/favoritos-ui.js';
+import { APARENCIAS } from './space/favoritos.js';
 import { registrarTipoDeCorpo } from './core/cena-atual.js';
 import { createYield } from './hud/yield.js';
 import { createWidgetHost } from './kernel/widgets.js';
@@ -467,7 +468,31 @@ async function main() {
      * o dominante do sistema. Derivar de outra leitura abriria a porta para a HUD oferecer TERRA a
      * um corpo que a cena desenha como fotosfera.
      */
+    /*
+     * As aparências vão para a CENA, que carrega a textura e a aplica no albedo. A cena não sabe o
+     * que é um favorito — recebe `source → arquivo` e desenha; a marca fica do lado de cá.
+     *
+     * ⚠️ Só entram as marcas que RESOLVERAM: `sonda()` já devolve `degradada` para escolha que não
+     * vale mais aqui, e mandar essas pintaria o corpo com a textura que a própria tela diz não valer.
+     */
+    function sincronizarAparencias() {
+      const { itens = [] } = favoritos.sonda();
+      const mapa = {};
+      for (const it of itens) {
+        if (it.estado !== 'marcada' || !it.aparencia) continue;
+        // ⚠️ `sonda()` NÃO devolve `arquivo` — conferido na saída real, não no JSDoc. O caminho vive
+        // no catálogo, que é do MODELO.
+        const arquivo = APARENCIAS[it.contexto]?.[it.aparencia]?.arquivo;
+        if (arquivo) mapa[it.id] = arquivo;
+      }
+      scene.declararAparencias(mapa);
+    }
+
     favoritos.carregarTopologia(graph);
+    sincronizarAparencias();
+    // A marca muda por GESTO, não só no carregamento — sem isto a textura só apareceria
+    // no próximo boot. `aoMudar` é o canal que o próprio módulo publica.
+    favoritos.aoMudar(sincronizarAparencias);
     corpos = graph.stats?.files ?? null;
     // Sem contagem o medidor fica no travessão de nascença: `0 arq` seria uma medida inventada.
     if (corpos !== null) frame.applyGraph(corpos);
@@ -683,6 +708,7 @@ const DIRTY_POLL_MS = 6_000;
  * ⚠️ **Ele não emite no barramento e não escreve linha de timeline.** Um evento por volta seria
  * a mesma frase a cada 30 s, que é exatamente o que ensina o operador a não ler a tela.
  */
+
 function watchHealth(frame) {
   async function poll() {
     // Aba escondida não afere: a leitura chegaria para ninguém, e ao voltar a idade dela já
