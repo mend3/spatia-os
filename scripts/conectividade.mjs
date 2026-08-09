@@ -59,15 +59,27 @@ if (!graph.corpus) {
   console.error('o /api/graph não publicou `corpus` — servidor velho?');
   process.exit(1);
 }
-/** `source` → o sistema dele (a pasta, ou o repo para quem pendura na raiz). Ver `graph.py`. */
+/**
+ * `source` → o sistema dele. ⚠️ O sistema sai dos nós `dir` EMITIDOS, não de `n.dir`: o servidor só
+ * promove a sistema pasta com mais de um arquivo (`graph._hierarchy`), e agrupar por `dir` distinto
+ * dá ao arquivo solitário um sistema próprio — todo vínculo dele passaria a "sair do sistema" por
+ * layout, e o ALCANCE viraria tamanho de pasta. O agrupamento aqui tem de ser o MESMO que a cena
+ * monta. A regra é IMPORTADA do fato, não transcrita: quem decide é a lista de nós `type === 'dir'`.
+ */
+const EMITIDOS = new Set(graph.nodes.filter((n) => n.type === 'dir').map((n) => n.dir));
 const sistemaDe = new Map();
 for (const n of graph.nodes) {
-  if (n.type === 'file') sistemaDe.set(n.source, n.dir || n.repo || '');
+  if (n.type === 'file') sistemaDe.set(n.source, EMITIDOS.has(n.dir || '') ? n.dir : `repo:${n.repo}`);
 }
 console.log(`\x1b[1mcorpus\x1b[0m  ${graph.corpus.collection} · ${sistemaDe.size} corpos no céu`);
 
+/*
+ * ⚠️ O corpus vai na CONSULTA, não só no filtro de `sistemaDe`. Os dois corpora convivem no mesmo
+ * Neo4j (`r.corpus`), e depender de os `source` serem disjuntos é a mesma tolerância que já serviu
+ * snapshot de outro céu — carimbar quem escreve não basta se quem LÊ ficou de fora.
+ */
 const dados = await cypher(
-  `MATCH (a:Astro)-[r:SIMILAR_TO|CO_EDITED|REFERENCES|IMPORTS]-(b:Astro)
+  `MATCH (a:Astro {corpus: '${graph.corpus.collection}'})-[r:SIMILAR_TO|CO_EDITED|REFERENCES|IMPORTS]-(b:Astro {corpus: '${graph.corpus.collection}'})
    RETURN a.source AS de, b.source AS para, type(r) AS tipo`
 );
 /** `source` → Set de vizinhos (não-direcionado, sem repetir por tipo). */
@@ -171,16 +183,25 @@ console.log(`  alcance × grau:        ρ = ${spearman(candidatas.alcance, candi
 /*
  * ⚠️ **O teste que o `alcance` pode reprovar, e que a centralidade não faz.**
  *
- * Ele é uma FRAÇÃO sobre o sistema do corpo — então um arquivo sozinho numa pasta tem alcance 1,0
- * por construção, e a dimensão viraria "tamanho do sistema com ofuscação". É a mesma família do
- * score composto que esta base refutou, e ela não aparece na comparação com a centralidade.
+ * Ele é uma FRAÇÃO sobre o sistema do corpo, então ρ com o TAMANHO do sistema é alto por mecânica:
+ * quanto maior a pasta, mais vizinho cabe dentro dela. ☠️ **ρ alto sozinho não condena a dimensão,
+ * e o filho único não é a causa** — o corpo sozinho é do REPO (`sistemaDe`), e mesmo assim o ρ fica
+ * onde estava. Quem separa "alcance é tamanho de pasta" de "alcance é destino" é o NULO: o alcance
+ * que um corpo teria se os vizinhos dele fossem sorteados no céu inteiro,
+ * `1 − (tamanho − 1)/(corpos − 1)`. **ρ(alcance, nulo) perto de 1 é a condenação** — aí o número
+ * não sabe nada que a CONTENÇÃO, que a cena já desenha por posição, não diga.
  */
 const tamanhoDoSistema = new Map();
 for (const [, sis] of sistemaDe) tamanhoDoSistema.set(sis, (tamanhoDoSistema.get(sis) || 0) + 1);
 const vTam = comuns.map((s) => tamanhoDoSistema.get(sistemaDe.get(s)) || 1);
 const rhoTam = spearman(candidatas.alcance, vTam);
+const vNulo = vTam.map((t) => 1 - (t - 1) / (sistemaDe.size - 1));
+const rhoNulo = spearman(candidatas.alcance, vNulo);
+const residuo = candidatas.alcance.map((x, i) => x - vNulo[i]);
 console.log(`\n\x1b[1m  alcance × TAMANHO DO SISTEMA: ρ = ${Math.abs(rhoTam) >= 0.7 ? '\x1b[31m' : '\x1b[32m'}${rhoTam.toFixed(3)}\x1b[0m`);
-console.log(`  \x1b[2m(um arquivo sozinho na pasta tem alcance 1,0 por construção — se ρ for alto, a dimensão é tamanho de pasta)\x1b[0m`);
+console.log(`\x1b[1m  alcance × NULO (vizinho sorteado no céu): ρ = ${Math.abs(rhoNulo) >= 0.9 ? '\x1b[31m' : '\x1b[32m'}${rhoNulo.toFixed(3)}\x1b[0m`);
+console.log(`  \x1b[2m(ρ com o nulo perto de 1 = a dimensão é contenção com outro nome; a cena já a desenha por posição)\x1b[0m`);
+console.log(`  resíduo (alcance − nulo) × centralidade: ρ = ${spearman(residuo, vCent).toFixed(3)} — é o que sobra de informação própria`);
 const emUm = candidatas.alcance.filter((x) => x >= 0.999).length;
 const sozinhos = comuns.filter((s) => (tamanhoDoSistema.get(sistemaDe.get(s)) || 1) === 1).length;
 console.log(`  alcance = 1,0 em ${emUm} corpos (${((emUm / comuns.length) * 100).toFixed(1)}%), dos quais ${sozinhos} são filho único do sistema`);
@@ -221,8 +242,13 @@ const snapshot = {
   // sobre outro corpus e chegou a ZERO dos 72 corpos, com `stats.conexao` de cabeçalho cheio.
   corpus: graph.corpus.collection,
   metrica: ESCOLHA,
-  definicao: 'fração dos vínculos laterais cujo destino está FORA do sistema (pasta) do corpo',
+  definicao: 'fração dos vínculos laterais cujo destino está FORA do sistema do corpo — e sistema é o que a cena monta: a pasta que o servidor promoveu a nó `dir`, ou o repo',
   spearman_centralidade: Number(rho[ESCOLHA].toFixed(4)),
+  // A fraqueza confessa viaja com o número: o alcance é fração sobre o sistema, então ele repete em
+  // parte a CONTENÇÃO que a cena já desenha. `spearman_nulo` é contra o alcance de vizinho sorteado
+  // — perto de 1 a dimensão não sabe nada além do tamanho da pasta.
+  spearman_tamanho: Number(rhoTam.toFixed(4)),
+  spearman_nulo: Number(rhoNulo.toFixed(4)),
   // As candidatas recusadas ficam registradas com o motivo: sem isto, a próxima sessão remede as
   // três para descobrir o que esta já sabia.
   recusadas: {

@@ -542,9 +542,26 @@ Spearman(grau, pagerank) 0,898.
 escreve *"inferido por qwen3:8b — não é medida"*. Apagar tudo o que veio de inferência é uma consulta só.
 
 **`connectivity` é ALCANCE**, não grau: o grau repetia a centralidade (ρ 0,821). O alcance dá ρ −0,083
-com centralidade, 0,040 com massa, 0,130 com atividade — mede a parte da relação que a POSIÇÃO não
-comunica. **As candidatas recusadas estão gravadas no snapshot com o ρ de cada uma**, para ninguém
-remedir. Confesso: ρ −0,623 com o TAMANHO do sistema (é razão, não sabe volume).
+com centralidade, 0,040 com massa, 0,130 com atividade no vivo (0,209 · −0,473 · −0,540 no fixture de
+09/08) — mede a parte da relação que a POSIÇÃO não comunica. **As candidatas recusadas estão gravadas
+no snapshot com o ρ de cada uma**, para ninguém remedir.
+
+☠️ **O ρ alto com o TAMANHO do sistema NÃO é o filho único — está medido, não reabra.** Agrupando
+como a cena agrupa (nós `type === 'dir'` do `/api/graph`, que é o que `conectividade.mjs` faz hoje),
+o corpo solitário passa a ser do REPO e **0 de 59 corpos do fixture mudam de alcance** (ρ com o
+tamanho **−0,808 → −0,806**; no vivo **3 de 188** mudam e o ρ vai de −0,654 a −0,652). A correlação é
+MECÂNICA: alcance é fração sobre o sistema, então pasta grande retém vizinho por aritmética.
+⭑ **Quem julga a dimensão é o NULO** — o alcance de um corpo cujos vizinhos fossem sorteados no céu
+inteiro, `1 − (tamanho − 1)/(corpos − 1)`. Medido: ρ(alcance, nulo) **0,793 no fixture** (o script
+publica) e **0,611 no vivo**; o resíduo (alcance − nulo) × centralidade dá 0,241 no fixture e 0,078 no
+vivo. **A dimensão sobrevive pelo vivo**,
+onde sobra variação própria (dentro de um mesmo sistema de 39 arquivos o alcance vai de 0,091 a
+0,711); ⚠️ **o fixture não a julga** — o Neo4j dele só tem `CO_EDITED` (nenhum `SIMILAR_TO`,
+`REFERENCES` ou `IMPORTS`), 62 nós `Astro` para 72 corpos, e o alcance ali é quase só contenção.
+⭑ **O vivo se mede sem trocar o `.env`** (`a.corpus`/`r.corpus` no Neo4j), mas o agrupamento tem de
+ser TRANSCRITO de `graph._hierarchy` — só o `/api/graph` do céu servido publica os nós `dir`. A
+transcrição vale onde o Neo4j tem TODOS os corpos (vivo: 188 = 188) e mente onde não tem (no fixture
+ela acusa 5 mudanças onde o fato são 0).
 
 **Rede da seleção:** 4.226 vínculos · grau MED 26 · P90 56 · máx 182 · **teto 28 arcos** · 42% truncados
 (o corte é publicado). `TOUCHED` fica fora porque liga `Run → Astro` e as duas pontas não são corpos.

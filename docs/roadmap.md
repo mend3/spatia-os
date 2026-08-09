@@ -121,7 +121,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-16** | Modo Assistir | `blocked` | T-09 | — | KR1.3 |
 | **T-17** | `keyup` + `blur` no teclado — `keys.isHeld` e a lei da tecla que não fica presa | `done` | — | T-15 | — |
 | **T-18** | Um diretório sem agregado é um sistema? (handoff 0b) | `done` | — | — | — |
-| **T-36** | `conectividade.mjs` agrupa por `dir` distinto — o ALCANCE herda o mesmo viés do 0b | `todo` | — | — | KR3.1 |
+| **T-36** | `conectividade.mjs` agrupa como a cena agrupa — e o ρ com o tamanho do sistema NÃO era o filho único | `done` | — | — | KR3.1 |
 | **T-19** | Quebrar a dependência de `M_total` nas luas (handoff 0c) | `postponed` | — | — | — |
 | **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
 | **T-21** | Marketplace × a postura de segurança escrita | `blocked` | decisão do usuário | — | — |
@@ -140,12 +140,6 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `todo` | — | — | KR4.2 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
-
-- **T-36** — o ALCANCE é *"a fração dos vínculos laterais cujo destino está FORA do sistema"*, e
-  `conectividade.mjs:65` define sistema por `dir` distinto. O snapshot já confessa que **filho único
-  de pasta tem alcance 1,0 por construção**, e ρ **−0,808** com o tamanho do sistema no fixture — os
-  dois são o mesmo viés do 0b, visto pela métrica. ⚠️ Consertar exige **rematerializar e remedir os
-  três ρ**, então não entrou junto.
 
 - **T-37** — o servidor emite `thread` com `continuity` (`new`/`resumed`/`broken`/`none`), `turn` e
   `since`, **antes** de o processo do agente existir, e `GET`/`POST /api/thread` leem e cortam o
