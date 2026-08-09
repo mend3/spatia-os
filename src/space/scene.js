@@ -611,6 +611,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const ancoraLivre = new THREE.Vector3();
   let ancoraLivreIniciada = false;
   let objetoAnexado = null;
+  /** Quem a âncora persegue neste quadro — lido pela sonda, escrito pelo laço. */
+  let seguindoId = null;
   const PAN_FWD = new THREE.Vector3();
   const PAN_RIGHT = new THREE.Vector3();
   const PAN_UP = new THREE.Vector3();
@@ -1592,6 +1594,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * movia a âncora) sobrevivendo dentro do novo.
      */
     const seguindo = focusedNode ?? (modo === 'universo' ? objetoAnexado : null);
+    seguindoId = seguindo;
     if (alvoAnterior && alvoAnteriorDe === seguindo && seguindo) {
       anchor.add(ANCHOR_DELTA.copy(anchorTarget).sub(alvoAnterior));
     }
@@ -2484,6 +2487,24 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         ancoraAtual: [+anchor.x.toFixed(2), +anchor.y.toFixed(2), +anchor.z.toFixed(2)],
         ancoraDaOrigem: +anchor.length().toFixed(2),
         distancia: +orbit.distance.toFixed(2), alvoDeDistancia: +orbit.targetDistance.toFixed(2),
+        /*
+         * ⚠️ O ERRO DA ÂNCORA, e ele existe porque `distancia` MENTE sobre o que se vê.
+         *
+         * `orbit.distance` é a distância à ÂNCORA. O pixel de um corpo sai da distância ao CORPO.
+         * Enquanto a âncora está em cima dele os dois são o mesmo número; quando ela fica para trás
+         * (o corpo orbita, o `lerp` amortece) eles divergem — e a divergência aparece como "cheguei
+         * perto e a pele não acendeu", que não aponta para a câmera em lugar nenhum. Medido em
+         * 08/08: `distancia` 3,03 com o corpo a 3,81 e 107,5 px onde a conta pedia 135.
+         */
+        ...(() => {
+          const alvo = seguindoId ? universe.posicaoDe(seguindoId) : null;
+          if (!alvo) return { seguindo: seguindoId, erroDaAncora: null, distanciaAoCorpo: null };
+          return {
+            seguindo: seguindoId,
+            erroDaAncora: +anchor.distanceTo(alvo).toFixed(3),
+            distanciaAoCorpo: +camera.position.distanceTo(alvo).toFixed(3),
+          };
+        })(),
       };
     },
 
