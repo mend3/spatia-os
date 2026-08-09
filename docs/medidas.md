@@ -334,6 +334,50 @@ mede MAIS, e a bancada ainda não a dirige — mas o APP já foi dirigido até l
 
 ---
 
+## O CUSTO DO VIDRO — o número que decide o launcher (fixture, 1426×742, dpr 2, buffer 2852×1484)
+
+### A folga do quadro é de CENA, e as duas não se parecem
+
+| cena | `comCadeia` | `semCadeia` (só o céu) | `custoDoPos` | folga de 8,33 ms |
+|---|---|---|---|---|
+| raiz · UNIVERSO (lente desligada) | **3,76 ms** | 0,23 ms | 3,54 ms | ~4,6 ms |
+| AGENTE (lente ligada) | **8,47 ms** | 1,97 ms | 6,50 ms | ☠️ **estourado** |
+
+⚠️ **Uma superfície que vale em QUALQUER rota é orçada pela cena PIOR**, não pela média. O launcher
+é `Ctrl+K` em toda tela, então quem decide é a linha do AGENTE.
+
+### Vidro por CSS — medido, e com CONTROLE POSITIVO
+
+Intervalo entre quadros (`requestAnimationFrame`), 5 s por estado, aba visível e janela em foco.
+☠️ **A grandeza NÃO é `renderCost`**: ele é timer de GPU do `three`, e `backdrop-filter` roda no
+COMPOSITOR, fora do laço de render. Confirmado — 3,763 ms sem o vidro contra 3,772 com ele, ruído.
+
+| estado | p50 | p95 | máx | quadros perdidos (>12 ms) |
+|---|---|---|---|---|
+| sem vidro | 8,3 | 10,0 | 11,3 | **0** de 597 |
+| vidro do launcher (428×326, `blur(12px) saturate(1.4)`) | 8,3 | 10,0 | 10,9 | **0** de 597 |
+| **CONTROLE: tela cheia, `blur(40px)`** | 8,3 | 9,8 | 11,1 | **0** de 597 |
+| volta ao sem vidro | 8,3 | 10,1 | 10,6 | **0** de 598 |
+
+⚠️ **O CONTROLE POSITIVO também não moveu, e é ele que torna o resultado lível.** Sem um estado
+propositalmente caro, «não custa nada» é indistinguível de «a sonda não discrimina». Um blur de
+tela cheia a 40 px não derruba um quadro — o compositor acompanha.
+⚠️ **O que esta medida NÃO dá é um NÚMERO para o blur.** Cadência de `rAF` só enxerga o que estoura
+o vsync; abaixo disso ela devolve o teto do monitor. O que fica provado é o TETO: *menos do que
+derrubar um quadro em 5 s*, com o blur mais caro que faz sentido desenhar.
+
+### Vidro 3D — recusado por ARITMÉTICA, sem medida nova
+
+Vidro real por transmissão/FBO exige a cena renderizada para uma textura que o vidro amostra: **um
+segundo render da cena**. Ele custa `semCadeia`, que é **1,97 ms no AGENTE** — sobre um quadro que
+já usa **8,47 de 8,33 ms**.
+
+⭑ **A decisão sai daqui e não precisa de espécime:** o launcher leva vidro de CSS. A refutação do
+canvas para os 46 widgets (`hud-e-canvas.md` §7) continua sendo sobre outra coisa — 521 `el()`, 17
+corpos de fonte, 26 `aria-*` — e não é ela que decide isto; quem decide é o orçamento.
+
+---
+
 ## O ORÇAMENTO DE ALTURA POR FENDA — as 10 rotas, carga fria (fixture, 1426×742)
 
 `spatia.hud().fendas[].orcamento`. Três grandezas, e elas respondem coisas diferentes:

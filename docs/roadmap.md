@@ -162,7 +162,7 @@ com ou sem produtor.
 | **T-71** | **A REGRA DO FOCO no pixel — nas DEZ rotas**, não só na cena principal | `todo` | — | — | KR2.1 |
 | **T-72** | Orçamento de ALTURA por fenda — piso, pedido e a QUARTA causa de «o painel sumiu» | `done` | — | T-71 | KR2.1 |
 | **T-73** | `sec-effective` mora em `strip`, a fenda dos RESIDENTES — mover ou redeclarar | `todo` | decisão do usuário | — | KR2.1 |
-| **T-74** | MEDIR o custo de um painel de VIDRO 3D — o número que decide o launcher | `todo` | — | T-14 | — |
+| **T-74** | O custo do VIDRO — medido: CSS não derruba quadro; vidro 3D recusado por aritmética | `done` | — | T-14 | — |
 | **T-75** | MEDIR o custo de um atlas de glifo por token — decide se a §5.1 tem saída barata | `todo` | — | T-53 | — |
 | **T-76** | Descoberta de MCP — o widget que LISTA servidores (instalar é T-78) | `todo` | — | — | — |
 | **T-77** | Catálogo de APIs públicas como CAPACIDADE, não como lista | `todo` | — | — | — |
@@ -332,13 +332,19 @@ com ou sem produtor.
   ⚠️ **O "Action Ring" (ações por CONTEXTO, não itens fixos) é a parte do briefing que vale mais e
   não é do launcher:** ele precisa de um catálogo de ações por tipo de corpo, que é T-78. Sem ele o
   menu é uma lista de rotas com vidro.
-- **T-74** — ☠️ **O canvas foi refutado para os 46 WIDGETS, não para um menu, e a diferença é real:**
-  a refutação (`hud-e-canvas.md` §7) conta 521 `el()`, 17 corpos de fonte e 26 `aria-*`, e nada
-  disso descreve uma superfície transitória de oito elementos. **Mas o orçamento é o mesmo**, e ele
-  não tem folga: a lente custa **3,8–5,1 ms** contra 0,31–0,35 ms do céu inteiro. Então a ordem é
-  MEDIR primeiro — um painel de vidro com refração na bancada, contra o quadro — e só depois
-  decidir. ⚠️ Glass real por FBO/transmissão é um segundo passe de composição, que é exatamente o
-  bolso já cheio.
+- **T-74 FECHADA — o launcher leva vidro de CSS.** Medido em [`medidas.md`](./medidas.md).
+  ⭑ **CSS não derruba quadro**: `blur(12px)` no tamanho do launcher dá **0 quadros perdidos em 597**
+  — e o CONTROLE POSITIVO, um blur de tela cheia a 40 px, também dá **0**. Sem o controle,
+  «não custa nada» seria indistinguível de «a sonda não discrimina».
+  ☠️ **A grandeza não é `renderCost`** — ele é timer de GPU do `three`, e `backdrop-filter` roda no
+  COMPOSITOR: 3,763 ms sem o vidro contra 3,772 com ele. Medir por ali daria zero por construção.
+  ☠️ **Vidro 3D recusado por ARITMÉTICA sobre número já medido, sem espécime novo:** transmissão por
+  FBO exige um SEGUNDO render da cena, que custa `semCadeia` = **1,97 ms no AGENTE**, sobre um
+  quadro que já usa **8,47 de 8,33 ms**.
+  ⚠️ **A folga é de CENA, e uma superfície que vale em toda rota é orçada pela PIOR:** a raiz tem
+  ~4,6 ms sobrando (lente desligada), o AGENTE já estourou. O launcher é `Ctrl+K` em toda tela.
+  ⚠️ **O que a medida NÃO dá é um número para o blur** — cadência de `rAF` só enxerga o que estoura
+  o vsync. O que fica provado é o TETO, e ele basta para decidir.
 - **T-72 FECHADA — a régua existe, e ela é DERIVADA.** O piso de um widget é uma linha do próprio
   texto dele (`line-height` computado, ou `font-size × 1,2` quando sai `normal`) mais o rótulo.
   Número fixo valeria para uma fenda e mentiria na outra. `spatia.hud().fendas[].orcamento` publica
