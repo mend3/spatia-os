@@ -14,11 +14,13 @@ import { profileTexture } from '../space/ring-profiles.js';
 import { DIRTY_COLORS } from '../space/rings.js';
 import { GLSL_PSNOISE } from './ring-noise.js';
 
-export const DIRTY_FAMILIES = {
-  modified: 'saturn',
-  staged: 'uranus',
-  untracked: 'jupiter',
-};
+/*
+ * ⚠️ **Era uma TERCEIRA cópia do mapa estado→família**, e ela sumiu junto com as outras duas:
+ * `RING_FAMILIES` passa a ser indexado pelo próprio estado do git, então não há o que mapear. A
+ * bancada tem de varrer exatamente o que a cena varre — um mapa próprio aqui divergiria no dia em
+ * que a cena mudasse, e a bancada passaria a mostrar um anel que não existe.
+ */
+export const DIRTY_FAMILIES = null;
 
 /*
  * Espelhos de constantes PRIVADAS de `rings.js` (`SPAN_CAP`, `OPTICAL_DEPTH`, a ordem de
@@ -237,7 +239,7 @@ export function ringRig({ fragment, uniforms = {}, makeProfile = profileTexture 
 
     /** Aplica a família correspondente ao estado do git. Devolve o perfil escolhido. */
     apply(state) {
-      const family = DIRTY_FAMILIES[state] ?? DIRTY_FAMILIES.modified;
+      const family = state;   // o estado É a chave — ver o bloco no topo
       const profile = profileFor(family);
       // d_perfil = (d·reach − 1)/(reach − 1): a região dentro do limbo não existe no perfil.
       const radial = [profile.reach / (profile.reach - 1), -1 / (profile.reach - 1)];

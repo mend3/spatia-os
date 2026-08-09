@@ -156,13 +156,13 @@ com ou sem produtor.
 | **T-43** | A repintura da marca (`context.js`) é invariante DECLARADA sem oráculo | `todo` | — | — | KR2.4 |
 | **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
 | **T-45** | `.row.warn` não existe no CSS — quatro emissores de um tom sem leitor | `todo` | — | — | — |
-| **T-46** | **A sonda da HUD** (`spatia.hud()`) — quanto da janela a interface reivindica ao PONTEIRO, por rota, e o que está recolhido | `todo` | — | T-51, T-52 | KR2.1 |
-| **T-47** | `.sources` não tem teto, nem rolagem, nem scrim — 24 fontes empilham ≈305 px sobre o disco | `todo` | — | — | — |
-| **T-48** | O conjunto residente é DECLARADO e não imposto — `#/security` não monta `timeline` | `todo` | — | T-52 | KR2.1 |
-| **T-49** | `registerWidget` aceita chave fora do vocabulário — a REGRA DO CATÁLOGO sem portão | `todo` | — | T-50 | — |
+| **T-46** | **A sonda da HUD** (`spatia.hud()`) — quanto da janela a interface reivindica ao PONTEIRO, por rota, e o que está recolhido | `done` | — | T-51, T-52 | KR2.1 |
+| **T-47** | A lista de fontes tem TETO de vista, rolagem, scrim e o **total publicado** — as 24 continuam no DOM | `done` | — | — | KR2.1 |
+| **T-48** | O conjunto residente é DECLARADO **e imposto** — `RESIDENTES` + `declararApp`, e `#/security` monta `timeline` | `done` | — | T-52 | KR2.1 |
+| **T-49** | `registerWidget` aceita chave fora do vocabulário — a REGRA DO CATÁLOGO sem portão | `doing` | — | T-50 | — |
 | **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `todo` | T-49 | — | — |
-| **T-51** | O painel de palco cria ZONA MORTA sobre o corpo em foco — o escape só cobre o widget VAZIO | `todo` | T-46 | — | — |
-| **T-52** | A referência repete o painel: **24 de 24** na raiz, **0** nas outras oito | `todo` | T-48 | — | — |
+| **T-51** | O painel de palco cria ZONA MORTA sobre o corpo em foco — **quem PINTA reivindica, quem só POSICIONA cede** | `done` | T-46 | — | KR2.1 |
+| **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
 | **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
 | **T-54** | ☠️ **A cena AGENTE volta PRETA ao voltar do UNIVERSO** — o suspeito é a PARIDADE DE SWAPS | `todo` | — | — | KR2.3 |
 | **T-55** | Enxugar a BANCADA — ela é o storybook dos objetos 3D, e tem espécimes depreciados | `blocked` | T-26 | — | — |
@@ -250,49 +250,119 @@ com ou sem produtor.
 
 - **T-46 … T-53** — a varredura da interface está em
   [`briefings/hud-e-canvas.md`](./briefings/hud-e-canvas.md), com a conta de cada número.
-  ☠️ **T-46 vem primeiro e não é cerimônia:** `window.spatia` expõe **16 sondas** e **nenhuma**
-  responde sobre a HUD (`awk 'NR>=324 && NR<=464' src/main.js | grep -cE "^\s{4}[a-zA-Z]+:"`), e é
-  por isso que *"o painel está na frente do astro"* e *"o painel tem o mesmo âmbar do anel"* dão a
-  MESMA foto — `hud/yield.js:6-15` já se enganou uma vez por isso e mediu 37 de 45 pontos chegando
-  ao canvas. ⚠️ **Aquela medida vale, e não cobre 7 das 10 rotas:** ela é de uma tela sem painel de
-  palco montado. Consertar T-51 antes de T-46 é escolher um valor que faz a foto fechar
-  (armadilha 17 do handoff).
-  ⚠️ **T-46 também mede o QUINTO dono do estado de tela:** `espatial.collapsed.v1` decide quais
+  ⭑ **T-46 FECHADO: `spatia.hud()` existe** (`src/main.js`, bloco `⟦sonda-hud⟧`; portão
+  `scripts/lei-hud.mjs`, 36 leis). A contagem de sondas de `window.spatia` sai de
+  `awk '/window.spatia = Object.freeze\(\{/,/^  \}\);/' src/main.js | grep -cE "^    [a-zA-Z]+:"`,
+  nunca deste parágrafo.
+  ☠️ **A grandeza da sonda é `ponteiro.fracaoReivindicada`** — área
+  que aceita ponteiro, não área desenhada. Um retângulo sobre o céu não disputa o clique: ele
+  cancela órbita, zoom e pick ali (`space/scene.js`, os cinco ouvintes presos ao canvas).
+  `hud/yield.js:6-15` já se enganou uma vez medindo a grandeza errada, e a medida dele (37 de 45
+  pontos) é de uma tela **sem painel de palco montado** — por isso a sonda carimba `rota`.
+  ⚠️ **A sonda também lê o QUINTO dono do estado de tela:** `espatial.collapsed.v1` decide quais
   painéis têm corpo visível, `core/tela.js` não o conhece, e ele **atravessa a rota** — abrir uma
-  seção recolhe e PERSISTE todos os irmãos do trilho (`kernel/widgets.js:63-71`). Antes de acusar a
-  tela, `JSON.parse(localStorage.getItem('espatial.collapsed.v1') || '{}')`.
+  seção recolhe e PERSISTE todos os irmãos do trilho (`kernel/widgets.js:63-71`). As três causas de
+  *"o painel não apareceu"* saem separadas em `widgets.recolhidos` (o operador fechou),
+  `widgets.naoMontados` (o manifesto não pediu) e `widgets.ausentes` (☠️ **declarado e ausente —
+  defeito**, que é o T-48).
 
-- **T-48** — é invariante DECLARADA em dois lugares (`OS-SCREENS.md` §0 e `apps/index.js:65-72`,
-  *"`context` entra em TODAS as listas, como `sky-time` e `timeline`"*) e imposta em nenhum:
-  `registerApp` confere que o widget EXISTE (`registry.js:72-77`) e nada mais. `#/security`
-  (`apps/security.js:79-82`) é a única das dez sem `timeline`.
+- **T-48 FECHADO** — o conjunto residente é DADO em `RESIDENTES` (`src/apps/residentes.js`), com a
+  frase de por que cada um não pode sair da tela, e `declararApp`/`declararVista` recusam no
+  registro a lista que não o traz. `scripts/lei-residentes.mjs` prova por perturbação (9 recusas,
+  4 aceites) e varre a fonte: nenhuma rota alcança o `registerApp` do kernel por fora, e o doc
+  aponta para a declaração em vez de transcrevê-la.
+  ⭑ **A pergunta "qual dos dois estava certo" tem resposta medida:** `#/security` era a única das
+  dez sem `timeline` e não havia recusa escrita em lugar nenhum — a declaração estava certa, o
+  manifesto é que faltava. `#/security` passou a montar 10 widgets (`left` 2→3).
+  ⚠️ **A rota raiz não é app** e um portão montado só no `registerApp` a deixaria de fora — é a
+  rota INICIAL. `declararVista(ROUTE_ROOT, …)` é o mesmo portão para ela, e a lei cai se ela voltar
+  a ser um literal.
+  ⚠️ **Fica aberto, e é MEDIDA e não lei:** `sec-effective` mora em `strip` — a fenda cuja semântica
+  declarada é RESIDENTES (`FENDAS.strip`) — e existe em 1 das 10 rotas. Virar lei obrigaria a
+  movê-lo, e a régua da faixa (largura inteira, `index.html:707-710`) não é a do trilho de 230 px:
+  a decisão muda a tela e tem de ser vista. O censo da lei imprime o caso em amarelo toda vez.
 
-- **T-52** — ☠️ **a redundância não é parecença, é o MESMO CAMPO.** A fonte de corpus imprime
-  `hit["source"]` na lista (`agent.py:146` → `hud/answer.js:146`) e o mesmo `hit.source` em MEMÓRIA
-  RECUPERADA (`hud/streams.js:240`); a de web imprime `hit["title"]` nos dois
-  (`agent.py:151` · `hud/streams.js:519`). E os 24 são derivados, não amostra:
-  **`MEMORY_LIMIT = 6` (`agent.py:19`) + `MAX_RESULTS = 6` por provedor (`websearch.py:21,80`) ×
-  3 provedores com chave (`websearch.py:71-73`)**. Provedor a mais = seis linhas a mais.
-  ⚠️ **A assimetria é que decide o conserto, não o tamanho:** na raiz os painéis existem e a
-  redundância é **24 de 24**; nas outras oito rotas `memory`/`tools`/`web-results` não são montados
-  e a lista é a **única** testemunha. Por isso T-48 vem antes.
-  ☠️ **E o `[n]` é CONTRATO com o prompt** (`EVENTS.md:145`, `agent.py:142-144`): sumir com a lista
-  quebra a citação, que `hud/answer.js:89-95` desenha riscada quando não bate. **Cortar
-  `MEMORY_LIMIT` está refutado como saída** — ele alimenta o modelo (`agent.py:158-163`), então
+- **T-51 FECHADO** — a regra é **quem PINTA reivindica; quem só POSICIONA cede**, e ela vale para
+  qualquer superfície nova sobre o céu. A moldura do painel de palco é `flex: 1` (`.widget-stage`):
+  ela **estica pela coluna central inteira** e não pinta nada — `background: none; border: none;
+  padding: 0`. Quem pinta é o `.widget-body`, que para no teto de 62vh e na altura do conteúdo.
+  Toda a faixa entre os dois era retângulo transparente com `pointer-events: auto` **exatamente
+  onde o corpo em foco e o buraco negro são desenhados**. O ponteiro mudou de elemento
+  (`index.html`, o bloco `.widget[data-panel-surface]`); o escape do painel VAZIO continua, agora
+  no corpo. Portão: `scripts/lei-palco.mjs` (15 leis + censo).
+  ⭑ **`pointer-events` não move um pixel** — a moldura ocupa o mesmo espaço, com o mesmo conteúdo,
+  no mesmo lugar. Muda só quem recebe o gesto onde não há nada desenhado.
+  ⚠️ **O `.scroll` precisava entrar no escape do vazio**, e essa metade faltava desde o conserto
+  anterior: `pointer-events` não é herança que descendente respeite — um filho com `auto` volta a
+  ser alvo sob ancestral `none`, e `.scroll` declara `auto` por conta própria.
+  ☠️ **FICA POR PROVAR NA TELA** (esta sessão não abriu navegador): quanto de céu voltou, por rota.
+  A grandeza é `spatia.hud().painelDePalco.aoPonteiro / ponteiro.pontos` — que deve cair para a
+  fração do CORPO — contra `painelDePalco.fracaoJanela`, que é a caixa da MOLDURA e **não muda**;
+  a diferença entre as duas é a zona morta devolvida, e ela reaparece em `ponteiro.fracaoAoCanvas`.
+  ⚠️ **E `painelDePalco.aceitaPonteiro` passou a ler a moldura, que agora cede sempre.** Ele lê o
+  `pointer-events` do nó `[data-panel-surface]`, então responde `false` com o painel cheio — o que
+  é verdade sobre a moldura e mentira sobre o painel. **A medida honesta é `aoPonteiro`**, que
+  conta pontos da subárvore inteira. O comentário do bloco `⟦sonda-hud⟧` (`src/main.js`) ainda diz
+  que o escape só desarma o painel vazio, e essa frase envelheceu junto.
+
+- **T-52 FECHADO** — a linha some quando um painel **VISÍVEL** já a afirma, e no lugar dela entra
+  UMA linha que nomeia o painel e carrega **todos os `[n]` do grupo** como marca clicável. Portão:
+  `scripts/lei-referencia.mjs` (28 leis, 8 mutações vistas caindo, cada uma nomeada).
+  ☠️ **A linha nunca é APAGADA, só APONTADA.** `[n]` é contrato com o prompt (`EVENTS.md`,
+  `agent.py`, `sources_of`) e **o painel não mostra número nenhum**: apagar a linha levando o
+  número junto tiraria da tela a única coisa que a lista tinha de exclusiva, e `citeMark`
+  desenharia riscada uma fonte real.
+  ☠️ **«Montado» não vale por «mostrando».** A conferência é por FONTE, contra o DOM em vigor, e
+  falha para o lado seguro em quatro pontos — nó no sótão, painel recolhido, resultado que o painel
+  podou (`WEB_LIMIT`, `hud/streams.js`), moldura sem título. **Duas medidas que a varredura do
+  briefing não tinha e que mudam a conta:** o painel de web guarda 8 de 18, e na rota raiz os dois
+  painéis são irmãos da fenda `right` — o acordeão (`kernel/widgets.js`) recolhe os irmãos ao abrir
+  um, então «os dois abertos» é o estado de quem nunca clicou, não o estado normal.
+  ⚠️ **A repintura segue a TELA e não o `ui.route`:** o router emite a rota **antes** do
+  `host.apply` (que mora no `setTimeout` do voo), e repintar ali leria o mount ANTERIOR. Quem avisa
+  são dois `MutationObserver` — moldura entrando/saindo da fenda, e `data-collapsed`.
+  ⭑ **O número por rota continua saindo do censo de `node scripts/lei-residentes.mjs` (§5)**, nunca
+  deste parágrafo: `memory` 1/10 · `tools` 1/10 · `plan` 1/10 · `web-results` 2/10 contra `answer`
+  10/10. **Cortar `MEMORY_LIMIT` segue refutado** — ele alimenta o modelo (`agent.py`), então
   encolheria a RESPOSTA, não a tela.
+  ☠️ **Fica por PROVAR na tela** (esta sessão não abriu navegador): que a linha apontada caiba na
+  régua de `.source` sem quebrar em duas, que as marcas `.cite` de um grupo de oito não transbordem
+  a terceira coluna do grid, e quanto a lista de fato encolhe por rota. `spatia.hud().fontes` e
+  `.fendas[].alturaPx` respondem as três.
 
-- **T-47** — `.answer` tem teto (`max-height: 36vh`), rolagem e scrim em gradiente
-  (`index.html:442-456`); `.sources` não tem nenhum dos três (`index.html:494`). O que transborda
-  não rola: **some**, porque `.widget-body` é `overflow: hidden` (`index.html:714`) — a mesma forma
-  de falha que `index.html:332-336` já nomeou (*"conteúdo cortado sem barra … lê como bug"*).
-  ⚠️ **Fundo opaco está refutado por escrito** em `hud/yield.js:11-15`: a HUD hairline vive de pouco
-  contraste. A saída é o scrim que o `.answer` já usa.
+- **T-47 FECHADO** — `.sources` ganhou `max-height: 20vh`, `overflow-y: auto`, `pointer-events: auto`
+  (barra que não se pode agarrar é enfeite — lição 1 do `.surface`) e o scrim em gradiente do
+  `.answer`, **sem** `backdrop-filter` (o segundo passe de composição compraria contraste que o
+  `text-shadow` do `#hud` já dá). ⚠️ **Fundo opaco continua refutado** por `hud/yield.js:11-15`.
+  ☠️ **O teto é da VISTA, nunca da lista** — truncar em JS apagaria o destino de um `[n]` já escrito,
+  e a citação passaria a ser desenhada como inventada. As 24 ficam no DOM; o clique em `[n]` rola
+  até a linha (`deslocamentoAte`, e **não** `scrollIntoView`, que rolaria o `.widget-body`
+  `overflow: hidden`), e o total viaja publicado num cabeçalho grudado — o mesmo desenho do teto de
+  28 arcos da rede (`apps/context.js`, `legenda()`).
+  ⭑ A conta do teto virou EXATA: `.source` declara `line-height: 1,45` (passo 15,05 px → ~7 linhas
+  à vista em 742 px). Sem ele a altura era `normal` e o "≈305 px" da varredura era estimativa.
+  Portão: `scripts/lei-fontes.mjs` (25 leis, 13 mutações vistas caindo, cada uma nomeada).
+  ⚠️ **Por provar na tela** (a sessão que entregou não abriu navegador): as 7 linhas cabendo, a
+  barra aparecendo com `scrollbar-color`, e `.answer` 36 vh + `.sources` 20 vh + meta dentro da
+  altura do palco. `spatia.hud().fontes` e `.fendas[].alturaPx` respondem.
 
-- **T-49 / T-50** — a assimetria é dentro da própria base: `core/tela.js:39` recusa chave fora do
-  vocabulário de camada e `scripts/lei-cena.mjs` faz o mesmo pela cena; `registry.js:117` espalha
-  `...contract` sem conferir nada, então `surafce: true` nasceria sem fundo e sem ninguém acusar.
-  `br-deliveries` (`apps/index.js:1158-1161`) é o único widget de palco sem `surface: true` — o
-  defeito que `index.html:839-842` já descreveu quando a página de configuração nasceu sem fundo.
+- **T-49 / T-50** — ⭑ **o portão existe:** `VOCABULARIO_DO_WIDGET` e `FENDAS` em
+  `kernel/registry.js` nomeiam o que o contrato aceita, o que cada fenda EXIGE declarado e o que ela
+  proíbe; `registerWidget` recusa NO REGISTRO e `scripts/lei-catalogo.mjs` prova as duas recusas por
+  perturbação (12 mutações vistas caindo, cada uma nomeada).
+  ☠️ **Faltam TRÊS linhas, e enquanto elas não entrarem a lei sai 1 e o boot morre em
+  `registerApps()`** — todas em território que T-49 não podia tocar:
+  1. `apps/index.js:1161` (`br-deliveries`) → `surface: true,` — é T-50.
+  2. `apps/widgets-core.js:67` (`answer`) → `surface: false,`. **`br-deliveries` NÃO era o único
+     widget de palco sem `surface`**: o `answer` também não declara, e a decisão dele é legítima
+     (o palco não leva moldura) — o que faltava era DIZÊ-LA.
+  3. `apps/widgets-core.js:79` → tirar o padrão `surface = false` de `listWidget`. Enquanto ele
+     existir, o invólucro FABRICA a decisão e o registro nunca vê a ausência — o portão em runtime
+     fica armado sobre um valor que ninguém declarou.
+  ⚠️ **A varredura da fonte (§4 da lei) é o que alcança o que o invólucro engole:** `surafce: true`
+  num `listWidget({…})` some na desestruturação antes do registro, e só a auditoria da declaração
+  acusa. Contagem de hoje, do `node scripts/lei-catalogo.mjs`: **46 declarações · 44 passam · 9 no
+  palco**.
 
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
@@ -482,4 +552,4 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |
 | `integracao-organica.md` | T-23 | decisão do usuário |
 | `features-widgets.md` | T-21 | decisão do usuário |
-| `hud-e-canvas.md` | T-46 … T-53 | a sonda da HUD existir, os residentes terem portão e T-53 estar decidida |
+| `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; faltam T-49/T-50 e T-53 estar decidida |

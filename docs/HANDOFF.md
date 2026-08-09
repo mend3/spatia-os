@@ -87,7 +87,7 @@ o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
 
 | guarda | quando |
 |---|---|
-| **`node scripts/leis.mjs`** | ☠️ **SEMPRE.** Roda os 22 em ~3,6 s e sai 1 se qualquer um cair. Está no `pre-commit`; clone novo pede `sh scripts/instalar-hook.sh` |
+| **`node scripts/leis.mjs`** | ☠️ **SEMPRE.** Roda os 24 em ~4,1 s e sai 1 se qualquer um cair (o próprio comando imprime os dois números). Está no `pre-commit`; clone novo pede `sh scripts/instalar-hook.sh` |
 
 ⚠️ **A tabela por-guarda saiu daqui.** Ela dizia *quando* rodar cada um, e escolher era exatamente
 como os defeitos passavam — quatro guardas foram flagrados sem guardar o que diziam na mesma
@@ -276,6 +276,17 @@ giro do planeta, chegada de foco — e tudo que não depende de tempo continua d
 > por URL antes de ativar, senão você ativa outra aba e acha que o app é que está morto.
 > ⭑ **`mesmoQuadro()` é imune** — ele não precisa que o tempo ande, só que a GPU desenhe.
 
+⚠️ **`spatia.hud()` é a exceção, e saber disso evita descartar uma medida boa.** Ela lê LAYOUT
+(`elementFromPoint`, `getBoundingClientRect`), que continua vivo em aba oculta — `quadros` não é
+guarda dela, e exigir que ande faria alguém jogar fora o único número que T-52 tem. ☠️ **E o
+inverso vale:** ela não prova nada sobre o que a cena DESENHOU. As duas guardas continuam
+obrigatórias para toda sonda de cena.
+> ☠️ **`painelDePalco.aceitaPonteiro` lê a MOLDURA, e desde T-51 a moldura cede sempre.** Ele
+> devolve `false` com o painel cheio de conteúdo — verdade sobre a moldura, mentira sobre o painel.
+> **A medida honesta é `painelDePalco.aoPonteiro`** (pontos da subárvore inteira) contra
+> `painelDePalco.fracaoJanela` (a caixa da moldura, que o conserto **não** mudou): a diferença entre
+> as duas É a zona morta devolvida, e ela reaparece em `ponteiro.fracaoAoCanvas`.
+
 ⚠️ **`spatia.galaxy().tempo` não serve de detector de VIDA, mas serve de detector de RELÓGIO.** Ele ficou em `85,4838` em **três chamadas
 seguidas** enquanto o trace registrava **120 quadros/s** — congelado de forma perfeitamente
 plausível, que é a pior espécie. Detectores que se provaram: `spatia.universo.pixels().quadros`, e
@@ -370,9 +381,17 @@ OPERADOR, não defeito. Confira essa chave antes de acusar a tela de não desenh
 > (rota, widget) — recolher `context` em `#/files` recolhe `context` nas dez rotas. Um clique deixa
 > até 3 painéis do trilho como cabeçalho puro, para sempre.
 > ⚠️ **A outra causa de "o painel não está aí" é o MANIFESTO, e não é defeito:** `memory`, `tools` e
-> `plan` estão em **1 das 10** listas de widgets (só `SYSTEM_VIEW`), `vitals` e `web-results` em 2 —
+> `plan` estão em **1 das 10** listas de widgets (só a rota raiz), `vitals` e `web-results` em 2 —
 > enquanto `answer` está nas 10. **A resposta é residente; os painéis que ela duplica não são.**
-> A terceira causa É defeito, e é T-48: `#/security` não monta `timeline`.
+> A contagem por rota sai do censo de `node scripts/lei-residentes.mjs` (§5), nunca deste parágrafo.
+> ⭑ **A terceira causa era DEFEITO e está fechada (T-48):** quem é residente está em `RESIDENTES`
+> (`src/apps/residentes.js`) e `declararApp` recusa a rota que não o monta — antes disso a regra
+> era prosa em dois lugares e `#/security` não montava `timeline`.
+> ⭑ **E a lista de fontes deixou de repetir o painel (T-52):** a linha sai quando um painel
+> VISÍVEL já a afirma — montado, aberto, e com a linha DESTA fonte dentro — e vira uma linha que
+> nomeia o painel com todos os `[n]` do grupo. ☠️ **«Montado» não vale por «mostrando»:** o painel
+> de web guarda `WEB_LIMIT` de 18, e o acordeão deixa no máximo um dos dois irmãos de `right`
+> aberto. Portão: `scripts/lei-referencia.mjs`.
 
 ☠️ **`cena().quadros` CONTA SÓ O UNIVERSO — no AGENTE ele congela.** Usá-lo como prova de vida ao
 medir a cena AGENTE devolve "não mudou" com a tela parada, que é a armadilha do §4 com o contador
@@ -507,6 +526,40 @@ quando a medida atravessa as duas cenas.
     ⚠️ **A família é maior que este caso:** antes de contar, limitar ou expirar qualquer coisa por
     um id que veio do CLI, pergunte se ele muda na frequência que você supõe. Portão:
     `python3 -m server.lei_fio`, lei 3.
+
+25. ☠️ **O ORÁCULO SATISFEITO PELO VIZINHO — e a MUTAÇÃO que erra o alvo é a mesma doença.** Três
+    vezes na mesma sessão, e todas com o oráculo VERDE: (a) a lei que exigia `flex: 0 0 auto` nos
+    filhos de `.sources` casava qualquer seletor terminado em `*` e passava pelo `.surface > *`, que
+    fala de outro elemento; (b) a lei que proibia `scrollIntoView` varria o arquivo COM comentários
+    e era satisfeita pela prosa que explica a proibição; (c) duas mutações de prova editaram o
+    `.answer` e o `.aviso-detail`, que têm o MESMO texto CSS do alvo — a lei ficou verde sobre uma
+    mutação que nunca a tocou, que é o jeito mais barato de atestar guarda inexistente.
+    ⭑ **A guarda é uma só:** toda mutação de prova tem de ser vista derrubando a lei que ela ataca
+    **pelo nome** — verde depois de mutar é resultado a INVESTIGAR, nunca a comemorar. E o alvo do
+    oráculo se ancora no próprio elemento (o último composto do seletor, o código sem comentário),
+    nunca numa forma que o vizinho também tem.
+
+26. ☠️ **CAIXA QUE POSICIONA NÃO É CAIXA QUE PINTA, e a HUD cobra o gesto pela primeira.** Sobre o
+    céu o custo de uma superfície **não é a tinta dela, é a caixa dela**: os cinco ouvintes de
+    gesto da cena estão presos ao `canvas` e não há em `window` quem reencaminhe, então
+    `pointer-events: auto` num retângulo transparente **cancela** órbita, zoom e pick ali — não
+    disputa, cancela, e nada acusa. A moldura do painel de palco era `flex: 1` e esticava pela
+    coluna central inteira enquanto quem pinta (`.widget-body`) parava em 62vh; a faixa entre as
+    duas ficava morta em cima do corpo em foco.
+    ⭑ **A regra, e ela vale para superfície nova:** quem PINTA reivindica; quem só POSICIONA cede.
+    ⚠️ **E `pointer-events` NÃO é herança que descendente respeite:** filho com `auto` volta a ser
+    alvo sob ancestral `none` — é assim que o `#hud` funciona de propósito, e é como um escape que
+    zera só o pai continua reivindicando pelo `.scroll` de dentro. Portão: `scripts/lei-palco.mjs`.
+
+27. ☠️ **`ui.route` CHEGA ANTES DOS WIDGETS — quem repinta nele lê o mount ANTERIOR.** O router
+    emite a rota e só então agenda `host.apply` dentro do `setTimeout` do voo
+    (`kernel/router.js`), então um assinante que consulte o DOM nesse evento vê os widgets da rota
+    de onde se está SAINDO. É a armadilha do §4 («a sonda lida na mesma chamada que emite vem
+    velha») no barramento, e o conserto por temporizador seria um número escolhido para a foto
+    fechar. ⭑ **O que muda é observável e tem observador:** `MutationObserver` de `childList` nas
+    quatro fendas pega a moldura entrando e saindo; um de `attributeFilter: ['data-collapsed']`
+    pega o operador recolhendo. Atributo com `subtree` **não** dispara em `childList`, então o
+    stream de tokens não repinta nada. Quem usa isso hoje é a lista de fontes (`hud/answer.js`).
 
 **E a régua desta base:** quando o usuário descreve um sintoma, **a descrição dele geralmente já é o
 diagnóstico**. Meça o que ele apontou antes de propor hipótese própria — e quando uma medida sua

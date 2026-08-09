@@ -62,14 +62,18 @@ export const DIRTY_LABELS = {
 };
 
 /*
- * ⚠️ A tabela estado→família vive no CATÁLOGO, e aqui era uma segunda cópia dela.
+ * ⚠️ **Não há mais tabela estado→família: o estado É a chave.**
  *
- * `RING_BY_STATE` já dizia `modified: {family: 'saturn'}` e este módulo repetia o mesmo mapa com
- * outro nome. Duas cópias que ninguém obriga a concordar é o defeito que este projeto já pagou
- * quatro vezes (`OMEGA_P`, o pulso, a régua do anel, o piso de aspecto): as duas parecem certas
- * isoladamente e divergem no dia em que alguém edita uma. Agora há um dono só.
+ * Havia duas cópias do mapa (aqui e no catálogo), e depois uma indireção
+ * (`modified → 'saturn'`) que só trocava um nome por outro. `RING_FAMILIES` passou a ser indexado
+ * pelo próprio estado do git — o nome do planeta continua escrito lá, no campo `planeta`, porque é
+ * dele que os números são, mas ele deixou de ser CHAVE. Chave é o que o anel SIGNIFICA.
+ *
+ * A queda do `saturn` como chave não é cosmética: desde as aparências nomeadas existe
+ * `assets/textures/saturn.jpg`, e o mesmo nome designava o perfil de anel e a pele escolhida pelo
+ * operador — mesma palavra, duas grandezas.
  */
-const familyOf = (state) => (RING_BY_STATE[state] ?? RING_BY_STATE.modified).family;
+const familyOf = (state) => (state in RING_BY_STATE ? state : 'modified');
 
 /*
  * O raio da estrela NÃO é constante aqui — ele chega por `radiusOf` em `follow`.

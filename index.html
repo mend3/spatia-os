@@ -491,8 +491,79 @@
 
   .answer-meta { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.2em; }
 
-  .sources { display: flex; flex-direction: column; gap: 2px; max-width: min(680px, 94%); width: 100%; padding: 0 18px; }
-  .source { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; font-size: 9px; color: var(--ink-faint); }
+  /*
+    A LISTA DE FONTES — teto, rolagem, scrim, e o CORTE PUBLICADO.
+
+    Ela nasceu sem os quatro. As 24 linhas do caso normal não são amostra: são
+    `MEMORY_LIMIT` 6 (`server/agent.py`) + `MAX_RESULTS` 6 (`server/websearch.py`) × os provedores
+    com chave — um provedor a mais são mais seis linhas, por construção. Sem teto elas empilham
+    sobre o disco de acreção, e o que passa da altura do palco não rola: **SUMIA**, porque
+    `.widget-body` é `overflow: hidden`. É o modo de falha desta base — a tela deixa de afirmar sem
+    acusar — e aqui ele é pior que em outros lugares, porque `[n]` é CONTRATO com o prompt
+    (`agent.sources_of`, `EVENTS.md`): a linha que some leva junto o destino de uma citação que
+    continua escrita na resposta.
+
+    As quatro peças, e nenhuma sozinha basta:
+
+    1. TETO (`max-height`) — e ele é do CSS, NUNCA do JS. Cortar a lista em JS jogaria fora fontes
+       que o modelo citou; cortar a VISTA deixa as 24 no DOM, alcançáveis pela rolagem e pelo
+       clique na citação (`hud/answer.js`, `deslocamentoAte`).
+    2. ROLAGEM (`overflow-y: auto`), e ela anda em par com o PONTEIRO: o `#hud` é
+       `pointer-events: none`, e barra que não se pode agarrar é enfeite — é a lição 1 do
+       `.surface`, que já custou um painel com `overflow-y: auto` que mesmo assim não rolava.
+       ⚠️ O preço é uma zona morta sobre o canvas (~680×20vh), que CANCELA órbita e zoom nesse
+       retângulo. É custo DECLARADO, não descoberto: quem o mede é `spatia.hud().ponteiro`, e a
+       zona morta do palco é T-51.
+    3. SCRIM em GRADIENTE, o mesmo do `.answer` — nunca fundo opaco: `hud/yield.js` já mediu que a
+       HUD hairline vive de pouco contraste e o perderia com painel sólido. Sem `backdrop-filter`
+       aqui: o `.answer` logo acima já paga um passe de composição, e o segundo compraria
+       contraste que o gradiente e o `text-shadow` do `#hud` já dão.
+    4. O CORTE PUBLICADO (`.sources-total`, grudado no topo) — a peça que impede o teto de mentir.
+       O precedente é o teto de 28 arcos da rede, que viaja com o `total` real ao lado
+       (`apps/context.js`, `legenda()`): *"truncamento silencioso lê como 'isto é tudo o que
+       existe'"*. Com o cabeçalho dizendo 24 e sete linhas à vista, o corte está DITO.
+
+    A ARITMÉTICA do teto, e ela só é exata porque `line-height` é DECLARADO abaixo:
+
+        node -e 'const l=9*1.45, p=l+2, v=742*0.20-20-21; console.log(l, p, Math.floor(v/p))'
+        # 13.05 (linha) · 15.05 (passo) · 7 (linhas à vista)
+
+    20vh na janela de 742px CSS (a do §6 do `HANDOFF.md`) = 148,4px; menos 20px de padding e ~21px
+    de cabeçalho sobram ~107px → **7 linhas à vista, 24 no DOM**. Em janela maior cabem mais, e é
+    isso que o teto em `vh` compra.
+    ⚠️ Sem `line-height` declarado a altura da linha é `normal` (~1,2, e depende da fonte): a conta
+    vira estimativa, que foi como o "≈305px" da varredura nasceu sem procedência.
+    Portão: `scripts/lei-fontes.mjs`.
+  */
+  .sources {
+    display: flex; flex-direction: column; gap: 2px;
+    max-width: min(680px, 94%); width: 100%;
+    max-height: 20vh;
+    overflow-y: auto; overscroll-behavior: contain;
+    pointer-events: auto;
+    scrollbar-width: thin; scrollbar-color: var(--amber-dim) transparent;
+    padding: 10px 18px;
+    background: linear-gradient(180deg, rgba(4,6,10,0) 0%, rgba(4,6,10,0.82) 12%, rgba(4,6,10,0.82) 88%, rgba(4,6,10,0) 100%);
+  }
+  /* Sem resposta não há lista, e uma caixa vazia que reivindica o ponteiro é zona morta de graça. */
+  .sources:empty { display: none; }
+  /* Lição 3 do `.surface`: item de flex ENCOLHE por padrão — sem isto as linhas se espremem dentro
+     do teto em vez de transbordar, e não sobra o que rolar. */
+  .sources > * { flex: 0 0 auto; }
+  /*
+    O TOTAL fica GRUDADO no topo: rolar não pode levar embora a única coisa que diz quantas são.
+    Opaco o bastante para as linhas passarem POR BAIXO — texto hairline sobre texto hairline é
+    ilegível nos dois. As margens negativas o fazem cobrir o padding da caixa, senão a primeira
+    linha reaparece pelas beiradas.
+  */
+  .sources-total {
+    position: sticky; top: 0; z-index: 1;
+    margin: -10px -18px 2px; padding: 10px 18px 3px;
+    background: rgba(4, 6, 10, 0.92);
+    color: var(--amber-faint); font-size: 8px; letter-spacing: 0.2em;
+  }
+  /* `line-height` DECLARADO: é ele que torna o teto acima uma conta, e não uma estimativa. */
+  .source { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; font-size: 9px; line-height: 1.45; color: var(--ink-faint); }
   .source-n { color: var(--amber-dim); }
   .source-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; text-decoration: none; color: inherit; }
   .source-label:hover { color: var(--amber); }
@@ -816,36 +887,59 @@
   .widget[data-panel-surface] {
     align-items: stretch; justify-content: flex-start;
     /*
-      As lições 1 e 2 valem aqui TAMBÉM, e por herança nenhuma: o widget recebe o ATRIBUTO
-      `data-panel-surface`, não a classe `.surface` (a classe traz fundo e rolagem próprios, que
-      no palco moram no `.widget-body` para o título poder grudar). Ao refatorar, estas três
-      linhas foram removidas supondo herança que não existia, e o painel voltou a ser
-      atravessado pelo ponteiro — `elementFromPoint` no centro dele devolvia CANVAS de novo.
+      ☠️ A MOLDURA NÃO REIVINDICA O PONTEIRO — ela não pinta nada, e reivindicava o palco INTEIRO.
+
+      A lição 2 vale aqui e por herança nenhuma: o widget recebe o ATRIBUTO `data-panel-surface`,
+      não a classe `.surface`, e a elevação tem de ser declarada de novo. Já a lição 1 (o ponteiro)
+      estava no elemento ERRADO, e a diferença é de área, não de estilo.
+
+      A moldura é `flex: 1` dentro do palco (`.widget-stage`) — ela ESTICA até a altura da coluna
+      central inteira, enquanto o que pinta é o `.widget-body`, que para em `max-height: 62vh` e na
+      altura do próprio conteúdo. Tudo entre o fim do corpo e o fim da coluna era retângulo
+      transparente com `pointer-events: auto` sobre o céu: e um retângulo desses não DISPUTA o
+      clique, ele CANCELA órbita, zoom e pick ali (os cinco ouvintes de gesto da cena estão presos
+      ao `canvas`, `space/scene.js`, sem fallback em `window`). O corpo em foco e o buraco negro são
+      desenhados exatamente no meio dessa faixa.
+
+      O escape que existia só cobria o painel VAZIO, que é o caso raro — em 7 das 10 rotas o painel
+      nasce com conteúdo e a zona morta ficava de pé o tempo todo.
+
+      A REGRA, e ela vale para qualquer superfície nova sobre o céu:
+      **quem PINTA reivindica; quem só POSICIONA cede.** Aqui quem pinta é o `.widget-body`.
+      `pointer-events` não move um pixel: a moldura continua ocupando o mesmo espaço, com o mesmo
+      conteúdo, no mesmo lugar — o que muda é quem recebe o gesto onde não há nada desenhado.
+      Portão: `scripts/lei-palco.mjs`.
     */
-    pointer-events: auto;
+    pointer-events: none;
     position: relative; z-index: 8;
     /* A moldura NÃO rola em si: quem rola é o `.widget-body`, para o título ficar grudado. */
     overflow: visible;
     background: none; border: none; padding: 0; backdrop-filter: none;
   }
   /*
-    O LEITOR EM REPOUSO NÃO ROUBA O PONTEIRO — e roubava, no pior lugar possível.
-
-    A moldura mede ~448×436px e fica no centro do palco, que é exatamente onde o astro em foco é
-    desenhado. Com `pointer-events: auto` ela criava uma zona morta em cima dele: roda e arraste
-    iam para o painel e a câmera não respondia. Reportado como "não consigo dar zoom nem controlar
-    a câmera quando o astro está em foco — se eu afastar o mouse para as laterais, funciona", e
-    `document.elementFromPoint` no centro da tela confirmava, devolvendo a `section.widget` em vez
-    do canvas.
+    O LEITOR EM REPOUSO NÃO ROUBA NEM O PRÓPRIO FUNDO.
 
     O ponteiro só é necessário quando há o que ROLAR ou SELECIONAR. Em repouso o conteúdo é uma
     dica de uma linha — nem uma coisa nem outra. `:only-child` é o que separa os dois estados: com
     um arquivo aberto o painel volta a capturar, porque aí ele é um documento.
+
+    ⚠️ E o `.scroll` PRECISA estar na regra. Ele declara `pointer-events: auto` por conta própria
+    (a caixa rolável dos trilhos), e `pointer-events` não é herança que um descendente respeite:
+    um filho com `auto` volta a ser alvo mesmo sob um ancestral `none`. Cedendo só o corpo, a
+    faixa de uma linha do `.scroll` continuava reivindicando — pouco, e do jeito que esta base
+    perde guarda: em silêncio.
   */
-  .widget[data-panel-surface]:has(> .widget-body > .scroll > .widget-empty:only-child) {
+  .widget[data-panel-surface]:has(> .widget-body > .scroll > .widget-empty:only-child) > .widget-body,
+  .widget[data-panel-surface]:has(> .widget-body > .scroll > .widget-empty:only-child) > .widget-body > .scroll {
     pointer-events: none;
   }
   .widget[data-panel-surface] > .widget-body {
+    /*
+      ☠️ QUEM PINTA REIVINDICA. Esta é a caixa que tem fundo, borda e rolagem — e é ela, não a
+      moldura, que pode cobrar o gesto ao céu. Ela para na altura do conteúdo (teto de 62vh);
+      a moldura estica pela coluna toda, e por isso cede (ver o bloco acima).
+    */
+    pointer-events: auto;
     align-items: stretch;
     /* Vertical apenas, como pedido: linha longa quebra (`chunk-text` já faz word-break) em vez
        de criar uma segunda barra que rola o texto para fora da leitura. */

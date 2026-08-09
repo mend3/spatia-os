@@ -26,8 +26,10 @@ Três decisões de fundação já tomadas, repetidas aqui porque tudo abaixo dep
 
 - **Tela é destino, não aba.** Um app é um corpo em órbita; abrir é a câmera voar até ele.
   A HUD trocar de widgets é consequência do voo, não o evento.
-- **Widget é contrato** (`id`, `title`, `slot`, `grow`, `mount(host, ctx)`), e não sabe em que
-  app está. O mesmo widget de timeline serve o sistema e os arquivos.
+- **Widget é contrato**, e não sabe em que app está — o mesmo widget de timeline serve o sistema e
+  os arquivos. ⚠️ **As chaves que ele aceita são `VOCABULARIO_DO_WIDGET`** (`kernel/registry.js`), e
+  transcrevê-las aqui faria uma segunda fonte livre para divergir. `registerWidget` recusa chave
+  fora do vocabulário, e `scripts/lei-catalogo.mjs` prova a recusa.
 - **Layout é do produto.** O app declara os widgets e a ordem; o operador não arrasta nada.
 
 ### Convenção de fendas
@@ -44,12 +46,16 @@ cada app vai inventar a sua e o sistema deixa de parecer um sistema:
 
 ### O conjunto residente
 
-`core.prompt` e `core.timeline` entram na lista de widgets de **todos** os apps. O host de
-widgets preserva o que continua declarado, então eles atravessam a navegação sem remontar —
-o foco do prompt e o histórico da timeline sobrevivem ao voo.
+Alguns widgets entram na lista de **todos** os destinos. O host de widgets preserva o que continua
+declarado, então eles atravessam a navegação sem remontar — a leitura sobrevive ao voo.
 
 Isso não é conveniência, é a diferença entre um ambiente e um painel de configuração: um OS
 onde você não pode perguntar nada enquanto está na tela de armazenamento é um OS modal.
+
+⚠️ **Quais são, e por que cada um, é o que `RESIDENTES` declara** (`src/apps/residentes.js`), e
+transcrevê-los aqui faria uma segunda fonte livre para divergir — foi com a regra escrita em dois
+lugares e imposta em nenhum que uma das dez rotas ficou sem a sua. `declararApp` recusa no
+registro a lista incompleta, e `scripts/lei-residentes.mjs` prova a recusa.
 
 ### Painel ou destino
 

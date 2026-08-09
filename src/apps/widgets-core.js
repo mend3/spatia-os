@@ -65,6 +65,9 @@ export function registerCoreWidgets() {
     id: 'answer',
     title: 'RESPOSTA',
     slot: 'stage',
+    // DECIDIDO que não: a resposta é prosa sobre o céu, e a moldura a transformaria numa janela
+    // opaca no centro do palco. `surface` ausente seria "ninguém decidiu", que a fenda recusa.
+    surface: false,
     mount(host) {
       const nodes = ['[data-answer-dismiss]', '[data-answer]', '[data-answer-meta]', '[data-sources]']
         .map((selector) => document.querySelector(selector) || stow().querySelector(selector))
@@ -75,8 +78,18 @@ export function registerCoreWidgets() {
   });
 }
 
-/** Helper para os apps novos: lista simples com cabeçalho e linhas, no estilo hairline. */
-export function listWidget({ id, title, hint = '', slot, grow = 0, surface = false, collapsed = false, render }) {
+/**
+ * Helper para os apps novos: lista simples com cabeçalho e linhas, no estilo hairline.
+ *
+ * ☠️ **`surface` não tem padrão, e isso é o contrato — não descuido.** O palco EXIGE `surface`
+ * declarado (`FENDAS.stage.exige`, `kernel/registry.js`), e um padrão aqui FABRICA a decisão que
+ * o app nunca tomou: o registro recebia `false` sem ter como saber que ninguém disse nada, e o
+ * portão que recusa palco sem fundo passava a nunca alcançar quem usa este invólucro. Foi assim
+ * que `br-deliveries` nasceu no palco sem moldura e o disco de acreção atravessou o texto.
+ * Sem padrão, a ausência chega inteira ao registro e estoura no boot, com o nome do culpado.
+ * `scripts/lei-catalogo.mjs` §4 acusa qualquer padrão para chave que alguma fenda exija.
+ */
+export function listWidget({ id, title, hint = '', slot, grow = 0, surface, collapsed = false, render }) {
   return registerWidget({
     id,
     title,

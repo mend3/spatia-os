@@ -8,7 +8,7 @@
  * ⚠️ **Só o que está VIVO.** O que terminou vai para `#/journal`. Vivo e morto na mesma lista é o
  * que transforma uma tela acionável numa tela de leitura.
  */
-import { registerApp } from '../kernel/registry.js';
+import { declararApp } from './residentes.js';
 import { listWidget } from './widgets-core.js';
 import { el, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
@@ -74,7 +74,7 @@ export function registerActivity() {
   registerThrottle();
   registerProcesses();
 
-  registerApp({
+  declararApp({
     id: 'activity',
     name: 'ATIVIDADE',
     tagline: 'o que roda agora, e como parar',

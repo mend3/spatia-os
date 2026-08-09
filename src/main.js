@@ -31,7 +31,7 @@ import { registrarTipoDeCorpo } from './core/cena-atual.js';
 import { createYield } from './hud/yield.js';
 import { createWidgetHost } from './kernel/widgets.js';
 import { createRouter, ROUTE_ROOT } from './kernel/router.js';
-import { listApps } from './kernel/registry.js';
+import { listApps, listWidgets, getApp } from './kernel/registry.js';
 import { registerApps, SYSTEM_VIEW, closeFileReader } from './apps/index.js';
 import * as tuning from './core/tuning.js';
 import * as prefs from './core/prefs.js';
@@ -46,6 +46,370 @@ const hud = document.getElementById('hud');
 const canvas = document.getElementById('space');
 const bootRoot = document.getElementById('boot');
 const bodyLayer = document.getElementById('bodies');
+
+/* ⟦sonda-hud⟧ ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * A SONDA DA HUD — quanto da janela a interface reivindica AO PONTEIRO, e o que está recolhido.
+ *
+ * ☠️ **A grandeza é ÁREA QUE ACEITA PONTEIRO, nunca área desenhada.** Todo ouvinte de gesto da
+ * cena está preso ao `canvas` (`space/scene.js`), e não há em `window` quem reencaminhe o gesto:
+ * um retângulo com `pointer-events: auto` por cima do céu não DISPUTA o clique — ele impede que
+ * o evento exista para a cena, sem fallback e sem nada acusar. Medir pixel pintado responderia outra
+ * pergunta, e responderia errado nos dois sentidos: a HUD é hairline (quase toda transparente,
+ * e mesmo assim reivindica) e o painel de palco tem fundo opaco que às vezes CEDE o ponteiro.
+ *
+ * O instrumento é `document.elementFromPoint`, que já honra `pointer-events` por especificação —
+ * ele devolve quem RECEBERIA o gesto naquele ponto, e é o mesmo teste que diagnosticou a zona
+ * morta do leitor de arquivo. A varredura é uma grade de passo DECLARADO sobre a janela inteira;
+ * ela substitui os 45 pontos avulsos de `hud/yield.js` por comportamento permanente.
+ *
+ * ## Nada aqui é lista branca
+ *
+ * A atribuição não escolhe elementos: varre a janela toda e sobe do alvo até achar IDENTIDADE
+ * declarada (`data-widget` · `data-slot` · `data-surface` · qualquer `data-*` · `id` · um marco
+ * de HTML). Quem não tem identidade nenhuma é nomeado PELA FORMA e entra em `desconhecidos` —
+ * forma nova ACUSA, nunca é tolerada em silêncio. E `conservacao` confere que nenhum ponto se
+ * perdeu no caminho: soma dos donos + canvas + fundo + nulos tem de dar `pontos`.
+ *
+ * ## Recolhido ≠ não montado ≠ sem controle
+ *
+ * `espatial.collapsed.v1` faz widget recolhido PARECER vazio, e por isso "o painel não apareceu"
+ * tem causas indistinguíveis a olho. Elas saem separadas, e cada uma é um fato diferente:
+ *
+ * | campo | o que significa |
+ * |---|---|
+ * | `recolhidos` | montado nesta rota, e o operador fechou (`data-collapsed="true"`) |
+ * | `abertos` | montado e com corpo visível |
+ * | `semControle` | montado e sem botão de recolher — é a fenda `stage`, que não tem rótulo |
+ * | `naoMontados` | registrado no kernel e ausente desta rota — decisão do manifesto |
+ * | `ausentes` | ☠️ **declarado pela rota e ausente do DOM** — isto é defeito, não decisão |
+ * | `recolhidosForaDaRota` | o operador fechou, e o widget nem está aqui para parecer vazio |
+ *
+ * ## Procedência de todo número
+ *
+ * `passoPx`, `colunas`, `linhas` e `pontos` voltam junto: qualquer fração daqui se refaz por
+ * `pontos_do_dono / pontos`. Fração de ponto é fração de ÁREA porque a grade é uniforme — as
+ * células da borda direita e de baixo são parciais, e é por isso que `colunas`/`linhas` saem por
+ * `ceil` e o ponto é o centro da célula, clampeado dentro da janela.
+ *
+ * ## O que ela NÃO responde
+ *
+ * - **Não diz o que a cena desenhou.** Mede LAYOUT, não quadro; aba oculta não invalida esta
+ *   medida (o layout continua vivo), mas também não a torna prova de que o céu está no ar.
+ * - **Não navega.** Mede a rota que está na tela e CARIMBA `rota` no resultado. Para varrer as
+ *   dez, navegue e colecione — a marca de rota é o que impede misturar duas telas num número só:
+ *
+ *       const r = []; for (const id of ['', 'files', 'system', 'web', 'bridge', 'journal',
+ *                                       'metrics', 'security', 'activity', 'storage']) {
+ *         location.hash = `#/${id}`; await new Promise((f) => setTimeout(f, 900));
+ *         r.push(spatia.hud());
+ *       }
+ *       console.table(r.map((h) => ({ rota: h.rota.id, ponteiro: h.ponteiro.fracaoReivindicada,
+ *                                     recolhidos: h.widgets.recolhidos.length,
+ *                                     ausentes: h.widgets.ausentes.join(',') })));
+ *
+ * - **Não julga legibilidade.** "O painel está na frente" e "o painel tem o mesmo âmbar do anel"
+ *   dão a mesma foto; esta sonda separa o primeiro do segundo e não opina sobre o segundo.
+ */
+
+/** Passo padrão da varredura, em px CSS. Sobrepõe-se com `spatia.hud({ passo: 8 })`. */
+const SONDA_PASSO_PX = 16;
+
+/**
+ * Marcos de HTML que já SÃO identidade, quando não há `data-*` nem `id` no caminho.
+ *
+ * Não é lista de quem pode reivindicar o ponteiro — todo elemento é varrido de qualquer jeito.
+ * É o vocabulário com que a atribuição NOMEIA quem encontrou; fora dele o dono cai em
+ * `desconhecido:`, que é o campo que acusa.
+ */
+const SONDA_MARCOS = new Set(['HEADER', 'FOOTER', 'NAV', 'MAIN', 'ASIDE', 'DIALOG', 'FORM']);
+
+/** A identidade DECLARADA de um nó, da mais específica para a mais grosseira, ou `null`. */
+function sondaIdentidade(no) {
+  const dados = no.dataset || {};
+  if (dados.widget) return `widget:${dados.widget}`;
+  if (dados.slot) return `fenda:${dados.slot}`;
+  if (dados.surface) return `superficie:${dados.surface}`;
+  const chaves = Object.keys(dados);
+  if (chaves.length) return `data-${chaves[0]}`;
+  if (no.id) return `#${no.id}`;
+  if (SONDA_MARCOS.has(no.tagName)) return String(no.tagName).toLowerCase();
+  return null;
+}
+
+/** O nome da FORMA de quem não tem identidade — para acusar em vez de sumir com o ponto. */
+function sondaForma(no) {
+  const classe = typeof no.className === 'string' ? no.className.trim().split(/\s+/)[0] : '';
+  const tag = String(no.tagName || '?').toLowerCase();
+  return `desconhecido:${tag}${classe ? `.${classe}` : ''}`;
+}
+
+const sondaFrac = (v) => (Number.isFinite(v) ? Math.round(v * 1e4) / 1e4 : null);
+const sondaPx = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
+
+/** A caixa de um nó em px CSS e em fração da janela. */
+function sondaCaixa(no, janela) {
+  const r = no.getBoundingClientRect();
+  return {
+    larguraPx: sondaPx(r.width),
+    alturaPx: sondaPx(r.height),
+    esquerdaPx: sondaPx(r.left),
+    topoPx: sondaPx(r.top),
+    fracaoLargura: sondaFrac(r.width / janela.larguraPx),
+    fracaoAltura: sondaFrac(r.height / janela.alturaPx),
+    fracaoJanela: sondaFrac((r.width * r.height) / janela.areaPx2),
+  };
+}
+
+/**
+ * O QUINTO dono do estado de tela, lido cru.
+ *
+ * `formato` distingue os três estados que colapsariam em "vazio": `ausente` é o operador que
+ * nunca decidiu (`fechadas: []` é medida), `ilegivel` é armazém que não respondeu (`null`, que
+ * é *"não medi"*), e `lista` é o formato antigo que `kernel/widgets.js` ainda aceita — lê-lo
+ * como `{}` devolveria zero recolhido para quem tem todos fechados.
+ */
+function sondaOperador(armazem) {
+  let bruto;
+  try {
+    bruto = JSON.parse(armazem?.getItem('espatial.collapsed.v1') ?? 'null');
+  } catch {
+    return { formato: 'ilegivel', fechadas: null, abertas: null };
+  }
+  if (bruto === null || bruto === undefined) return { formato: 'ausente', fechadas: [], abertas: [] };
+  if (Array.isArray(bruto)) return { formato: 'lista', fechadas: [...bruto], abertas: [] };
+  return {
+    formato: 'v1',
+    fechadas: [...(bruto.fechadas || [])],
+    abertas: [...(bruto.abertas || [])],
+  };
+}
+
+/**
+ * @param {object} env
+ * @param {Document} env.doc
+ * @param {Window} env.win
+ * @param {Element} env.canvas       o `<canvas>` da cena — o único destino que NÃO é reivindicação
+ * @param {Element} env.hud          a raiz da HUD, para ler a elevação em vigor
+ * @param {object} env.rota          `tela.estado().rota` — o carimbo do resultado
+ * @param {string[]} env.montados    o que o HOST diz estar montado (cruzado com o DOM)
+ * @param {string[]} env.registrados todo widget conhecido pelo kernel
+ * @param {string[]} env.declarados  o que ESTA rota declara montar
+ * @param {Storage} env.armazem      onde `espatial.collapsed.v1` mora
+ * @param {object} [opcoes]
+ * @param {number} [opcoes.passo]    passo da grade, em px CSS
+ */
+export function medirHud(env, opcoes = {}) {
+  const { doc, win, canvas: tela3d, hud: raizHud, rota, montados, registrados, declarados, armazem } = env;
+  const larguraPx = win.innerWidth;
+  const alturaPx = win.innerHeight;
+  const janela = {
+    larguraPx,
+    alturaPx,
+    areaPx2: larguraPx * alturaPx,
+    dpr: Number.isFinite(win.devicePixelRatio) ? win.devicePixelRatio : null,
+  };
+  const estilo = (no) => (no ? win.getComputedStyle(no) : null);
+  const raiz = doc.documentElement;
+
+  // ───────────────────────────────────────────────── a varredura, ponto a ponto
+  const passoPx = Math.max(2, Math.round(Number(opcoes.passo) || SONDA_PASSO_PX));
+  const colunas = Math.max(1, Math.ceil(larguraPx / passoPx));
+  const linhas = Math.max(1, Math.ceil(alturaPx / passoPx));
+  const pontos = colunas * linhas;
+
+  const porDono = new Map();
+  const porFenda = new Map();
+  let aoCanvas = 0;
+  let aoFundo = 0;
+  let nulos = 0;
+  let reivindicados = 0;
+
+  for (let i = 0; i < colunas; i++) {
+    const x = Math.min(larguraPx - 0.5, (i + 0.5) * passoPx);
+    for (let j = 0; j < linhas; j++) {
+      const y = Math.min(alturaPx - 0.5, (j + 0.5) * passoPx);
+      const alvo = doc.elementFromPoint(x, y);
+      // `null` é ponto fora do documento; contá-lo como canvas inventaria gesto que chega.
+      if (!alvo) { nulos++; continue; }
+      if (alvo === raiz || alvo === doc.body) { aoFundo++; continue; }
+
+      let dono = null;
+      let fenda = null;
+      let noCanvas = false;
+      for (let no = alvo; no; no = no.parentElement) {
+        if (no === tela3d) { noCanvas = true; break; }
+        if (!dono) dono = sondaIdentidade(no);
+        if (!fenda && no.dataset?.slot) fenda = no.dataset.slot;
+        if (no === raiz) break;
+      }
+      if (noCanvas) { aoCanvas++; continue; }
+
+      reivindicados++;
+      const chave = dono || sondaForma(alvo);
+      const registro = porDono.get(chave) || { dono: chave, fenda: fenda ?? null, pontos: 0 };
+      registro.pontos++;
+      porDono.set(chave, registro);
+      const chaveFenda = fenda ?? 'fora';
+      porFenda.set(chaveFenda, (porFenda.get(chaveFenda) ?? 0) + 1);
+    }
+  }
+
+  const donos = [...porDono.values()]
+    .map((d) => ({ ...d, fracaoJanela: sondaFrac(d.pontos / pontos) }))
+    .sort((a, b) => b.pontos - a.pontos);
+  const somaDonos = donos.reduce((t, d) => t + d.pontos, 0);
+  const fendasAoPonteiro = Object.fromEntries(
+    [...porFenda].map(([k, v]) => [k, { pontos: v, fracaoJanela: sondaFrac(v / pontos) }])
+  );
+
+  const ponteiro = {
+    passoPx,
+    colunas,
+    linhas,
+    pontos,
+    aoCanvas,
+    aoFundo,
+    nulos,
+    reivindicados,
+    fracaoAoCanvas: sondaFrac(aoCanvas / pontos),
+    fracaoReivindicada: sondaFrac(reivindicados / pontos),
+    donos,
+    /** ☠️ Forma que a atribuição não soube nomear. Vazio é o normal; cheio é tarefa. */
+    desconhecidos: donos.filter((d) => d.dono.startsWith('desconhecido:')),
+    porFenda: fendasAoPonteiro,
+    /** Nenhum ponto se perde: se `bate` for falso, todo número acima está sob suspeita. */
+    conservacao: {
+      pontos,
+      soma: aoCanvas + aoFundo + reivindicados + nulos,
+      somaDonos,
+      bate: aoCanvas + aoFundo + reivindicados + nulos === pontos && somaDonos === reivindicados,
+    },
+  };
+
+  // ───────────────────────────────────────────────────── a geometria das fendas
+  const fendas = [...doc.querySelectorAll('[data-slot]')].map((no) => {
+    const est = estilo(no);
+    return {
+      fenda: no.dataset.slot,
+      ...sondaCaixa(no, janela),
+      display: est ? est.display : null,
+      montados: [...no.querySelectorAll('[data-widget]')].map((w) => w.dataset.widget),
+      aoPonteiro: fendasAoPonteiro[no.dataset.slot] ?? { pontos: 0, fracaoJanela: 0 },
+    };
+  });
+
+  /*
+   * O painel de palco: `null` quando não há um montado, nunca um objeto de zeros.
+   *
+   * `aceitaPonteiro` é lido do estilo em vigor, não deduzido: o escape do CSS só desarma o
+   * painel quando ele está VAZIO, e a diferença entre "existe e cede" e "existe e captura" é
+   * exatamente a zona morta sobre o corpo em foco.
+   */
+  const painelNo = doc.querySelector('[data-panel-surface]');
+  const estPainel = estilo(painelNo);
+  const painelDePalco = painelNo
+    ? {
+        widget: painelNo.dataset.widget ?? null,
+        ...sondaCaixa(painelNo, janela),
+        pointerEvents: estPainel ? estPainel.pointerEvents : null,
+        aceitaPonteiro: estPainel ? estPainel.pointerEvents !== 'none' : null,
+        aoPonteiro: painelNo.dataset.widget
+          ? (porDono.get(`widget:${painelNo.dataset.widget}`)?.pontos ?? 0)
+          : null,
+      }
+    : null;
+
+  // ────────────────────────────────────────── montado, recolhido e não montado
+  const nos = [...doc.querySelectorAll('[data-widget]')];
+  const montadosNoDom = nos.map((no) => no.dataset.widget);
+  const conjMontados = new Set(montadosNoDom);
+  const decl = [...(declarados ?? [])];
+  const operador = sondaOperador(armazem);
+  const doHost = [...(montados ?? [])];
+
+  const widgets = {
+    declarados: decl,
+    montados: montadosNoDom,
+    recolhidos: nos.filter((n) => n.dataset.collapsed === 'true').map((n) => n.dataset.widget),
+    abertos: nos.filter((n) => n.dataset.collapsed === 'false').map((n) => n.dataset.widget),
+    semControle: nos.filter((n) => n.dataset.collapsed === undefined).map((n) => n.dataset.widget),
+    /** ☠️ Declarado pela rota e AUSENTE do DOM. Não é o operador: é defeito. */
+    ausentes: decl.filter((id) => !conjMontados.has(id)),
+    /** Montado sem a rota ter declarado — a outra ponta do mesmo portão que falta. */
+    intrusos: montadosNoDom.filter((id) => !decl.includes(id)),
+    naoMontados: [...(registrados ?? [])].filter((id) => !conjMontados.has(id)),
+    operador,
+    recolhidosForaDaRota: (operador.fechadas ?? []).filter((id) => !conjMontados.has(id)),
+    /** O host e o DOM discordarem é o host tendo perdido um nó, ou o DOM tendo ganhado um. */
+    divergenciaHost: {
+      soNoHost: doHost.filter((id) => !conjMontados.has(id)),
+      soNoDom: montadosNoDom.filter((id) => !doHost.includes(id)),
+    },
+  };
+
+  /*
+   * A lista de referências, medida em vez de estimada.
+   *
+   * `alturaLinhaPx` é a MEDIDA da caixa de uma linha, não `line-height` — nenhum é declarado
+   * para `.source`, e o computado devolve a palavra `normal` em vez de um número. `null` aqui é
+   * *"não há linha para medir"*, e nunca `0`.
+   *
+   * ⚠️ `ancorado` separa a lista que está NA TELA da que está estacionada no sótão
+   * (`.attic`, em `left: -9999px`): lá a caixa existe, tem 320 px de largura, e a altura dela
+   * não é a altura que o palco produziria.
+   */
+  const contFontes = doc.querySelector('[data-sources]');
+  let fontes = null;
+  if (contFontes) {
+    const linhasFonte = [...contFontes.querySelectorAll('.source')];
+    const caixa = sondaCaixa(contFontes, janela);
+    const est = estilo(contFontes);
+    const alturas = linhasFonte
+      .map((l) => l.getBoundingClientRect().height)
+      .filter((v) => Number.isFinite(v) && v > 0)
+      .sort((a, b) => a - b);
+    const mediana = alturas.length ? alturas[Math.floor(alturas.length / 2)] : null;
+    const estLinha = linhasFonte.length ? estilo(linhasFonte[0]) : null;
+    const fontePx = estLinha ? Number.parseFloat(estLinha.fontSize) : null;
+    fontes = {
+      n: linhasFonte.length,
+      ancorado: caixa.esquerdaPx !== null && caixa.esquerdaPx > -1000,
+      caixa,
+      alturaLinhaPx: sondaPx(mediana),
+      fontePx: Number.isFinite(fontePx) ? fontePx : null,
+      razaoLinha:
+        Number.isFinite(mediana) && Number.isFinite(fontePx) && fontePx > 0
+          ? sondaFrac(mediana / fontePx)
+          : null,
+      lineHeightComputado: estLinha ? estLinha.lineHeight : null,
+      maxHeight: est ? est.maxHeight : null,
+      overflowY: est ? est.overflowY : null,
+    };
+  }
+
+  const estHud = estilo(raizHud);
+  return {
+    quando: new Date().toISOString(),
+    janela,
+    rota: { ...(rota ?? {}) },
+    ponteiro,
+    fendas,
+    painelDePalco,
+    widgets,
+    fontes,
+    /*
+     * A elevação do `#hud` é `:has()`-ada no painel de palco, e o comentário do CSS declara que
+     * elevá-la sempre "mataria a ilusão de profundidade". Com um painel montado ela está de pé.
+     */
+    elevacao: {
+      hudZIndex: estHud ? estHud.zIndex : null,
+      hudPointerEvents: estHud ? estHud.pointerEvents : null,
+      porPainelDePalco: Boolean(painelNo),
+    },
+  };
+}
+/* ⟦/sonda-hud⟧ ═════════════════════════════════════════════════════════════════════════════ */
 
 async function main() {
   if (!canvas.getContext('webgl2') && !canvas.getContext('webgl')) {
@@ -331,6 +695,39 @@ async function main() {
      * e rota lidas em leituras diferentes podem discordar sem que nada acuse. Ver `core/tela.js`.
      */
     tela: () => tela.estado(),
+    /**
+     * Quanto da janela a HUD reivindica AO PONTEIRO nesta rota, e o que está recolhido.
+     *
+     * ☠️ A grandeza é área que ACEITA ponteiro, não área desenhada: um retângulo sobre o céu não
+     * disputa o clique, ele cancela órbita, zoom e pick ali. Ver `medirHud`, acima, para a grade,
+     * a atribuição sem lista branca e a receita de varrer as dez rotas.
+     */
+    hud: (opcoes) => {
+      const atual = tela.estado().rota;
+      return medirHud(
+        {
+          doc: document,
+          win: window,
+          canvas,
+          hud,
+          rota: atual,
+          montados: host.mounted(),
+          registrados: listWidgets().map((w) => w.id),
+          /*
+           * ⚠️ `rota.id` nulo é ANTES da primeira navegação, e aí a rota não declarou nada.
+           * Devolver `SYSTEM_VIEW` aí inventaria nove `ausentes` — defeito onde só há ordem de
+           * inicialização.
+           */
+          declarados: atual.id === null
+            ? []
+            : atual.id === ROUTE_ROOT
+              ? SYSTEM_VIEW
+              : (getApp(atual.id)?.widgets ?? []),
+          armazem: window.localStorage,
+        },
+        opcoes
+      );
+    },
     /**
      * As MARCAS do operador: quem marcou, quando, de qual céu, e em que estado cada uma está.
      *

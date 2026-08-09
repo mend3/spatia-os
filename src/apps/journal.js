@@ -8,7 +8,7 @@
  * comum (o dia carregado e a execução selecionada), e esse estado tem de sobreviver à troca de
  * fenda sem virar variável global de outro app.
  */
-import { registerApp } from '../kernel/registry.js';
+import { declararApp } from './residentes.js';
 import { listWidget } from './widgets-core.js';
 import { el, money, plural, shortPath } from '../hud/dom.js';
 import { button } from '../hud/button.js';
@@ -56,7 +56,7 @@ export function registerJournal() {
   registerDenials();
   registerSpend();
 
-  registerApp({
+  declararApp({
     id: 'journal',
     name: 'DIÁRIO',
     tagline: 'execuções, permissões em vigor, custo',

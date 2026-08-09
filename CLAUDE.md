@@ -470,6 +470,74 @@ Guarda estática dos blocos GLSL. Pega as duas armadilhas que já morderam quatr
 **falham em silêncio**: crase dentro de `/* glsl */` fechando o template literal, e o shader que
 compila mas perde a feição.
 
+## Ao mexer na sonda da HUD
+
+    node scripts/lei-hud.mjs
+
+Prova, num DOM de mentira com geometria conhecida, que `spatia.hud()` mede **área que aceita
+ponteiro** e não área desenhada (na cena de prova a HUD pinta 100% da janela e reivindica 33,8%),
+que forma sem identidade **acusa** em vez de sumir, que nenhum ponto se perde na atribuição, que
+recolhido · não montado · declarado-e-ausente saem em caixas diferentes, e que a sonda não escreve
+no que mede. Ele recorta o bloco `⟦sonda-hud⟧` do próprio `src/main.js` e o executa — **marcador
+apagado REPROVA**, porque desligar uma lei em silêncio é como esta base perde guarda.
+
+## Ao mexer na lista de fontes, ou no CSS do palco
+
+    node scripts/lei-fontes.mjs
+
+Prova que a vista da lista de fontes tem **teto, rolagem, ponteiro e scrim em gradiente**, e — a
+metade que importa — que o teto **não corta a lista**: as 24 fontes ficam no DOM, o total viaja
+publicado num cabeçalho grudado, e o clique numa citação rola até a linha dela. ☠️ **`[n]` é
+contrato com o prompt:** lista truncada faria `citeMark` desenhar como INVENTADA uma fonte real.
+Ele lê o CSS pela **cascata** — duas regras disputando o teto acusam, porque quem decide aí é a
+ordem e o oráculo não adivinha ordem — e varre o `answer.js` **sem os comentários**, senão a prosa
+que explica por que `scrollIntoView` é proibido satisfaz a lei que o proíbe.
+
+## Ao mexer no que a lista de fontes esconde, ou nos painéis que ela repete
+
+    node scripts/lei-referencia.mjs
+
+Prova que uma linha só sai da lista quando um painel **VISÍVEL** já a afirma — e que ela nunca é
+apagada, só APONTADA: o `[n]` sobrevive numa linha que nomeia o painel, porque o painel não mostra
+número nenhum e `[n]` é contrato com o prompt. A testemunha é MEDIDA no DOM, e são quatro perguntas
+que falham todas para o lado seguro: nó no **sótão** (`index.html`, `.attic`) não é painel montado,
+painel **recolhido** não mostra nada, a **poda** do painel (`WEB_LIMIT`) engole resultado que a
+lista então precisa manter, e moldura sem título não sabe se chamar. ☠️ **«O painel está montado»
+nunca vale por «o painel está mostrando ISTO»** — a conferência é por FONTE, nunca por rota. A §3
+roda a montagem em cinco configurações de tela e conta os `[n]`: nenhum a menos, na mesma ordem.
+⚠️ A §6 liga o NOME que observa ao `new MutationObserver` que o construiu — procurar o construtor
+no arquivo deixava a lei verde com um dos dois observadores trocado por um objeto de mentira. E a
+§8 é CENSO: os limites saem de `agent.py`, `websearch.py` e `streams.js`, e **quantas linhas de
+fato saem é medida de tela** (`spatia.hud().fontes`), nunca deste parágrafo.
+
+## Ao mexer em `pointer-events`, ou em qualquer superfície sobre o céu
+
+    node scripts/lei-palco.mjs
+
+Prova que no palco **quem PINTA reivindica o ponteiro e quem só POSICIONA cede**: a moldura do
+painel de palco (`flex: 1`, estica pela coluna central, `background: none`) cede, o `.widget-body`
+(fundo, borda, teto de 62vh) reivindica, e o escape do painel VAZIO alcança também o `.scroll` —
+☠️ `pointer-events` não é herança que descendente respeite, e filho com `auto` volta a ser alvo sob
+ancestral `none`. A §6 é VARREDURA: **toda** regra do `index.html` que conceda `pointer-events:
+auto` tem de se justificar pelo próprio CSS — pinta, ou é controle (`cursor`/`a`/`button`/`input`/
+`.clickable`) — ou constar de `CEDEM_SEM_PINTAR` com o motivo; forma desconhecida ACUSA, e entrada
+que não casa mais nada é acusada como tabela velha. ⚠️ Ele lê o CSS DECLARADO: **quanto de céu
+sobra por rota é medida, não lei**, e quem responde é `spatia.hud().painelDePalco.aoPonteiro`.
+
+## Ao mexer na lista de widgets de uma rota
+
+    node scripts/lei-residentes.mjs
+
+Prova que o CONJUNTO RESIDENTE — os widgets que toda rota monta — é declarado num lugar só
+(`RESIDENTES`, `src/apps/residentes.js`, cada id com a frase do motivo) e IMPOSTO no registro:
+`declararApp`/`declararVista` recusam a lista incompleta, e a recusa é enfiada no portão de verdade,
+um residente por vez. A varredura da fonte fecha as duas fugas: rota que alcança o `registerApp` do
+kernel por fora, e a **rota raiz** — que não é app, e que um portão montado só no `registerApp`
+deixaria de fora sendo a rota inicial. ⚠️ **A §4 audita o DOC:** `OS-SCREENS.md` §0 tem de APONTAR
+para a declaração; transcrever a lista lá foi como ela divergiu, e `#/security` ficou sem `timeline`
+com a regra escrita em dois lugares e imposta em nenhum. O §5 é censo (medida, não lei) e é de onde
+sai o número de rotas por widget.
+
 ## Ao mexer no teclado
 
     node scripts/lei-teclado.mjs
@@ -607,9 +675,15 @@ mais caro. ⚠️ O lugar dele é `scripts/lei-fio.py`; mora em `server/` por ac
 As sondas de runtime vivem na cena, não em `scripts/`. Elas respondem sobre **o quadro que está na
 tela agora**, que é uma pergunta diferente da que qualquer script offline pode responder:
 
-`spatia.session()` · `.state()` · `.renderCost(n)` · `.planet()` · `.galaxy()` · `.lod()` ·
-`.moons()` · `.bloom({…})` · `.core({…})` · `.pele(ajuste)` · `.peleAB(condições, ler)` ·
-`.aroAB(condições, ler)` · `.cena()` · `.universo.{sobreposicoes,entre,pixels,ancora,peles,anexar}()`
+`spatia.session()` · `.state()` · `.tela()` · `.favoritos()` · `.hud()` · `.renderCost(n)` ·
+`.planet()` · `.galaxy()` · `.lod()` · `.moons()` · `.bloom({…})` · `.core({…})` · `.pele(ajuste)` ·
+`.peleAB(condições, ler)` · `.aroAB(condições, ler)` · `.cena()` ·
+`.universo.{sobreposicoes,entre,pixels,ancora,irPara,anexar,peles}()`
+
+⚠️ **`spatia.hud()` mede LAYOUT, não quadro** — é a única que não precisa de `quadros` andando, e a
+única que não prova nada sobre o que foi desenhado. ☠️ **A grandeza dela é área que ACEITA
+PONTEIRO**, nunca área pintada: os ouvintes de gesto da cena estão presos ao `canvas`, então um
+retângulo com `pointer-events: auto` por cima não disputa o clique — ele CANCELA órbita e zoom ali.
 
 ⚠️ **A lista viva está em `src/main.js`, no `window.spatia`** — antes de dizer "não dá para medir",
 leia lá. E `spatia.cena().aneisPose` é o modelo do que uma sonda deve ser: ela devolve o

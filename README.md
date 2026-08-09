@@ -91,7 +91,9 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 | A posição de cada nó | hash determinístico do id → órbita fixa. O mesmo conhecimento cai sempre no mesmo lugar |
 | A recuperação | busca híbrida densa+BM25 fundida por RRF, ~8ms |
 | As chamadas de ferramenta | `tool_use` reais do agente, com argumentos e duração medida |
-| As citações `[n]` | apontam para o arquivo que entrou no prompt; citação sem fonte aparece riscada |
+| As citações `[n]` | apontam para o arquivo que entrou no prompt; citação sem fonte aparece riscada. Clicar numa rola a lista de fontes até a linha dela |
+| A lista de fontes | tem TETO de **vista**, nunca de conteúdo: as fontes cabem todas no DOM e a lista rola, com o **total real publicado no topo** — sete linhas à vista não podem ler como "isto é tudo" |
+| A lista de fontes, de novo | ela **não repete o que você já está vendo**: a fonte que MEMÓRIA RECUPERADA ou SATÉLITES DE BUSCA já mostra sai da lista e vira uma linha que aponta para o painel, com todos os `[n]` dela dentro. Recolha o painel, mude de tela, ou deixe o painel podar o resultado — a linha volta inteira, porque ali ela é a única testemunha |
 | Custo, turnos, tokens, janela de uso | vêm do stream do CLI, não de estimativa |
 | A timeline | horário e `ms` medidos por estágio |
 | Os avisos de pé, no topo da timeline | o servidor observa índice, corpus, topologia, Neo4j e credenciais e avisa por TRANSIÇÃO — nunca por relógio. Cada aviso diz o que fazer, e quanto tempo faz que está de pé |
@@ -203,12 +205,46 @@ num link. Um OS onde F5 te devolve à tela inicial não é ambiente, é demo.
 | `8` | `#/activity` | o que executa neste instante, e como eu paro? |
 | `9` | `#/storage` | o corpus é confiável? |
 
-O compositor é residente: dá para perguntar de qualquer rota, e a resposta aparece em
-qualquer rota. Abrir uma seção recolhe as outras **do mesmo trilho** — e só dele, porque
-abrir algo à direita não pode fechar o que se está lendo à esquerda.
+Alguns painéis são **residentes**: o compositor, a timeline, o contexto do céu e a janela do
+tempo entram em **todas** as dez rotas, e o sistema recusa registrar uma tela que deixe qualquer
+um deles de fora. Dá para perguntar de qualquer rota, e a resposta aparece em qualquer rota.
+Abrir uma seção recolhe as outras **do mesmo trilho** — e só dele, porque abrir algo à direita
+não pode fechar o que se está lendo à esquerda.
 
 A ordem de construção e o que cada tela deliberadamente NÃO mostra estão em
 [`docs/OS-SCREENS.md`](docs/OS-SCREENS.md).
+
+### Quanto da janela a interface está tomando — `spatia.hud()`
+
+A HUD flutua sobre o céu, e a pergunta que ninguém conseguia responder era *quanto dele ela tira
+do mouse*. `spatia.hud()`, no console, responde com número em vez de impressão:
+
+    spatia.hud().ponteiro     // reivindicado × chegando ao canvas, atribuído por dono e por fenda
+    spatia.hud().widgets      // recolhido pelo operador · fora do manifesto · declarado e AUSENTE
+
+☠️ **A grandeza é área que ACEITA PONTEIRO, não área desenhada.** Os gestos da cena estão presos
+ao `canvas`: um painel por cima não disputa o clique, ele **cancela** órbita e zoom naquele
+retângulo. A sonda varre a janela em grade com `document.elementFromPoint` e devolve o passo e a
+contagem de pontos junto — qualquer fração dela se refaz à mão. Ela também separa as três causas
+de *"esse painel sumiu"*: **o operador recolheu**, **esta rota não pede o painel**, ou **a rota
+pediu e ele não montou** — que é a única das três que é defeito.
+
+⚠️ Ela lê a rota que está na tela e **carimba qual é**. Para comparar as dez, navegue e colecione.
+
+### A câmera volta a responder por cima do painel
+
+*"Não consigo dar zoom nem controlar a câmera quando o astro está em foco — se eu afastar o mouse
+para as laterais, funciona."* O painel de palco (o leitor de arquivo, a página de configuração, a
+tabela de execuções) tem uma **moldura** que estica pela coluna central inteira e **não desenha
+nada**; o que se vê é o corpo dela, que para na altura do conteúdo. A moldura transparente é que
+estava tirando o mouse do céu, bem em cima do corpo em foco.
+
+> **Agora quem PINTA reivindica o ponteiro; quem só POSICIONA cede.**
+
+Órbita, zoom e clique de seleção voltam a funcionar em toda a faixa onde não há painel desenhado —
+e continuam indo para o painel onde há texto para rolar, selecionar e clicar. Nada mudou de lugar:
+o painel ocupa o mesmo espaço, com o mesmo conteúdo. `scripts/lei-palco.mjs` impede a volta, e
+varre o CSS inteiro atrás de qualquer superfície nova que tome o mouse sem desenhar nada.
 
 ## Arquitetura
 

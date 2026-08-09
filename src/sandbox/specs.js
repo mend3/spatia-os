@@ -69,7 +69,7 @@ export const SPECS = [
      */
     distance: 6,
     controls: [
-      { key: 'familia', label: 'FAMÍLIA', type: 'enum', options: Object.keys(RING_FAMILIES), value: 'saturn' },
+      { key: 'familia', label: 'FAMÍLIA', type: 'enum', options: Object.keys(RING_FAMILIES), value: 'modified' },
       { key: 'estado', label: 'ESTADO GIT', type: 'enum', options: Object.keys(DIRTY_COLORS), value: 'modified' },
       { key: 'tombo', label: 'TOMBO', type: 'range', min: 0, max: 1.5, step: 0.01, value: 1.1 },
       { key: 'raio', label: 'RAIO DA ESTRELA', type: 'range', min: 0.2, max: 1.4, step: 0.02, value: 0.7, roll: false },

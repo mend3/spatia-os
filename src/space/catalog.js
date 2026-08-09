@@ -412,10 +412,22 @@ export const allows = (entry, feature) => !(entry.forbids && feature in entry.fo
  * no mês. Ganha o sinal PERECÍVEL: ele é acionável agora e se limpa sozinho, enquanto o churn
  * continua lá amanhã. A regra é aplicada em `solver.js`.
  */
+/**
+ * O que o estado do git acrescenta ao anel — e é só o ESPALHAMENTO.
+ *
+ * ⚠️ **`family` saiu, e não foi renomeado: ele deixou de existir.** Ele mapeava
+ * `modified → 'saturn'`, e desde que `RING_FAMILIES` passou a ser indexado pelo próprio estado o
+ * mapa virava identidade — indireção que não indireciona é um nome a mais para o mesmo fato.
+ *
+ * ⚠️ **`reach` saiu pelo motivo mais grave: ele estava DUPLICADO.** `RING_BY_STATE.modified.reach`
+ * era 2.45 e `RING_FAMILIES.modified.reach` é 2.45 — o mesmo número em dois lugares, livres para
+ * divergir na primeira vez que alguém ajustasse um só. O alcance é propriedade da FÍSICA do anel
+ * (é o raio externo real do planeta transcrito), não do estado do git; ele mora onde o dado mora.
+ */
 export const RING_BY_STATE = Object.freeze({
-  modified: Object.freeze({ family: 'saturn', reach: 2.45, scatter: 'retro' }),
-  staged: Object.freeze({ family: 'uranus', reach: 2.2, scatter: 'retro' }),
-  untracked: Object.freeze({ family: 'jupiter', reach: 3.2, scatter: 'forward' }),
+  modified: Object.freeze({ scatter: 'retro' }),
+  staged: Object.freeze({ scatter: 'retro' }),
+  untracked: Object.freeze({ scatter: 'forward' }),
 });
 
 /** Geometria do anel, igual para as três famílias. */

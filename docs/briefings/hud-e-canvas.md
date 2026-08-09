@@ -23,11 +23,11 @@
 
 | ele disse | a medida diz |
 |---|---|
-| *"concorrem clique com o canvas"* | ⭑ **verdade, e o mecanismo não é roubo de evento — é ÁREA.** Existe **um único** `stopPropagation` em `src/` (`hud/systray.js:42`), e **todo** ouvinte de ponteiro da cena está preso ao `canvas` (`scene.js:1202,1210,1248,1280,1306`). Retângulo com `pointer-events: auto` por cima não intercepta: ele **impede o evento de existir para a cena**, sem fallback |
+| *"concorrem clique com o canvas"* | ⭑ **verdade, e o mecanismo não é roubo de evento — é ÁREA.** Existe **um único** `stopPropagation` em `src/` (`hud/systray.js:42`), e **todo** ouvinte de ponteiro da cena está preso ao `canvas` (`scene.js:1202,1210,1248,1280,1306`). Retângulo com `pointer-events: auto` por cima não intercepta: ele **impede o evento de existir para a cena**, sem fallback. ⭑ **A maior fatia disso era caixa que POSICIONA sem PINTAR — fechada em T-51** |
 | *"ocupam espaço desordenado"* | ⚠️ **meio.** A régua existe e é dura: os trilhos somam **40,0% da largura** por construção (`index.html:104`). O que não tem régua é a fenda `stage`, e é lá que o texto cai sobre o disco |
 | *"não há uma boa disposição de conteúdo"* | ⭑ **o vocabulário existe** (`OS-SCREENS.md` §0, `SLOTS` em `registry.js:51`) e **não tem portão**: `registerApp` confere que o widget EXISTE (`registry.js:72-77`) e nada mais. Ver §6 |
 | *"em algumas páginas nem todos os painéis aparecem"* | ☠️ **três causas distintas, e só UMA é defeito.** Ver §3 |
-| *"a lista de referências toma muito espaço — alguns são redundantes"* | ☠️ **verdade, e maior do que ele viu: na rota raiz a redundância é 24 de 24, e o corpus é afirmado TRÊS vezes.** Ver §4 |
+| *"a lista de referências toma muito espaço — alguns são redundantes"* | ☠️ **verdade, e maior do que ele viu: na rota raiz a redundância é 24 de 24, e o corpus é afirmado TRÊS vezes.** ⭑ **FECHADO (T-52)** — ver §4 |
 
 ---
 
@@ -62,7 +62,7 @@ monta e preserva), `src/apps/*.js` (os contratos). Seis deles **adotam** nós qu
 | `#/bridge` | 8 | 3 | 2 | 2 | 1 | — |
 | `#/journal` | 9 | 3 | 3 | 2 | 1 | `jr-runs` |
 | `#/metrics` | 9 | 3 | 3 | 2 | 1 | `mx-stages` |
-| `#/security` | 9 | 2 | 3 | 2 | **2** | `sec-catalog` |
+| `#/security` | ⭑ 10 | 3 | 3 | 2 | **2** | `sec-catalog` |
 | `#/activity` | 8 | 2 | 3 | 2 | 1 | `act-running` |
 | `#/storage` | 7 | 2 | 2 | 2 | 1 | `st-coverage` |
 
@@ -145,26 +145,29 @@ sem painel de palco montado. Os retângulos que **de fato** reivindicam o pontei
 | seletor | linha | quando existe | onde fica |
 |---|---|---|---|
 | `.scroll` | `index.html:343` | **todo corpo de widget de lista** | dentro dos trilhos (40,0% da largura) |
-| `.widget[data-panel-surface]` | `index.html:825-827` | **7 das 10 rotas** | centro do palco, ≤28,8% |
+| `.widget[data-panel-surface] > .widget-body` | ⭑ T-51 | **7 das 10 rotas** | centro do palco, ≤28,8% — a MOLDURA cedeu |
 | `.answer` | `index.html:455` | sempre que há resposta | centro-baixo, ≤15,7% |
 | `.surface[data-surface="overlay"]` | `index.html:756` | `` ` `` · `P` · `V` abertos | centro, ≤33,7% |
 | `.inspector` | `index.html:682` | citação de corpus clicada | direita, ≤18,2% |
 | `.tray-menu` | `index.html:257` | popover aberto | topo direito, ≥132 px |
 
-☠️ **O painel de palco é o que responde ao relato.** Ele fica no centro da coluna central, que é
-onde o astro em foco e o buraco negro são desenhados, e sobe `z-index: 8` **por cima** do canvas.
-Existe um escape — mas ele só dispara com o widget VAZIO:
+⭑ **ENTREGUE (T-51) — e a causa era maior do que esta tabela mediu.** O painel de palco fica na
+coluna central, que é onde o astro em foco e o buraco negro são desenhados. Os ≤28,8% da linha
+acima são a caixa que PINTA (o `.widget-body`, teto de 62vh); quem reivindicava o ponteiro era a
+MOLDURA, que é `flex: 1` (`.widget-stage`) e **estica pela coluna central inteira** sem pintar nada
+(`background: none; border: none; padding: 0`). A faixa entre as duas era zona morta transparente.
 
-    .widget[data-panel-surface]:has(> .widget-body > .scroll > .widget-empty:only-child) {
-      pointer-events: none;                                              /* index.html:846 */
-    }
+> **A regra que ficou, e vale para superfície nova sobre o céu:**
+> **quem PINTA reivindica; quem só POSICIONA cede.**
 
-O comentário acima dele (`index.html:832-845`) descreve o defeito **exatamente** como o usuário o
-descreve agora, e nomeia a régua: *"a moldura mede ~448×436px e fica no centro do palco, que é
-exatamente onde o astro em foco é desenhado… `document.elementFromPoint` no centro da tela
-devolvia a `section.widget` em vez do canvas"*. **O conserto de então cobriu o caso vazio.** Com
-conteúdo — que é o caso normal em `#/files`, `#/system`, `#/journal`, `#/metrics`, `#/security`,
-`#/activity` e `#/storage` — a zona morta está de pé.
+O escape que existia só cobria o widget VAZIO — o caso raro, já que em 7 das 10 rotas o painel
+nasce com conteúdo. Ele continua, agora aplicado ao corpo, e ⚠️ **passou a alcançar o `.scroll`**:
+`pointer-events` não é herança que descendente respeite, e `.scroll` declara `auto` por conta
+própria. Portão: `scripts/lei-palco.mjs`.
+
+☠️ **Fica por PROVAR na tela:** quanto de céu voltou, por rota. A grandeza é
+`spatia.hud().painelDePalco.aoPonteiro / ponteiro.pontos` contra `painelDePalco.fracaoJanela` — que
+é a caixa da moldura e **não muda**, porque `pointer-events` não move um pixel.
 
 ### 2.3 O que NÃO é a causa
 
@@ -217,9 +220,13 @@ fato está em `README.md:677`). **Antes de acusar a tela, leia a chave:**
 ☠️ **E aqui está o achado de ARQUITETURA:** essa chave é um **quinto dono do estado de tela**.
 `core/tela.js` guarda camada · cena · rota; `core/session.js` guarda a pilha de painéis
 (`hud/surface.js:42`); `espatial.collapsed.v1` guarda **quais painéis têm corpo visível** — e não
-tem leitor fora de `kernel/widgets.js` nem sonda. `window.spatia` expõe **16 sondas** e **nenhuma**
-responde sobre a HUD (`awk 'NR>=324 && NR<=464' src/main.js | grep -cE "^\s{4}[a-zA-Z]+:"` → 16).
-É o KR2.1 com um dono que ninguém contou.
+tem leitor fora de `kernel/widgets.js`. É o KR2.1 com um dono que ninguém contou.
+
+⭑ **ENTREGUE (T-46): `spatia.hud().widgets` é o leitor.** Ele devolve as causas separadas —
+`recolhidos` (o operador fechou, aqui), `recolhidosForaDaRota` (fechou, e o widget nem está nesta
+rota), `naoMontados` (o manifesto não pediu) e `ausentes` (☠️ declarado e ausente: defeito).
+O `formato` do armazém sai junto, porque `lista` (o formato antigo, que `kernel/widgets.js:26`
+ainda aceita) lido como `{}` devolveria zero recolhido para quem tem todos fechados.
 
 ### 3.2 O manifesto (não é defeito, é decisão — e ela contradiz o relato)
 
@@ -232,26 +239,26 @@ Seis widgets que o operador reconhece como "os painéis" existem em quase nenhum
 | `plan` | PLANO | **1** (só `#/`) |
 | `vitals` | SINAIS VITAIS | 2 (`#/`, `#/system`) |
 | `web-results` | SATÉLITES DE BUSCA | 2 (`#/`, `#/web`) |
-| `timeline` | TIMELINE | 9 |
+| `timeline` | TIMELINE | ⭑ **10** (era 9 — T-48) |
 
 ☠️ **E o `answer` está nas 10.** A RESPOSTA — com a lista de referências dentro dela — é residente;
 os três painéis que essas referências duplicam são residentes em **zero**. É a mesma leitura,
 partida ao meio pela navegação.
 
-### 3.3 O DEFEITO, e é uma invariante declarada e não implementada
+### 3.3 ⭑ ENTREGUE (T-48) — a invariante virou dado, portão e lei
 
-**`#/security` não monta `timeline`** (`apps/security.js:79-82`). É a única das dez.
+**`#/security` não montava `timeline`** e era a única das dez. A regra estava escrita em dois
+lugares (`OS-SCREENS.md` §0 e um comentário de `apps/index.js`) e imposta em nenhum — a forma que
+esta base pagou cinco vezes.
 
-E a invariante está escrita em dois lugares:
+⚠️ **A pergunta certa era qual dos dois estava errado**, e a medida respondeu: nenhuma recusa
+escrita em lugar nenhum, o motivo da residência vale igual em `#/security` (o céu está visível ali
+também), e nove rotas contra uma. **O manifesto é que faltava.**
 
-- `OS-SCREENS.md` §0, *O conjunto residente*: *"`core.prompt` e `core.timeline` entram na lista de
-  widgets de **todos** os apps"*;
-- `apps/index.js:65-72`: *"`context` entra em TODAS as listas, como `sky-time` e `timeline`"*.
-
-O portão que a imporia não existe: `registerApp` valida que o widget pedido EXISTE
-(`registry.js:72-77`), que a tecla é 1–9 e única, que o gesto tem um dono só — e **nada** sobre
-residentes. É a forma exata que o `CLAUDE.md` diz que esta base já pagou **cinco vezes**: *declarar
-uma invariante não a implementa*.
+Agora: `RESIDENTES` (`src/apps/residentes.js`) é a declaração única, com a frase de por que cada um
+não pode sair da tela; `declararApp`/`declararVista` recusam a lista incompleta NO REGISTRO; e
+`scripts/lei-residentes.mjs` prova a recusa por perturbação, varre a fonte atrás de quem alcance o
+`registerApp` do kernel por fora, e reprova o doc que voltar a transcrever a lista.
 
 ⚠️ **Segundo defeito da mesma família:** `br-deliveries` é widget de `stage` **sem `surface: true`**
 (`apps/index.js:1158-1161`) — o único assim. `index.html:839-842` nomeia esse caso: *"o escopo era
@@ -290,11 +297,16 @@ Os três estão configurados neste `.env`
 E há um **terceiro canal para os seis do corpus**, que já é canvas: o evento `memory` acende a
 estrela no céu e derruba partículas no núcleo (`space/scene.js:993-1002`), com `blackHole.surge`.
 
-| rota | dos 24, quantos já estão num painel montado | canais para os 6 do corpus |
+| rota | dos 24, quantos o painel REPETE (mesmo campo) | canais para os 6 do corpus |
 |---|---|---|
 | `#/` | **24 (100%)** | **3** — lista + painel + céu |
 | `#/web` | 18 (75%) | 2 — lista + céu |
 | as outras oito | **0** | 2 — lista + céu |
+
+☠️ **«O painel repete o campo» ≠ «o painel mostra o item».** `WEB_LIMIT = 8` (`hud/streams.js`)
+guarda as últimas oito de 18, e o acordeão da fenda `right` (§3.1) deixa no máximo um dos dois
+painéis aberto depois de qualquer clique. A coluna acima é o teto do que PODE ser redundante; o que
+é redundante AGORA se pergunta por fonte, contra o DOM — que é o que T-52 faz.
 
 ⭑ **A leitura que isso impõe:** a queixa não é "a lista é longa". É que **na única rota onde os
 painéis existem, a lista não acrescenta nada** — e nas outras oito ela é a única testemunha. O
@@ -317,24 +329,32 @@ numeração que vai no prompt é a mesma que a HUD mostra"*, e `hud/answer.js:89
 **apagado e riscado** quando não bate com fonte nenhuma. **Sumir com a lista quebra a citação**, que
 é o oposto do que o usuário quer.
 
-### 4.4 Por que ela cai sobre o disco — a régua está faltando, não sobrando
+### 4.4 ⭑ ENTREGUE (T-47) — a régua estava faltando, não sobrando
 
-    grep -n "^  .sources\|^  .answer {" index.html
+    grep -n "^  .sources {\|^  .answer {" index.html
 
-| | `.answer` (`index.html:442-456`) | `.sources` (`index.html:494`) |
+| | `.answer` | `.sources` |
 |---|---|---|
-| teto de altura | `max-height: 36vh` | ☠️ **nenhum** |
-| rolagem | `overflow-y: auto` | ☠️ **nenhuma** |
-| fundo | gradiente scrim + `backdrop-filter` | ☠️ **nenhum** |
-| `pointer-events` | `auto` | herda `none` do `#hud` |
+| teto de altura | `max-height: 36vh` | `max-height: 20vh` |
+| rolagem | `overflow-y: auto` | `overflow-y: auto` + `overscroll-behavior: contain` |
+| fundo | gradiente scrim + `backdrop-filter` | o mesmo gradiente, **sem** `backdrop-filter` |
+| `pointer-events` | `auto` | `auto` — quem rola tem de poder agarrar a barra |
+| o corte, publicado | — | `.sources-total`, grudado no topo, com o total real |
 
-Com `font-size: 9px` e `gap: 2px`, 24 linhas empilham **≈305 px** — **≈41% da altura** num viewport
-de 742 px. ⚠️ **Esse número supõe `line-height: normal` ≈ 1,2** (nenhum `line-height` é declarado
-para `.source`); a régua exata só a tela dá, e por isso ele é estimativa e não medida — ver §8.
+A conta do teto é EXATA porque `.source` passou a declarar `line-height: 1,45`: linha 13,05 px,
+passo 15,05 px com o `gap`, **~7 linhas à vista das 24 que ficam no DOM** numa janela de 742 px
+(`node -e 'const l=9*1.45,p=l+2,v=742*0.20-20-21;console.log(l,p,Math.floor(v/p))'`).
+⚠️ O **≈305 px** desta seção supunha `line-height: normal` ≈ 1,2 e por isso era estimativa; a régua
+da tela continua sendo `spatia.hud().fontes`, que agora lê um `maxHeight` e um `overflowY` reais.
 
-E o que transborda **não rola: some.** `.widget-body { overflow: hidden }` (`index.html:714`), e o
-comentário de `index.html:332-336` já diagnosticou essa forma de falha uma vez: *"conteúdo cortado
-sem barra não lê como 'tem mais abaixo': lê como bug"*.
+☠️ **O teto é da VISTA, nunca da lista.** Truncar em JS apagaria o destino de um `[n]` já escrito
+na resposta, e `citeMark` marcaria como INVENTADA uma fonte real. As 24 continuam no DOM; a citação
+rola a lista até a linha dela (`hud/answer.js`, `deslocamentoAte` — e **não** `scrollIntoView`, que
+rolaria o `.widget-body`, que é `overflow: hidden`). Portão: `scripts/lei-fontes.mjs`, 25 leis.
+
+⚠️ **O que ele COBROU:** a lista passa a reivindicar o ponteiro (~680×20 vh sobre o canvas), e nesse
+retângulo órbita e zoom são cancelados. É custo declarado, não descoberto — quem o mede é
+`spatia.hud().ponteiro`, e a zona morta do palco é T-51.
 
 ---
 
@@ -483,11 +503,11 @@ O que falta é **portão**, e a assimetria é gritante dentro da própria base:
 | camada de tela | ⭑ `core/tela.js:40` — `const CHAVES = new Set(['id'])` |
 | cena | ⭑ `scripts/lei-cena.mjs` — chave fora de `id`/`passes`/`camadas`/`chegada`/`aoEntrar` reprova |
 | **widget** | ☠️ **ninguém** — `registry.js:119` espalha `...contract` sem conferir nada |
-| **lista de widgets de um app** | ☠️ **ninguém confere os residentes** — `registry.js:72-77` só confere existência |
+| **lista de widgets de um app** | ⭑ `apps/residentes.js` — `declararApp` recusa a lista sem o conjunto residente, e a raiz tem `declararVista` |
 
 Três consequências medidas, todas em §3:
 
-1. `#/security` sem `timeline`, contra duas declarações escritas;
+1. ⭑ **fechada (T-48):** `#/security` sem `timeline`, contra duas declarações escritas;
 2. `br-deliveries` no palco sem `surface: true`, repetindo um defeito já nomeado no CSS;
 3. `sec-effective` mora em `strip` — a fenda cuja semântica declarada é **residentes**, *"o que
    nunca deve sair da tela"* — e existe em **1 de 10 rotas**. A fenda ganhou um segundo significado
@@ -522,36 +542,57 @@ habitável é uma regra com um termo faltando** — e o termo é orçamento de a
 O critério é o desta base: **medir antes de consertar, e todo passo com um número que tem de se
 repetir.**
 
-1. **A SONDA, antes de tudo.** `spatia.hud()`: quanto da janela a HUD reivindica ao ponteiro, por
-   rota, e quais widgets estão recolhidos. **Guarda:** ela reproduz a varredura de 45 pontos de
-   `hud/yield.js:6-9` como comportamento permanente, e mede as três coisas que este briefing só
-   estimou — a altura real dos trilhos, o `line-height` de `.source` e os pontos que chegam ao
-   canvas em cada rota. **Barata agora, insubstituível depois.** → **T-46**
-2. **`.sources` ganha teto, rolagem e scrim.** Independente de tudo, e é o que o usuário fotografou.
-   **Guarda:** com 24 fontes, a pilha do palco não passa da altura do palco e nada é cortado sem
-   barra. → **T-47**
-3. **Os residentes viram DECLARAÇÃO com portão.** `registerApp` recusa lista sem o conjunto
-   residente; `registerWidget` recusa chave fora do vocabulário — a disciplina de `core/tela.js:40`
-   aplicada onde ela falta. **Guarda:** `#/security` deixa de compilar até ganhar `timeline`.
-   → **T-48**, **T-49**
+1. ⭑ **A SONDA — ENTREGUE.** `spatia.hud()` (`src/main.js`, bloco `⟦sonda-hud⟧`; portão
+   `scripts/lei-hud.mjs`). Ela varre a janela numa grade de passo declarado com
+   `document.elementFromPoint` — que já honra `pointer-events` — e devolve `ponteiro`
+   (reivindicado × chegando ao canvas, atribuído por dono e por fenda), `fendas` (a altura REAL
+   dos trilhos, não o teto), `painelDePalco` (com `aceitaPonteiro`, que é o escape do CSS lido em
+   vigor), `widgets` (as causas do §3.1 separadas) e `fontes` (a altura de linha MEDIDA de
+   `.source`, mais `maxHeight` e `overflowY` — os números do §4.4). O resultado carimba `rota`;
+   varrer as dez é navegar e colecionar, e a receita está no comentário do bloco. → **T-46**
+2. ⭑ **`.sources` GANHOU teto, rolagem, scrim — e o total publicado.** Ver §4.4. O teto sozinho
+   seria o defeito com outro nome: quem corta a vista tem de dizer de quanto, senão sete linhas
+   leem como *"isto é tudo"*. Portão: `scripts/lei-fontes.mjs`.
+   ☠️ **Fica por PROVAR na tela** (esta sessão não abriu navegador): que as ~7 linhas caibam de
+   fato, que a barra apareça no Chrome com `scrollbar-color`, e que a pilha `.answer` + `.sources` +
+   meta não passe da altura do palco — os declarados somam 56 vh e o resto é header, faixa e
+   rodapé. `spatia.hud().fontes` e `.fendas[].alturaPx` respondem as três. → **T-47**
+3. ⭑ **Os residentes viraram DECLARAÇÃO com portão (T-48).** `declararApp` recusa a lista sem o
+   conjunto residente e `registerWidget` recusa chave fora do vocabulário — a disciplina de
+   `core/tela.js:40` aplicada onde faltava. **A guarda prometida existe:** `#/security` não
+   registra até ganhar `timeline`, e `scripts/lei-residentes.mjs` cai antes disso.
+   ⚠️ **A rota raiz não é app** — `declararVista(ROUTE_ROOT, …)` é o portão dela, senão a décima
+   rota, que é a inicial, ficava de fora do portão inteiro. → **T-48**, **T-49**
 4. **`br-deliveries` opta por `surface: true`.** Uma linha, e o portão do passo 3 impede o próximo.
    → **T-50**
-5. **A zona morta do painel de palco** — só **depois** do passo 1, senão o conserto é escolher um
-   valor que faz a foto fechar. → **T-51**
-6. **A redundância das referências**, com a assimetria por rota resolvida antes: a linha some quando
-   o painel que a repete está MONTADO, e fica quando não está. Depende do passo 3. → **T-52**
+5. ⭑ **A zona morta do painel de palco — FECHADA.** O ponteiro mudou de elemento: a moldura, que
+   estica pela coluna e não pinta, cede; o corpo, que pinta, reivindica. Ver §2.2.
+   ☠️ **Fica por PROVAR na tela** — o número é `painelDePalco.aoPonteiro`, não `aceitaPonteiro`,
+   que desde aqui lê a moldura e responde `false` com o painel cheio. → **T-51**
+6. ⭑ **A referência APONTA em vez de repetir (T-52).** A linha sai quando um painel **visível** já a
+   afirma, e no lugar dela entra uma que nomeia o painel e carrega **todos os `[n]` do grupo** —
+   porque o painel não mostra número nenhum, e o número é o contrato. Portão:
+   `scripts/lei-referencia.mjs`.
+   ☠️ **Duas medidas desta varredura estavam otimistas, e as duas mudam a conta:** o painel de web
+   guarda **`WEB_LIMIT` = 8** de 18 (`hud/streams.js`), então «24 de 24 na raiz» é o mesmo CAMPO
+   impresso duas vezes, não o mesmo item visível duas vezes; e os dois painéis são irmãos da fenda
+   `right`, onde abrir um recolhe os outros (§3.1) — «os dois abertos» é o estado de quem nunca
+   clicou. Por isso a conferência é **por FONTE, contra o DOM em vigor**, e não por rota.
+   ☠️ **Fica por PROVAR na tela:** que a linha apontada caiba na régua de `.source` sem quebrar, e
+   quanto a lista encolhe por rota. → **T-52**
 7. **A decisão do usuário: o que sobe para o mundo.** `bodies.js` religado para o que TEM lugar
    (§5.3/§5.4). É produto, não engenharia. → **T-53**
 
 ⚠️ **O que este briefing NÃO mediu**, e cada um é uma pergunta que só a tela ou uma bancada responde:
 
-- **a altura real dos trilhos** — a linha `1fr` divide o que sobra do header, da faixa e do rodapé; o
-  35,3% da §1.3 é TETO, não medida;
-- **o `line-height` de `.source`** — nenhum é declarado, e o ≈305 px dos 24 itens supõe ≈1,2;
+- **a altura real dos trilhos** (o 35,3% da §1.3 é TETO: a linha `1fr` divide o que sobra do header,
+  da faixa e do rodapé), **o `line-height` de `.source`** (nenhum é declarado, e o ≈305 px dos 24
+  itens supõe ≈1,2) e **quantos pontos chegam ao canvas por rota** (o 37/45 de `yield.js` é de uma
+  tela sem painel de palco montado) — ⭑ **os três ganharam INSTRUMENTO em T-46** (`fendas[].alturaPx`,
+  `fontes.alturaLinhaPx`/`razaoLinha`, `ponteiro.fracaoAoCanvas`). ☠️ **Instrumento não é medida:**
+  os números só existem depois de alguém rodar `spatia.hud()` nas dez rotas, na tela;
 - **o custo de upload de um atlas de glifo por token** — ninguém construiu um, e é o número que
-  decide se a §5.1(a) tem saída barata;
-- **quantos pontos da varredura de 45 chegam ao canvas HOJE, por rota** — o 37/45 de `yield.js` é de
-  uma tela sem painel de palco montado.
+  decide se a §5.1(a) tem saída barata.
 
 ---
 
