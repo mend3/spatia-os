@@ -33,7 +33,7 @@ o recorder nasce sem contador.
 | `thought` | delta de raciocínio | `text` | trilha tênue de partículas |
 | `token` | delta da resposta | `text` | texto aparece letra por letra |
 | `cogload` | tokens de raciocínio | `tokens` (acumulado) | medidor de carga cognitiva |
-| `thread` | esta pergunta sabe (ou não) da anterior | `continuity`, `thread`, `turn`, `since`, `origin` | ☠️ **ninguém — não há `bus.on('thread')` em `src/`** |
+| `thread` | esta pergunta sabe (ou não) da anterior | `continuity`, `thread`, `turn`, `since`, `origin` | cabeça da timeline: a condição fica de pé; `broken` também escreve linha |
 | `brain` | agente inicializado | `session`, `cwd`, `model`, `tools`, `mcp[]` | HUD mostra o núcleo online |
 | `limit` | janela de uso | `status`, `window`, `resets_at` | medidor de janela |
 | `answer` | resposta completa | `text`, `ms`, `api_ms`, `turns`, `cost_usd`, `tokens{}`, `sources[]` | fecha a resposta, relaxa o som |
@@ -68,6 +68,17 @@ resposta: "esta pergunta não sabe da anterior" é verdade a dizer inclusive num
 
 ⚠️ **`turn` é o turno DESTA pergunta**, contado do que o CLI declarou, não do que a tela viu. Uma
 aba que abriu no meio da conversa recebe o número certo.
+☠️ **Não confunda com `answer.turns`**, que é o laço INTERNO do agente dentro de uma execução — a
+mesma palavra para duas grandezas, na mesma timeline. Por isso a tela escreve `7ª PERGUNTA`.
+
+**Onde ele vira pixel:** `src/hud/streams.js`, no bloco de pé da timeline, ao lado dos avisos. A
+CONDIÇÃO (`continuity` + `turn` + `since`) é reescrita no lugar a cada pergunta; `broken` também
+escreve uma LINHA, porque é o único que é um instante e pertence ao perfil daquela execução — a
+condição é substituída pela pergunta seguinte, e sem a linha não sobraria nada dizendo que aquela
+resposta não teve memória. ⚠️ **`resumed` não escreve linha**: uma por pergunta seria a mesma frase
+em toda volta do ciclo. `new` conta a pergunta e promete a próxima; `none` não tem número nem hora.
+O botão CORTAR O FIO some quando não há o que cortar, e a tela lê `GET /api/thread` ao abrir para
+poder responder antes da primeira pergunta.
 
 O fio mora em `server/fio.py`, um por ORIGEM, e `POST /api/thread` o corta — cortar é o que torna a
 continuidade uma escolha em vez de um acúmulo. **Mudar permissão corta todos**: as flags novas valem

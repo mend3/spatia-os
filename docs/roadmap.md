@@ -73,7 +73,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 | KR | medida | hoje |
 |---|---|---|
 | KR4.1 | `#/journal/<run-id>` é endereçável e compartilhável | ⭑ **provado na tela** |
-| KR4.2 | a segunda pergunta do operador sabe da primeira, **ou a tela diz que não** | ⭑ **sabe** (`--resume`, fio em `server/fio.py`); o evento `thread` diz qual das duas é, e **ainda não tem assinante em `src/`** (T-37) |
+| KR4.2 | a segunda pergunta do operador sabe da primeira, **ou a tela diz que não** | ⭑ **feito** — `--resume` (fio em `server/fio.py`) e o `thread` na cabeça da timeline, com `broken` escrevendo linha |
 
 ---
 
@@ -137,17 +137,9 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `done` | — | T-16 | KR1.2 |
 | **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | — | — |
 | **T-35** | **FAVORITOS** — fase 1 (modelo + persistência) `done`; a INTERFACE é a fase 2 | `doing` | — | T-34 | KR2.1 |
-| **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `todo` | — | — | KR4.2 |
+| **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
-
-- **T-37** — o servidor emite `thread` com `continuity` (`new`/`resumed`/`broken`/`none`), `turn` e
-  `since`, **antes** de o processo do agente existir, e `GET`/`POST /api/thread` leem e cortam o
-  fio. **Não existe `bus.on('thread')` em `src/`**: a tela continua parecendo uma conversa sem
-  dizer se é. O que desenhar já está no `EVENTS.md` — `continuity` escolhe a frase, `turn` dá a
-  profundidade, `since` a idade. ⭑ **`broken` é o único que precisa saltar aos olhos**: é o caso em
-  que o operador acredita que o agente lembra e ele não lembra. O botão que corta é
-  `POST /api/thread {"origin":"console"}`.
 
 - **T-13** — ☠️ **Splash como CAMADA PRÓPRIA está refutada por uso**: ela virou uma SEGUNDA parede
   entre o diagnóstico e o céu, e chegou a desenhar a marca **por cima do céu vivo**. E o que ela

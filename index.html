@@ -1182,17 +1182,29 @@
    * lido como unidade, que é a única razão de a identidade ter escolhido essa caixa
    * (`docs/README.md`). Espacejamento apertado e corpo maior é o que a referência da marca pede.
    */
+  #boot h1.marca { color: var(--amber); letter-spacing: 0.02em; font-size: 34px; font-weight: 300; }
+  #boot .sub { color: var(--ink-faint); font-size: 9px; letter-spacing: 0.32em; }
+  .boot-log { display: flex; flex-direction: column; gap: 18px; width: min(560px, 84vw); margin-top: 8px; }
   /*
-    O seletor é COMPARTILHADO com a splash, e isso é a continuidade: o boot dissolve e o nome não
-    se mexe. Duas regras iguais em dois lugares divergiriam no primeiro ajuste de corpo, e o
-    sintoma seria a marca dando um pulo na troca de camada.
+    Os dois blocos NOMEADOS — `CÉU` e `SUBSISTEMAS` — são duas perguntas, não uma lista longa
+    partida ao meio para caber. O cabeçalho é nível 3 da rampa (`--amber-faint`) e a régua que o
+    acompanha é nível 4: mobília nunca disputa com o dado que ela separa.
   */
-  #boot h1.marca, #splash h1.marca { color: var(--amber); letter-spacing: 0.02em; font-size: 34px; font-weight: 300; }
-  #boot .sub, #splash .sub { color: var(--ink-faint); font-size: 9px; letter-spacing: 0.32em; }
-  .boot-log { display: flex; flex-direction: column; gap: 3px; width: min(560px, 84vw); margin-top: 8px; }
-  .boot-line { display: grid; grid-template-columns: 1fr auto; gap: 14px; font-size: 9.5px;
+  .boot-group { display: flex; flex-direction: column; gap: 3px; animation: reveal 320ms ease both; }
+  .boot-group-title { display: flex; align-items: center; gap: 10px; margin: 0 0 3px;
+                      color: var(--amber-faint); font-size: 8px; font-weight: 400;
+                      letter-spacing: 0.3em; }
+  .boot-group-title::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  .boot-group-lines { display: flex; flex-direction: column; gap: 3px; }
+  .boot-line { display: grid; grid-template-columns: auto 1fr; gap: 14px; font-size: 9.5px;
                border-bottom: 1px solid rgba(255,255,255,0.04); padding: 3px 0;
                animation: reveal 320ms ease both; }
+  /*
+    O valor é a coluna ELÁSTICA, e o rótulo é que se ajusta ao conteúdo. Invertido, a leitura do
+    disco — que é longa e chega tarde — quebrava em duas linhas e empurrava o gate para baixo
+    depois de o operador já ter lido a tela.
+  */
+  .boot-value { text-align: right; }
   @keyframes reveal { from { opacity: 0; transform: translateY(-3px); } }
   @keyframes slide-in { from { opacity: 0; transform: translateX(-6px); } }
 
@@ -1230,6 +1242,8 @@
   .boot-label { color: var(--ink-faint); letter-spacing: 0.2em; }
   .boot-line.ok .boot-value { color: var(--ink-dim); }
   .boot-line.bad .boot-label, .boot-line.bad .boot-value { color: var(--bad); }
+  /* `warn` é o corte que ainda deixa entrar — seção que não coube em órbita, disco sem anel. */
+  .boot-line.warn .boot-value { color: var(--busy); }
   .boot-status { color: var(--ink-dim); font-size: 9.5px; letter-spacing: 0.16em; min-height: 1.2em; }
   /*
     Só o LAYOUT da fileira. A aparência dos dois botões vem do primitivo `.btn` (`hud/button.js`)
@@ -1247,38 +1261,6 @@
     vaza para fora da própria borda. Foi exatamente o que aconteceu na primeira versão.
   */
   .boot-actions .btn { flex: 0 0 auto; white-space: nowrap; }
-
-  /* ---------------- splash ---------------- */
-  /*
-    A camada de CHEGADA — e o que ela NÃO tem é o desenho dela.
-
-    Sem fundo: o `#boot` é um radial opaco porque durante o diagnóstico não há o que olhar atrás;
-    aqui há — a cena já está desenhando desde antes desta camada existir. Um scrim tampa
-    justamente o que a tela veio mostrar. A legibilidade sobre um disco de acreção claro sai da
-    mesma sombra de 1px que sustenta a HUD inteira, que custa zero layout e funciona sobre
-    qualquer imagem que esteja rodando por trás.
-
-    Sem `backdrop-filter`: desfocar o fundo de uma camada que cobre a tela inteira obriga o
-    compositor a reler e borrar o canvas VIVO a cada quadro, e o orçamento desta cena já está
-    todo no pós-processamento. Vidro que custa quadro não é vidro, é um passe a mais.
-
-    `pointer-events: none` é o que a separa de um pedágio: o gesto que a dissolve atravessa e faz
-    o que ia fazer. Ver `hud/splash.js`.
-  */
-  #splash {
-    position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 22px;
-    pointer-events: none;
-    text-shadow: 0 1px 3px rgba(4, 6, 10, 0.95), 0 0 8px rgba(4, 6, 10, 0.7);
-    transition: opacity 900ms ease, filter 900ms ease;
-  }
-  #splash.gone { opacity: 0; filter: blur(10px); }
-  .splash-log { display: flex; flex-direction: column; gap: 3px; width: min(560px, 84vw); margin-top: 8px; }
-  .splash-line { display: grid; grid-template-columns: 1fr auto; gap: 14px; font-size: 9.5px;
-                 border-bottom: 1px solid var(--line); padding: 3px 0; }
-  .splash-label { color: var(--ink-faint); letter-spacing: 0.2em; }
-  .splash-value { color: var(--ink-dim); }
-  .splash-line.bad .splash-label, .splash-line.bad .splash-value { color: var(--bad); }
 
   @media (max-width: 900px) {
     #hud { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }

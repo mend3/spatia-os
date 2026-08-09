@@ -30,9 +30,32 @@
  * carrega os de pé; um `info` emitido durante a queda não é reentregue, e o aviso correspondente
  * fica na tela envelhecendo. Fechar isso exige que a assinatura se ANUNCIE no barramento
  * (`core/api.js`), para o bloco ser reconstruído a partir da reposição em vez de acumulado.
+ *
+ * ## Se esta pergunta sabe da anterior — `thread`
+ *
+ * A tela PARECE uma conversa. O `thread` é o que decide se ela é uma, e chega antes de o processo
+ * do agente existir. Ele tem duas vidas aqui, e são as mesmas duas do `notice`:
+ *
+ * - **CONDIÇÃO** — *"esta é a sétima pergunta de um fio aberto às 14:02"* vale enquanto durar, e
+ *   mora no bloco de pé, reescrita NO LUGAR a cada pergunta. É a mesma linha, não uma nova.
+ * - **INSTANTE** — `broken` aconteceu uma vez: havia fio e o CLI não achou a sessão. Ele escreve
+ *   linha porque pertence ao perfil DESTA execução; a condição só mostra o presente, e a próxima
+ *   pergunta a substituiria — apagando da tela que aquela resposta não teve memória.
+ *
+ * ☠️ **`broken` é o único caso em que a tela mente por OMISSÃO:** a execução respondeu, sem
+ * `error` nenhum, e sem esta linha o operador acredita que o agente lembrou.
+ *
+ * ⚠️ **`new` e `none` não são erro, e não são o mesmo fato.** `new` conta a pergunta e promete a
+ * próxima; `none` (o cérebro não guarda conversa) não tem número nem hora, porque não há fio de
+ * que ela seja a primeira. `null` ≠ `0` aplicado à conversa.
+ *
+ * ⚠️ **Só `broken` e o corte escrevem linha.** Uma linha por pergunta dizendo "continua" seria a
+ * mesma frase em toda volta do ciclo, que é o que ensina o operador a não ler a tela.
  */
 import { on } from '../core/bus.js';
-import { el, set, feed, shortPath, clock } from './dom.js';
+import { threads, cutThread } from '../core/api.js';
+import { el, set, feed, shortPath, clock, plural } from './dom.js';
+import { button } from './button.js';
 import { causaDe } from '../core/upstream.js';
 
 const TIMELINE_LIMIT = 26;
@@ -103,6 +126,47 @@ function idadeDe(at) {
   if (segundos < 3_600) return { texto: `HÁ ${Math.floor(segundos / 60)}MIN`, dias };
   if (segundos < 86_400) return { texto: `HÁ ${Math.floor(segundos / 3_600)}H`, dias };
   return { texto: `HÁ ${dias}D`, dias };
+}
+
+/*
+ * O QUE CADA CONTINUIDADE AFIRMA, em uma frase. Nomeie o que a tela ACEITA (a REGRA DO CATÁLOGO):
+ * `continuity` fora destes quatro não desenha, porque um fio desenhado por engano é pior que
+ * nenhum — ele afirma memória.
+ *
+ * ⚠️ A frase fala da PERGUNTA, e a coluna da direita do número dela. Não diga "TURNO": `answer`
+ * já escreve `RESPOSTA · N TURNO(S)` na mesma timeline, e ali TURNO é o laço interno do agente
+ * dentro de UMA execução. Mesma palavra para duas grandezas é o defeito, não o sintoma.
+ */
+const FIO_FRASES = {
+  resumed: 'ESTA PERGUNTA SABE DAS ANTERIORES',
+  new: 'FIO NOVO · A PRÓXIMA PERGUNTA SABERÁ DESTA',
+  broken: 'SEM FIO · ESTA PERGUNTA RODOU DO ZERO',
+  none: 'SEM FIO · ESTE CÉREBRO NÃO GUARDA CONVERSA',
+};
+
+// O tom é o do fato, não do gosto: `resumed` é o normal e sai na tinta da timeline; `broken` é a
+// única que precisa saltar aos olhos; `new`/`none` são quietas porque não há nada a fazer.
+const FIO_TONS = { resumed: '', new: 'dim', broken: 'bad', none: 'dim' };
+
+// O canal desta tela. É o mesmo nome que o servidor usa para separar um fio do outro.
+const FIO_ORIGEM = 'console';
+
+/**
+ * Quando o fio nasceu, sem relógio correndo.
+ *
+ * Hora absoluta e não idade relativa: idade só é verdade enquanto alguém a atualiza, e um
+ * `HÁ 20MIN` parado na tela vira mentira sozinho. O DIA entra quando o fio não nasceu hoje — é
+ * exatamente o que o `since` existe para impedir (um fio de ontem parecendo recém-aberto).
+ */
+function desdeQuando(since) {
+  if (!since) return '—';
+  const pad = (value) => String(value).padStart(2, '0');
+  const nascimento = new Date(since * 1000);
+  const hora = `${pad(nascimento.getHours())}:${pad(nascimento.getMinutes())}`;
+  const dia = nascimento.toDateString() === new Date().toDateString()
+    ? ''
+    : `${pad(nascimento.getDate())}/${pad(nascimento.getMonth() + 1)} `;
+  return `DESDE ${dia}${hora}`;
 }
 
 /** O que a linha não mostra e o hover revela. Vazio = sem `title`. */
@@ -318,6 +382,128 @@ export function createStreams(root, { toolColor }) {
     if (dePe.get(topic)?.at === event.at) return;
     levantar(topic, event);
   });
+
+  /*
+   * O FIO — a CONDIÇÃO, e ela é um nó só.
+   *
+   * Reescrever no lugar em vez de recriar: `.row` traz o `slide-in`, e um bloco que entra
+   * deslizando a cada pergunta anunciaria fato novo onde só houve confirmação — movimento que não
+   * representa transformação é decoração (princípio 7).
+   *
+   * Ele mora no bloco dos avisos de pé, e não entre as linhas, pela mesma razão que eles: o
+   * `feed` poda pelo ÚLTIMO filho, e a 27ª linha da timeline apagaria a condição.
+   */
+  const fio = { node: null, linha: null, hora: null, texto: null, ordem: null, botao: null };
+
+  async function cortar() {
+    try {
+      const resposta = await cutThread(FIO_ORIGEM);
+      // O que aconteceu sai do que o SERVIDOR contou, nunca de o botão ter sido clicado: cortar
+      // o que não existia e cortar um fio de sete perguntas são fatos diferentes.
+      stamp(resposta.cut ? 'FIO CORTADO · A PRÓXIMA PERGUNTA COMEÇA DO ZERO' : 'NÃO HAVIA FIO A CORTAR', {
+        tone: 'dim',
+      });
+      if ((resposta.threads || []).some((t) => t.origin === FIO_ORIGEM)) return;
+      pintarFio({
+        estado: 'cut',
+        frase: 'SEM FIO · A PRÓXIMA PERGUNTA COMEÇA DO ZERO',
+        tom: 'dim',
+        cortavel: false,
+      });
+    } catch (error) {
+      stamp(`FIO NÃO CORTADO · ${error.message}`, { tone: 'bad' });
+    }
+  }
+
+  function pintarFio({ estado, frase, tom = '', ordem = '', desde = null, sessao = null, cortavel = false }) {
+    if (!fio.node) {
+      fio.node = el('div');
+      fio.linha = el('div', 'row');
+      fio.hora = el('span', 'row-time');
+      fio.texto = el('span', 'row-text');
+      fio.ordem = el('span', 'row-meta');
+      fio.linha.append(fio.hora, fio.texto, fio.ordem);
+      fio.node.append(fio.linha);
+      // Antes dos avisos: o fio é sobre a pergunta que o operador está fazendo agora.
+      avisos.prepend(fio.node);
+    }
+    fio.node.dataset.thread = estado;
+    fio.linha.className = `row ${tom}`.trim();
+    set(fio.hora, desdeQuando(desde));
+    set(fio.texto, frase);
+    set(fio.ordem, ordem);
+    // O id de 36 caracteres não cabe na régua da HUD e é o que cruza esta tela com o log do CLI.
+    fio.linha.title = [sessao && `sessão ${sessao}`, `origem ${FIO_ORIGEM}`].filter(Boolean).join('\n');
+
+    if (!cortavel) {
+      fio.botao?.remove();
+      return;
+    }
+    if (!fio.botao) {
+      fio.botao = button({
+        variant: 'outline',
+        size: 'xs',
+        label: 'CORTAR O FIO',
+        title: 'a próxima pergunta deste canal começa do zero',
+        onClick: cortar,
+      });
+    }
+    // Reanexar o mesmo nó é MOVER no DOM, e mover rouba o foco de quem estava com ele.
+    if (fio.node.lastElementChild !== fio.botao) fio.node.append(fio.botao);
+  }
+
+  on('thread', (event) => {
+    if (!Object.hasOwn(FIO_FRASES, event.continuity)) {
+      console.error(`[thread] continuity ${event.continuity} fora do catálogo — nada a desenhar`, event);
+      return;
+    }
+    /*
+     * ☠️ A LINHA DO FIO PERDIDO, e ela é a razão de o `thread` existir.
+     *
+     * Não há evento `error`: a execução respondeu. O que quebrou foi a memória, e a condição
+     * abaixo será substituída pela próxima pergunta — só a linha guarda que ESTA resposta não
+     * teve as anteriores. A frase é a do que ACONTECEU; a da condição é a do que passou a valer.
+     */
+    if (event.continuity === 'broken') {
+      stamp('FIO PERDIDO · O CLI NÃO ACHOU A SESSÃO ANTERIOR', { tone: 'bad' });
+    }
+    pintarFio({
+      estado: event.continuity,
+      frase: FIO_FRASES[event.continuity],
+      tom: FIO_TONS[event.continuity],
+      // Sem fio não há de que esta pergunta seja a sétima — e um `1ª` ali seria contagem
+      // inventada, não contagem em zero.
+      ordem: event.continuity === 'none' || !Number.isFinite(event.turn) ? '' : `${event.turn}ª PERGUNTA`,
+      desde: event.since,
+      sessao: event.thread,
+      // `none` é o único que não tem o que cortar nunca: o cérebro não guarda conversa. Nos
+      // outros o fio existe ou nasce desta execução.
+      cortavel: event.continuity !== 'none',
+    });
+  });
+
+  /*
+   * O fio que já existia quando a página abriu.
+   *
+   * Sem isto a tela só saberia do fio DEPOIS de perguntar, e a dúvida ("ele lembra ou adivinha?")
+   * nasce antes. Falha calada de propósito: servidor que não respondeu não autoriza a tela a
+   * afirmar que não há fio — não dizer nada é o que é verdade.
+   */
+  threads()
+    .then(({ threads: fios = [] }) => {
+      const aberto = fios.find((t) => t.origin === FIO_ORIGEM);
+      if (!aberto || fio.node) return;
+      pintarFio({
+        estado: 'open',
+        frase: 'FIO ABERTO · A PRÓXIMA PERGUNTA SABE DESTE',
+        // `turns` é quantas perguntas o fio JÁ teve — contagem, não a ordem da próxima.
+        ordem: plural(aberto.turns, 'PERGUNTA', 'PERGUNTAS'),
+        desde: aberto.since,
+        sessao: aberto.session,
+        cortavel: true,
+      });
+    })
+    .catch(() => {});
 
   on('web', (event) => {
     if (event.phase === 'start') {

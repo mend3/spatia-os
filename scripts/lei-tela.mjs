@@ -199,7 +199,7 @@ function varrer(dir) {
  * ⚠️ Acrescentar um nome a `PERMITIDOS` é uma DECISÃO: cada escritor novo é mais um lugar de onde o
  * estado de tela pode sair, que é exatamente o que a `tela.js` existe para não haver.
  */
-const PERMITIDOS = ['src/hud/boot.js', 'src/hud/splash.js', 'src/main.js'];
+const PERMITIDOS = ['src/hud/boot.js', 'src/main.js'];
 const escritores = varrer('src')
   .filter((arquivo) => /from '[^']*core\/tela\.js'/.test(src(arquivo)))
   .sort();

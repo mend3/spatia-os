@@ -238,17 +238,11 @@ async function main() {
   }
 
   /*
-   * ⚠️ **A splash NÃO é montada, e isso é decisão.** Como camada própria ela virava uma SEGUNDA
-   * tela entre o diagnóstico e o céu — o operador dispensava o boot e encontrava outra parede.
-   * O que ela mostrava (`CÉU` e `CORPUS`) o `#boot` já mostra: `TOPOLOGIA` e a coleção no
-   * `NÚCLEO COGNITIVO`. Duas telas afirmando o mesmo fato é o pedágio que o princípio 11
-   * (*"nada aparece, nada desaparece"*) recusa.
-   *
-   * O módulo fica porque o destino é REESCREVER A TELA DE ENTRADA com ele — o `#boot` deixa de
-   * ser lista de subsistemas e passa a ser a abertura, com o diagnóstico dentro. Ver T-13.
+   * ⚠️ **A tela de entrada é UMA, e ela é o `#boot`.** Camada de CHEGADA própria, sobre a cena já
+   * desenhando, está refutada por uso: virava uma segunda parede entre o diagnóstico e o céu, e
+   * afirmava (`CÉU`, `CORPUS`) o que esta tela agora afirma dentro do bloco `CÉU`. Duas telas
+   * dizendo o mesmo fato é o pedágio que o princípio 11 recusa.
    */
-  const splash = { anunciar: () => {} };
-
   const boot = createBoot(bootRoot, {
     /**
      * `ambient` é a resposta do gate do boot — som ligado ou entrada em silêncio.
@@ -434,38 +428,47 @@ async function main() {
     return;
   }
 
-  let nodeCount = 0;
+  /*
+   * ☠️ **O retorno de `scene.loadGraph` soma corpos + LUAS, e não é `corpos`.** Publicá-lo sob
+   * essa palavra dá **460 num corpus de 72** (fixture, 09/08) — e `corpos` é ARQUIVO em
+   * `stats.files`, em `cena().corpos` e em todo censo. Uma palavra, duas grandezas, com a maior
+   * na primeira tela que alguém lê. A contagem sai de onde a palavra já significa isso: o censo
+   * do servidor, que é quem lê o `.env` e assina o `corpus` ao lado. As luas se contam com o
+   * nome delas.
+   *
+   * ⚠️ `?? null` e não `?? 0`: servidor que não contou é *"não medi"*, e céu vazio é outra coisa.
+   */
+  let corpos = null;
   try {
     const graph = await api.graph();
-    nodeCount = scene.loadGraph(graph);
-    frame.applyGraph(nodeCount);
-    streams.note(`TOPOLOGIA CARREGADA · ${nodeCount} CORPOS`, 'good');
-    /*
-     * A MESMA contagem da nota acima, e é esse o ponto: ela é escrita numa superfície que o boot
-     * está cobrindo, no único minuto em que ninguém pode lê-la. A splash não produz número novo —
-     * ela mostra o que já estava sendo afirmado, na hora em que dá para ler.
-     *
-     * `graph.corpus` vem do servidor, que é quem lê o `.env`. Adivinhar aqui seria repetir o
-     * defeito que os scripts pagaram: `?? 'vault/'` não falha, mede o corpus errado com convicção.
-     */
-    splash.anunciar({ ceu: nodeCount, corpus: graph.corpus ?? null });
+    scene.loadGraph(graph);
+    corpos = graph.stats?.files ?? null;
+    // Sem contagem o medidor fica no travessão de nascença: `0 arq` seria uma medida inventada.
+    if (corpos !== null) frame.applyGraph(corpos);
+    const luas = scene.moonReport?.() ?? null;
+    streams.note(`TOPOLOGIA CARREGADA · ${corpos ?? '—'} CORPOS`, 'good');
     // Seção que não coube em órbita é informação perdida da tela: quem corta avisa.
-    const luas = scene.moonReport?.();
     if (luas?.dropped) {
-      streams.note(
-        `${luas.shown} LUAS EM ÓRBITA · ${luas.dropped} SEÇÕES SEM ESPAÇO`,
-        'warn'
-      );
+      streams.note(`${luas.shown} LUAS EM ÓRBITA · ${luas.dropped} SEÇÕES SEM ESPAÇO`, 'warn');
     }
+    /*
+     * As duas notas acima caem numa superfície que a tela de entrada está cobrindo, no único
+     * minuto em que ninguém pode lê-las. A entrada não produz número novo — mostra o que já
+     * estava sendo afirmado, na hora em que dá para ler, junto do CORPUS que lhe dá sentido.
+     *
+     * ⚠️ `graph.corpus` vem do SERVIDOR. Um default aqui (`?? 'vault/'`) não falha: mede o corpus
+     * errado com convicção total.
+     */
+    boot.ceu({ corpos, luas, corpus: graph.corpus ?? null });
   } catch (error) {
     streams.note(`TOPOLOGIA INDISPONÍVEL: ${error.message}`, 'bad');
     // `null`, nunca 0: um céu que não carregou e um céu vazio dão a mesma imagem, e só um deles
-    // é um defeito. A camada de chegada não pode ser o lugar onde essa diferença se perde.
-    splash.anunciar({ ceu: null, corpus: null, motivo: error.message });
+    // é um defeito. A tela de entrada não pode ser o lugar onde essa diferença se perde.
+    boot.ceu({ corpos: null, corpus: null, motivo: error.message });
   }
 
   // Sem topologia não há estrela para receber anel — sondar o disco só gastaria `git status`.
-  if (nodeCount) watchDirty(scene, streams);
+  if (corpos) watchDirty(scene, streams, boot);
 
   // O router entra em cena depois de saúde e topologia: um app que carrega dados no onEnter
   // não deve fazê-lo antes de o sistema saber o que está no ar.
@@ -529,7 +532,7 @@ async function main() {
     streams.note(`PERFIL ${perfil.name} APLICADO`, 'good');
   });
 
-  await boot.report(health, nodeCount);
+  await boot.report(health);
   /*
    * Janela sem medida não vira beacon. `startTelemetry` já pula o `null` — o espalhamento é que
    * o desfazia, transformando "não medi" num relatório vazio que o servidor registra como se
@@ -636,11 +639,21 @@ const DIRTY_POLL_MS = 6_000;
  * gastar CPU do operador para desenhar o que ele não vê. Ao voltar para a aba a sondagem é
  * imediata — esperar o próximo tique mostraria o disco de até 15s atrás.
  */
-function watchDirty(scene, streams) {
+function watchDirty(scene, streams, boot) {
   // Começa em 0 e não em `null`: árvore limpa no boot é o caso comum, e anunciar "0 arquivos"
   // toda vez que o observatório sobe é ruído.
   let announced = 0;
   let failing = false;
+
+  /*
+   * A PRIMEIRA leitura do disco chega enquanto a tela de entrada ainda cobre a timeline — é o
+   * fato que se perdia. As duas superfícies recebem o MESMO texto: uma delas reescrevendo a
+   * frase seria um número que muda conforme onde se lê.
+   */
+  const anunciar = (texto, tom = '') => {
+    streams.note(texto, tom);
+    boot.disco(texto, tom);
+  };
 
   async function poll() {
     if (document.hidden) return;
@@ -664,7 +677,7 @@ function watchDirty(scene, streams) {
         scene.forgetDirty();
         if (!failing) {
           failing = true;
-          streams.note('SEM RAIZ GIT CONFIGURADA (AGENT_CWD) · ANÉIS DESLIGADOS', 'bad');
+          anunciar('SEM RAIZ GIT CONFIGURADA (AGENT_CWD) · ANÉIS DESLIGADOS', 'bad');
         }
         return;
       }
@@ -672,7 +685,7 @@ function watchDirty(scene, streams) {
       failing = false;
       if (resultado.shown === announced) return;
       announced = resultado.shown;
-      streams.note(dirtyNote(resultado), resultado.shown ? '' : 'good');
+      anunciar(dirtyNote(resultado), resultado.shown ? '' : 'good');
     } catch (error) {
       /*
        * Falha = APAGAR os anéis, não mantê-los.
@@ -688,7 +701,7 @@ function watchDirty(scene, streams) {
       // Uma nota por queda, não uma a cada tique: um servidor fora do ar não pode encher o log.
       if (failing) return;
       failing = true;
-      streams.note(`ALTERAÇÕES LOCAIS INDISPONÍVEIS: ${error.message} · ANÉIS REMOVIDOS`, 'bad');
+      anunciar(`ALTERAÇÕES LOCAIS INDISPONÍVEIS: ${error.message} · ANÉIS REMOVIDOS`, 'bad');
     }
   }
 

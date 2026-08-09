@@ -93,6 +93,7 @@ o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
 | `node scripts/lei-tela.mjs` | após tocar em `core/tela.js` ou em quem escreve na tela |
 | `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla fica presa |
 | `node scripts/lei-notice.mjs` | após tocar em `hud/streams.js` ou no contrato de `notice` |
+| `node lei-thread.mjs` | após tocar em `hud/streams.js` ou no contrato de `thread` — prova que `broken` não passa calado. ⚠️ **O lugar dele é `scripts/`**; a RAIZ se acha sozinha nos dois, então mover é só mover |
 | `node scripts/lei-favoritos.mjs` | após tocar em `space/favoritos.js` — a marca não vaza para a ontologia |
 | `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla sobrevive a perder o foco |
 | `node scripts/lei-cena.mjs` | após tocar em `CENAS`/`aplicarCena`, ou em `entity-physics.js`/`superficies.js` |
@@ -358,10 +359,12 @@ dois na hora (máx/mín 23,96× é fase; ~1× seria aro). É a armadilha nº 5 d
 
 ---
 
-☠️ **`TOPOLOGIA` DO BOOT NÃO CONTA A MESMA COISA QUE O RESTO DA BASE.** Ele publica o retorno de
-`scene.loadGraph`, que soma corpos + LUAS (**460** num corpus de **72 corpos**), com o rótulo
-"corpos" — a mesma palavra que `stats.files`, `cena().corpos` e todo censo usam para ARQUIVO.
-Mesma palavra, duas grandezas, e a maior aparece na primeira tela que alguém lê.
+☠️ **MESMA PALAVRA, DUAS GRANDEZAS — três casos medidos, e todos na mesma sessão.** O retorno de
+`scene.loadGraph` soma corpos **+ LUAS** (460 num corpus de 72) e já saiu rotulado "corpos"; o
+`answer.turns` é o laço INTERNO do agente numa execução e o `thread.turn` é a ordem da pergunta na
+conversa, os dois na mesma timeline; e `orbit.distance` servia de proxy a quatro perguntas
+diferentes. **Antes de reusar um nome, pergunte que grandeza o outro dono mede** — o sintoma é
+sempre um número plausível na tela que ninguém reconcilia com o censo.
 
 ☠️ **MEDIR SUB-ROTA EXIGE CARGA FRIA.** Trocar só o `location.hash` **não recarrega o documento**, e
 o router trata sub-rota **sem remontar** de propósito — o endereço existe para trazer o estado de
