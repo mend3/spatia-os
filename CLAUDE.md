@@ -294,11 +294,9 @@ Se precisar fazer mais perguntas, a implementação está errada.
 O melhor momento para ajudar o usuário não é quando ele pergunta.
 
 É alguns segundos antes de ele perceber que precisava perguntar.
-```
 
-Eu ainda acrescentaria um último bloco, porque ele muda completamente a forma como um agente implementa funcionalidades:
+---
 
-```md
 # Filosofia de Engenharia
 
 Sempre prefira:
@@ -317,7 +315,6 @@ Sempre prefira:
 - degradar com elegância > falhar silenciosamente
 
 Cada nova funcionalidade deve tornar o sistema mais inteligente, não apenas maior.
-```
 
 ---
 
