@@ -644,6 +644,30 @@ export function createUniverse() {
    * fontes para o mesmo fato — o defeito que esta base mais persegue.
    */
   const cedidos = new Map();
+  /*
+   * ☠️ **O ÍNDICE DO CORPO EM FOCO, e ele existe porque `cedidos` PAROU DE SIGNIFICAR FOCO.**
+   *
+   * O anel de mundo era escolhido por `cedidos.size === 1 ? [...cedidos.keys()][0] : -1`. Isso
+   * valia enquanto o único corpo que cedia o sprite era o corpo em foco. `07f07d6` acabou com
+   * isso — a pele deixou de exigir foco e a cessão virou PLURAL (`cederParaVarios`): hoje
+   * `cedidos` recebe o corpo em foco **mais** cada vizinho do pool com pele, até o teto de 4.
+   *
+   * Consequência, e é a que foi relatada da tela: com QUALQUER vizinho com pele o tamanho passa
+   * de 1, o índice vira `-1` e **todo anel da cena volta ao billboard** — a mesma imagem do
+   * defeito que `26f0e83` consertou, por uma causa diferente. Aquele commit corrigiu o
+   * espalhamento do Map e manteve o PROXY; o proxy é que tinha expirado.
+   *
+   * ⚠️ E o erro tinha um segundo lado, mais silencioso: sem foco nenhum e com exatamente uma pele
+   * no pool, `size === 1` era verdade e o anel daquele vizinho virava anel de MUNDO — pose de
+   * inspeção num corpo que ninguém pediu para inspecionar.
+   *
+   * Agora o fato é declarado por quem o conhece, em vez de inferido de um efeito colateral dele.
+   * ⚠️ Ele viaja na MESMA lista da cessão de propósito: uma segunda chamada poderia chegar em
+   * outro quadro, e aí o anel de mundo apareceria num corpo e a cessão em outro.
+   */
+  let indiceFocado = -1;
+  /* A câmera do último quadro — `stats()` roda fora do laço e o `follow` compara contra ela. */
+  let cameraDoQuadro = null;
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
      sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
   const amostra = new THREE.Vector3();
@@ -897,6 +921,14 @@ export function createUniverse() {
        * essa dúvida que custou a primeira investigação.
        */
       aneis: sujosAtivos.length,
+      /*
+       * ⚠️ **`aneis` conta; `aneisPose` diz o que eles SÃO.** A contagem ficou idêntica nas duas
+       * vezes em que todo anel desta cena caiu no billboard — ela não distingue objeto de sinal,
+       * e era a única sonda que existia. `deltaCamera > 0` é a prova de que o anel em foco tem
+       * pose própria: o billboard copia o quaternion da câmera e mede 0 ali por construção.
+       */
+      aneisPose: aneis.poses(cameraDoQuadro),
+      indiceFocado,
     }),
 
     /**
@@ -1055,8 +1087,17 @@ export function createUniverse() {
      *
      * @param {Array<string>} sources
      */
-    cederParaVarios(entradas = []) {
+    cederParaVarios(entradas = [], focoSource = null) {
       cedidos.clear();
+      /*
+       * ⚠️ **O foco entra por FORA da lista, e isso é a correção inteira.** Pôr um `foco: true`
+       * numa entrada de cessão amarraria de novo as duas coisas: um corpo em foco SEM pele não
+       * cede o sprite e portanto não teria entrada — e ficaria sem anel de mundo, que é o
+       * defeito de hoje com outra roupa. Cessão responde *"quem virou núcleo de uma pele"*;
+       * foco responde *"quem está sendo inspecionado"*. Já foram a mesma coisa; não são mais.
+       */
+      const iFoco = focoSource ? indiceDe.get(focoSource) : undefined;
+      indiceFocado = iFoco ?? -1;
       for (const e of entradas) {
         const src = typeof e === 'string' ? e : e.source;
         const i = indiceDe.get(src);
@@ -1121,6 +1162,7 @@ export function createUniverse() {
     cederPara(source) {
       const i = source ? indiceDe.get(source) : undefined;
       cedidos.clear();
+      indiceFocado = i ?? -1;
       if (i !== undefined) cedidos.set(i, FATOR_NUCLEO);
     },
 
@@ -1626,6 +1668,7 @@ export function createUniverse() {
      * referencial parado, e mover cada sistema para um lado diferente afirmaria outra coisa.
      */
     update(elapsed, delta = 0, camera = null, viewportHeight = 0) {
+      cameraDoQuadro = camera;
       quadros++;
       ultimoElapsed = elapsed;
       if (!estrelas || !planetas) return;
@@ -1743,8 +1786,19 @@ export function createUniverse() {
          * ⚠️ Nada acusou. O anel continuou desenhando, com estrutura e cor certas — só parou de
          * ser um objeto no mundo. É a armadilha nº 2 numa forma nova: a troca de Set para Map
          * compila, roda e some com a feição.
+         *
+         * ☠️ **E O CONSERTO NÃO BASTOU — mesma imagem, segunda causa.** Relatado da tela de novo
+         * em 2026-08-09. `[...cedidos.keys()][0]` devolvia o índice certo, mas a GUARDA
+         * `cedidos.size === 1` já não descrevia foco: com o pool, a cessão é plural e o tamanho
+         * passa de 1 assim que qualquer vizinho ganha pele. O índice caía em `-1` e o billboard
+         * voltava inteiro. Hoje quem responde é `indiceFocado`, declarado por quem sabe.
+         *
+         * **A lição, e ela é maior que o anel:** o primeiro conserto arrumou o ESPALHAMENTO e
+         * manteve o PROXY. Um proxy expira sem avisar quando a lei que ele resumia muda de forma
+         * — e aqui a lei mudou no MESMO branch, dois commits antes. Ao consertar um símbolo,
+         * pergunte também se o que ele MEDE ainda é o que o nome diz.
          */
-        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, cedidos.size === 1 ? [...cedidos.keys()][0] : -1);
+        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, indiceFocado);
       }
     },
 

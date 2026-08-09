@@ -726,6 +726,24 @@ export function createRings() {
          * `tiltOverride` continua valendo: é a bancada varrendo o ângulo, e ali o número é a
          * variável do experimento, não a pose do corpo.
          */
+        /*
+         * ☠️ **A MARCA DO MODO, e ela existe porque este `if` já caiu CALADO duas vezes.**
+         *
+         * As duas com a mesma imagem — todo anel em billboard — e causas diferentes:
+         * `[...cedidos][0]` devolvendo `[chave, valor]` depois de um Set virar Map, e depois a
+         * guarda `cedidos.size === 1` deixando de significar foco quando a cessão virou plural.
+         * Nas duas o anel continuou desenhando com estrutura, cor e família certas: **a feição
+         * sumiu sem que nada acusasse**, que é o modo de falha característico desta base.
+         *
+         * Nenhuma sonda conseguia ver a diferença — `aneis` contava 17 nos dois casos, e
+         * `desenhadas: N` prova que o anel recebeu quadro, não que ele é um objeto. O modo agora
+         * é ESCRITO no ramo que o decide, em vez de inferido de fora: `spatia.cena().aneisPose`
+         * publica quantos estão em cada modo e o quanto o de mundo difere da câmera.
+         *
+         * ⚠️ A prova de que é objeto NÃO é "existe um anel de mundo" — é `deltaCamera > 0`. Um
+         * billboard copia o quaternion da câmera, então ele vale 0 por construção ali.
+         */
+        ring.modoMundo = ring.index === focusedIndex;
         if (ring.index === focusedIndex) {
           ring.mesh.rotation.set(-Math.PI / 2 + (tiltOverride ?? ring.obliquity), ring.roll, 0);
           // Sem achatamento no shader: a elipse na tela agora é a PROJEÇÃO de um disco de verdade.
@@ -816,6 +834,55 @@ export function createRings() {
     },
 
     count: () => active.length,
+
+    /**
+     * QUANTOS anéis são objeto de mundo, e o quanto o de mundo difere da câmera.
+     *
+     * ⚠️ **`deltaCamera` é o número que importa, e ele existe porque `mundo: 1` não é prova.**
+     * O billboard copia `camera.quaternion`, então ali o ângulo entre as duas poses é ZERO por
+     * construção. Um anel marcado como mundo cujo `deltaCamera` seja 0 estaria encarando a
+     * câmera de qualquer jeito — a marca certa sobre uma pose errada. Em radianos.
+     *
+     * @param {THREE.Camera} camera  a mesma do `follow`; sem ela só o par de contagens sai
+     */
+    poses(camera) {
+      let mundo = 0, billboard = 0, delta = 0, deltaBb = 0;
+      for (const ring of active) {
+        if (ring.modoMundo) {
+          mundo++;
+          if (camera) delta = Math.max(delta, ring.mesh.quaternion.angleTo(camera.quaternion));
+        } else {
+          billboard++;
+          if (camera) deltaBb = Math.max(deltaBb, ring.mesh.quaternion.angleTo(camera.quaternion));
+        }
+      }
+      return {
+        mundo,
+        billboard,
+        deltaCamera: +delta.toFixed(4),
+        /*
+         * ⭑ **O CONTROLE, e ele é o que torna a medida atribuível.** O billboard parte de
+         * `quaternion.copy(camera.quaternion)` e só aplica `roll` e `tilt` do próprio anel — logo
+         * este ângulo é uma CONSTANTE do anel, imune a qualquer movimento da câmera.
+         *
+         * É por isso que ele responde a pergunta que uma leitura só não responde: mover a câmera
+         * e ver `deltaCamera` mudar prova pose própria **apenas se** `deltaBillboard` ficar
+         * parado no mesmo par de leituras. Os dois andando juntos seria a sonda medindo o
+         * movimento dela mesma — a armadilha nº 5 do §5 em forma nova.
+         */
+        deltaBillboard: +deltaBb.toFixed(4),
+        /*
+         * A pose da própria câmera, para o movimento dela ser FATO e não suposição.
+         *
+         * ⚠️ **SEIS casas, e não quatro — quatro criam um piso que parece medida.** Com
+         * `toFixed(4)` o produto escalar de um quaternion com ELE MESMO já sai < 1, e
+         * `2·acos` devolve **0,025 rad** para rotação nenhuma. Foi lido como "a câmera girou"
+         * numa aferição de 2026-08-09 antes de a etapa 0 — que se compara consigo — mostrar o
+         * mesmo 0,025 e denunciar o piso.
+         */
+        camQuat: camera ? [camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w].map((v) => +v.toFixed(6)) : null,
+      };
+    },
 
     dispose() {
       active.length = 0;

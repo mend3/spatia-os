@@ -2236,7 +2236,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // Cada pele cede conforme o PORTE dela: a esfera vira o núcleo sob o corpo desenhado, e não
       // uma bola 2% menor que o cobre. Ver `cederParaVarios`.
       ...vizinhas.map((v) => ({ source: v.source, span: BODY_SPAN[v.pele] ?? 1 })),
-    ]);
+    ],
+    /*
+     * ⚠️ **O FOCO vai no segundo argumento, e não como item da lista.** É ele que decide qual
+     * anel é objeto de mundo e qual é billboard. O `universe` inferia isso de
+     * `cedidos.size === 1`; desde que a cessão virou plural a inferência erra nos DOIS sentidos —
+     * some com o anel de mundo quando há vizinho com pele, e o inventa num vizinho quando não há
+     * foco. E ele é independente de PELE de propósito: um corpo em foco sem pele continua sendo
+     * o corpo que se está inspecionando. Ver `indiceFocado` em `universe.js`.
+     */
+    modo === 'universo' ? focusedNode : null);
     /*
      * ⚠️ **A COROA da estrela, e ela existe porque a cena AGENTE a tinha por outro caminho.**
      *
