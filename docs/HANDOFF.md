@@ -87,7 +87,7 @@ o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
 
 | guarda | quando |
 |---|---|
-| **`node scripts/leis.mjs`** | ☠️ **SEMPRE.** Roda os 24 em ~4,1 s e sai 1 se qualquer um cair (o próprio comando imprime os dois números). Está no `pre-commit`; clone novo pede `sh scripts/instalar-hook.sh` |
+| **`node scripts/leis.mjs`** | ☠️ **SEMPRE.** Roda todos em ~4 s e sai 1 se qualquer um cair. ⚠️ **Quantos são sai do próprio comando**, nunca desta tabela — ele imprime a contagem e o tempo, e guarda novo entra sozinho (a lista de quem NÃO roda é medida, não declarada). Está no `pre-commit`; clone novo pede `sh scripts/instalar-hook.sh` |
 
 ⚠️ **A tabela por-guarda saiu daqui.** Ela dizia *quando* rodar cada um, e escolher era exatamente
 como os defeitos passavam — quatro guardas foram flagrados sem guardar o que diziam na mesma
@@ -122,6 +122,12 @@ sonda medindo o próprio movimento. Medido em 09/08: câmera girou 0,3212 rad �
 ELE MESMO já sai < 1 e `2·acos` devolve **0,025 rad para rotação nenhuma**. Uma tabela inteira saiu
 com esse piso parecendo medida. **A guarda é comparar a primeira leitura consigo: se não der 0
 exato, o resto não vale.**
+
+⭑ **`spatia.cena().composicao` separa as três causas de "a tela está preta"**, que a foto não separa:
+ela diz em que alvo a cena grava profundidade (`gravaACena`), em qual a lente escreve
+(`escreveALente`) e se os dois colidem (`realimentacao`). Buffer errado é ela; câmera no vazio é
+`universo.ancora()`; laço parado é o `requestAnimationFrame`. ⚠️ `leitura` é RESÍDUO do quadro que
+acabou — numa cena de paridade ímpar ela sai no outro alvo por construção, e isso está certo.
 
 **Sondas:** `spatia.cena()` · `.tela()` · `.planet()` · `.galaxy()` · `.moons()` · `.lod()` ·
 `.renderCost(n)` ·
@@ -561,6 +567,24 @@ quando a medida atravessa as duas cenas.
     pega o operador recolhendo. Atributo com `subtree` **não** dispara em `childList`, então o
     stream de tokens não repinta nada. Quem usa isso hoje é a lista de fontes (`hud/answer.js`).
 
+28. ☠️ **ESTADO QUE SOBREVIVE AO QUADRO + PASSE QUE SOME DA CADEIA = DEFEITO INTERMITENTE QUE CONTA
+    QUADROS.** O `EffectComposer` **pula** o passe desabilitado (`if (pass.enabled === false)
+    continue`) e **não reinicia** `readBuffer`/`writeBuffer` entre quadros — só o construtor e o
+    `reset()` os atribuem. Então quem decide em que alvo o `RenderPass` grava é a PARIDADE acumulada
+    dos passes que trocam, e uma cena que liga ou desliga um passe muda essa paridade. Desligar a
+    lente no UNIVERSO deixava um passe trocador só, o par invertia a cada quadro, e a volta ao
+    AGENTE punha a lente escrevendo no alvo cuja `depthTexture` ela amostra: feedback loop,
+    indefinido em WebGL, **PRETO em silêncio**.
+    ⭑ **A guarda é fixar o estado no começo de cada quadro** — nunca redesenhar para compensar, que
+    esconde a paridade e a devolve no primeiro passe novo. Portão: `scripts/lei-paridade.mjs`.
+    ⚠️ **A família é maior que o composer:** toda vez que um objeto de terceiro guarda estado ENTRE
+    chamadas e a sua configuração muda quantas vezes esse estado avança, o defeito nasce
+    intermitente e o intervalo entre as ocorrências mede QUADROS (ou chamadas), não tempo. Um
+    conserto visto funcionando uma vez não prova nada nessa forma.
+    ☠️ **E não confunda com o item 8:** lá a foto não distingue órbita parada de órbita lenta; aqui a
+    foto é conclusiva (zero pixels acesos é zero), mas **o gatilho não está no quadro que você
+    fotografa** — está em quantos quadros a outra cena desenhou antes.
+
 **E a régua desta base:** quando o usuário descreve um sintoma, **a descrição dele geralmente já é o
 diagnóstico**. Meça o que ele apontou antes de propor hipótese própria — e quando uma medida sua
 contradisser a foto dele, a medida costuma estar na régua errada.
@@ -798,6 +822,20 @@ sobre a segunda, por sistema, 22 sistemas): *família colisional* (`μ ≪ 1`) *
 2 são de um corpo só. μ finito: mín 1,00 · MED 1,56 · máx 24,00, com 4 empates exatos em 1,00.
 ⚠️ **A cena desenha uma estrela por sistema nos 22** — a zona graduada não muda um pixel, e o `μ`
 do `orbital-zones.js` (nº de seções) **não é o mesmo `μ`**.
+
+**O PRETO DA CENA AGENTE ERA O BUFFER, e o A/B está fechado** (09/08, `readPixels` 256×256 no centro
+de um buffer 2582×1484, mesma sequência nos dois tratamentos, seis idas UNIVERSO → AGENTE cada):
+
+| tratamento | idas com ZERO pixel aceso | pixels acesos quando desenha |
+|---|---|---|
+| **sem** fixar o par | **4 de 6** (`luz` 0 exato) | 13,1–13,2 mil |
+| **com** o fixador | **0 de 6** | 11,7–14,2 mil |
+
+☠️ **O discriminante é o BUFFER, não a paridade da ida:** os 4 pretos saíram com `leitura: rt1` e os
+2 acesos com `rt2` — 6 de 6. A paridade ACUMULA entre idas, então contar quadros por ida engana;
+quem responde é `spatia.cena().composicao` (`gravaACena` · `escreveALente` · `realimentacao`).
+⚠️ **Zero aqui é ZERO** — 65.536 pixels somando 0, não "escuro". É o que separa este defeito de uma
+câmera apontada para o vazio, que desenha pouco e não desenha nada.
 
 **Teto de driver:** `ALIASED_POINT_SIZE_RANGE = [1, 511]` nesta máquina. O teto é verdade sobre PIXEL e
 mentira sobre GEOMETRIA — derivar tamanho de mundo do valor com teto trava o corpo em 153,3 px para
@@ -1055,6 +1093,7 @@ o critério dela. ⚠️ **Duas cópias divergiriam**, e a que alguém lesse pri
 | `rocheLimit(raio)` para apagar o `DENSITY_K` (item 0c) | `rocheLimit(mass)` **já é** `2,44·R`; a constante mora em `physicalRadius`, e o outro raio da cena está na régua do SPRITE, que não é conversível |
 | normalizar a massa do pulsar DENTRO da faixa gigante (item 0d) | é a mesma família do defeito — faria o período de um corpo depender de quem mais está no céu, e com população 1 é degenerada |
 | a massa mover o `core` do pulsar (T-29) | os 60% da faixa não têm leitor visual (as duas ampliações do miolo saem idênticas) **e** o corpo variável punha o `R_s/R` da lente em 0,640 contra os 0,400 do fato de classe. Subir o ganho até ele agir é pior: a 0,40 de âncora o corpo engole o lobo (87 px contra 89–165) e o `R_s` da lente cresce junto |
+| renderizar duas vezes na troca de cena para curar o preto (T-54) | esconde a PARIDADE em vez de removê-la, e ela volta no primeiro passe que alguém acrescentar. O que remove é fixar o par de buffers no começo do quadro, e a conferência é `lei-paridade.mjs` |
 | as ZONAS por razão de massa como classificação graduada (T-28) | a terceira zona é vazia por aritmética, a do meio leva **81,8% dos sistemas**, e a cena desenha a mesma imagem nas três. Quem tem leitor é o fato BINÁRIO (`dominanteDe`); a zona exigiria um segundo corpo em 81,8% dos sistemas — pipeline, não limiar |
 
 ## 8. Onde procurar a história

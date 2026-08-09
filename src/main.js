@@ -785,8 +785,16 @@ async function main() {
      * Existe pelo mesmo motivo das outras sondas — sem ela, "cliquei e não mudou" não distingue
      * botão morto de cena que não trocou, e foi exatamente essa dúvida que custou a primeira
      * validação deste switcher.
+     *
+     * ⚠️ **`quadros` conta só o UNIVERSO** — ele vem de `universeStats()` e congela no AGENTE, então
+     * usá-lo como prova de vida ali devolve "não mudou" com a tela viva. Medida que atravessa as
+     * duas cenas conta `requestAnimationFrame`.
+     * ⭑ **`composicao` é a que separa "preto por buffer" de "preto por câmera ou por laço"**: ela
+     * diz onde a cena grava profundidade, onde a lente escreve, e se as duas colidem.
      */
-    cena: (modo) => (modo ? scene.setMode(modo) : { modo: scene.mode(), ...scene.universeStats() }),
+    cena: (modo) => (modo
+      ? scene.setMode(modo)
+      : { modo: scene.mode(), ...scene.universeStats(), composicao: scene.composicao() }),
     /**
      * A geometria da cena UNIVERSO, medida em vez de olhada.
      *

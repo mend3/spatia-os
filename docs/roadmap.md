@@ -164,7 +164,7 @@ com ou sem produtor.
 | **T-51** | Zona morta do palco — ⭑ **provado na tela: ZERO ao ponteiro nas 8 rotas que o montam** | `done` | — | — | — |
 | **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
 | **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
-| **T-54** | ☠️ **A cena AGENTE volta PRETA ao voltar do UNIVERSO** — o suspeito é a PARIDADE DE SWAPS | `todo` | — | — | KR2.3 |
+| **T-54** | A cena AGENTE voltava PRETA ao voltar do UNIVERSO — era a PARIDADE DE SWAPS, e o par agora é FIXADO | `done` | — | — | KR2.3 |
 | **T-55** | Enxugar a BANCADA — ela é o storybook dos objetos 3D, e tem espécimes depreciados | `blocked` | T-26 | — | — |
 | **T-56** | Satélites estão com LUAS — não existe e não faz sentido | `todo` | — | — | — |
 | **T-57** | Falta a família de anel para arquivo EXCLUÍDO (`D`) — ⚠️ o servidor nem emite esse estado | `todo` | — | — | KR3.1 |
@@ -216,37 +216,26 @@ com ou sem produtor.
   ☠️ **E o orçamento não tem folga:** a lente sozinha custa **3,8–5,1 ms** contra 0,31–0,35 ms do
   céu inteiro. *"Não existe otimizar a galáxia"* — o buraco negro é onde o quadro já é gasto.
 
-- **T-54** — relato do usuário: *"algumas vezes, ao voltar da cena universo para agente, a cena
-  agente volta toda preta, forçando trocar as cenas até que ela renderize normalmente ou F5"*.
-  ⚠️ **INTERMITENTE**, e isso é parte do fato: um conserto que funciona uma vez não prova nada aqui.
-
-  ☠️ **O suspeito já está nomeado nesta base, e é o único que explica a intermitência.**
-  `cena-como-lente.md` §3.1 escreve: *"a cadeia de passes tem PARIDADE DE SWAPS
-  (`RenderPass → lensing → UnrealBloom → OutputPass`). Acrescentar ou remover um passe inverte para
-  qual buffer a profundidade é gravada, e a lente passa a ler um buffer vazio, EM SILÊNCIO."*
-
-  E é exatamente isso que a troca de cena faz: `CENAS.agente.passes.lensing = true` ·
-  `CENAS.universo.passes.lensing = false` (`scene.js`, tabela `CENAS`). **Passe desabilitado é
-  PULADO pelo composer**, então ligar e desligar muda a contagem de swaps. A profundidade é ligada
-  UMA VEZ a `composer.renderTarget2` (`scene.js:567`) — se a paridade inverter, ela passa a ser
-  gravada no outro alvo e a lente lê vazio.
-
-  ⚠️ **Antes de consertar, DISTINGA três causas** — "toda preta" é o sintoma de todas:
-  1. paridade de swaps (a hipótese acima);
-  2. a câmera apontando para o vazio — `HOME.distance` vem do `prefs`, e a volta ao AGENTE
-     restaura a pose do operador, que pode estar longe de tudo;
-  3. o laço de quadro parado. ⚠️ `cena().quadros` **conta só o UNIVERSO** e congela no AGENTE —
-     usá-lo aqui devolve "não mudou" com a tela viva. A contagem que não pertence a cena nenhuma é
-     o `requestAnimationFrame`.
-
-  ☠️ **A saída fácil é a errada:** renderizar duas vezes na troca ESCONDE a paridade em vez de
-  corrigi-la, e ela volta no dia em que alguém acrescentar um passe. O briefing já diz o desfecho
-  certo: *"isso precisa de guarda automática, não de memória"* — a paridade tem de ser CONFERIDA,
-  e `scripts/leis.mjs` é onde a conferência passa a viver.
-
-  ⚠️ E há um agravante para quem for medir: `spatia.renderCost()` e as sondas leem o quadro que
-  está na tela. Um quadro preto com `renderCost` normal aponta para buffer errado; um quadro preto
-  com custo perto de zero aponta para o laço parado. **São diagnósticos diferentes.**
+- **T-54 FECHADO** — era a PARIDADE DE SWAPS, e a causa nomeada em `cena-como-lente.md` §3.1 estava
+  certa. `EffectComposer` **pula o passe desabilitado** e **não reinicia o par entre quadros**, então
+  desligar a lente no UNIVERSO deixa um único passe que troca e o par inverte a cada quadro; a volta
+  ao AGENTE com o par invertido põe a lente escrevendo no alvo cuja `depthTexture` ela amostra —
+  feedback loop, preto, sem erro. Conserto: `desenharQuadro` FIXA `readBuffer`/`writeBuffer` antes de
+  todo `composer.render()`, e os quatro caminhos de desenho passam por ele. Portão:
+  `scripts/lei-paridade.mjs`, que roda o motor de swap VENDORIZADO com passes de mentira em vez de
+  transcrevê-lo (6 mutações vistas caindo, cada uma nomeada).
+  ⭑ **O A/B na tela, e é ele que fecha a tarefa** — mesma máquina, mesma sequência, `readPixels` de
+  256×256 no centro do buffer de 2582×1484: **sem o fixador 4 de 6 idas ao AGENTE voltaram com ZERO
+  pixels acesos** (`luz` 0 exato, não "escuro"); **com o fixador, 0 de 6**, entre 11,7 mil e 14,2 mil
+  pixels acesos. ☠️ **O discriminante NÃO é a paridade da ida, é o BUFFER:** os 4 pretos saíram todos
+  com `leitura: rt1` e os 2 acesos com `rt2` — 6 de 6 de correlação. Contar quadros por ida engana
+  porque a paridade ACUMULA entre idas; quem responde é `spatia.cena().composicao`.
+  ⚠️ **Renderizar duas vezes na troca continua REFUTADO** — esconde a paridade em vez de removê-la e
+  volta no dia em que alguém acrescentar um passe. A §4 do oráculo cobre justamente esse caso: um
+  passe que troque inserido ANTES da lente derruba a lei.
+  ⚠️ **As outras duas causas de "tela preta" seguem sem oráculo, e não são esta:** a câmera no vazio
+  (`HOME.distance` vem do `prefs`) e o laço parado. ☠️ `cena().quadros` **conta só o UNIVERSO** e
+  congela no AGENTE — a contagem que atravessa as duas cenas é o `requestAnimationFrame`.
 
 - **T-46 … T-53** — a varredura da interface está em
   [`briefings/hud-e-canvas.md`](./briefings/hud-e-canvas.md), com a conta de cada número.

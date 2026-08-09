@@ -428,12 +428,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     try {
       for (let i = 0; i < condicoes.length; i++) {
         aplicar(condicoes[i]);
-        composer.render();
+        desenharQuadro();
         amostras.push(ler ? ler(condicoes[i], i) : null);
       }
     } finally {
       restaurar();
-      composer.render();
+      desenharQuadro();
     }
     return amostras;
   }
@@ -573,6 +573,89 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   composer.addPass(lensing.pass);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
+
+  /**
+   * DESENHAR UM QUADRO — e o par de buffers é FIXADO antes, todo quadro.
+   *
+   * ☠️ **O composer NÃO reinicia o par a cada quadro, e passe desabilitado é PULADO.**
+   * `EffectComposer.render` percorre a cadeia com `if (pass.enabled === false) continue`, então o
+   * passe desligado não roda e não troca; e `readBuffer`/`writeBuffer` sobrevivem ao fim do laço,
+   * porque só o construtor e o `reset()` os atribuem (`vendor/jsm/postprocessing/EffectComposer.js`,
+   * linhas 41-42, 128-145 e 188-189). O que decide onde o `RenderPass` grava é, portanto, a
+   * PARIDADE acumulada dos passes que trocam.
+   *
+   * Com a cadeia inteira ligada, quem troca são dois — a lente e o `OutputPass` — e a paridade PAR
+   * devolve o par ao estado inicial a cada quadro: o `RenderPass` cai sempre no `renderTarget2`,
+   * que é o único alvo com a `depthTexture` da cena anexada.
+   *
+   * ⚠️ **O UNIVERSO desliga a lente** (`CENAS.universo.passes.lensing = false`), e aí sobra UM
+   * passe que troca: o par INVERTE a cada quadro enquanto se está lá. A cena UNIVERSO não se
+   * importa — ninguém ali lê profundidade —, mas a volta ao AGENTE em paridade ímpar põe o
+   * `RenderPass` gravando no `renderTarget1` e a lente escrevendo no `renderTarget2`, que é o alvo
+   * cuja `depthTexture` ela própria amostra. **Feedback loop**, que a WebGL trata como indefinido e
+   * que chega à tela como PRETO, em silêncio e sem erro nenhum — o mesmo desfecho que as duas
+   * tentativas descritas acima já tinham pago por outro caminho.
+   *
+   * ⚠️ **A intermitência do relato é a paridade, e ela conta QUADROS, não tempo:** volta-se preto
+   * quando o número de quadros passados no UNIVERSO é ímpar, e trocar de cena de novo a sorteia
+   * outra vez — que é exatamente o remédio que o operador achou sozinho.
+   *
+   * ⭑ **Fixar o começo é o conserto; renderizar duas vezes na troca seria o contrário dele** —
+   * esconderia a paridade em vez de removê-la, e ela voltaria no dia em que alguém acrescentasse um
+   * passe. Aqui o quadro começa sempre do mesmo estado, e quantos passes trocam deixa de decidir
+   * ONDE a profundidade é gravada.
+   *
+   * ⚠️ **O que isto NÃO alcança:** um passe que troque inserido ANTES da lente põe a lente lendo e
+   * escrevendo os alvos errados de novo, e fixar o começo não vê isso. A conferência é de
+   * `scripts/lei-paridade.mjs`, que simula a cadeia de cada cena no motor de swap vendorizado.
+   */
+  function desenharQuadro() {
+    composer.readBuffer = composer.renderTarget2;
+    composer.writeBuffer = composer.renderTarget1;
+    composer.render();
+  }
+
+  /**
+   * A COMPOSIÇÃO DESTE QUADRO — `spatia.cena().composicao`.
+   *
+   * ⚠️ Ela existe porque **"a tela está preta" é o sintoma de três causas diferentes** e a foto não
+   * as separa: buffer errado, câmera no vazio, laço parado. O roadmap já anotava a régua — *quadro
+   * preto com `renderCost` normal aponta para buffer errado* — e não havia quem medisse o buffer.
+   *
+   * ⚠️ **`leitura` é RESÍDUO do quadro que acabou**, não o estado de partida do próximo: numa cena
+   * de paridade ímpar ela sai no outro alvo por construção, e isso está certo. Quem responde pela
+   * partida é `fixado`, e quem responde pelo defeito é `realimentacao` — simulada a partir do
+   * começo fixo, ela diz se a lente escreveria no alvo cuja profundidade ela amostra.
+   */
+  function composicao() {
+    const nomeDe = (p) => (p === lensing.pass ? 'lente' : p.constructor.name);
+    const alvoDaProfundidade =
+      composer.renderTarget2.depthTexture === profundidadeDaCena ? 'rt2'
+        : composer.renderTarget1.depthTexture === profundidadeDaCena ? 'rt1' : 'nenhum';
+    const habilitados = composer.passes.filter((p) => p.enabled !== false);
+    // A simulação anda o par a partir do começo FIXO, com a mesma regra do laço vendorizado.
+    let leitor = 'rt2', escritor = 'rt1';
+    let gravaACena = null, escreveALente = null;
+    for (const p of habilitados) {
+      if (p.constructor.name === 'RenderPass') gravaACena = leitor;
+      if (p === lensing.pass) escreveALente = escritor;
+      if (p.needsSwap) [leitor, escritor] = [escritor, leitor];
+    }
+    return {
+      passes: composer.passes.map((p) => ({
+        nome: nomeDe(p), ligado: p.enabled !== false, troca: !!p.needsSwap,
+      })),
+      trocas: habilitados.filter((p) => p.needsSwap).length,
+      fixado: { leitura: 'rt2', escrita: 'rt1' },
+      leitura: composer.readBuffer === composer.renderTarget2 ? 'rt2' : 'rt1',
+      profundidadeEm: alvoDaProfundidade,
+      gravaACena, escreveALente,
+      /* ☠️ O defeito, nomeado: a lente escrevendo no alvo que carrega a profundidade que ela lê. */
+      realimentacao: escreveALente !== null && escreveALente === alvoDaProfundidade,
+      /* A cena tem de gravar profundidade onde a lente vai lê-la. */
+      coerente: gravaACena === alvoDaProfundidade,
+    };
+  }
 
   /*
    * Órbita restaurada da sessão anterior — corrente E alvo no mesmo valor.
@@ -2591,7 +2674,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente });
     lensing.setTime(elapsed);
 
-    composer.render();
+    desenharQuadro();
 
     frames.count += 1;
     if (performance.now() - started > LONG_FRAME_MS) frames.long += 1;
@@ -2696,6 +2779,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     },
     mode: () => modo,
     universeStats: () => universe.stats(),
+    /** A cadeia de pós-processamento como ela está NESTE quadro. Ver `composicao`. */
+    composicao,
     /**
      * "Os corpos se atravessam?" — a pergunta que a foto não responde, porque colisão e oclusão
      * produzem a mesma imagem. Sob demanda: `spatia.universo.sobreposicoes()`.
@@ -2907,7 +2992,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           setTimeout(colher, 8);
         });
 
-      const comCadeia = await medir(() => composer.render());
+      const comCadeia = await medir(() => desenharQuadro());
       const semCadeia = await medir(() => renderer.render(scene, camera));
       if (comCadeia === null || semCadeia === null) {
         return { erro: 'relógio da GPU perturbado (GPU_DISJOINT) — amostra descartada' };
