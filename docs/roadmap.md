@@ -143,7 +143,7 @@ com ou sem produtor.
 | **T-36** | `conectividade.mjs` agrupa como a cena agrupa — e o ρ com o tamanho do sistema NÃO era o filho único | `done` | — | — | KR3.1 |
 | **T-19** | Quebrar a dependência de `M_total` nas luas — RISCO DE EXPIRAÇÃO, não defeito vivo | `postponed` | — | — | — |
 | **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
-| **T-21** | Marketplace × a postura de segurança escrita | `blocked` | decisão do usuário | T-76, T-77, T-78 | — |
+| **T-21** | Marketplace × segurança — ⭑ **DECIDIDA em duas metades: LER sim, INSTALAR não** | `todo` | — | T-76, T-77 | — |
 | **T-22** | Gravidade cognitiva (uso movendo órbita) | `blocked` | decisão do usuário | — | — |
 | **T-23** | Agente como corpo (a ESTAÇÃO) | `blocked` | decisão do usuário | — | — |
 | **T-24** | Passo 3 — distância × pixel contra o corpus real | `todo` | — | — | — |
@@ -155,7 +155,7 @@ com ou sem produtor.
 | **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
 | **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `done` | — | T-16 | KR1.2 |
 | **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | T-61 | — |
-| **T-35** | **FAVORITOS** — fase 1 (modelo + persistência) `done`; a INTERFACE é a fase 2 | `doing` | — | T-34 | KR2.1 |
+| **T-35** | **FAVORITOS** — modelo, persistência, interface e FOTO | `done` | — | T-34 | KR2.1 |
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
 | **T-39** | As duas cenas olham pela MESMA ontologia — a pele tem um dono só (`space/sistemas.js`) | `done` | — | — | KR2.4 |
@@ -164,10 +164,10 @@ com ou sem produtor.
 | **T-73** | `sec-effective` mora em `strip`, a fenda dos RESIDENTES — mover ou redeclarar | `todo` | decisão do usuário | — | KR2.1 |
 | **T-74** | MEDIR o custo de um painel de VIDRO 3D — o número que decide o launcher | `todo` | — | T-14 | — |
 | **T-75** | MEDIR o custo de um atlas de glifo por token — decide se a §5.1 tem saída barata | `todo` | — | T-53 | — |
-| **T-76** | Descoberta de MCP — o widget que lista e instala servidores | `todo` | T-21 | — | — |
-| **T-77** | Catálogo de APIs públicas como CAPACIDADE, não como lista | `todo` | T-21 | — | — |
-| **T-78** | **Capability Registry** — instalar CAPACIDADE (widgets+MCP+eventos+agentes), não plugin | `todo` | T-21 | T-76, T-77 | — |
-| **T-79** | **AUDITAR os 17 «Quem reage» de `EVENTS.md`** — quantos fenômenos declarados têm leitor | `todo` | — | T-23 | KR1.1 |
+| **T-76** | Descoberta de MCP — o widget que LISTA servidores (instalar é T-78) | `todo` | — | — | — |
+| **T-77** | Catálogo de APIs públicas como CAPACIDADE, não como lista | `todo` | — | — | — |
+| **T-78** | **Capability Registry** — INSTALAR capacidade | `blocked` | decisão do usuário | — | — |
+| **T-79** | **AUDITADOS os 17 «Quem reage»** — 9 têm fenômeno de cena, 0 declarados sem leitor | `done` | — | T-23 | KR1.1 |
 | **T-80** | O inspector tem TRÊS estados (recolhido → **resumo** → aberto) e ganha AÇÕES | `todo` | — | T-71 | KR2.1 |
 | **T-81** | Comprimir o cabeçalho — ⚠️ colide com refutação escrita sobre esconder dado atrás de gesto | `todo` | decisão do usuário | — | KR2.1 |
 | **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora e profundidade, não janela | `todo` | T-53 | — | KR2.1 |
@@ -186,7 +186,7 @@ com ou sem produtor.
 | **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `done` | — | — | — |
 | **T-51** | Zona morta do palco — ⭑ **medido nas 10 rotas: o corpo reivindica, a moldura cede** | `done` | — | — | — |
 | **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
-| **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | T-82 | — |
+| **T-53** | O que sobe para o MUNDO — ⭑ **DECIDIDO: só o DOCUMENTO EM FOCO** | `todo` | — | T-82 | — |
 | **T-54** | A cena AGENTE voltava PRETA ao voltar do UNIVERSO — era a PARIDADE DE SWAPS, e o par agora é FIXADO | `done` | — | — | KR2.3 |
 | **T-55** | Enxugar a BANCADA — ela é o storybook dos objetos 3D, e tem espécimes depreciados | `blocked` | T-26 | — | — |
 | **T-56** | Satélites estão com LUAS — não existe e não faz sentido | `todo` | — | — | — |
@@ -337,6 +337,20 @@ com ou sem produtor.
   sem que nada recusasse. ⚠️ **Não é renomeação:** ou o painel muda de fenda, ou a semântica de
   `strip` passa a admitir o caso — e a régua da faixa (largura inteira) **não é** a do trilho de
   230 px, então a decisão MUDA A TELA e tem de ser vista.
+- **T-21 DECIDIDA, em duas metades** — e a partição é o que destrava sem gastar a recusa escrita. A
+  frase de `OS-SCREENS.md` (*"instalar app de terceiro nisso é entregar a máquina"*) é sobre
+  EXECUTAR código de terceiro. **LER o que existe não executa nada:** T-76 (listar servidores MCP) e
+  T-77 (catálogo de APIs) viram catálogo somente-leitura e saem do bloqueio. **T-78 fica `blocked`
+  por decisão**, porque é ele que instala — e é lá que o risco mora, inteiro.
+  ⚠️ **A fronteira tem de ficar no CÓDIGO, não no combinado:** um botão «instalar» num catálogo
+  somente-leitura é a forma como esta partição morre. Quem construir T-76/T-77 declara a ausência.
+- **T-53 DECIDIDA, com escopo de UM caso: o DOCUMENTO EM FOCO.** O motivo do desligamento de 07/08 é
+  *"um corpo de UI no meio do céu compete por atenção com os astros que são o conteúdo"* — e o corpo
+  TRAVADO não compete: ele é o assunto, e o operador acabou de dizer isso com o gesto. Quotas,
+  métricas e permissões continuam fora, e a decisão vale só para o conteúdo do corpo em foco.
+  ⭑ `space/bodies.js` já posiciona HTML pela projeção da câmera **com oclusão pelo horizonte de
+  eventos**, e *"voltar a montar é uma linha"*. ⚠️ **Medir antes e depois na bancada** — a oclusão
+  custa e ninguém pesou.
 - **T-76 / T-77 / T-78** — `features-widgets.md` é 5× maior que o T-21 que o roadmap lhe dava. As
   três peças abaixo dele são independentes entre si e todas dependem da postura de segurança (T-21),
   que é decisão sua: instalar coisa de terceiro é a premissa das três.
@@ -347,7 +361,34 @@ com ou sem produtor.
   esse `sed`. **Quem construir T-78 nomeia diferente, ou funde os dois de propósito e por escrito.**
   ⭑ **E parte já existe:** `br-mcp` é widget montado na rota `bridge` (`apps/index.js:1207`) — T-76
   não começa do zero, ele começa perguntando o que aquele widget já faz.
-- **T-79** — ☠️ **A TAREFA ERA OUTRA, e o review externo mostrou por quê.** Ele pede que *"o agente
+- **T-79 FECHADA — e o resultado INVERTE o que a proposta supunha.** O review pede que *"o agente
+  invada o UNIVERSO, não a UI"*. **Ele já invade: 9 dos 17 eventos produzem fenômeno de cena, e
+  NENHUM fenômeno declarado está sem leitor.**
+
+  | evento | o fenômeno, no código |
+  |---|---|
+  | `state` | `blackHole.setRegime` + `stars.setUnstable` — via `ui.state-changed` |
+  | `cogload` | `blackHole.setLoad` |
+  | `answer` | `blackHole.surge(1.4)` |
+  | `tool` | `wormholes.open/close`, na cor de `kind` |
+  | `web` | `satellites.activate` + o resultado voltando como meteoro |
+  | `memory` | as estrelas do grafo acendem |
+  | `token` · `thought` | `particles.outflow`, em cores diferentes |
+  | `error` | instabilidade |
+
+  Os outros 8 (`query`, `plan`, `sources`, `thread`, `brain`, `limit`, `notice`, `done`) declaram
+  reação de **HUD**, e é isso que eles fazem. Nada de "declarado sem leitor" aqui.
+  ☠️ **CONSTRUIR O «PHENOMENON ENGINE» AGORA SERIA REIMPLEMENTAR ISTO COM OUTRO NOME** — a forma mais
+  cara de desperdício desta base. O que `integracao-organica.md` propõe como arquitetura nova já está
+  ~53% no código, com outro desenho: assinatura direta em `scene.js`, sem registro intermediário.
+  ⚠️ **A auditoria custou uma correção de MÉTODO, e ela vale mais que o número:** a primeira contagem
+  deu 8 porque varreu a string `on('<evento>')` dentro de `src/space/`. `state` chega por
+  **re-emissão** (`ui.state-changed`, de `core/state.js:41`) e não casava o padrão. **Varra o
+  COMPORTAMENTO, não a string** — é a mesma armadilha da galáxia que era billboard no vértice.
+  ⭑ **O que sobra de verdade para T-23:** o barramento do agente é rico e ligado; o que falta é o
+  agente ser um CORPO, que é outra coisa e continua sendo decisão sua.
+
+- **T-79 (contexto original)** — ☠️ **A TAREFA ERA OUTRA, e o review externo mostrou por quê.** Ele pede que *"o agente
   invada o UNIVERSO, não a UI"* — pulsos percorrendo as conexões enquanto o agente trabalha, para a
   tela não precisar de caixas. ⭑ **Isso já está DECLARADO:** `EVENTS.md` tem uma coluna *"Quem
   reage"* para os **17** tipos de evento, e ela nomeia o fenômeno de cada um — `memory` → *"estrelas
@@ -724,6 +765,12 @@ mesmo fato).
   ⭑ Ela **muda o que vale baixar**: com favoritos, planeta nomeado passa a ter uso, e a lista do
   Solar System Scope (Terra, Marte, Júpiter, Saturno, Vênus, Mercúrio, Netuno, Urano) deixa de ser
   inútil aqui. **T-35 vem antes de T-34.**
+  ⭑ **FECHADA em 09/08 com a foto.** O que faltava eram três julgamentos de tela, e dois foram
+  feitos: os 8 chips cabem em duas linhas de quatro no trilho de 255 px medidos, sem rolagem; a tela
+  diz *"marca do operador — não é medida, e não decide o que o corpo é"*; e `F` marcou o corpo que o
+  painel nomeia. ☠️ **O terceiro não tem OCORRÊNCIA para julgar** — `degradadas` é 0, e a faixa só
+  existe com uma marca cuja classe mudou. Fabricá-la mediria outra coisa. Fica escrito: quem vir a
+  primeira marca degradada julga a faixa nela.
   ⭑ **As três condições estão fechadas.** A terceira mora em `hud/favoritos-ui.js`, desenhada na
   seção FAVORITO do painel de CONTEXTO (`apps/context.js`), com gesto em `F` e sonda em
   `spatia.favoritos()`. 99 leis sem navegador em `scripts/lei-favoritos-ui.mjs`, 12 mutações vistas
