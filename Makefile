@@ -10,7 +10,7 @@
 # `make` não muda como um arquivo é interpretado. É despachante, e só.
 
 .DEFAULT_GOAL := ajuda
-.PHONY: ajuda leis leis-lista hooks serve snapshots censos fixture fixture-limpar
+.PHONY: ajuda leis leis-lista hooks serve rematerializar grafo snapshots conceitos censos fixture fixture-limpar
 
 # ⚠️ CRASE em receita de make é SUBSTITUIÇÃO DE COMANDO no shell — a primeira versão desta
 # receita escreveu "o portão é `make leis`" e o `make ajuda` RODOU o portão inteiro para montar a
@@ -46,19 +46,43 @@ serve:  ## sobe o servidor em 127.0.0.1:8787 (Qdrant 6333 · Neo4j 7474)
 
 # ─────────────────────────────────────────────────────── materializar o que a rede lê
 
-# ☠️ A ORDEM É OBRIGATÓRIA e é por isso que ela mora aqui, e não na memória de quem roda:
-# a rede lê o SNAPSHOT, não o banco. `vizinhanca` depende de `citacoes`; `conectividade`, de
-# `vizinhanca`. Fora de ordem, os arquivos saem coerentes entre si e ERRADOS quanto ao grafo.
-snapshots:  ## rematerializa .cache/ na ordem obrigatória (citacoes → vizinhanca → conectividade)
+# ☠️ A ORDEM É OBRIGATÓRIA, e ela mora aqui em vez da memória de quem roda: a rede lê o SNAPSHOT,
+# não o banco. Fora de ordem os arquivos saem coerentes entre si e ERRADOS quanto ao grafo.
+#
+# ⚠️ A ordem NÃO é mantida à mão. `scripts/lei-tooling.mjs` a DERIVA do fonte — quem lê um
+# `.cache/X.json` depende de quem o escreve, quem lê o grafo depende de quem escreve nele — e
+# reprova a receita que chame um dependente antes da dependência, ou sem ela. Script novo entra na
+# sequência porque a lei recusa deixá-lo órfão.
+
+rematerializar: grafo snapshots  ## ☠️ a cadeia INTEIRA, do grafo aos snapshots. É este o comando
+	@echo "✓ topologia e snapshots rematerializados. \`conceitos\` fica de fora — ver \`make conceitos\`."
+
+# As duas fases são ESCREVER no grafo e LER dele — e é isso que decide em qual cada script entra,
+# não o que ele produz. `uso` materializa `.cache/uso.json` E dá `MERGE` em `Astro`/`Run`/`Agent`:
+# escrever no grafo o põe na primeira fase, senão quem lê o grafo lê sem as execuções.
+grafo:  ## escreve a topologia no Neo4j (vinculos · similares · citacoes · uso)
+	@node scripts/vinculos.mjs
+	@node scripts/similares.mjs
 	@node scripts/citacoes.mjs
+	@node scripts/uso.mjs
+
+# ⚠️ `centralidade` ANTES de `conectividade`: o segundo lê `.cache/influencia.json` e SAI 1 sem ele
+# — a pergunta dele é se a dimensão nova REPETE a velha, e sem a velha não há com o que comparar.
+snapshots:  ## rematerializa .cache/ na ordem medida (centralidade → vizinhanca → conectividade)
+	@node scripts/centralidade.mjs
 	@node scripts/vizinhanca.mjs
 	@node scripts/conectividade.mjs
-	@echo "⚠️  conceitos.mjs NÃO entra aqui: ele é inferência, não fato, e só se roda quando a prosa muda."
+
+# ⚠️ Fora da cadeia de propósito: é a única dimensão que NÃO é fato, e só se roda quando a prosa
+# muda. Entrar no `rematerializar` a faria reescrever inferência a cada topologia nova.
+conceitos:  ## os assuntos — inferência, não fato. Rode quando a PROSA mudar
+	@node scripts/conceitos.mjs
 
 censos:  ## o que o céu DESENHA e o que o corpus É — inclui a saúde das constantes calibradas
 	@node scripts/censo-corpus.mjs
 	@node scripts/censo-morfologias.mjs
 	@node scripts/censo-ontologia.mjs
+	@echo "⚠️  censo-superficies e censo-planetas são GUARDAS: rodam em \`make leis\`."
 
 # ─────────────────────────────────────────────────────────────────────── o corpus de prova
 

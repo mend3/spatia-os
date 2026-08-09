@@ -74,14 +74,12 @@ cair. ⚠️ **Quantos são sai do próprio comando**, nunca deste parágrafo �
 quem NÃO roda é MEDIDO (efeito colateral), não declarado à mão. Está no `pre-commit`; clone novo pede
 **`make hooks`** (aponta o git para `.githooks/`, que é versionado — `.git/hooks/` não é).
 
-**Rematerialização — a ordem é obrigatória.** A rede lê o SNAPSHOT, não o banco:
-
-```
-citacoes.mjs → vizinhanca.mjs → conectividade.mjs      (+ conceitos.mjs quando a prosa mudar)
-```
+**Rematerialização — `make rematerializar`.** A rede lê o SNAPSHOT, não o banco. A ordem é
+obrigatória e está nas receitas (`make grafo` escreve no Neo4j, `make snapshots` lê dele); quem a
+impõe é `scripts/lei-tooling.mjs`, que a DERIVA do fonte em vez de confiar numa lista.
 
 `.cache/*.json` são fotos; o servidor relê por `mtime` (não precisa reiniciar), mas **rematerializar
-exige rodar o script de novo**.
+exige rodar o script de novo**. `make conceitos` fica de fora: é inferência, não fato.
 
 ☠️ **Antes de medir qualquer coisa na tela, leia
 [`armadilhas.md`](./armadilhas.md) §A.** As duas guardas de ambiente (`document.hidden` **e**

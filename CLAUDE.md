@@ -675,6 +675,21 @@ conferir contra ela é tautologia — visto por mutação, baixar a margem relax
 ⚠️ **A §10b confere a PRÓPRIA PREMISSA** — ela afirma sobre «o painel livre», e uma varredura que
 deixa o painel prender mede outra coisa e reprova comportamento certo.
 
+## Ao criar um script novo em `scripts/`
+
+    node scripts/lei-tooling.mjs
+
+⭑ **Script novo entra na sequência porque a lei recusa deixá-lo órfão.** Ela mede quem muta estado
+compartilhado — recortando a medida de `leis.mjs`, que é a dona dela — e exige um alvo no
+`Makefile` para cada um. Guarda novo não precisa de nada: `leis.mjs` o descobre sozinho.
+⚠️ **A cadeia é DERIVADA do fonte**, nunca declarada: quem lê um `.cache/X.json` depende de quem o
+escreve, quem lê o grafo depende de quem escreve nele. A lei reprova a receita que chame um
+dependente antes da dependência **ou sem ela**, e o diagrama de doc que omita uma aresta medida.
+☠️ **A varredura é sobre a MEDIDA, não sobre `NAO_RODAM`** — conferir a lista declarada deixaria
+passar justo o caso que importa, o script recém-criado que ainda não está em lista nenhuma.
+☠️ **E o nome no diagrama é casado SEM extensão:** procurar só `x.mjs` faz a lei passar sobre um
+bloco que escreveu `x`.
+
 ## Ao mexer em quem decide o corpo em foco na entrada
 
     node scripts/lei-foco.mjs
@@ -765,8 +780,18 @@ O Neo4j **nunca está no caminho do quadro**: cada dimensão é materializada po
 arquivo em `.cache/`, o servidor anexa ao servir a topologia, e o renderer lê pronto. Rematerializar
 é rodar o script — **a ordem importa**, porque a rede lê o snapshot e não o banco:
 
-    vinculos.mjs · similares.mjs · citacoes.mjs   →  vizinhanca.mjs  →  conectividade.mjs
-    centralidade.mjs · uso.mjs · conceitos.mjs    (independentes)
+    make rematerializar          # a cadeia inteira, na ordem — é este o comando
+      make grafo                 # ESCREVEM no Neo4j:  vinculos · similares · citacoes · uso
+      make snapshots             # LEEM o grafo:       centralidade → vizinhanca → conectividade
+
+⚠️ **`conectividade` LÊ `.cache/influencia.json` e SAI 1 sem ele** — `centralidade` vem antes, e a
+pergunta dele é justamente se a dimensão nova REPETE a velha. ⚠️ `uso` está na fase de ESCRITA
+porque dá `MERGE` em `Astro`/`Run`/`Agent`, embora também materialize um snapshot. `conceitos` fica
+fora (`make conceitos`): é a única dimensão que não é fato, e só se roda quando a prosa muda.
+
+⭑ **A ordem não é mantida à mão.** `scripts/lei-tooling.mjs` a DERIVA do fonte — quem lê um
+`.cache/X.json` depende de quem o escreve — e reprova a receita que chame um dependente sem a
+dependência, o script que nenhum alvo roda, e o diagrama de doc que omita uma aresta medida.
 
 | snapshot | script | o que é |
 |---|---|---|
