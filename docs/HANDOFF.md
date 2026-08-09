@@ -83,6 +83,11 @@ o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
 |---|---|
 | `node scripts/check-shaders.mjs` | **antes de todo commit** — sai 0 |
 | `node scripts/lei-neo4j.mjs` | após tocar em `entity-physics.js` |
+| `node scripts/lei-cena.mjs` | após tocar em `scene.js` ou nos módulos puros — prova que a cena é LENTE |
+| `node scripts/lei-tela.mjs` | após tocar em `core/tela.js` ou em quem escreve na tela |
+| `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla fica presa |
+| `node scripts/lei-notice.mjs` | após tocar em `hud/streams.js` ou no contrato de `notice` |
+| `node scripts/lei-favoritos.mjs` | após tocar em `space/favoritos.js` — a marca não vaza para a ontologia |
 | `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla sobrevive a perder o foco |
 | `node scripts/lei-cena.mjs` | após tocar em `CENAS`/`aplicarCena`, ou em `entity-physics.js`/`superficies.js` |
 | `node scripts/censo-superficies.mjs` | após tocar em roteamento de pele — nenhuma pele pode nascer vazia |
@@ -91,6 +96,7 @@ o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
 | `node scripts/campo.mjs` · `costura-disco.mjs` · `lado-distante.mjs` | qualquer edição no buraco negro |
 | `node scripts/lente-estelar.mjs` | ao mexer na lente — e **antes de dar lente a qualquer corpo novo** |
 | `python3 scripts/motivo-upstream.py` | ao mexer em erro de upstream |
+| `python3 -m server.lei_fio` | ao mexer em `brain.py`, `fio.py` ou no portão de capacidades — sobe um CLI de mentira e confere a argv; ☠️ **não toca no diário real, e prova que não tocou** |
 
 ⚠️ **Os oráculos TRANSCREVEM o GLSL — a fonte é o shader, a transcrição é cópia.** Mudou um, mude o
 outro, ou o oráculo passa a atestar código que não existe. E **`check-shaders` NÃO compila GLSL**:
@@ -483,6 +489,18 @@ quando a medida atravessa as duas cenas.
     estado INTEIRO em `blur`, em `visibilitychange` oculto e na subida do ⌘ — soltar tecla por
     tecla exige justamente o evento que não vem. Portão: `scripts/lei-teclado.mjs`.
 
+24. ☠️ **O `session_id` DO CLI NÃO MUDA ENTRE EXECUÇÕES DE UM MESMO FIO — e tudo que for contado
+    por ele deixa de ser por execução.** Com `--resume`, os turnos 1 e 10 declaram o mesmo
+    `session_id` (só `--fork-session` o troca). O portão de capacidades contava `calls_per_run` por
+    ele: um teto de 3 leituras viraria 3 para a conversa INTEIRA, e depois disso o portão negaria
+    tudo — enquanto `release()`, que recebia a chave da execução, nunca casava e deixava `_calls`
+    crescendo para sempre. ⭑ **A saída é o servidor CARIMBAR a chave**: `capabilities.settings_file`
+    escreve o `run` literal dentro do `jq` da `--settings` efêmera, que é escrita uma vez por
+    execução. Quem sabe onde uma execução começa é quem a começa, não o CLI.
+    ⚠️ **A família é maior que este caso:** antes de contar, limitar ou expirar qualquer coisa por
+    um id que veio do CLI, pergunte se ele muda na frequência que você supõe. Portão:
+    `python3 -m server.lei_fio`, lei 3.
+
 **E a régua desta base:** quando o usuário descreve um sintoma, **a descrição dele geralmente já é o
 diagnóstico**. Meça o que ele apontou antes de propor hipótese própria — e quando uma medida sua
 contradisser a foto dele, a medida costuma estar na régua errada.
@@ -490,6 +508,22 @@ contradisser a foto dele, a medida costuma estar na régua errada.
 ---
 
 ## 6. Números já medidos — NÃO remeça
+
+**A retomada do agente (CLI `claude` 2.1.226, 09/08) — a incógnita do T-10, medida à mão:**
+`--resume <uuid>` **convive com a `--settings` efêmera do portão**. As duas entram no mesmo comando,
+o hook `PreToolUse` roda na execução retomada e uma negação continua chegando como `tool_result` de
+erro com o motivo do portão. Retomar não é porta lateral: a settings é por EXECUÇÃO, não por sessão.
+
+| fato | medido |
+|---|---|
+| `session_id` ao longo do fio | **o mesmo nos 3 turnos** (ver armadilha 24) |
+| sessão que o CLI não conhece | sai **1**, `result/error_during_execution`, `num_turns: 0`, **sem `init`** |
+| `--resume` com valor não-UUID e sem título | recusado antes de rodar |
+| `cache_read` por turno do mesmo fio | 40.056 → 53.745 → 57.167 (a transcrição volta, o cache a absorve) |
+| custo dos 3 turnos (`claude-haiku-4-5`) | 0,0335 → 0,0132 → 0,0105 USD |
+
+⚠️ **O custo de continuar CRESCE com o fio** — é `cache_read`, não `input`, e por isso é barato, não
+grátis. Fio longo é decisão de quem opera; `POST /api/thread` corta.
 
 **Céu (corpus vivo, 08/08):** 188 corpos · 203 nós · uma estrela por sistema.
 `CO_EDITED` 897 pares (85,1%) · `SIMILAR_TO` 1.504 (**k=8 derivado** — k=5 deixa 10,6% de isolados,

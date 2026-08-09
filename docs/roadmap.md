@@ -73,7 +73,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 | KR | medida | hoje |
 |---|---|---|
 | KR4.1 | `#/journal/<run-id>` é endereçável e compartilhável | ⭑ **provado na tela** |
-| KR4.2 | a segunda pergunta do operador sabe da primeira, **ou a tela diz que não** | ✗ (viola o princípio 10) |
+| KR4.2 | a segunda pergunta do operador sabe da primeira, **ou a tela diz que não** | ⭑ **sabe** (`--resume`, fio em `server/fio.py`); o evento `thread` diz qual das duas é, e **ainda não tem assinante em `src/`** (T-37) |
 
 ---
 
@@ -111,7 +111,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) | `done` | — | — | KR4.1 |
 | **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `done` | — | T-15 | KR2.2 |
 | **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `todo` | — | T-16 | KR1.1, KR1.2 |
-| **T-10** | `--resume` no `brain.py` | `todo` | — | — | KR4.2 |
+| **T-10** | `--resume` no `brain.py` | `done` | — | T-37 | KR4.2 |
 | **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
 | **T-12** | Força do vínculo no arco | `blocked` | substrato | — | — |
 | **T-30** | `forca` sai da UNIDADE do tipo, não dos extremos da amostra | `done` | — | T-12 | KR3.1 |
@@ -136,7 +136,8 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
 | **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `done` | — | T-16 | KR1.2 |
 | **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | — | — |
-| **T-35** | **FAVORITOS** — o operador marca corpos para acompanhar, e escolhe a aparência nomeada | `todo` | — | T-34 | KR2.1 |
+| **T-35** | **FAVORITOS** — fase 1 (modelo + persistência) `done`; a INTERFACE é a fase 2 | `doing` | — | T-34 | KR2.1 |
+| **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `todo` | — | — | KR4.2 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
 
@@ -145,6 +146,14 @@ acontece nada?"*, que é o Princípio Final ao contrário.
   de pasta tem alcance 1,0 por construção**, e ρ **−0,808** com o tamanho do sistema no fixture — os
   dois são o mesmo viés do 0b, visto pela métrica. ⚠️ Consertar exige **rematerializar e remedir os
   três ρ**, então não entrou junto.
+
+- **T-37** — o servidor emite `thread` com `continuity` (`new`/`resumed`/`broken`/`none`), `turn` e
+  `since`, **antes** de o processo do agente existir, e `GET`/`POST /api/thread` leem e cortam o
+  fio. **Não existe `bus.on('thread')` em `src/`**: a tela continua parecendo uma conversa sem
+  dizer se é. O que desenhar já está no `EVENTS.md` — `continuity` escolhe a frase, `turn` dá a
+  profundidade, `since` a idade. ⭑ **`broken` é o único que precisa saltar aos olhos**: é o caso em
+  que o operador acredita que o agente lembra e ele não lembra. O botão que corta é
+  `POST /api/thread {"origin":"console"}`.
 
 - **T-13** — ☠️ **Splash como CAMADA PRÓPRIA está refutada por uso**: ela virou uma SEGUNDA parede
   entre o diagnóstico e o céu, e chegou a desenhar a marca **por cima do céu vivo**. E o que ela

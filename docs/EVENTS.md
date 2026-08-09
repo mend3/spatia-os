@@ -33,6 +33,7 @@ o recorder nasce sem contador.
 | `thought` | delta de raciocínio | `text` | trilha tênue de partículas |
 | `token` | delta da resposta | `text` | texto aparece letra por letra |
 | `cogload` | tokens de raciocínio | `tokens` (acumulado) | medidor de carga cognitiva |
+| `thread` | esta pergunta sabe (ou não) da anterior | `continuity`, `thread`, `turn`, `since`, `origin` | ☠️ **ninguém — não há `bus.on('thread')` em `src/`** |
 | `brain` | agente inicializado | `session`, `cwd`, `model`, `tools`, `mcp[]` | HUD mostra o núcleo online |
 | `limit` | janela de uso | `status`, `window`, `resets_at` | medidor de janela |
 | `answer` | resposta completa | `text`, `ms`, `api_ms`, `turns`, `cost_usd`, `tokens{}`, `sources[]` | fecha a resposta, relaxa o som |
@@ -44,6 +45,34 @@ o recorder nasce sem contador.
 
 `tool.kind` ∈ `filesystem · shell · browser · database · github · mcp · agent · planner ·
 other` — é a cor, não o nome da ferramenta. O nome muda por instalação; a família não.
+
+## `thread` — a continuidade, dita antes de a resposta existir
+
+A tela parece uma conversa. `thread` é o campo que decide se ela é uma — sem ele o operador não tem
+como distinguir "o agente lembrou" de "o agente adivinhou", e é o princípio 10 quebrado antes de
+qualquer outro.
+
+`continuity` ∈ `new · resumed · broken · none`:
+
+| valor | o que é verdade |
+|---|---|
+| `new` | fio novo. Esta pergunta não sabe de nenhuma anterior, e a próxima saberá desta |
+| `resumed` | `--resume` na transcrição do turno anterior. `turn` diz o quantos |
+| `broken` | havia fio, o CLI não achou a sessão. A pergunta rodou **do zero** — e é justamente o caso em que a tela mentiria sozinha |
+| `none` | este cérebro não guarda conversa (`BRAIN=ollama` monta o prompt do zero sempre) |
+
+**Sai ANTES de o processo existir**, e é o único evento do ciclo que vale mesmo quando não há
+resposta: "esta pergunta não sabe da anterior" é verdade a dizer inclusive numa execução que falha.
+`thread` é o id da sessão do CLI (`null` quando não há) e `since` é o instante em que o fio nasceu —
+é ele que impede um fio de ontem de parecer recém-aberto.
+
+⚠️ **`turn` é o turno DESTA pergunta**, contado do que o CLI declarou, não do que a tela viu. Uma
+aba que abriu no meio da conversa recebe o número certo.
+
+O fio mora em `server/fio.py`, um por ORIGEM, e `POST /api/thread` o corta — cortar é o que torna a
+continuidade uma escolha em vez de um acúmulo. **Mudar permissão corta todos**: as flags novas valem
+da próxima execução em diante, mas não apagam da transcrição o que uma ferramenta hoje proibida já
+leu.
 
 ## `notice` — o vocabulário do que acontece sozinho
 
