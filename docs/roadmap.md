@@ -164,8 +164,41 @@ com ou sem produtor.
 | **T-51** | O painel de palco cria ZONA MORTA sobre o corpo em foco — o escape só cobre o widget VAZIO | `todo` | T-46 | — | — |
 | **T-52** | A referência repete o painel: **24 de 24** na raiz, **0** nas outras oito | `todo` | T-48 | — | — |
 | **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
+| **T-54** | ☠️ **A cena AGENTE volta PRETA ao voltar do UNIVERSO** — o suspeito é a PARIDADE DE SWAPS | `todo` | — | — | KR2.3 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-54** — relato do usuário: *"algumas vezes, ao voltar da cena universo para agente, a cena
+  agente volta toda preta, forçando trocar as cenas até que ela renderize normalmente ou F5"*.
+  ⚠️ **INTERMITENTE**, e isso é parte do fato: um conserto que funciona uma vez não prova nada aqui.
+
+  ☠️ **O suspeito já está nomeado nesta base, e é o único que explica a intermitência.**
+  `cena-como-lente.md` §3.1 escreve: *"a cadeia de passes tem PARIDADE DE SWAPS
+  (`RenderPass → lensing → UnrealBloom → OutputPass`). Acrescentar ou remover um passe inverte para
+  qual buffer a profundidade é gravada, e a lente passa a ler um buffer vazio, EM SILÊNCIO."*
+
+  E é exatamente isso que a troca de cena faz: `CENAS.agente.passes.lensing = true` ·
+  `CENAS.universo.passes.lensing = false` (`scene.js`, tabela `CENAS`). **Passe desabilitado é
+  PULADO pelo composer**, então ligar e desligar muda a contagem de swaps. A profundidade é ligada
+  UMA VEZ a `composer.renderTarget2` (`scene.js:567`) — se a paridade inverter, ela passa a ser
+  gravada no outro alvo e a lente lê vazio.
+
+  ⚠️ **Antes de consertar, DISTINGA três causas** — "toda preta" é o sintoma de todas:
+  1. paridade de swaps (a hipótese acima);
+  2. a câmera apontando para o vazio — `HOME.distance` vem do `prefs`, e a volta ao AGENTE
+     restaura a pose do operador, que pode estar longe de tudo;
+  3. o laço de quadro parado. ⚠️ `cena().quadros` **conta só o UNIVERSO** e congela no AGENTE —
+     usá-lo aqui devolve "não mudou" com a tela viva. A contagem que não pertence a cena nenhuma é
+     o `requestAnimationFrame`.
+
+  ☠️ **A saída fácil é a errada:** renderizar duas vezes na troca ESCONDE a paridade em vez de
+  corrigi-la, e ela volta no dia em que alguém acrescentar um passe. O briefing já diz o desfecho
+  certo: *"isso precisa de guarda automática, não de memória"* — a paridade tem de ser CONFERIDA,
+  e `scripts/leis.mjs` é onde a conferência passa a viver.
+
+  ⚠️ E há um agravante para quem for medir: `spatia.renderCost()` e as sondas leem o quadro que
+  está na tela. Um quadro preto com `renderCost` normal aponta para buffer errado; um quadro preto
+  com custo perto de zero aponta para o laço parado. **São diagnósticos diferentes.**
 
 - **T-46 … T-53** — a varredura da interface está em
   [`briefings/hud-e-canvas.md`](./briefings/hud-e-canvas.md), com a conta de cada número.
