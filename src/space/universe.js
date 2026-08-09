@@ -977,6 +977,16 @@ export function createUniverse() {
      * A referência medida ANTES do sprite, no fixture (71 corpos, enquadramento de casa, buffer
      * 3024×1484, fov 80) está em `docs/distancia-e-forma.md` §2.1: **49,7 de 71 abaixo de 4 px ·
      * 0 de 71 acima de 22 px · máximo 17,1 px**.
+     *
+     * ☠️ **`max` É DO CÉU INTEIRO, E NÃO É A ESTRELA DO SISTEMA EM QUE VOCÊ ESTÁ.** O perfil corre
+     * sobre TODOS os corpos, então o máximo é de quem estiver mais perto da câmera — e isso muda com
+     * a FASE DA ÓRBITA, sem a câmera sair do lugar. Medido: parado no mesmo sistema, na mesma
+     * distância, `max` deu **18,2 px e depois 9,2 px**. Um vizinho de passagem já foi lido como
+     * "a estrela deste sistema tem 84 px", e o número virou uma pendência inteira no handoff.
+     * > **Para o pixel de um corpo NOMEADO, a régua é `anexar`:** ele publica
+     * > `alvoDeDistancia = k·raio/CHEGADA_PX`, então `px(d) = alvoDeDistancia · CHEGADA_PX / d` para
+     * > qualquer `d` — e o `k` cancela, o que dispensa fov e altura de buffer. Ver §7.6 de
+     * > `docs/distancia-e-forma.md`.
      */
     pixels() {
       if (!pxSprite || !corpos.length) return { quadros, n: 0, piso: pisoSprite };

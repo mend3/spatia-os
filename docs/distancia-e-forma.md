@@ -565,8 +565,63 @@ a 150 e 116 é 4; a 58 é 4,5. A FORMA (planalto + despenhadeiro) sobrevive às 
 borda é da pose, e por isso o passo 3 — **refazer contra o corpus real** — continua obrigatório: mais
 sistemas no mesmo `OCUPACAO` dão envelopes menores, o que empurra a borda para a esquerda.
 
-⚠️ **A câmera do UNIVERSO está em DERIVA e ela envelhece coordenada.** Duas varreduras separadas por
-uma chamada de JS leram os corpos em lugares diferentes (P50 andou 1,68 → 1,52 → 1,45 sem ninguém
-tocar em nada), e um recorte escolhido na primeira caiu no vazio na segunda. Congelar é um `wheel` de
-`deltaY: 0` no canvas — `Math.sign(0) === 0` deixa `targetDistance` intacto e liga `userControlled`,
-que é o que desarma a deriva. **Varredura e recorte têm de sair da MESMA chamada.**
+### 7.6 A "tangência" entre a chegada e o piso da pele NÃO EXISTE — e o que a inventou
+
+Ficou registrado como pendência que `envelope × 2,6` punha o maior corpo em **84,2 px** contra um
+piso de pele de **90**, *"os dois números quase se tocam"*, e que **um passo de roda acendia**. A
+conclusão que se tirava dali era que amarrar os dois (*"chegar num sistema é a estrela dele ganhar
+pele"*) seria uma linha de código.
+
+Medido corpo a corpo nos 21 sistemas mapeáveis do fixture, o pixel do MAIOR corpo na chegada:
+
+| | px na chegada |
+|---|---|
+| mínimo | **19,8** (`nucleo`, 14 corpos) |
+| mediana | **48,5** |
+| máximo | **69,9** (`atlas/config`) |
+| **acendem a pele (≥ 90 px)** | **0 de 21** |
+
+Nenhum sistema encosta no piso. A mediana está a **0,54× dele** — e chegar com pele acesa exigiria a
+câmera a **0,36× da distância de hoje**, não um passo de roda. Não há tangência para amarrar: há uma
+distância inteira entre as duas coisas, e ela é de propósito.
+
+☠️ **O 84,2 era de outro corpo.** `universo.pixels().geometria.max` corre sobre TODOS os corpos do
+céu, então o máximo é de quem estiver mais perto da câmera — um vizinho de passagem, não a estrela do
+sistema adotado. Medido: parado no mesmo sistema, à mesma distância, `max` deu **18,2 px e logo
+depois 9,2 px**, só porque as órbitas andaram. A leitura tinha a marcha perfeita e era da grandeza
+errada — a armadilha nº 5 do `CLAUDE.md`, com roupa nova, e desta vez ela virou uma pendência
+documentada que sobreviveu a uma sessão inteira.
+
+> ⭑ **O instrumento que responde certo, e ele não pediu código novo.** `universeAttach` publica
+> `alvoDeDistancia = k·raio / CHEGADA_PX`. Logo, para um corpo NOMEADO:
+> ```
+> px_chegada = alvoDeDistancia × CHEGADA_PX / (2,6 × envelope)
+> ```
+> **O `k` cancela** — a medida dispensa fov, altura de framebuffer e matriz de projeção, que são
+> justamente as três coisas que já divergiram nesta base (`clientHeight` × `canvas.height`, a
+> armadilha nº 10). E `anexar` é síncrono: os 74 corpos saem numa chamada, sem esperar voo nenhum.
+> **Validado contra o comportamento do próprio código:** alvo 7,34 → **134,95 px medidos** na tela,
+> contra o `CHEGADA_PX = 135` declarado, e a previsão de 48,5 px para a chegada bateu com os 48,4
+> recalculados a partir dela.
+
+**A decisão, e ela é de produto:** a cena já tem as duas poses, e elas dizem coisas diferentes.
+`irPara` põe **o sistema no quadro** (envelope × 2,6); `anexar` põe **um corpo com pele** (135 px =
+1,5× o piso). Amarrar a chegada ao piso não afina a primeira — ela vira a segunda, em todos os
+sistemas. Fotografado no sistema mediano (`varredura/fotosfera`, envelope 7,86): a 20,44 unidades o
+aglomerado inteiro cabe no quadro e nada tem pele; a 7,34 a fotosfera aparece em relevo, com anel e
+luas, **e o resto do sistema sai do quadro**.
+
+**Fica como está.** O que falta não é distância — é que chegar num sistema não conta a ninguém que
+anexar acende a pele.
+
+### 7.7 A câmera do UNIVERSO está em DERIVA — e ela envelhece COORDENADA, não só valor
+
+Fora de foco e sem gesto, `orbit.targetAzimuth` anda sozinho todo quadro. Duas varreduras separadas
+por uma chamada de JS leram os corpos em lugares diferentes (`geometria.p50` andou **1,68 → 1,52 →
+1,45** sem ninguém tocar em nada), e um recorte de tela escolhido na primeira **caiu no vazio** na
+segunda — a foto sai perfeita, do lugar errado, e nada no retorno acusa.
+
+Congelar é um `wheel` de `deltaY: 0` no canvas: `Math.sign(0) === 0` deixa `targetDistance` intacto e
+liga `userControlled`, que é quem desarma a deriva. ⚠️ **Congelar a câmera NÃO congela os corpos** —
+as órbitas correm no `elapsed`. Para pose idêntica de verdade, **varredura e recorte saem da MESMA
+chamada de JS**: entre dois `mesmoQuadro()` seguidos o `rAF` está bloqueado e nem o relógio anda.
