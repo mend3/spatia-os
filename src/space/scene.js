@@ -2223,8 +2223,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * Um só chamador, uma só lista — ver `universe.cederParaVarios`.
      */
     universe.cederParaVarios([
-      ...(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE && focusedNode ? [focusedNode] : []),
-      ...vizinhas.map((v) => v.source),
+      ...(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE && focusedNode
+        ? [{ source: focusedNode, span: BODY_SPAN[decisao.surface] ?? 1 }]
+        : []),
+      // Cada pele cede conforme o PORTE dela: a esfera vira o núcleo sob o corpo desenhado, e não
+      // uma bola 2% menor que o cobre. Ver `cederParaVarios`.
+      ...vizinhas.map((v) => ({ source: v.source, span: BODY_SPAN[v.pele] ?? 1 })),
     ]);
     /*
      * ⚠️ **A COROA da estrela, e ela existe porque a cena AGENTE a tinha por outro caminho.**

@@ -619,13 +619,20 @@ export function createUniverse() {
    * Era um índice só (`cedidoIdx`), porque só o corpo em FOCO ganhava pele. Com a câmera chegando
    * dentro de um sistema, corpos SEM foco passam a ter pixel para pele (medido: 3 de 71 acima de
    * 22 px, 1 acima de 90 px), e cada um deles precisa das mesmas duas cessões: o sprite se apaga e
-   * a esfera encolhe para `FATOR_NUCLEO`, virando o núcleo por baixo da pele.
+   * a esfera encolhe para `FATOR_NUCLEO × BODY_SPAN`, virando o núcleo por baixo da pele.
+   *
+   * ⚠️ **E o `BODY_SPAN` é o que faltava — ele virou um MAPA por isso.** `FATOR_NUCLEO` sozinho
+   * encolhe 2%, o que serve a planeta e fotosfera (`BODY_SPAN` = 1) e é errado em todo o resto: o
+   * pulsar desenha o corpo dele em **0,16** do raio de referência, o cometa em 0,30. Com 2%, a
+   * esfera ficava SEIS vezes maior que o núcleo do pulsar e o cobria inteiro — relatado da tela:
+   * *"pulsar carrega a animação mas a esfera opaca ainda está lá"*. `keepsCrown` em `lod.js` já
+   * documentava essa diferença de porte para a COROA; a cessão da esfera é que a ignorava.
    *
    * ⚠️ Um número não vira um Set por conveniência: `i === cedidoIdx` respondia "é ELE?" e a
    * pergunta agora é "está entre eles?". Manter o número e adicionar um segundo campo daria duas
    * fontes para o mesmo fato — o defeito que esta base mais persegue.
    */
-  const cedidos = new Set();
+  const cedidos = new Map();
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
      sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
   const amostra = new THREE.Vector3();
@@ -1025,11 +1032,22 @@ export function createUniverse() {
      *
      * @param {Array<string>} sources
      */
-    cederParaVarios(sources = []) {
+    cederParaVarios(entradas = []) {
       cedidos.clear();
-      for (const src of sources) {
+      for (const e of entradas) {
+        const src = typeof e === 'string' ? e : e.source;
         const i = indiceDe.get(src);
-        if (i !== undefined) cedidos.add(i);
+        if (i === undefined) continue;
+        /*
+         * `span` é quanto do raio de referência a PELE preenche com corpo desenhado (`BODY_SPAN`).
+         * A esfera vira o núcleo logo abaixo dela: `span × FATOR_NUCLEO`. Sem `span` — o caso de
+         * quem chama com uma string — cai em 1, que é o comportamento de planeta e fotosfera.
+         *
+         * ⚠️ `span` 0 (nebulosa: não desenha corpo nenhum) some a esfera de vez, e é o certo: não
+         * há superfície sob a qual ela seja núcleo.
+         */
+        const span = typeof e === 'string' || e.span === undefined ? 1 : e.span;
+        cedidos.set(i, Math.max(span, 0) * FATOR_NUCLEO);
       }
     },
 
@@ -1080,7 +1098,7 @@ export function createUniverse() {
     cederPara(source) {
       const i = source ? indiceDe.get(source) : undefined;
       cedidos.clear();
-      if (i !== undefined) cedidos.add(i);
+      if (i !== undefined) cedidos.set(i, FATOR_NUCLEO);
     },
 
     /**
@@ -1562,7 +1580,7 @@ export function createUniverse() {
         // A POSIÇÃO é escrita sempre — o arco e o picking dependem dela mesmo com o corpo oculto.
         // Quem some é só a ESCALA da instância: zero desenha nada e não custa fragmento nenhum.
         posicoes[i * 3] = V3.x; posicoes[i * 3 + 1] = V3.y; posicoes[i * 3 + 2] = V3.z;
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio * (cedidos.has(i) ? FATOR_NUCLEO : 1)));
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio * (cedidos.get(i) ?? 1)));
         estrelas.setMatrixAt(i, M4);
       }
       for (let k = 0; k < orbitas.length; k++) {
@@ -1578,7 +1596,7 @@ export function createUniverse() {
         const zr = x * Math.sin(o.giro) + z * Math.cos(o.giro);
         const c = centros[o.centro];
         V3.set(c.pos.x + xr, c.pos.y + zr * Math.sin(o.inc), c.pos.z + zr * Math.cos(o.inc)).add(desloca);
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp * (cedidos.has(centros.length + k) ? FATOR_NUCLEO : 1)));
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp * (cedidos.get(centros.length + k) ?? 1)));
         planetas.setMatrixAt(k, M4);
         const p = (centros.length + k) * 3;
         posicoes[p] = V3.x; posicoes[p + 1] = V3.y; posicoes[p + 2] = V3.z;
