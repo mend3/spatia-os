@@ -334,6 +334,19 @@ CI; todas respondem uma pergunta específica, e é a pergunta que diz quando us�
 | `campo.mjs` | o campo de deflexão ainda é MONÓTONO? | qualquer edição na geodésica |
 | `costura-disco.mjs` | o disco fecha a volta sem cicatriz radial? | ao tocar no ruído do disco |
 | `lado-distante.mjs` | o lado distante ainda afunila 3–6,7×? | ao mexer na integração ou na pose |
+| `lente-estelar.mjs` | este corpo vale **um pixel** de deflexão? quem dobra a luz tem razão `R_s/R` declarada? | ao mexer na lente, ou ao propor lente em corpo novo |
+
+⚠️ **`lente-estelar.mjs` é o único que também AUDITA o `scene.js`**, e ele existe por causa de um
+relato: *"um planeta passa atrás de uma estrela e não há a distorção esperada"*. A medida diz que a
+ausência é o comportamento CERTO — uma estrela tipo Sol deflete **0,0075 px** no limbo, 133× abaixo do
+piso de um pixel, e o anel de Einstein dela só sai de dentro do próprio disco a 10⁵ raios (as 548 UA
+da lente solar). Sem oráculo, essa conclusão vive numa conversa e a próxima pessoa implementa.
+
+> **A saída da armadilha:** a deflexão no limbo é `alfa = 2·(R_s/R)`, e `R_s/R` é **adimensional**.
+> Não é preciso converter `chunks` em quilogramas — basta a razão da CLASSE, que é fato astronômico.
+> É o que o pulsar já faz (`0,4` = ~4 km de Schwarzschild para ~10 km de raio de uma estrela de
+> nêutrons). **Nenhuma grandeza física pode ser derivada de uma variável cognitiva sem unidade e
+> constante explícitas** — e o oráculo falha se alguém tentar.
 
 São **oráculos**: rodam em `node`, sem navegador e sem GPU, e transcrevem o GLSL. Um deles falhando
 é uma invariante quebrada, não um teste chato — `blackhole-geodesic.js` cita o `campo.mjs` pelo
