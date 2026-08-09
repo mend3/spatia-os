@@ -17,9 +17,34 @@
  *
  * `capture: true` de propósito: a supressão precisa acontecer antes de qualquer handler de
  * borbulhamento, senão um atalho já teria rodado quando a checagem chegasse.
+ *
+ * ## A SEGUNDA pergunta: "esta tecla está pressionada AGORA?"
+ *
+ * `keydown` responde *aconteceu um gesto*, e isso basta para um atalho, que é instantâneo. Não
+ * basta para movimento contínuo (voo, pan sustentado), que precisa do ESTADO da tecla a cada
+ * quadro. Auto-repeat não substitui: ele chega na taxa do sistema operacional, com meio segundo
+ * de espera antes da primeira repetição, e um movimento montado sobre ele anda aos solavancos.
+ *
+ * ☠️ **Estado de tecla exige `blur`, não só `keyup`.** O `keyup` da tecla que estava no dedo
+ * quando a janela perdeu o foco acontece FORA da página, e ninguém o vê: a tecla fica pressionada
+ * para sempre, e quem voltar à aba encontra a nave voando sozinha. O ⌘ do macOS produz o mesmo
+ * efeito sem trocar de janela — enquanto ele está pressionado o navegador **não entrega o `keyup`
+ * das outras teclas**.
+ *
+ * A invariante é uma só: **nenhuma tecla sobrevive a perder o foco.** Declarar não a implementa —
+ * `scripts/lei-teclado.mjs` a prova por simulação de eventos, e sai 0.
  */
 
 const bindings = [];
+
+/**
+ * O fato físico: os `event.code` que estão para baixo agora.
+ *
+ * Guardado mesmo durante digitação, porque ele descreve o TECLADO e não a autorização — quem
+ * decide se aquilo vale como comando é o `isHeld`, e ter os dois separados é o que permite
+ * distinguir "ninguém está segurando nada" de "está segurando, mas o foco está num campo".
+ */
+const held = new Set();
 
 /*
  * Como uma tecla vira TEXTO — e por que isso não pode ser escrito à mão.
@@ -84,17 +109,74 @@ export function isTyping(target = document.activeElement) {
  * @param {Function} handler
  */
 export function bind(spec, handler) {
+  reivindicar(spec);
+  bindings.push({ ...spec, handler });
+  return () => {
+    const index = bindings.findIndex((entry) => entry.handler === handler);
+    if (index >= 0) bindings.splice(index, 1);
+  };
+}
+
+/** Recusa alta a combinação já tomada. Vale igual para quem despacha aqui e para quem reserva. */
+function reivindicar(spec) {
   const taken = bindings.find((entry) => signature(entry) === signature(spec));
   if (taken) {
     throw new Error(
       `atalho duplicado: ${render(spec)} já está em "${taken.label || taken.action || 'sem rótulo'}"`
     );
   }
-  bindings.push({ ...spec, handler });
+}
+
+/**
+ * Declara uma tecla cujo DONO despacha por conta própria.
+ *
+ * A guarda de duplicidade e o `list()` só enxergam o que passa por `bind`. Um `keydown` cru
+ * registrado por um componente ficava fora dos dois: o atalho existia na tela e não existia no
+ * catálogo — a barra de dicas não o anunciava, e o próximo `bind` na mesma tecla era aceito para
+ * depois nunca disparar. Reservar põe a tecla no catálogo **sem mover o despacho**.
+ *
+ * ⚠️ Reserva é DECLARAÇÃO, e declaração expira calada. Ela só é legítima **ao lado do listener que
+ * despacha**, no mesmo arquivo e à vista; longe dele, vira afirmação sobre código que ninguém lê
+ * junto — e o catálogo passa a mentir com a mesma cara de verdade.
+ *
+ * @param {object} spec o mesmo spec de `bind`, sem handler
+ */
+export function reserve(spec) {
+  reivindicar(spec);
+  const entry = { ...spec, reserved: true };
+  bindings.push(entry);
   return () => {
-    const index = bindings.findIndex((entry) => entry.handler === handler);
+    const index = bindings.indexOf(entry);
     if (index >= 0) bindings.splice(index, 1);
   };
+}
+
+/**
+ * A tecla está pressionada AGORA **e vale como comando**?
+ *
+ * A mesma lei do despacho vale aqui: com foco em campo de texto nada é comando, senão segurar `W`
+ * para voar continuaria voando enquanto o operador escreve — que é o quinto bug do cabeçalho em
+ * forma contínua. O fato físico cru continua disponível em `heldCodes()`, e é ele que serve de
+ * CONTROLE desta resposta: os dois discordando é supressão por digitação, não tecla solta.
+ */
+export function isHeld(code) {
+  return held.has(code) && !isTyping();
+}
+
+/** O fato físico cru — o teclado, sem juízo sobre foco. */
+export function heldCodes() {
+  return [...held];
+}
+
+/*
+ * Esvaziar é a única resposta correta a "não sei mais o que está pressionado".
+ *
+ * Soltar tecla por tecla exigiria um `keyup` que, por construção, não vai chegar. Esvaziar erra
+ * para o lado barato: no pior caso o operador pressiona de novo a tecla que já estava no dedo; o
+ * outro lado é a tecla presa para sempre, e ela não tem sintoma além do movimento que não para.
+ */
+function soltarTudo() {
+  held.clear();
 }
 
 function matches(spec, event) {
@@ -112,8 +194,12 @@ export function install() {
   window.addEventListener(
     'keydown',
     (event) => {
+      // Antes de qualquer guarda: o dedo está na tecla mesmo quando o gesto não vale como comando.
+      if (event.code) held.add(event.code);
       const typing = isTyping(event.target) || isTyping();
       for (const spec of bindings) {
+        // Reservada é do dono, e o dono já escuta: despachar aqui faria a ação acontecer duas vezes.
+        if (spec.reserved) continue;
         if (!matches(spec, event)) continue;
         if (typing && !spec.whileTyping) continue;
         /*
@@ -133,6 +219,31 @@ export function install() {
     },
     true
   );
+
+  window.addEventListener(
+    'keyup',
+    (event) => {
+      held.delete(event.code);
+      /*
+       * ☠️ O ⌘ engole o `keyup` das teclas combinadas com ele (macOS/Chrome). Tudo o que foi
+       * pressionado enquanto ele estava embaixo ficaria preso — e o sintoma aparece depois, longe:
+       * o ⌘S de gravar órbita deixando o `S` "pressionado" para sempre.
+       */
+      if (event.key === 'Meta') soltarTudo();
+    },
+    true
+  );
+
+  /*
+   * As duas perdas de foco, e são DUAS porque respondem coisas diferentes — a mesma distinção que
+   * o handoff §4 faz para medir: `blur` é a janela indo para trás (⌘Tab, outro app), onde o
+   * `keyup` acontece em quem recebeu o foco; `visibilitychange` é a aba indo para o fundo, onde o
+   * motor estrangula o `rAF` e nem o quadro que leria a tecla existe.
+   */
+  window.addEventListener('blur', soltarTudo);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) soltarTudo();
+  });
 }
 
 /**

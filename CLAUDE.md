@@ -358,6 +358,11 @@ faz alguém refazer um trabalho já pago, ela fica.
 | ordem, e o que cada peça destrava | `docs/roadmap.md` | |
 | **a história** | corpo do commit | e ele é longo aqui **de propósito** |
 
+☠️ **A ORDEM DE PRECEDÊNCIA, quando duas fontes discordam: o CÓDIGO vence o doc, e o doc vence o
+relatório de agente.** Relatório de subagente é leitura, não medida — ele já afirmou que uma feature
+faltava enquanto o código a tinha e um doc a registrava como fechada, e a afirmação entrou no
+handoff por cima dos dois. **Confira no código antes de escrever no doc o que um agente relatou.**
+
 ⭑ **`HANDOFF.md` e `roadmap.md` mudam JUNTOS** — são a mesma verdade por dois lados. Fechar tarefa
 num obriga a fechar o item no outro. Divergiram, os dois estão errados.
 
@@ -416,7 +421,8 @@ CI; todas respondem uma pergunta específica, e é a pergunta que diz quando us�
 | `lado-distante.mjs` | o lado distante ainda afunila 3–6,7×? | ao mexer na integração ou na pose |
 | `lente-estelar.mjs` | este corpo vale **um pixel** de deflexão? quem dobra a luz tem razão `R_s/R` declarada? | ao mexer na lente, ou ao propor lente em corpo novo |
 
-⚠️ **`lente-estelar.mjs` é o único que também AUDITA o `scene.js`**, e ele existe por causa de um
+⚠️ **`lente-estelar.mjs` também AUDITA o `scene.js`** (o outro que faz isso é o `lei-cena.mjs`,
+abaixo), e ele existe por causa de um
 relato: *"um planeta passa atrás de uma estrela e não há a distorção esperada"*. A medida diz que a
 ausência é o comportamento CERTO — uma estrela tipo Sol deflete **0,0075 px** no limbo, 133× abaixo do
 piso de um pixel, e o anel de Einstein dela só sai de dentro do próprio disco a 10⁵ raios (as 548 UA
@@ -443,6 +449,14 @@ Guarda estática dos blocos GLSL. Pega as duas armadilhas que já morderam quatr
 **falham em silêncio**: crase dentro de `/* glsl */` fechando o template literal, e o shader que
 compila mas perde a feição.
 
+## Ao mexer no teclado
+
+    node scripts/lei-teclado.mjs
+
+Prova, simulando eventos num `window` de mentira, que **nenhuma tecla sobrevive a perder o foco** —
+e que o despacho de atalho continua idêntico. Existe porque estado de tecla pressionada falha de um
+jeito só: a tecla presa não tem sintoma além do movimento que não para (armadilha 23 do handoff).
+
 ## Ao mexer em classificação, limiar ou constante calibrada
 
 | script | o que mede |
@@ -452,6 +466,7 @@ compila mas perde a feição.
 | `censo-ontologia.mjs` | a ontologia nova — família, tipo, porte, fenômeno |
 | `censo-superficies.mjs` | ⚠️ **obrigatório após tocar em roteamento de pele:** nenhuma pele roteada pode nascer vazia |
 | `lei-neo4j.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `entity-physics.js`.** Perturba `centrality`, `usage` e `connectivity` em todo corpo e exige que **nenhuma** mude família, tipo, porte, fenômeno ou escala — a 1ª lei do Neo4j deixando de ser invariante declarada |
+| `lei-cena.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `CENAS`/`aplicarCena`, `entity-physics.js` ou `superficies.js`.** A cena é uma LENTE: ela decide o que ACENDE e de onde se OLHA, nunca o que um corpo É. Audita o vocabulário da tabela, os argumentos de todo call site dos três em `src/`, a pureza dos módulos, e perturba enfiando a cena por todo canal exposto |
 
 O `censo-corpus` existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
 com 71 hubs, aplicada em 228), `DENSITY_K` (corpus 5,6× maior, **297 luas viraram 0**) e o piso do

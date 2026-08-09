@@ -12,6 +12,7 @@
  * replanejamento — ele deixa de ser cinco coisas ao mesmo tempo.
  */
 import { on } from '../core/bus.js';
+import { reserve } from '../core/keys.js';
 
 const TECLA = 'KeyU';
 
@@ -37,7 +38,17 @@ export function createCenaSwitch(root, { scene, onChange } = {}) {
    * A tecla alterna em vez de escolher: é o gesto de comparar, e comparar é o que se faz com duas
    * leituras do mesmo dado. Ela respeita a supressão durante digitação do `core/keys.js` por não
    * disparar quando o alvo é um campo de texto.
+   *
+   * ⚠️ **O despacho é PRÓPRIO, e a reserva é o que o torna visível ao catálogo** — sem ela, `U`
+   * não aparecia na lista de atalhos e um `bind({ code: 'KeyU' })` era aceito para nunca disparar.
+   * Passar o despacho para o `bind` muda três coisas na tela, e por isso não foi feito aqui:
+   * segurar `U` deixaria de alternar a cena na taxa de auto-repeat, `U` passaria a valer com um
+   * slider em foco (`isTyping` trata `range` como controle, não como campo), e entraria um
+   * `preventDefault`. As duas primeiras são as regras que o `keys.js` existe para impor — quem
+   * decide se elas valem para esta tecla é quem opera a cena.
    */
+  reserve({ code: TECLA, label: 'TROCAR CENA', group: 'CENA' });
+
   window.addEventListener('keydown', (e) => {
     if (e.code !== TECLA || e.metaKey || e.ctrlKey || e.altKey) return;
     const alvo = e.target;

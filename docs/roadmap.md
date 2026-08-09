@@ -49,7 +49,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 | KR2.1 | **estado de tela** tem dono único | ✗ **quatro** donos que não se conhecem (`#boot`, `modo`, `router.current`, `session.js`) |
 | KR2.2 | **pose da câmera** tem nome próprio | ✗ `orbit.distance` serve de proxy a **sete** consumidores |
 | KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
-| KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ✗ (`lei-cena.mjs` proposto) |
+| KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 11 call sites · 1.080 perturbações) |
 
 ### O3 — Nenhuma afirmação sem substrato
 
@@ -93,19 +93,20 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-02** | Eixo do pulsar ancorado no limiar (`GIGANTE`) | `done` | — | — | KR3.2 |
 | **T-03** | Foto do pulsar na bancada | `done` | — | — | KR3.2 |
 | **T-04** | `SceneDefinition` extraída de `setMode`, **sem mudar um número** | `done` | — | T-05, T-06, T-08 | KR2.3 |
-| **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `todo` | — | — | KR2.4 |
+| **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `done` | — | — | KR2.4 |
 | **T-06** | `src/core/tela.js` — dono único do estado de tela | `todo` | — | T-13, T-14 | KR2.1 |
 | **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) — **conferir na tela** | `todo` | — | — | KR4.1 |
 | **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `todo` | — | T-15 | KR2.2 |
 | **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `todo` | — | T-16 | KR1.1, KR1.2 |
 | **T-10** | `--resume` no `brain.py` | `todo` | — | — | KR4.2 |
 | **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
-| **T-12** | Força do vínculo no arco | `todo` | — | — | — |
+| **T-12** | Força do vínculo no arco | `blocked` | substrato + T-30 | — | — |
+| **T-30** | `forca` mapeia o mínimo para ZERO — afirma ausência sobre vínculo que existe | `todo` | — | T-12 | KR3.1 |
 | **T-13** | Splash | `blocked` | T-06 | — | KR2.1 |
 | **T-14** | Launcher / menu iniciar | `blocked` | T-06 | — | KR2.1 |
-| **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08, teclado | — | — |
+| **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
 | **T-16** | Modo Assistir | `blocked` | T-09 | — | KR1.3 |
-| **T-17** | `keyup` + `blur` no teclado (hoje **não existem** em `src/`) | `todo` | — | T-15 | — |
+| **T-17** | `keyup` + `blur` no teclado — `keys.isHeld` e a lei da tecla que não fica presa | `done` | — | T-15 | — |
 | **T-18** | Um diretório sem agregado é um sistema? (handoff 0b) | `todo` | — | — | — |
 | **T-19** | Quebrar a dependência de `M_total` nas luas (handoff 0c) | `postponed` | — | — | — |
 | **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
@@ -120,6 +121,15 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `todo` | — | — | KR3.3 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-12 / T-30** — medido no fixture (416 vínculos): `forca` sai
+  `(valor − min) / (max − min)` **dentro do tipo** (`vizinhanca.mjs:196`), e o mínimo é o caso
+  comum. Distribuição: **0 em 386 de 416 (92,8%)**, 0,667 em 18, 1,0 em 12 — **três valores
+  distintos**, e o mais frequente é o piso.
+  ☠️ **O piso em zero AFIRMA AUSÊNCIA sobre um vínculo que existe** — é `null` ≠ `0` na
+  normalização, não no desenho. Desenhar força hoje pintaria 93% dos arcos como "sem força".
+  ⚠️ E o substrato deste corpus é de UM tipo só (`CO_EDITED`, valor 1 a 4): julgar a codificação
+  aqui é julgar um tipo. **T-30 vem antes do T-12.**
 
 - **T-29** — a bancada mostra que varrer a massa de 0 a 1 muda `core` de **0,100 para 0,160** e
   as duas ampliações do miolo saem **idênticas**: o brilho e os feixes dominam o disco. Quem carrega

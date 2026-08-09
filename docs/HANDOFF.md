@@ -77,6 +77,8 @@ cima e as sondas devolvem `null`).
 |---|---|
 | `node scripts/check-shaders.mjs` | **antes de todo commit** — sai 0 |
 | `node scripts/lei-neo4j.mjs` | após tocar em `entity-physics.js` |
+| `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla sobrevive a perder o foco |
+| `node scripts/lei-cena.mjs` | após tocar em `CENAS`/`aplicarCena`, ou em `entity-physics.js`/`superficies.js` |
 | `node scripts/censo-superficies.mjs` | após tocar em roteamento de pele — nenhuma pele pode nascer vazia |
 | `node scripts/censo-ontologia.mjs` · `censo-corpus.mjs` · `censo-morfologias.mjs` | ao mexer em classificação, limiar ou constante calibrada |
 | `node scripts/censo-planetas.mjs` | quando o céu parecer "todos iguais" |
@@ -446,6 +448,14 @@ quando a medida atravessa as duas cenas.
     tolerar quem não o tem "para não quebrar". Tolerar reproduz o defeito: sem carimbo é exatamente
     o estado que estava errado. **Recuse, e ponha o comando do conserto dentro do motivo.**
 
+23. ☠️ **TECLA PRESSIONADA SEM `blur` FICA PRESA PARA SEMPRE — e o único sintoma é o movimento que
+    não para.** O `keyup` da tecla que estava no dedo quando a janela perdeu o foco é entregue a
+    **quem recebeu o foco**, não à página; ninguém o vê. O ⌘ do macOS produz o mesmo estado sem
+    trocar de janela: enquanto ele está embaixo o navegador **não entrega o `keyup` das outras
+    teclas**, então ⌘S deixa o `S` pressionado depois que os dois sobem. ⭑ A saída é esvaziar o
+    estado INTEIRO em `blur`, em `visibilitychange` oculto e na subida do ⌘ — soltar tecla por
+    tecla exige justamente o evento que não vem. Portão: `scripts/lei-teclado.mjs`.
+
 **E a régua desta base:** quando o usuário descreve um sintoma, **a descrição dele geralmente já é o
 diagnóstico**. Meça o que ele apontou antes de propor hipótese própria — e quando uma medida sua
 contradisser a foto dele, a medida costuma estar na régua errada.
@@ -609,6 +619,7 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 | `src/space/pulsar.js` | `GIGANTE` — a massa do rig vira razão ao limiar |
 | `src/sandbox/pulsar-rig.js` | o slider inverte pela MESMA lei |
 | `src/space/scene.js` | `CENAS` + `aplicarCena` extraídos de `setMode` |
+| `scripts/lei-cena.mjs` | o oráculo da lei da cena (T-05) |
 
 **Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
 
@@ -636,6 +647,12 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
   do buraco negro não desliga a LENTE, que deforma o quadro inteiro com o disco invisível.
   ⚠️ A cena não pode declarar o que um corpo É: classe, física e pele saem de `entity-physics.js` e
   `superficies.js`, e nenhuma das duas recebe a cena.
+  ⭑ **É invariante PROVADA, não declarada:** `scripts/lei-cena.mjs` audita o vocabulário da
+  tabela (chave fora de `id`/`passes`/`camadas`/`chegada`/`aoEntrar` reprova), lê os argumentos de
+  todo chamado dos três em `src/`, e perturba cada corpus enfiando a cena por todo canal exposto.
+  ⚠️ **`CENAS` não é importável** — é `const` dentro da fábrica, e alcançá-la exigiria WebGL. O
+  oráculo RECORTA o bloco do `scene.js` real e o avalia como literal (as arrows não são chamadas),
+  então tabela nova entra na varredura sozinha. **Ele não tem tabela de reserva de propósito.**
 - **`mesmoQuadro()` é a lei; `skinAB`/`universeAB` só a chamam.** Duas cópias do laço envelheceriam
   em ritmos diferentes, e o laço é justamente o que dá o controle em 0 pixels.
 
@@ -729,7 +746,7 @@ mesmo fato).
 
 ---
 
-## 7-B. Os ONZE BRIEFINGS conferidos — o mapa (09/08)
+## 7-B. O que quatro leituras dos briefings acharam, e o código confirmou
 
 Quatro subagentes leram `docs/briefings/` inteiro contra o código, nos moldes do §9 do
 `replanejamento-celeste.md`. **O relatório completo morreu com eles; o que fica é o que decide.**
@@ -755,6 +772,9 @@ relação ou fato.**
    emite evento nenhum), o `modo` da cena, o `current` do router e o `session.js` — **que não tem
    campo de cena**. Splash seria um quinto, launcher um sexto. Sem dono único, "a splash acabou → o
    universo começa" não tem onde morar e vira um `if` em cada camada.
+⭑ **A terceira caiu:** a cena é `CENAS` em `scene.js`, e `scripts/lei-cena.mjs` prova que ela não
+decide o que um corpo é. Restam as duas de cima e a de baixo.
+
 3. **Ninguém é dono da POSE da câmera.** `orbit.distance` é usado como proxy de *"quão longe estão
    as coisas"* por **sete** consumidores independentes (piso do zoom, escala do pan, amplitude da
    paralaxe, chegada a sistema, chegada por `anexar`, persistência em `prefs`, a sonda `ancora()`).
@@ -766,9 +786,7 @@ relação ou fato.**
 - **O traço de explicabilidade** — que o usuário chamou de *"talvez a feature mais importante"* —
   **está pronto, endereço incluído**: sete eventos do `EVENTS.md` em ledger encadeado por hash, tela
   em `src/apps/journal.js`, e `router.parse()` devolvendo `{app, arg}` com `journal.js:190`
-  resolvendo o alvo. ☠️ **Ficou escrito aqui como "falta o endereço" por causa de um relatório de
-  subagente que contradizia o `OS-SCREENS.md` §4, onde já constava fechado.** Falta a FOTO, não o
-  código.
+  resolvendo o alvo. **Falta a FOTO, não o código.**
 - **`cogload{tokens}` → `blackHole.setLoad`** existe ponta a ponta. O item favorito do autor do
   `black-hole-router` é o mais barato dos dez dele.
 - **A soft collision** do `ship-navigator` já tem o fato **e o padrão implementado**:
@@ -781,25 +799,10 @@ relação ou fato.**
 - **`anexar` já é meia nave**: prende a câmera a um corpo que viaja com ele, e `scene.js` já declara
   por escrito o destino *"uma sonda 3D representando o operador"*.
 
-### As TRÊS DECISÕES que são do usuário — nenhum agente as resolveu, e é certo
+### As decisões do usuário, e a ORDEM
 
-1. **Marketplace × a postura de segurança JÁ ESCRITA.** `features-widgets.md` quer `[Install]` e
-   plugins de terceiros. `OS-SCREENS.md` recusou por escrito: *"instalar app de terceiro nisso é
-   entregar a máquina"* — e o `/api/health` confirma a premissa (`bind 127.0.0.1`, `auth: nenhuma`,
-   `AGENT_CWD` num diretório inteiro). É binário: ou o registro organiza **o que o usuário escreve**,
-   ou isolamento vira pré-requisito. Não há meio-termo que não seja vender sandbox inexistente.
-2. **"Gravidade cognitiva" — uso movendo órbita.** Pedida em três briefings. Colide com a 1ª lei do
-   Neo4j (**brilho, nunca classe** — e raio orbital é RECÊNCIA, o eixo do `sky-time.js`), com a
-   FRONTEIRA (`usage → "massa" → gravidade → órbita`) e com **0 sobreposições em 17.578 pares**, que
-   uma coordenada nova pode destruir. Três saídas, todas do usuário: (a) `usage` só em brilho/pele;
-   (b) órbita vira uso e o `sky-time` perde o eixo; (c) uma segunda coordenada recebe o uso — e aí
-   **medir `sobreposicoes()` antes**.
-3. **Agente como corpo.** Pedido por quatro briefings. Medido em 09/08: é **pipeline novo, não
-   limiar** (ver `AUSENTES_NA_TABELA.station`). ⚠️ E há uma recusa por escrito que ninguém tinha
-   trazido: `modelo-de-renderizacao.md:462` — *"`agent` — **estação orbital, não nave.** Nave implica
-   posição independente, e posição independente quebra a estabilidade espacial."* O
-   `ship-navigator` cita "arquitetura existente de agentes como drones e naves" e **a arquitetura
-   que ele cita é outro briefing não implementado** (`integracao-organica.md`).
+Estão em [`roadmap.md`](./roadmap.md) — tarefas com `blocked_by: decisão do usuário`, e a ordem com
+o critério dela. ⚠️ **Duas cópias divergiriam**, e a que alguém lesse primeiro decidiria por acaso.
 
 ### O que está REFUTADO — não reabra sem medida nova
 
@@ -817,54 +820,6 @@ relação ou fato.**
 | amarrar a chegada num sistema ao piso da pele | a tangência NUNCA existiu: o maior corpo chega entre **19,8 e 69,9 px** (mediana 48,5) e **0 de 21 sistemas** alcançam o piso de 90. Amarrar não afina `irPara` — transforma-a em `anexar`, e o resto do sistema sai do quadro |
 | `rocheLimit(raio)` para apagar o `DENSITY_K` (item 0c) | `rocheLimit(mass)` **já é** `2,44·R`; a constante mora em `physicalRadius`, e o outro raio da cena está na régua do SPRITE, que não é conversível |
 | normalizar a massa do pulsar DENTRO da faixa gigante (item 0d) | é a mesma família do defeito — faria o período de um corpo depender de quem mais está no céu, e com população 1 é degenerada |
-
-### A ORDEM, e o critério dela
-
-O critério não é valor puro: é **destravar o maior número de briefings por peça**, e não construir
-tela que assista ao vazio (o Princípio Final proíbe: Modo Assistir antes do produtor **cria** a
-pergunta *"por que não acontece nada?"*).
-
-0. ⭑ **FEITO (09/08) — o 0e era pré-requisito de metade desta lista.** A rede voltou (**59 corpos ·
-   416 vínculos**) e `connectivity` saiu de 0 para 59 de 72. Todo briefing que propõe camada sobre a
-   rede tem substrato agora. ⚠️ **A guarda vale para os cinco overlays**, então snapshot de outro
-   corpus deixou de ser um risco silencioso desta lista inteira.
-1. **Sub-rota endereçável** (`kernel/router.js`, `parse()` guarda `{app, arg}`) → `#/journal/<run-id>`
-   entrega a feature nº 1 do usuário a partir de um traço **já gravado**. Menor diff da lista.
-2. **`--resume` no `brain.py`** — hoje a segunda pergunta do operador não sabe da primeira **e a tela
-   não diz isso**, o que viola o princípio 10 antes de qualquer outro. ⚠️ Não verificado se é
-   compatível com a `--settings` efêmera por execução; **testar antes de virar plano**.
-3. **Produtor ambiental + `notice` com `severity`** — juntos, nunca separados (produtor sem
-   severidade é ruído; `notice` sem produtor é vocabulário sem leitor, que é a REGRA DO CATÁLOGO
-   pela sexta vez). Ele pode emitir **hoje, sem fato novo**: topologia recarregada, `dormant`
-   cruzando limiar, índice velho, credencial expirando, orçamento cruzado, Neo4j caiu/voltou.
-4. **`src/core/tela.js`** — o dono único do estado de tela. Destrava splash, launcher e qualquer
-   cena nova de uma vez. ⚠️ Traz junto uma dívida: `session.js` lê a rota do hash CRU enquanto o
-   router usa `parse()` — **duas verdades sobre a mesma rota**.
-5. ~~**Fechar o 0c**~~ — **DESCEU**: medido em 09/08, não é defeito vivo (0 janelas fechadas nos dois
-   corpora, folga 2,36–2,59×), e a saída proposta era falsa. Continua sendo pré-requisito de campo de
-   influência ou gravidade de nave — mas como pergunta de MODELO (quebrar a dependência de
-   `M_total`), não como conserto de assinatura.
-6. **A força do vínculo no arco** — a única proposta de `gravidade-entrelacamento` implementável, e
-   **não precisa de fato novo**: `forca` já viaja no snapshot e **ninguém a lê**. ⚠️ Ela é min-max
-   **dentro do tipo**, então 0,9 de `SIMILAR_TO` e 0,9 de `CO_EDITED` não são a mesma afirmação — a
-   legenda tem de dizer "forte para o tipo dele". ⭑ Dependia do 0e, que fechou.
-   ⚠️ **No fixture o substrato é raso:** só `CO_EDITED` existe (416 vínculos, 59 corpos), com valor
-   de 1 a 4 commits. Julgar a codificação de força aqui é julgar um tipo só.
-7. **Traçar a elipse dos planetas** (cópia de `moon-orbits.js`) — é LAYOUT, entra sob a trava, e é a
-   diferença entre a 2ª lei de Kepler existir no código e existir na tela.
-8. **Extrair a pose da câmera** (`pose-orbital` sem mudar um número, guarda: `ancora()`/`pixels()`/
-   `sobreposicoes()` repetindo ao dígito) → **teclado mantido** (`keyup` + `blur`, que hoje não
-   existem em `src/`) → voo básico. Só aqui o `ship-navigator` começa.
-
-⚠️ **Conflito de tecla já medido:** `Shift` é o gesto de VOO LIVRE de hoje e **não passa pelo
-`keys.js`**, então a guarda de duplicidade não o pega. O mesmo furo existe em `hud/cena.js:41`
-(`KeyU` num listener cru, invisível para `keys.hints()`).
-
-⚠️ **O que NENHUM agente mediu:** nada foi medido na TELA em nenhum dos quatro relatórios. Todo
-número acima é citação do §6/§7 ou leitura de código. **Custo de nave, de cockpit e de campo de
-linhas é NÃO MEDIDO** — e passe novo cai no bolso caro (o pós), não no de 0,23 ms.
-
----
 
 ## 8. Onde procurar a história
 
