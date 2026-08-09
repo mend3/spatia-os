@@ -165,8 +165,56 @@ com ou sem produtor.
 | **T-52** | A referência repete o painel: **24 de 24** na raiz, **0** nas outras oito | `todo` | T-48 | — | — |
 | **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
 | **T-54** | ☠️ **A cena AGENTE volta PRETA ao voltar do UNIVERSO** — o suspeito é a PARIDADE DE SWAPS | `todo` | — | — | KR2.3 |
+| **T-55** | Enxugar a BANCADA — ela é o storybook dos objetos 3D, e tem espécimes depreciados | `blocked` | T-26 | — | — |
+| **T-56** | Satélites estão com LUAS — não existe e não faz sentido | `todo` | — | — | — |
+| **T-57** | Falta a família de anel para arquivo EXCLUÍDO (`D`) — ⚠️ o servidor nem emite esse estado | `todo` | — | — | KR3.1 |
+| **T-58** | ☠️ **Deeplink de FOCO não funciona** — o `prefs` vence o endereço | `todo` | — | — | KR4.1 |
+| **T-59** | Melhorar o visual do QUASAR (`briefings/quasar-enhance.md`) | `todo` | — | — | — |
+| **T-60** | Melhorar o visual do PULSAR — luz FLAT (devia expandir em 360°) e nuvem estática | `todo` | — | — | — |
+| **T-61** | Texturas: asteroide, cometa, anel — pedregulho, poeira, colisão eventual | `todo` | T-34 | — | — |
+| **T-62** | Camada externa do BURACO NEGRO — poeira, detritos, profundidade e volume | `todo` | — | — | — |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-55** — a bancada é o **storybook** dos objetos 3D: ver, testar, renderizar, depurar e criar
+  antes de levar para as cenas. ⚠️ **`V1 GRÃO · V2 ENXAME · V3 PEDREGULHO · V4 LAJE` NÃO são lixo —
+  são as quatro candidatas do T-26**, e o T-26 está aberto justamente porque *"a comparação a 25 px
+  foi feita a olho, sem timer de GPU"*. **Apagá-las antes de decidir joga fora o experimento**;
+  decidir T-26 apaga três sozinho. O resto do inventário (o que não é espécime nem candidata) é
+  que sai — e sai com o motivo escrito.
+- **T-56** — satélite é objeto CONSTRUÍDO; lua é PARTE NOMEADA de um documento (seção). Dar lua a
+  satélite afirma que ele tem partes que orbitam, o que não é fato de nada. ⚠️ Meça de onde vem —
+  se `moonsOf` alcança o nó de satélite, o portão é `partsOf`/`MU_MIN`, não o desenho.
+- **T-57** — ☠️ **Não é variação visual, é PIPELINE.** `server/dirty.py` emite **três** estados
+  (`modified` · `staged` · `untracked`) e **não existe `deleted`** — conferido no fonte. O mapa em
+  `catalog.js:416-418` casa cada um com uma família (`saturn` · `uranus` · `jupiter`), e uma
+  quarta família sem quem a emita seria **classe sem população**, o defeito que `censo-corpus`
+  existe para acusar em vermelho. **Ordem: o servidor emitir `deleted` primeiro; a família depois.**
+  ⚠️ E o caso é ontologicamente diferente dos outros três: os três dizem *"existe e divergiu"*; o
+  quarto diz *"não existe mais no disco"* — um corpo cujo arquivo sumiu ainda deve ter anel, ou
+  deve ter outra coisa? É pergunta de MODELO.
+- **T-58** — ☠️ **O deeplink do DIÁRIO funciona** (provado em carga fria: aba do dia ativa, linha
+  marcada, detalhe preenchido). Quem não funciona é o **FOCO da cena**: `camera.focus` vive no
+  `prefs`, e o `aplicarFocoPendente` restaura o último visitado. **Duas fontes para "que corpo
+  olhar", e a gravada vence a pedida** — que é a mesma família do defeito do carimbo de corpus (o
+  estado velho vencendo o fato novo). ⚠️ A saída não é apagar a preferência: endereço PEDIDO e
+  último visitado são fatos diferentes, e o endereço tem precedência **quando existe**.
+- **T-60** — ⚠️ **A queixa já está escrita na própria bancada.** `sandbox/pulsar-rig.js` lista como
+  itens de brief ABERTOS: *#3 campo turbulento (o campo magnético é liso demais)*, *#4 feixes como
+  volume (hoje são geometria)*, *#5 vento difuso no lugar da agulha*, *#9 halo em quatro camadas*.
+  "Luz flat que devia expandir em 360°" é o #4 + #9; "nuvem estática" é o #3. ⚠️ E o watch dela
+  avisa: *"a NEBULOSA é a única camada que NÃO respira com o batimento"*.
+  ☠️ **Custo medido:** o pulsar já é a pele mais cara do pool — **quadro 5,66 ms · geometria
+  1,73 ms**, contra 2,5–3,2 ms sem ele. Ele quase DOBRA o quadro sozinho. Volume e camadas entram
+  no bolso caro; **conte `fatias × amostras` antes de empilhar** (o próprio rig avisa).
+- **T-61 / T-62** — ⚠️ **Textura fotográfica aqui é decisão de MODELO, não de acabamento.** O mapa
+  de `assets/CREDITS.md` separa onde ela acrescenta (asteroide: única classe sem pele) de onde ela
+  MENTE (planeta é procedural por decisão; pulsar e buraco negro não têm foto de superfície — o que
+  se vê deles é EMISSÃO, que é o que o shader calcula). Para T-62, "poeira e detritos" é **ruído
+  volumétrico**, não imagem — e o disco já tem costura provada (`costura-disco.mjs`) que qualquer
+  mexida tem de manter.
+  ☠️ **E o orçamento não tem folga:** a lente sozinha custa **3,8–5,1 ms** contra 0,31–0,35 ms do
+  céu inteiro. *"Não existe otimizar a galáxia"* — o buraco negro é onde o quadro já é gasto.
 
 - **T-54** — relato do usuário: *"algumas vezes, ao voltar da cena universo para agente, a cena
   agente volta toda preta, forçando trocar as cenas até que ela renderize normalmente ou F5"*.
