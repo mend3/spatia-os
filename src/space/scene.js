@@ -45,7 +45,7 @@ import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } fro
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
 import { createStation, stationParams } from './station.js';
-import { createComet, cometParams } from './comet.js';
+import { createComet, cometParams, LOD_FAR_PX as COMETA_FAR } from './comet.js';
 import { createPulsar, pulsarParams } from './pulsar.js';
 import { createNebula, nebulaParams } from './nebula.js';
 
@@ -252,10 +252,17 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * perto de um sistema apertado ligaria dezenas. `cortadas` vai na sonda porque *um corte calado lê
    * como "cobri tudo"* — a armadilha nº 4 do handoff, o resto que não sabe se nomear.
    *
-   * ⚠️ Só PLANETA e FOTOSFERA entram no pool: são 66 dos 71 corpos do fixture. As morfológicas
-   * (cometa, estação, pulsar, nebulosa) continuam só no foco — elas têm parâmetros e assinaturas de
-   * `update` próprios, e o fixture tem 3 cometas e ZERO das outras três. Pool para população que não
-   * existe seria código sem quem o exerça, que é o que a REGRA DO CATÁLOGO proíbe pelo avesso.
+   * ⚠️ **PLANETA, FOTOSFERA e COMETA** entram no pool — 69 dos 71 corpos do fixture. Estação, pulsar
+   * e nebulosa continuam só no foco, e o motivo é população: o fixture tem **ZERO** de cada uma.
+   * Pool para população que não existe é código sem quem o exerça — a REGRA DO CATÁLOGO pelo avesso —
+   * e a bancada não teria como provar que ele desenha.
+   *
+   * ⚠️ **O cometa exigiu um conserto antes de caber aqui:** a `update` dele derivava a direção das
+   * caudas de `−normalize(position)`, ou seja, *para longe da ORIGEM*. Isso acerta na cena AGENTE,
+   * onde a origem é o buraco negro; no UNIVERSO a origem é vazio, e toda cauda apontaria para longe
+   * de nada — reafirmando o centro único que esta cena existe para negar. Agora a fonte é parâmetro,
+   * e aqui ela é a **estrela do sistema do próprio cometa**, pela mesma lei que o `CORPO_VS` aplica
+   * à luz: *"cada planeta é iluminado pela ESTRELA DELE"*.
    */
   /*
    * Pixels de raio que um corpo ANEXADO recebe na chegada. 1,5× o piso de pele (90) — acende a pele
@@ -265,9 +272,69 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const PELES_VIZINHAS_MAX = 4;
   const poolPlaneta = [];
   const poolFotosfera = [];
+  const poolCometa = [];
   /** `planetParams`/`photosphereParams` são PUROS e caros: derivá-los por quadro seria desperdício. */
   const paramsPorFonte = new Map();
   let pelesVizinhas = { desenhadas: 0, teto: PELES_VIZINHAS_MAX, cortadas: 0, corpos: [] };
+
+  /**
+   * A TABELA DE ROTAS do pool: uma pele, um piso, uma forma de derivar parâmetro e uma de desenhar.
+   *
+   * ⚠️ Ela existe porque as três peles têm assinaturas de `update` DIFERENTES — o planeta quer a
+   * direção da luz em `params`, o cometa quer posição, câmera e a fonte como argumentos. Escritas
+   * como `if` encadeado, a quarta pele viraria um quarto ramo e o laço deixaria de ser legível.
+   * Aqui, pele nova é uma linha; e quem esquecer o `far` não compila um caso silencioso, porque a
+   * rota inteira falta.
+   */
+  const ROTAS_DO_POOL = {
+    [SURFACE.PLANET]: {
+      pool: poolPlaneta, criar: createPlanet, far: PLANETA_FAR,
+      params: (node) => planetParams(node),
+      desenhar: (pele, base, c, elapsed) => {
+        // A luz vem da ESTRELA DO SISTEMA, não da origem: iluminar de outra direção poria o
+        // terminador em desacordo com o que se vê, e é o terminador que faz a esfera ler como esfera.
+        estrelaDoSistema(c.source, c.position, LIGHT_DIR);
+        pele.update({ ...base, light: [LIGHT_DIR.x, LIGHT_DIR.y, LIGHT_DIR.z] }, camera, c.px, elapsed);
+      },
+      // Esconder é `px = 0`: o próprio módulo derruba o nível de detalhe e some. Um `visible = false`
+      // por fora deixaria a pele sem saber que parou — e ela reapareceria no meio da rampa.
+      esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
+    },
+    [SURFACE.PHOTOSPHERE]: {
+      pool: poolFotosfera, criar: createPhotosphere, far: FOTOSFERA_FAR,
+      params: (node) => photosphereParams(node, hash01, graph.kindColor(node.kind)),
+      // A fotosfera EMITE: não tem terminador e não pede direção de luz nenhuma.
+      desenhar: (pele, base, c, elapsed) => pele.update(base, camera, c.px, elapsed),
+      esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
+    },
+    [SURFACE.COMET]: {
+      pool: poolCometa, criar: createComet, far: COMETA_FAR,
+      params: (node) => cometParams(node, graph.kindColor(node.kind)),
+      desenhar: (pele, base, c, elapsed) => {
+        // ⚠️ `estrelaDoSistema` PRIMEIRO: é ela que preenche `FONTE_DA_CAUDA`. Sem esta linha a
+        // cauda usaria a fonte do corpo anterior — um erro que só aparece com dois cometas na tela.
+        estrelaDoSistema(c.source, c.position, LIGHT_DIR);
+        pele.update(base, c.position, camera, c.px, elapsed, motion.isReduced(), FONTE_DA_CAUDA);
+      },
+      // O cometa segue o idioma do caminho de foco: as morfológicas somem por `visible`, porque a
+      // coma e as caudas não têm rampa de nível própria para descer.
+      esconder: (pele) => { pele.object.visible = false; },
+    },
+  };
+
+  /**
+   * A posição da ESTRELA do sistema de um corpo — a fonte de luz dele nesta cena.
+   *
+   * Devolve a DIREÇÃO normalizada do corpo para a estrela em `saida`, e deixa `FONTE_DA_CAUDA` com a
+   * posição dela. Sem estrela (corpo órfão), cai na origem: é a degradação, não o padrão.
+   */
+  function estrelaDoSistema(source, posicao, saida) {
+    const i = universe.sistemaDe(source);
+    const sis = i === null ? null : universe.sistemas()[i];
+    FONTE_DA_CAUDA.copy(sis ? sis.pos : ZERO);
+    return saida.copy(FONTE_DA_CAUDA).sub(posicao).normalize();
+  }
+  const FONTE_DA_CAUDA = new THREE.Vector3();
 
   /** Um slot do pool, criado sob demanda — a mesma preguiça do `build` das peles. */
   function slotDaPele(pool, criar) {
@@ -2040,11 +2107,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       planet.object.position.copy(pouso.position);
       planet.object.scale.setScalar(pouso.radius);
       /*
-       * A luz vem do NÚCLEO. É o único corpo emissivo da cena, então iluminar de qualquer outra
-       * direção poria o terminador em desacordo com o que se vê — e o terminador é justamente o
-       * que faz a esfera ler como esfera.
+       * DE ONDE VEM A LUZ, e a resposta depende da CENA.
+       *
+       * Na AGENTE o núcleo é o único corpo emissivo, então a direção é o corpo → origem: iluminar
+       * de outro lugar poria o terminador em desacordo com o que se vê, e é o terminador que faz a
+       * esfera ler como esfera.
+       *
+       * ⚠️ **No UNIVERSO não há nada na origem**, e a luz é da ESTRELA DO SISTEMA — a mesma lei que
+       * o `CORPO_VS` já aplica ao céu instanciado (*"luz global afirmaria de novo um centro único,
+       * que é justamente o que ela nega"*). Sem esta distinção o mesmo planeta ficava iluminado de
+       * um lado quando travado e de outro quando desenhado pelo pool, que é a pior das duas.
        */
-      LIGHT_DIR.copy(pouso.position).negate().normalize();
+      if (modo === 'universo') estrelaDoSistema(focusedNode, pouso.position, LIGHT_DIR);
+      else LIGHT_DIR.copy(pouso.position).negate().normalize();
       const level = planet.update(
         { ...planetParamsCache, light: [LIGHT_DIR.x, LIGHT_DIR.y, LIGHT_DIR.z] },
         camera,
@@ -2095,45 +2170,33 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * a mostrar, e é a mesma grandeza que o `LOD_FAR_PX` de cada pele já usa para decidir se vale
      * desenhar. Duas réguas para "quem ganha pele" divergiriam na primeira mudança de fov.
      */
-    for (const p of [...poolPlaneta, ...poolFotosfera]) p.usado = false;
+    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa]) p.usado = false;
     const vizinhas = [];
     let cortadas = 0;
     if (modo === 'universo') {
       for (const c of universe.candidatosAPele(PELES_VIZINHAS_MAX * 3, focusedNode)) {
         const sup = decisaoDoUniverso(c.node)?.surface;
-        const ehPlaneta = sup === SURFACE.PLANET;
-        const ehFotosfera = sup === SURFACE.PHOTOSPHERE;
-        if (!ehPlaneta && !ehFotosfera) continue;
-        if (c.px < (ehPlaneta ? PLANETA_FAR : FOTOSFERA_FAR)) continue;
+        const rota = ROTAS_DO_POOL[sup];
+        if (!rota) continue;
+        if (c.px < rota.far) continue;
         if (vizinhas.length >= PELES_VIZINHAS_MAX) { cortadas += 1; continue; }
-        const slot = slotDaPele(ehPlaneta ? poolPlaneta : poolFotosfera,
-          ehPlaneta ? createPlanet : createPhotosphere);
+        const slot = slotDaPele(rota.pool, rota.criar);
         slot.usado = true;
         slot.fonte = c.source;
-        if (!paramsPorFonte.has(c.source)) {
-          paramsPorFonte.set(c.source, ehPlaneta
-            ? planetParams(c.node)
-            : photosphereParams(c.node, hash01, graph.kindColor(c.node.kind)));
-        }
+        if (!paramsPorFonte.has(c.source)) paramsPorFonte.set(c.source, rota.params(c.node));
         slot.pele.object.position.copy(c.position);
         slot.pele.object.scale.setScalar(c.radius);
-        // A luz vem do NÚCLEO, a mesma regra do corpo em foco: iluminar de outra direção poria o
-        // terminador em desacordo com o que se vê, e é o terminador que faz a esfera ler como esfera.
-        LIGHT_DIR.copy(c.position).negate().normalize();
-        const base = paramsPorFonte.get(c.source);
-        slot.pele.update(
-          ehPlaneta ? { ...base, light: [LIGHT_DIR.x, LIGHT_DIR.y, LIGHT_DIR.z] } : base,
-          camera, c.px, elapsed
-        );
+        slot.rota = sup;
+        rota.desenhar(slot.pele, paramsPorFonte.get(c.source), c, elapsed);
         vizinhas.push({ source: c.source, px: +c.px.toFixed(1), pele: sup });
       }
     }
     // Slot que ninguém pediu neste quadro tem de PARAR DE DESENHAR. `px = 0` derruba o nível de
     // detalhe a zero e o próprio módulo esconde o grupo — o mesmo caminho que o corpo em foco usa
     // ao soltar, e não um `visible = false` por fora que a pele não saberia explicar.
-    for (const p of [...poolPlaneta, ...poolFotosfera]) {
+    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa]) {
       if (p.usado || !p.fonte) continue;
-      p.pele.update(paramsPorFonte.get(p.fonte) ?? {}, camera, 0, elapsed);
+      ROTAS_DO_POOL[p.rota]?.esconder(p.pele, paramsPorFonte.get(p.fonte), elapsed);
       p.fonte = null;
     }
     pelesVizinhas = { desenhadas: vizinhas.length, teto: PELES_VIZINHAS_MAX, cortadas, corpos: vizinhas };
