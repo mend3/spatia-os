@@ -5,10 +5,19 @@ mesmo stream — nenhum deles sabe o que é Qdrant ou Ollama, todos sabem desenh
 `tool`, `memory`, `token`.
 
 **A consequência que importa:** trocar o retriever, o modelo ou o provedor de busca não
-muda uma linha de shader. E instrumentar um comportamento novo é emitir um evento novo — o
-`recorder.py` é o único lugar que precisa saber contá-lo.
+muda uma linha de shader. E instrumentar um comportamento novo é emitir um evento novo.
 
-Transporte: SSE em `GET /api/ask?q=<pergunta>&web=0|1`, um JSON por linha `data:`.
+Transporte: SSE, um JSON por linha `data:`, em **dois streams**.
+
+| stream | vida | quem escreve |
+|---|---|---|
+| `GET /api/ask?q=<pergunta>&web=0\|1` | um ciclo, fecha no `done` | o agente |
+| `GET /api/system-events` | enquanto a página viver | os webhooks e o vigia do `server/ambient.py` |
+
+⚠️ **Quem conta cada stream é diferente, e confundir os dois deixa métrica em zero.** O
+`recorder.py` envolve só o `/api/ask`; quem publica no stream do sistema contabiliza a si
+mesmo (`webhooks.deliver`, `ambient._registrar`). Evento novo no stream do sistema que espere
+o recorder nasce sem contador.
 
 ## Eventos
 
@@ -24,16 +33,103 @@ Transporte: SSE em `GET /api/ask?q=<pergunta>&web=0|1`, um JSON por linha `data:
 | `thought` | delta de raciocínio | `text` | trilha tênue de partículas |
 | `token` | delta da resposta | `text` | texto aparece letra por letra |
 | `cogload` | tokens de raciocínio | `tokens` (acumulado) | medidor de carga cognitiva |
+| `thread` | esta pergunta sabe (ou não) da anterior | `continuity`, `thread`, `turn`, `since`, `origin` | cabeça da timeline: a condição fica de pé; `broken` também escreve linha |
 | `brain` | agente inicializado | `session`, `cwd`, `model`, `tools`, `mcp[]` | HUD mostra o núcleo online |
 | `limit` | janela de uso | `status`, `window`, `resets_at` | medidor de janela |
 | `answer` | resposta completa | `text`, `ms`, `api_ms`, `turns`, `cost_usd`, `tokens{}`, `sources[]` | fecha a resposta, relaxa o som |
 | `error` | falha de serviço | `service`, `message` | glitch/interferência |
+| `notice` | o sistema mudou sem ninguém perguntar | `severity`, `topic`, `label`, `detail`, `at`, `action` (só em `warn`/`alert`) | cabeça da timeline: `warn`/`alert` ficam de pé, `info` escreve linha e apaga |
 | `done` | fim do stream | — | volta a ocioso |
 
 `state` ∈ `thinking · retrieving · searching · answering · idle · error`.
 
 `tool.kind` ∈ `filesystem · shell · browser · database · github · mcp · agent · planner ·
 other` — é a cor, não o nome da ferramenta. O nome muda por instalação; a família não.
+
+## `thread` — a continuidade, dita antes de a resposta existir
+
+A tela parece uma conversa. `thread` é o campo que decide se ela é uma — sem ele o operador não tem
+como distinguir "o agente lembrou" de "o agente adivinhou", e é o princípio 10 quebrado antes de
+qualquer outro.
+
+`continuity` ∈ `new · resumed · broken · none`:
+
+| valor | o que é verdade |
+|---|---|
+| `new` | fio novo. Esta pergunta não sabe de nenhuma anterior, e a próxima saberá desta |
+| `resumed` | `--resume` na transcrição do turno anterior. `turn` diz o quantos |
+| `broken` | havia fio, o CLI não achou a sessão. A pergunta rodou **do zero** — e é justamente o caso em que a tela mentiria sozinha |
+| `none` | este cérebro não guarda conversa (`BRAIN=ollama` monta o prompt do zero sempre) |
+
+**Sai ANTES de o processo existir**, e é o único evento do ciclo que vale mesmo quando não há
+resposta: "esta pergunta não sabe da anterior" é verdade a dizer inclusive numa execução que falha.
+`thread` é o id da sessão do CLI (`null` quando não há) e `since` é o instante em que o fio nasceu —
+é ele que impede um fio de ontem de parecer recém-aberto.
+
+⚠️ **`turn` é o turno DESTA pergunta**, contado do que o CLI declarou, não do que a tela viu. Uma
+aba que abriu no meio da conversa recebe o número certo.
+☠️ **Não confunda com `answer.turns`**, que é o laço INTERNO do agente dentro de uma execução — a
+mesma palavra para duas grandezas, na mesma timeline. Por isso a tela escreve `7ª PERGUNTA`.
+
+**Onde ele vira pixel:** `src/hud/streams.js`, no bloco de pé da timeline, ao lado dos avisos. A
+CONDIÇÃO (`continuity` + `turn` + `since`) é reescrita no lugar a cada pergunta; `broken` também
+escreve uma LINHA, porque é o único que é um instante e pertence ao perfil daquela execução — a
+condição é substituída pela pergunta seguinte, e sem a linha não sobraria nada dizendo que aquela
+resposta não teve memória. ⚠️ **`resumed` não escreve linha**: uma por pergunta seria a mesma frase
+em toda volta do ciclo. `new` conta a pergunta e promete a próxima; `none` não tem número nem hora.
+O botão CORTAR O FIO some quando não há o que cortar, e a tela lê `GET /api/thread` ao abrir para
+poder responder antes da primeira pergunta.
+
+O fio mora em `server/fio.py`, um por ORIGEM, e `POST /api/thread` o corta — cortar é o que torna a
+continuidade uma escolha em vez de um acúmulo. **Mudar permissão corta todos**: as flags novas valem
+da próxima execução em diante, mas não apagam da transcrição o que uma ferramenta hoje proibida já
+leu.
+
+## `notice` — o vocabulário do que acontece sozinho
+
+`notice.severity` ∈ `info · warn · alert`, e o nível sai do que o operador PODE FAZER:
+
+| nível | o que ele diz | `action` |
+|---|---|---|
+| `info` | mudou, e não há o que fazer — a tela estava afirmando outra coisa | **nunca** |
+| `warn` | há o que fazer e **pode esperar**: nada na tela está errado agora, uma capacidade degradou | **sempre** |
+| `alert` | há o que fazer **agora**: uma capacidade de que o operador depende parou de responder | **sempre** |
+
+`notice.topic` ∈ `corpus · topology · index · graphdb · credential`. É a família do fato, como
+`tool.kind` é a família da ferramenta — o que muda por instalação é o número no `detail`.
+
+⚠️ **`notice` não aceita:** nível fora dos três; `warn`/`alert` sem `action`; `info` com
+`action`. As três levantam em `ambient.notice`, antes de o evento existir — um aviso que não
+nomeia o que fazer é a definição de ruído, e ruído ensina o operador a não ler a tela.
+
+☠️ **Falha de serviço não é `notice`, é `error`.** `error` já tem leitor (o glitch) e já tem
+métrica (`espatial_upstream_errors_total`). Publicar a mesma queda nos dois vocabulários faria
+a tela contar duas vezes o que aconteceu uma.
+
+**Um tópico tem no máximo UM aviso de pé.** `warn`/`alert` põe o tópico de pé; `info` no mesmo
+tópico o apaga. Quem assina o `/api/system-events` recebe de saída os que estão de pé, com o
+`at` original — abrir a página depois do boot não pode mostrar tela limpa sobre um índice
+vencido, e o `at` é o que impede um aviso de ontem de parecer recém-nascido.
+
+**Dispara por TRANSIÇÃO, nunca por relógio.** Cinco minutos parados só produzem `notice` se um
+fato mudou; repetir o mesmo aviso a cada volta é o que a regra acima existe para impedir.
+Fato que o sistema não sabe (Neo4j nunca configurado, ponto sem carimbo de data) **não vira
+evento** — anunciá-lo seria afirmar sobre o que ninguém mediu.
+
+**Onde ele vira pixel:** `src/hud/streams.js`, na CABEÇA da timeline. `warn`/`alert` ficam de
+pé com `label`, `detail`, `action` e a idade tirada do `at`; `info` escreve uma linha de timeline
+e apaga o aviso de pé do mesmo tópico. A severidade colore o que aconteceu, a idade colore há
+quanto tempo (3d âmbar, 7d vermelho — a mesma rampa da célula ÍNDICE do cabeçalho).
+
+⚠️ **`warn`/`alert` NÃO escrevem linha de timeline.** A reposição dos de pé acontece a cada
+assinatura, e `api.watchSystem` reconecta com backoff: uma linha por entrega faria de toda queda
+de rede uma repetição do mesmo aviso. A reentrega é reconhecida pelo par (`topic`, `at`) — mesmo
+fato, zero pixel novo.
+
+☠️ **A reconexão não sabe o que foi APAGADO enquanto esteve fora.** A reposição só carrega os de
+pé; um `info` emitido durante a queda não é reentregue, e o aviso correspondente fica na tela
+envelhecendo. Fechar isso é a assinatura se ANUNCIAR no barramento (`core/api.js`), para o bloco
+ser reconstruído a partir da reposição em vez de acumulado.
 
 ## Regras que o protocolo impõe
 

@@ -20,14 +20,22 @@
  * vê, que é a classe de mentira que esta bancada existe para não cometer.
  */
 import * as THREE from 'three';
-import { createPulsar, pulsarParams, LOD_FAR_PX, LOD_NEAR_PX } from '../space/pulsar.js';
+import { createPulsar, pulsarParams, LOD_FAR_PX, LOD_NEAR_PX, GIGANTE } from '../space/pulsar.js';
 import { diskPx } from '../space/galaxy.js';
 
-/** O nó mínimo — só os campos que `pulsarParams` lê. `massRank` entra direto, sem passar por chunks. */
+/**
+ * O nó mínimo — só os campos que `pulsarParams` lê.
+ *
+ * ⚠️ **Era `massRank` direto, e parou de funcionar em 2026-08-09** sem quebrar nada: o rig deixou
+ * de ler posto e passou a ler `chunks` contra o limiar de colapso (ver `GIGANTE` em `pulsar.js`),
+ * então o slider continuaria andando com o objeto PARADO — a falha silenciosa de sempre. Aqui o
+ * slider é invertido de volta para chunks pela mesma lei, `chunks = GIGANTE · 2^massa`, para a
+ * bancada varrer exatamente o eixo que a cena varre e não uma segunda régua livre para divergir.
+ */
 function noFalso(values) {
   return {
     source: `bancada/pulsar/${values.seed.toFixed(3)}`,
-    massRank: values.massa,
+    chunks: GIGANTE * Math.pow(2, values.massa),
   };
 }
 
@@ -67,7 +75,10 @@ export const PULSAR_SPEC = {
      * do corpo (0,10→0,16), o período (INVERSO — pulsar jovem e massivo é lento, o de
      * milissegundo é o velho reciclado) e nada mais. A obliquidade sai da semente.
      */
-    { key: 'massa', label: 'MASSA (rank)', type: 'range', min: 0, max: 1, step: 0.01, value: 0.5 },
+    // O rótulo diz a UNIDADE: 0 é o limiar de colapso e 1 é o dobro dele (ver `GIGANTE` em
+    // `pulsar.js`). "rank" nomeava um posto que o rig não lê mais, e slider com unidade errada é
+    // como se mede a coisa errada com convicção.
+    { key: 'massa', label: 'MASSA (× limiar, log2)', type: 'range', min: 0, max: 1, step: 0.01, value: 0.5 },
     { key: 'seed', label: 'SEED (caminho)', type: 'range', min: 0, max: 1, step: 0.001, value: 0.42 },
     /*
      * RAIO DA ÂNCORA em unidades de mundo — o mesmo número que `scene.js` usa como escala do
@@ -105,6 +116,7 @@ export const PULSAR_SPEC = {
     '⚠️ a ordem das três é a afirmação do objeto: VENTO > JATO > LOBO',
     '⚠️ o vento é um TORO, não um ouriço: orbite e procure a CINTURA equatorial',
     'OBLIQUIDADE não pode ser 0 nem 90° — nos dois o beaming deixa de existir',
+    '⚠️ MASSA move o `período` e SÓ ele: o `núcleo` é constante, e o readout diz isso — slider que anda com um número parado é a falha calada de sempre',
   ],
   build(ctx) {
     const grupo = new THREE.Group();
@@ -143,7 +155,7 @@ export const PULSAR_SPEC = {
           alinhamento: ultimo.alinhamento.toFixed(3),
           período: `${params.period.toFixed(2)} s`,
           obliquidade: `${((params.obliquity * 180) / Math.PI).toFixed(0)}°`,
-          'núcleo (raios)': params.core.toFixed(3),
+          'núcleo (raios)': `${params.core.toFixed(3)}  (constante — ver BODY_SPAN)`,
           feixe: params.beam.toFixed(2),
           filamento: values.filamento === 0 ? 'desligado' : `${values.filamento.toFixed(2)} · decai ${values.decaimento.toFixed(2)}`,
           nebulosa: values.nebulosa === 0 ? 'desligada' : `${values.nebulosa.toFixed(2)} · 7,0 R âncora`,

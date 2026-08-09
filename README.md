@@ -58,6 +58,12 @@ exibido, e a data em que o índice mudou.
 A tela de boot mostra o estado **real** de cada subsistema antes de deixar entrar. Se algo
 estiver degradado, ela diz o quê — e o observatório abre em modo parcial em vez de fingir.
 
+Depois de entrar, os pontos de subsistema no alto da tela continuam sendo aferidos, e **ao lado
+deles fica a idade da última aferição**. É a diferença entre *"MEMORY está online"* e *"MEMORY
+estava online quando eu olhei"* — se o servidor parar de responder, os pontos perdem o brilho e a
+idade fica vermelha em vez de o verde continuar afirmando um serviço que caiu. Nada é apagado: o
+que foi medido continua na tela, com o de quando ao lado.
+
 ### Ambientes
 
 Não há build de produção, e isso é decisão: o sistema é um processo local, com bind em
@@ -85,9 +91,12 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 | A posição de cada nó | hash determinístico do id → órbita fixa. O mesmo conhecimento cai sempre no mesmo lugar |
 | A recuperação | busca híbrida densa+BM25 fundida por RRF, ~8ms |
 | As chamadas de ferramenta | `tool_use` reais do agente, com argumentos e duração medida |
-| As citações `[n]` | apontam para o arquivo que entrou no prompt; citação sem fonte aparece riscada |
+| As citações `[n]` | apontam para o arquivo que entrou no prompt; citação sem fonte aparece riscada. Clicar numa rola a lista de fontes até a linha dela |
+| A lista de fontes | tem TETO de **vista**, nunca de conteúdo: as fontes cabem todas no DOM e a lista rola, com o **total real publicado no topo** — sete linhas à vista não podem ler como "isto é tudo" |
+| A lista de fontes, de novo | ela **não repete o que você já está vendo**: a fonte que MEMÓRIA RECUPERADA ou SATÉLITES DE BUSCA já mostra sai da lista e vira uma linha que aponta para o painel, com todos os `[n]` dela dentro. Recolha o painel, mude de tela, ou deixe o painel podar o resultado — a linha volta inteira, porque ali ela é a única testemunha |
 | Custo, turnos, tokens, janela de uso | vêm do stream do CLI, não de estimativa |
 | A timeline | horário e `ms` medidos por estágio |
+| Os avisos de pé, no topo da timeline | o servidor observa índice, corpus, topologia, Neo4j e credenciais e avisa por TRANSIÇÃO — nunca por relógio. Cada aviso diz o que fazer, e quanto tempo faz que está de pé |
 | A forma de onda | amplitude medida por `AnalyserNode` — do microfone gravando, ou do MP3 que o TTS devolveu |
 
 | Aproximação | Por quê |
@@ -196,12 +205,46 @@ num link. Um OS onde F5 te devolve à tela inicial não é ambiente, é demo.
 | `8` | `#/activity` | o que executa neste instante, e como eu paro? |
 | `9` | `#/storage` | o corpus é confiável? |
 
-O compositor é residente: dá para perguntar de qualquer rota, e a resposta aparece em
-qualquer rota. Abrir uma seção recolhe as outras **do mesmo trilho** — e só dele, porque
-abrir algo à direita não pode fechar o que se está lendo à esquerda.
+Alguns painéis são **residentes**: o compositor, a timeline, o contexto do céu e a janela do
+tempo entram em **todas** as dez rotas, e o sistema recusa registrar uma tela que deixe qualquer
+um deles de fora. Dá para perguntar de qualquer rota, e a resposta aparece em qualquer rota.
+Abrir uma seção recolhe as outras **do mesmo trilho** — e só dele, porque abrir algo à direita
+não pode fechar o que se está lendo à esquerda.
 
 A ordem de construção e o que cada tela deliberadamente NÃO mostra estão em
 [`docs/OS-SCREENS.md`](docs/OS-SCREENS.md).
+
+### Quanto da janela a interface está tomando — `spatia.hud()`
+
+A HUD flutua sobre o céu, e a pergunta que ninguém conseguia responder era *quanto dele ela tira
+do mouse*. `spatia.hud()`, no console, responde com número em vez de impressão:
+
+    spatia.hud().ponteiro     // reivindicado × chegando ao canvas, atribuído por dono e por fenda
+    spatia.hud().widgets      // recolhido pelo operador · fora do manifesto · declarado e AUSENTE
+
+☠️ **A grandeza é área que ACEITA PONTEIRO, não área desenhada.** Os gestos da cena estão presos
+ao `canvas`: um painel por cima não disputa o clique, ele **cancela** órbita e zoom naquele
+retângulo. A sonda varre a janela em grade com `document.elementFromPoint` e devolve o passo e a
+contagem de pontos junto — qualquer fração dela se refaz à mão. Ela também separa as três causas
+de *"esse painel sumiu"*: **o operador recolheu**, **esta rota não pede o painel**, ou **a rota
+pediu e ele não montou** — que é a única das três que é defeito.
+
+⚠️ Ela lê a rota que está na tela e **carimba qual é**. Para comparar as dez, navegue e colecione.
+
+### A câmera volta a responder por cima do painel
+
+*"Não consigo dar zoom nem controlar a câmera quando o astro está em foco — se eu afastar o mouse
+para as laterais, funciona."* O painel de palco (o leitor de arquivo, a página de configuração, a
+tabela de execuções) tem uma **moldura** que estica pela coluna central inteira e **não desenha
+nada**; o que se vê é o corpo dela, que para na altura do conteúdo. A moldura transparente é que
+estava tirando o mouse do céu, bem em cima do corpo em foco.
+
+> **Agora quem PINTA reivindica o ponteiro; quem só POSICIONA cede.**
+
+Órbita, zoom e clique de seleção voltam a funcionar em toda a faixa onde não há painel desenhado —
+e continuam indo para o painel onde há texto para rolar, selecionar e clicar. Nada mudou de lugar:
+o painel ocupa o mesmo espaço, com o mesmo conteúdo. `scripts/lei-palco.mjs` impede a volta, e
+varre o CSS inteiro atrás de qualquer superfície nova que tome o mouse sem desenhar nada.
 
 ## Arquitetura
 
@@ -247,6 +290,14 @@ server/
   qdrant.py              busca híbrida, varredura, vizinhos
   embed.py               fastembed (ONNX na CPU, sem rede)
   graph.py               topologia derivada da coleção
+  graphdb.py             Neo4j — a camada de RELAÇÃO, e a única que pode faltar
+  recency.py             recência · churn · dormência · regularidade, do git
+  services.py            os serviços de um compose: as partes nomeadas de um arquivo
+  catalog.py             o catálogo servido
+  dirty.py               o que o git status vê e o índice não
+  attach.py · speech.py  anexos · voz
+  permissions.py · mcp_scopes.py   o portão, e os escopos que ele conhece
+  net.py                 o único lugar que abre socket para fora
   websearch.py           brave · serpapi · searxng · fallback ddg
   files.py               leitura com barreira de raiz
   promex.py              Counter/Gauge/Histogram + formato 0.0.4
@@ -270,7 +321,13 @@ src/
   kernel/  registry · router · widgets   ← rota, manifesto, montagem
   core/    bus · state · api · tuning · promtext (parser do /metrics)
   apps/    files · system · web · bridge · journal · metrics · security · activity · storage
-  space/   scene · blackhole · lensing · stars · graph · particles · satellites
+  space/   scene · graph · universe · solver          ← as duas cenas e o layout
+           entity-physics · superficies · catalog · astrofisica
+                                                     ← a ONTOLOGIA: quem decide o que um corpo É
+           photosphere · planet · comet · pulsar · nebula · station · quasar
+                                                     ← as PELES (uma por classe, roteadas pela ontologia)
+           blackhole · lensing · stars · particles · satellites · galaxy · backdrop
+           rings · moon-orbits · orbital-zones · links · lod · motion-catalog
   hud/     frame · streams · answer · terminal · controls · boot · dom
   audio/   engine (síntese procedural, zero asset)
 vendor/    three.js + postprocessing
@@ -627,9 +684,13 @@ camada sem controle é camada que ninguém confere.
 instalar um app remapeia os atalhos que o operador decorou. Colisão de tecla ou de gesto
 (`claims`) falha no REGISTRO, não na navegação.
 
-**Ligar o Neo4j** (relações de verdade, em vez da hierarquia de diretórios): um módulo
-`server/neo4j.py` que devolve `{nodes, edges}` no mesmo formato de `graph.load()`. A cena não
-muda.
+⭑ **O Neo4j JÁ ESTÁ LIGADO** — `server/graphdb.py`, e ele não devolve `{nodes, edges}`: essa
+proposta foi abandonada por duas leis que valem a pena saber antes de propor a próxima camada.
+**(1) O grafo muda o BRILHO, nunca a CLASSE** — nenhum fato dele pode decidir o que um corpo É, ou
+um container caindo faria corpos trocarem de identidade (`scripts/lei-neo4j.mjs` prova isso em
+milhares de perturbações). **(2) Ele nunca está no caminho do quadro** — cada dimensão é
+materializada por um script para um arquivo em `.cache/`, e o servidor a anexa ao servir a
+topologia. Cair entre duas materializações não muda nada na tela.
 
 **Portar para Next.js/R3F**, se um dia fizer sentido: os shaders (`blackhole.js`,
 `lensing.js`, `stars.js`, `graph.js`) são independentes de framework — recebem `THREE` e
@@ -652,6 +713,16 @@ como estado de React reintroduziria o acoplamento que ele existe para evitar.
 - **`height` num filho do `.scroll` vai a ZERO** quando outra seção do trilho disputa altura.
   O elemento fica no DOM com a largura certa e nenhuma altura, sem erro no console — um
   gráfico de 14px sumia inteiro com a legenda dele ainda na tela. Use `flex: 0 0 <altura>`.
+- **Cabeçalho que AFIRMA sobre uma carga vazia** é pior do que dado faltando, porque quem lê o
+  cabeçalho para de procurar. `/api/vizinhanca` respondia `disponivel: true · corpos: 188 ·
+  vinculos: 4226` e devolvia `null` para todo corpo — a cena não desenhava **um arco** e o painel
+  anunciava 4.226. Os snapshots eram de outro corpus, e **nenhum deles dizia de qual**. A guarda é
+  carimbar a origem no dado e **recusar** o que não é deste céu, com o motivo junto — inclusive o
+  que vem sem carimbo, porque "não tenho como saber" não autoriza afirmar.
+- **Grandeza derivada de POSTO para descrever um corpo de uma classe piora sozinha.** A classe vive
+  na cauda da distribuição, e a cauda ocupa uma fatia cada vez menor do posto conforme o corpus
+  cresce: o rig do pulsar varria 16,9% do eixo num corpus de 72 corpos e **0,36% num de 276**.
+  Ancore em limiar FIXO, não em população.
 - **Campo declarado no manifesto sem leitor** apodrece por imitação: `orbit` viveu em oito
   apps depois que os corpos saíram do céu, copiado por cada app novo. A auditoria que acha
   isso é barata — varrer cada chave declarada e procurar quem a lê.
@@ -661,10 +732,41 @@ como estado de React reintroduziria o acoplamento que ele existe para evitar.
 
 ## Referencias e Links
 
-- https://github.com/dgreenheck/webgpu-black-hole
+### As fontes estão EM DISCO — leia-as, não lembre delas
+
+    opensrc list                       # o que já está espelhado
+    opensrc path owner/repo            # o caminho absoluto (busca se faltar)
+    opensrc fetch owner/repo           # espelha um novo
+
+> ☠️ **A regra deste projeto: fonte em disco vence memória.** Um shader lembrado é um shader
+> inventado — `blackhole-geodesic.js` diz isso por escrito, e as cinco invariantes dele foram lidas
+> no clone, não recordadas. Antes de afirmar como uma biblioteca se comporta, **abra o arquivo**.
+> ⚠️ `three.js` está espelhado em **r171**, que é a versão de `vendor/` — perguntar à memória sobre
+> "a API do three" é perguntar sobre outra versão.
+
+| repositório | o que ele deu a este projeto |
+|---|---|
+| [`mrdoob/three.js`](https://github.com/mrdoob/three.js) `@r171` | o motor, na versão exata de `vendor/` |
+| [`pmndrs/postprocessing`](https://github.com/pmndrs/postprocessing) | os passes — e o orçamento desta cena mora neles |
+| [`ebruneton/black_hole_shader`](https://github.com/ebruneton/black_hole_shader) | a geodésica e a cor do disco (BSD-3), citada em `quasar.js` |
+| [`dgreenheck/threejs-procedural-planets`](https://github.com/dgreenheck/threejs-procedural-planets) | o terreno do planeta procedural |
+| [`stegu/webgl-noise`](https://github.com/stegu/webgl-noise) | o simplex 3D do GLSL |
+| [`patriciogonzalezvivo/thebookofshaders`](https://github.com/patriciogonzalezvivo/thebookofshaders) | referência de shader |
+| [`SoumyaEXE/3d-Solar-System-ThreeJS`](https://github.com/SoumyaEXE/3d-Solar-System-ThreeJS) | ⚠️ intermediário **sem licença declarada** — foi por onde `sun.jpg` entrou, e a procedência real teve de ser provada por hash |
+| [`getzep/graphiti`](https://github.com/getzep/graphiti) | o outro grafo que **coexiste** no mesmo Neo4j — é ele que decide quais rótulos estão tomados |
+| `dgreenheck/webgpu-black-hole` · `vlwkaos/threejs-blackhole` · `oseiskar/black-hole` · `MisterPrada/singularity` | as quatro implementações comparadas ao desenhar o buraco negro |
+| [`vercel-labs/opensrc`](https://github.com/vercel-labs/opensrc) | a própria ferramenta |
+
+☠️ **`nasa/NASA-3D-Resources` NÃO está espelhado, e é decisão:** ele puxa **2,6 GB** — quase o dobro
+de todo o resto do cache junto (1,7 GB para os catorze). Um acervo de malhas não se lê como código:
+o que se quer dele é **um modelo por vez**, e isso se baixa do item. O mapa do que serve a esta
+cena, com link por modelo, está em [`assets/CREDITS.md`](assets/CREDITS.md).
+
+### Outras
+
 - https://threejsroadmap.com/blog/raytracing-a-black-hole-with-webgpu
-- https://github.com/vlwkaos/threejs-blackhole
-- https://github.com/SoumyaEXE/3d-Solar-System-ThreeJS
 - https://www.astronexus.com/projects/hyg (stars data)
 - https://eyes.nasa.gov/apps/solar-system/#/home
 - https://threejs.org/examples/webgl_shaders_sky.html
+- https://www.solarsystemscope.com/textures/ (CC BY 4.0)
+- https://esawebb.org/images/ (os fundos JWST, CC BY 4.0)

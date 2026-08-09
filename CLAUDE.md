@@ -321,11 +321,194 @@ Cada nova funcionalidade deve tornar o sistema mais inteligente, não apenas mai
 
 ---
 
+# As leis desta base
+
+Escritas pelo usuário. **Valem sobre qualquer decisão técnica**, e sobre os Princípios acima
+quando os dois se cruzarem: um princípio diz para onde ir, uma lei diz o que não se faz para
+chegar lá.
+
+**A REGRA DA FÍSICA** — *Nenhuma decisão de composição pode alterar a simulação. Se um problema pode
+ser resolvido fora da simulação, ele deve ser resolvido fora dela.*
+Proíbe de imediato: reduzir `R_s` para o buraco negro incomodar menos, enfraquecer a lente de perto,
+alterar a geodésica por distância, trocar física por curva artística.
+**O corolário vale mais que a regra:** quando a física produz exatamente o fenômeno esperado, o
+defeito costuma estar em **linguagem visual**.
+
+**A REGRA DA INSPEÇÃO** — *Todo objeto tem de poder ser rotacionado.*
+O padrão que a satisfaz: **em foco vira MUNDO; fora de foco continua billboard.**
+Dois modos de falha silenciosos: (1) a malha virou mundo mas o **ÂNGULO** não chegou ao shader — um
+uniform servindo a dois donos (tela × física); (2) **objeto com dois modos precisa dos dois na
+bancada**, senão o caminho onde o defeito mora não é desenhável.
+Ainda violam (auditado, nada consertado): `remnant.js:145`, `nebula.js`, `comet.js:577`,
+`pulsar-pulse.js:169`, `bodies.js:236`, `satellites.js:189,263`. ⚠️ Varra o COMPORTAMENTO, não a
+string — a galáxia não tinha `quaternion.copy` e era billboard no vértice.
+
+**A REGRA DO CATÁLOGO** — *Nomeie os tipos que a classe ACEITA; nunca exclua os que ela não aceita.
+Ponha a proibição em `forbids`.*
+Classificar por exclusão (`type !== 'file'`) fazia uma LUA em foco resolver como GALÁXIA.
+**E o corolário que esta base já pagou CINCO vezes: declarar uma invariante não a implementa.** A
+auditoria que acha isso é barata (varra cada chave declarada e procure um leitor) e vale rodar depois
+de toda entrada nova no catálogo, no `tuning.SPEC` ou num vocabulário de métrica.
+
+**A FRONTEIRA FÍSICA × COGNITIVA** — *Nenhuma grandeza física é derivada de uma variável cognitiva
+sem uma unidade e uma constante física explicitamente definidas.* Escrita em 08/08.
+`EntityPhysics` não tem grandezas SI: `chunks` é contagem de conhecimento, `scale` é degrau,
+`activity` é toque em 30 dias. São metáforas — legítimas, e é o que faz a cena significar algo. O que
+não pode é uma delas atravessar para onde a matemática precisa ser física, porque o caminho é curto e
+calado: `chunks → "massa" → gravidade → órbita → lente`, e no fim ninguém sabe onde a metáfora
+terminou.
+⭑ **A saída é RAZÃO, não massa:** `alfa = 2·(R_s/R)` e `R_s/R` é ADIMENSIONAL — atravessa qualquer
+escala sem `G`, sem `c`, sem quilograma. Basta a razão da CLASSE. O buraco negro é legítimo porque
+`R_s` É a propriedade definidora dele; o pulsar porque `0,4` é o fato de uma estrela de nêutrons.
+O portão é `scripts/lente-estelar.mjs`. Detalhe e tabela: §11.2 do `replanejamento-celeste.md`.
+
+**As duas leis do Neo4j:** (1) ele muda o **BRILHO, nunca a CLASSE** — se `centrality` decidisse
+classe, um container caindo faria corpos trocarem de identidade; (2) ele **nunca está no caminho do
+quadro** (materialização → snapshot → servidor anexa → renderer lê pronto). E **`null` ≠ `0`**:
+`null` é "não medi", `0` é "medi e é periférico".
+
+**A distinção que vale para toda dimensão nova:** *"a dimensão existe" ≠ "a dimensão tem poder
+estatístico para classificar"*. Dimensão presente e fraca vale um número pequeno **com o veredito ao
+lado** (`evidenciaDeUso()`), nunca um número que finge.
+
+---
+
+# Commit — o que ele exige aqui
+
+⚠️ **Commit exige REVIEW antes** — e review aqui é rodar `node scripts/leis.mjs` **e provar por
+MUTAÇÃO** que os oráculos reprovam. ☠️ **Oráculo que nunca foi visto falhando não é guarda: é teste
+verde.** E a mutação tem de ser vista derrubando a lei que ela ataca **pelo nome** — verde depois de
+mutar é resultado a INVESTIGAR, nunca a comemorar.
+
+⚠️ **Commite por ARQUIVO, nunca por diretório**, quando houver outra sessão escrevendo — `git add
+docs/` já varreu trabalho alheio para dentro de um commit uma vez.
+
+⭑ **Estas regras deixaram de depender de memória.** `.claude/hooks/` tem os guardas do AGENTE,
+versionados e legíveis, ligados em `.claude/settings.json`: `guarda-bash.sh` RECUSA estagiar por
+diretório (a checagem é `[ -d ]`, não nome); `par-de-docs.sh` MEDE se `HANDOFF.md` e `roadmap.md`
+divergiram e só fala quando divergiram; `estado-da-sessao.sh` injeta o estado VIVO da árvore —
+branch, sujos, portão armado ou não — e **nada de doutrina**, que já mora aqui.
+⚠️ **O escopo do `guarda-bash` é estreito de propósito:** as duas formas de burlar o portão já são
+recusadas por um hook no nível do USUÁRIO — medido, visto bloqueando. Reimplementá-las aqui seria a
+segunda fonte para a mesma recusa.
+⚠️ **E hook nenhum prova por MUTAÇÃO** — isso continua sendo trabalho de quem revisa.
+
+⭑ **O corpo do commit é LONGO aqui de propósito**, com a medida que decidiu cada número: ele é o
+lugar da história, e é o que permite aos docs não a contarem.
+
+---
+
+# Manter a documentação — o que ela é, e o que ela não é
+
+Um doc desta base responde **duas** perguntas: *"o que é verdade AGORA"* e *"como não cair na
+armadilha"*. Ele **não** conta o que aconteceu. Isso não é gosto de estilo: contexto é finito, e
+cada linha de história desloca uma linha que teria evitado um erro.
+
+## O teste da narrativa
+
+> **Apague a frase. Se ninguém perde a capacidade de AGIR, era narrativa.**
+
+Marcadores quase infalíveis — passado sobre o **próprio código ou o próprio doc**:
+
+| ☠️ narrativa | ⭑ o que fica |
+|---|---|
+| *"era `massRank` e passou a ler `chunks`"* | *"lê `chunks` contra o limiar de colapso"* |
+| *"este documento afirmou o errado por várias sessões"* | *"o objeto é `spatia`; quando doc e código discordarem, o código está certo"* |
+| *"consertei o X no commit abc123"* | (nada — vai para o corpo do commit) |
+| *"o handoff morava em `.cache/` e agora está em `docs/`"* | (nada — o arquivo está onde está) |
+| *"a regra já foi ignorada uma vez"* | a regra, no imperativo |
+
+⚠️ **Uma exceção, e é só uma: a REFUTAÇÃO MEDIDA fica.** *"`rocheLimit(raio)` não dispensa
+`DENSITY_K` — a constante mora em `physicalRadius`"* está no passado e **não é história**: é o que
+impede a próxima sessão de reimplementar o erro. A diferença é o tempo verbal do EFEITO — história
+descreve o que mudou, refutação descreve o que continua verdade sobre o futuro. Se apagar a linha
+faz alguém refazer um trabalho já pago, ela fica.
+
+## Onde cada coisa mora
+
+| conteúdo | lugar | por quê |
+|---|---|---|
+| o que o usuário GANHA | `README.md` | é a única superfície que alguém de fora lê |
+| como se mede, e o que morde | este arquivo | carregado em toda sessão |
+| **por que é assim** | comentário do MÓDULO | é onde a próxima pessoa tropeça |
+| o que está aberto AGORA | `docs/HANDOFF.md` | |
+| ordem, e o que cada peça destrava | `docs/roadmap.md` | |
+| **a história** | corpo do commit | e ele é longo aqui **de propósito** |
+
+☠️ **A ORDEM DE PRECEDÊNCIA, quando duas fontes discordam: o CÓDIGO vence o doc, e o doc vence o
+relatório de agente.** Relatório de subagente é leitura, não medida — ele já afirmou que uma feature
+faltava enquanto o código a tinha e um doc a registrava como fechada, e a afirmação entrou no
+handoff por cima dos dois. **Confira no código antes de escrever no doc o que um agente relatou.**
+
+⭑ **`HANDOFF.md` e `roadmap.md` mudam JUNTOS** — são a mesma verdade por dois lados. Fechar tarefa
+num obriga a fechar o item no outro. Divergiram, os dois estão errados.
+
+## Fechar um item é MOVER, nunca anexar
+
+Ao dar por concluído qualquer item, o relato **sai** e o resíduo se distribui: a armadilha vai para
+a lista de armadilhas, o número para a lista de números, o resto para o corpo do commit. **Anexar
+"o texto original fica pelo valor do sintoma" é como estes arquivos incham** — foi assim que uma
+seção de handoff chegou a 462 linhas com quase nada acionável dentro.
+
+⚠️ **Orçamento de tamanho, e ele é uma medida, não uma meta:** se `HANDOFF.md` passar de ~800 linhas,
+alguma coisa está sendo contada duas vezes. Procure o duplicado antes de cortar o que parece velho.
+
+## Todo número num doc é uma mentira em potencial
+
+Número sem procedência **não envelhece — apodrece**, porque nada acusa quando ele deixa de valer.
+Todo número escrito carrega **de que corpus** e **quando**, ou vira "medida" com cara de fato:
+
+- *"o fixture tem 14 arquivos"* sobreviveu até virar 71. Ninguém percebeu porque não havia data.
+- *"74 arquivos · 2.606 pontos"* passou a ser 72 · 2.514 e continuou sendo citado.
+
+⭑ **A saída é dizer de onde o número sai**, para quem ler poder refazê-lo: *"a contagem do dia vem
+do `/api/graph`, nunca deste parágrafo"*.
+
+## Briefing é ANDAIME
+
+Um `docs/briefings/*.md` existe para ser **dissolvido**. Ao destravar um item dele: marque no
+briefing **e anuncie no `README.md`** como feature/capability — item entregue que ninguém sabe que
+existe é o mesmo que não entregue. Quando o conteúdo estiver todo diluído nos docs permanentes,
+**apague o arquivo**: o git guarda o texto, e o que não pode existir são duas fontes divergentes
+sobre a mesma coisa.
+
+⚠️ **A triagem que vale para todos:** os briefings **acertam a ESTRUTURA e erram as FOLHAS**. Onde
+nomeiam uma RELAÇÃO, acertam — e às vezes descrevem algo que já existe com outro nome. Onde nomeiam
+um FATO DE MUNDO, descrevem um corpus que não existe. Leia cada linha perguntando qual das duas é.
+
+## Antes de corrigir um nome em massa
+
+☠️ **Nunca `sed` num nome sem separar os homônimos.** As sondas se chamam `spatia.*`, mas
+`espatial.trace`, `espatial.*.v1` e as métricas `espatial_*` mantêm o nome antigo **de propósito**:
+renomear a chave não migra o que está gravado, e a afinação feita à mão evapora em silêncio. A
+tabela de `docs/identidade.md` existe para impedir exatamente esse `sed`. **Leia cada ocorrência.**
+
 # As ferramentas de `scripts/`
 
 Elas existem porque este projeto tem um modo de falha característico: **a feição some, o shader
-continua lá, e a tela não mente nem acusa — ela deixa de afirmar.** Nenhuma delas roda sozinha em
-CI; todas respondem uma pergunta específica, e é a pergunta que diz quando usá-las.
+continua lá, e a tela não mente nem acusa — ela deixa de afirmar.**
+
+## ☠️ Só uma linha importa, e é esta
+
+    node scripts/leis.mjs
+
+Roda **todos** os guardas e sai 1 se qualquer um cair. **~3,6 s.** Está instalado como
+`pre-commit`; num clone novo, **`make hooks`** — ele aponta o git para `.githooks/`, que é
+VERSIONADO. ☠️ `.git/hooks/` não é, e era assim que um clone nascia sem guarda nenhum.
+
+⚠️ **Este parágrafo dizia o contrário — *"nenhuma delas roda sozinha; a pergunta diz quando
+usá-las"* — e essa era a razão de os defeitos passarem.** Com 4 oráculos respondendo perguntas
+estreitas, escolher qual rodar era razoável. Com 22 a 3,6 s, escolher é como se perde guarda:
+medido numa sessão só, quatro deles não guardavam o que diziam (lista branca que não via o quinto
+arquivo; lei cega para uma das duas cenas; fato de mundo gravado como lei; `RAIZ` que fazia o
+oráculo passar sobre uma cópia MUTADA). **Quantidade de arquivo não é cobertura.**
+
+⭑ `--lista` mostra o que roda e o que NÃO roda com o motivo. Quem não roda é só quem **muta estado
+compartilhado** (`.cache/`, o Neo4j, o fixture) — e isso é MEDIDO no fonte, não listado à mão: a
+lista e a medida discordarem derruba o portão.
+
+As perguntas individuais continuam valendo para saber **o que** cada um responde — é para isso que
+serve o resto desta seção.
 
 ## Antes de mexer no buraco negro
 
@@ -334,6 +517,20 @@ CI; todas respondem uma pergunta específica, e é a pergunta que diz quando us�
 | `campo.mjs` | o campo de deflexão ainda é MONÓTONO? | qualquer edição na geodésica |
 | `costura-disco.mjs` | o disco fecha a volta sem cicatriz radial? | ao tocar no ruído do disco |
 | `lado-distante.mjs` | o lado distante ainda afunila 3–6,7×? | ao mexer na integração ou na pose |
+| `lente-estelar.mjs` | este corpo vale **um pixel** de deflexão? quem dobra a luz tem razão `R_s/R` declarada? | ao mexer na lente, ou ao propor lente em corpo novo |
+
+⚠️ **`lente-estelar.mjs` também AUDITA o `scene.js`** (o outro que faz isso é o `lei-cena.mjs`,
+abaixo), e ele existe por causa de um
+relato: *"um planeta passa atrás de uma estrela e não há a distorção esperada"*. A medida diz que a
+ausência é o comportamento CERTO — uma estrela tipo Sol deflete **0,0075 px** no limbo, 133× abaixo do
+piso de um pixel, e o anel de Einstein dela só sai de dentro do próprio disco a 10⁵ raios (as 548 UA
+da lente solar). Sem oráculo, essa conclusão vive numa conversa e a próxima pessoa implementa.
+
+> **A saída da armadilha:** a deflexão no limbo é `alfa = 2·(R_s/R)`, e `R_s/R` é **adimensional**.
+> Não é preciso converter `chunks` em quilogramas — basta a razão da CLASSE, que é fato astronômico.
+> É o que o pulsar já faz (`0,4` = ~4 km de Schwarzschild para ~10 km de raio de uma estrela de
+> nêutrons). **Nenhuma grandeza física pode ser derivada de uma variável cognitiva sem unidade e
+> constante explícitas** — e o oráculo falha se alguém tentar.
 
 São **oráculos**: rodam em `node`, sem navegador e sem GPU, e transcrevem o GLSL. Um deles falhando
 é uma invariante quebrada, não um teste chato — `blackhole-geodesic.js` cita o `campo.mjs` pelo
@@ -350,14 +547,94 @@ Guarda estática dos blocos GLSL. Pega as duas armadilhas que já morderam quatr
 **falham em silêncio**: crase dentro de `/* glsl */` fechando o template literal, e o shader que
 compila mas perde a feição.
 
+## Ao mexer na sonda da HUD
+
+    node scripts/lei-hud.mjs
+
+Prova, num DOM de mentira com geometria conhecida, que `spatia.hud()` mede **área que aceita
+ponteiro** e não área desenhada (na cena de prova a HUD pinta 100% da janela e reivindica 33,8%),
+que forma sem identidade **acusa** em vez de sumir, que nenhum ponto se perde na atribuição, que
+recolhido · não montado · declarado-e-ausente saem em caixas diferentes, e que a sonda não escreve
+no que mede. Ele recorta o bloco `⟦sonda-hud⟧` do próprio `src/main.js` e o executa — **marcador
+apagado REPROVA**, porque desligar uma lei em silêncio é como esta base perde guarda.
+
+## Ao mexer na lista de fontes, ou no CSS do palco
+
+    node scripts/lei-fontes.mjs
+
+Prova que a vista da lista de fontes tem **teto, rolagem, ponteiro e scrim em gradiente**, e — a
+metade que importa — que o teto **não corta a lista**: as 24 fontes ficam no DOM, o total viaja
+publicado num cabeçalho grudado, e o clique numa citação rola até a linha dela. ☠️ **`[n]` é
+contrato com o prompt:** lista truncada faria `citeMark` desenhar como INVENTADA uma fonte real.
+Ele lê o CSS pela **cascata** — duas regras disputando o teto acusam, porque quem decide aí é a
+ordem e o oráculo não adivinha ordem — e varre o `answer.js` **sem os comentários**, senão a prosa
+que explica por que `scrollIntoView` é proibido satisfaz a lei que o proíbe.
+
+## Ao mexer no que a lista de fontes esconde, ou nos painéis que ela repete
+
+    node scripts/lei-referencia.mjs
+
+Prova que uma linha só sai da lista quando um painel **VISÍVEL** já a afirma — e que ela nunca é
+apagada, só APONTADA: o `[n]` sobrevive numa linha que nomeia o painel, porque o painel não mostra
+número nenhum e `[n]` é contrato com o prompt. A testemunha é MEDIDA no DOM, e são quatro perguntas
+que falham todas para o lado seguro: nó no **sótão** (`index.html`, `.attic`) não é painel montado,
+painel **recolhido** não mostra nada, a **poda** do painel (`WEB_LIMIT`) engole resultado que a
+lista então precisa manter, e moldura sem título não sabe se chamar. ☠️ **«O painel está montado»
+nunca vale por «o painel está mostrando ISTO»** — a conferência é por FONTE, nunca por rota. A §3
+roda a montagem em cinco configurações de tela e conta os `[n]`: nenhum a menos, na mesma ordem.
+⚠️ A §6 liga o NOME que observa ao `new MutationObserver` que o construiu — procurar o construtor
+no arquivo deixava a lei verde com um dos dois observadores trocado por um objeto de mentira. E a
+§8 é CENSO: os limites saem de `agent.py`, `websearch.py` e `streams.js`, e **quantas linhas de
+fato saem é medida de tela** (`spatia.hud().fontes`), nunca deste parágrafo.
+
+## Ao mexer em `pointer-events`, ou em qualquer superfície sobre o céu
+
+    node scripts/lei-palco.mjs
+
+Prova que no palco **quem PINTA reivindica o ponteiro e quem só POSICIONA cede**: a moldura do
+painel de palco (`flex: 1`, estica pela coluna central, `background: none`) cede, o `.widget-body`
+(fundo, borda, teto de 62vh) reivindica, e o escape do painel VAZIO alcança também o `.scroll` —
+☠️ `pointer-events` não é herança que descendente respeite, e filho com `auto` volta a ser alvo sob
+ancestral `none`. A §6 é VARREDURA: **toda** regra do `index.html` que conceda `pointer-events:
+auto` tem de se justificar pelo próprio CSS — pinta, ou é controle (`cursor`/`a`/`button`/`input`/
+`.clickable`) — ou constar de `CEDEM_SEM_PINTAR` com o motivo; forma desconhecida ACUSA, e entrada
+que não casa mais nada é acusada como tabela velha. ⚠️ Ele lê o CSS DECLARADO: **quanto de céu
+sobra por rota é medida, não lei**, e quem responde é `spatia.hud().painelDePalco.aoPonteiro`.
+
+## Ao mexer na lista de widgets de uma rota
+
+    node scripts/lei-residentes.mjs
+
+Prova que o CONJUNTO RESIDENTE — os widgets que toda rota monta — é declarado num lugar só
+(`RESIDENTES`, `src/apps/residentes.js`, cada id com a frase do motivo) e IMPOSTO no registro:
+`declararApp`/`declararVista` recusam a lista incompleta, e a recusa é enfiada no portão de verdade,
+um residente por vez. A varredura da fonte fecha as duas fugas: rota que alcança o `registerApp` do
+kernel por fora, e a **rota raiz** — que não é app, e que um portão montado só no `registerApp`
+deixaria de fora sendo a rota inicial. ⚠️ **A §4 audita o DOC:** `OS-SCREENS.md` §0 tem de APONTAR
+para a declaração; transcrever a lista lá foi como ela divergiu, e `#/security` ficou sem `timeline`
+com a regra escrita em dois lugares e imposta em nenhum. O §5 é censo (medida, não lei) e é de onde
+sai o número de rotas por widget.
+
+## Ao mexer no teclado
+
+    node scripts/lei-teclado.mjs
+
+Prova, simulando eventos num `window` de mentira, que **nenhuma tecla sobrevive a perder o foco** —
+e que o despacho de atalho continua idêntico. Existe porque estado de tecla pressionada falha de um
+jeito só: a tecla presa não tem sintoma além do movimento que não para (armadilha §B-23 de `docs/armadilhas.md`).
+
 ## Ao mexer em classificação, limiar ou constante calibrada
 
 | script | o que mede |
 |---|---|
 | `censo-morfologias.mjs` | o que o céu DESENHA — classe · pele · morfologia por `kind` · modificadores |
 | `censo-corpus.mjs` | o que o corpus É — forma, saúde das constantes calibradas, sinal de cada candidata |
+| `censo-ontologia.mjs` | a ontologia nova — família, tipo, porte, fenômeno |
+| `censo-superficies.mjs` | ⚠️ **obrigatório após tocar em roteamento de pele:** nenhuma pele roteada pode nascer vazia |
+| `lei-neo4j.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `entity-physics.js`.** Perturba `centrality`, `usage` e `connectivity` em todo corpo e exige que **nenhuma** mude família, tipo, porte, fenômeno ou escala — a 1ª lei do Neo4j deixando de ser invariante declarada |
+| `lei-cena.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `CENAS`/`aplicarCena`, `entity-physics.js` ou `superficies.js`.** A cena é uma LENTE: ela decide o que ACENDE e de onde se OLHA, nunca o que um corpo É. Audita o vocabulário da tabela, os argumentos de todo call site dos três em `src/`, a pureza dos módulos, e perturba enfiando a cena por todo canal exposto |
 
-O segundo existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
+O `censo-corpus` existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
 com 71 hubs, aplicada em 228), `DENSITY_K` (corpus 5,6× maior, **297 luas viraram 0**) e o piso do
 pulsar (medido no git, aplicado no índice, **0 corpos**). Ele acusa em vermelho a classe que ficou
 sem população.
@@ -365,6 +642,15 @@ sem população.
 > **Toda constante derivada de `M_total` ou da contagem de hubs expira.** Quem reindexar um corpus
 > muito maior refaz a conta — ela está no comentário de cada uma. O relatório completo, com o que
 > foi refutado e por quê, está em [`docs/medicoes-2026-08-07.md`](./docs/medicoes-2026-08-07.md).
+
+⚠️ **E existe um modo de falha PIOR que a constante expirada: a grandeza que piora sozinha.** Uma
+constante calibrada funcionou um dia e o comentário dela diz quando refazer a conta. Já uma
+grandeza derivada de **posto/percentil** para descrever um corpo de uma CLASSE nunca funcionou e
+**encolhe conforme o corpus cresce** — a classe vive na cauda, e a cauda ocupa uma fatia cada vez
+menor do posto. Medido no rig do pulsar: **16,9% do eixo** num corpus de 72 corpos e **0,36%** num de
+276. A saída é a mesma da FRONTEIRA: **razão adimensional ancorada num limiar FIXO** (`chunks/80`,
+como o `R_s/R`), nunca posto de população — e nunca renormalizar dentro da classe, que é a mesma
+família de erro e é degenerada quando a população é 1.
 
 ⚠️ Os dois medem o **ÍNDICE**, nunca o disco. A diferença decide conclusões: o disco é 58%
 TypeScript e o índice não tem um único `.ts`. Confundir os dois já produziu uma recomendação errada.
@@ -391,13 +677,47 @@ transcrição sair de sincronia.
     uv run --with fastembed python scripts/fixture.py            # cria repo + indexa
     uv run --with fastembed python scripts/fixture.py --limpar   # apaga repo + coleção
 
-Corpus sintético em coleção própria (`espatial_fixture`), com 14 arquivos que levam cada eixo aos
-extremos. É o primeiro degrau da doutrina de [`docs/cobertura.md`](./docs/cobertura.md) — *o código
+Corpus sintético em coleção própria (`espatial_fixture`) cujos arquivos levam cada eixo aos
+extremos — **71 arquivos · 72 corpos · 20 sistemas** em 2026-08-09. ⚠️ Ele CRESCE conforme espécimes
+entram e saem; a contagem do dia vem de `/api/graph`, nunca deste parágrafo. É o primeiro degrau da doutrina de [`docs/cobertura.md`](./docs/cobertura.md) — *o código
 desenha este tipo?* — e o único jeito de exercitar um corpo que o corpus real não produz. `FIXTURE_ROOT`
 sobrepõe o destino.
 
 ⚠️ Cobertura de TIPO não é cobertura de PARÂMETRO: um tipo presente prova que o caminho desenha,
 não que o shader foi exercitado.
+
+## Ao mexer nas dimensões do GRAFO — a cadeia de rematerialização
+
+O Neo4j **nunca está no caminho do quadro**: cada dimensão é materializada por um script para um
+arquivo em `.cache/`, o servidor anexa ao servir a topologia, e o renderer lê pronto. Rematerializar
+é rodar o script — **a ordem importa**, porque a rede lê o snapshot e não o banco:
+
+    vinculos.mjs · similares.mjs · citacoes.mjs   →  vizinhanca.mjs  →  conectividade.mjs
+    centralidade.mjs · uso.mjs · conceitos.mjs    (independentes)
+
+| snapshot | script | o que é |
+|---|---|---|
+| `influencia.json` | `centralidade.mjs` | `centrality` — quantos se parecem comigo |
+| `uso.json` | `uso.mjs` | `usage` — quantas execuções me abriram |
+| `conectividade.json` | `conectividade.mjs` | `connectivity` = **ALCANCE**, não grau (o grau repetia a centralidade, ρ 0,821) |
+| `vizinhanca.json` | `vizinhanca.mjs` | os vínculos laterais que a seleção desenha |
+| `conceitos.json` | `conceitos.mjs` | os assuntos — ⚠️ a única dimensão que **não é fato** |
+
+☠️ **Todo snapshot carrega `corpus`, e o servidor RECUSA o que não é do céu servido.** Isto existe
+por um defeito que custou um dia: os snapshots eram de outro corpus e a API respondia
+`disponivel: true · corpos: 188 · vinculos: 4226` enquanto devolvia `vizinhanca: null` para todo
+mundo — **a cena não desenhava um arco e o painel anunciava 4.226**. `connectivity` chegava a **0 de
+72 corpos** com `stats.conexao` de cabeçalho cheio.
+
+> **O padrão é o pior que existe nesta base: o cabeçalho AFIRMA e a carga está vazia** — pior do que
+> faltar, porque quem lê o cabeçalho para de procurar. É `null` ≠ `0` aplicado ao snapshot INTEIRO.
+> **Sem carimbo também é recusa**, e não tolerância: "não tenho como saber" não autoriza afirmar.
+> Script novo que escreva snapshot **carimba `corpus`**, e o nome sai do `/api/graph` — do servidor,
+> que é quem lê o `.env` — nunca de palpite. Ver `graphdb._recusa_de_corpus`.
+
+⚠️ **`.env` (arquivo) vence o ambiente, e três variáveis estão exportadas no perfil do shell
+apontando para lugares que não existem.** Elas produzem **zero com cara de medida**. Todo script que
+fale com o corpus confere o override, ou herda o defeito.
 
 ## Ao suspeitar de custo
 
@@ -416,12 +736,44 @@ Sobe um upstream de mentira e confere se `status` e `reason` saem do FATO e não
 quando as quatro famílias batem. Existe porque dois rótulos de métrica não tinham ninguém capaz de
 emiti-los.
 
+## Ao mexer na continuidade da conversa
+
+    python3 -m server.lei_fio
+
+Sobe um CLI `claude` de mentira e confere a ARGV que o servidor montou: que `--resume` só aparece
+havendo fio, que ele **convive com a `--settings` do portão** no mesmo comando, que a chave contada
+pelo portão é a da EXECUÇÃO e não a da sessão, e que fio quebrado degrada anunciando. Sai 0 quando
+as cinco leis batem. ☠️ **Ele desvia `journal.DIR` para um temporário e confere a cadeia real antes
+e depois** — um oráculo do fio que escrevesse no ledger encadeado corromperia o que a base tem de
+mais caro. ⚠️ O lugar dele é `scripts/lei-fio.py`; mora em `server/` por acidente de sessão.
+
 ## E o que NÃO está aqui
 
-As sondas de runtime vivem na cena, não em `scripts/`: `spatia.galaxy()` · `spatia.moons()` ·
-`spatia.lod()` · `spatia.planet()` · `spatia.bloom({…})` · `spatia.core({…})` ·
-`spatia.renderCost()`. Elas respondem sobre o quadro que está na tela agora, que é uma pergunta
-diferente da que qualquer script offline pode responder.
+As sondas de runtime vivem na cena, não em `scripts/`. Elas respondem sobre **o quadro que está na
+tela agora**, que é uma pergunta diferente da que qualquer script offline pode responder:
 
-⚠️ `docs/catalogo-celeste.md` documenta essas sondas como `espatial.*`. O objeto real é
-**`spatia`** — quando os dois discordarem, o código está certo.
+`spatia.session()` · `.state()` · `.tela()` · `.favoritos()` · `.hud()` · `.renderCost(n)` ·
+`.planet()` · `.galaxy()` · `.lod()` · `.moons()` · `.bloom({…})` · `.core({…})` · `.pele(ajuste)` ·
+`.peleAB(condições, ler)` · `.aroAB(condições, ler)` · `.cena()` (com `.composicao`) ·
+`.universo.{sobreposicoes,entre,pixels,ancora,irPara,anexar,peles}()`
+
+⚠️ **`spatia.hud()` mede LAYOUT, não quadro** — é a única que não precisa de `quadros` andando, e a
+única que não prova nada sobre o que foi desenhado. ☠️ **A grandeza dela é área que ACEITA
+PONTEIRO**, nunca área pintada: os ouvintes de gesto da cena estão presos ao `canvas`, então um
+retângulo com `pointer-events: auto` por cima não disputa o clique — ele CANCELA órbita e zoom ali.
+
+⚠️ **A lista viva está em `src/main.js`, no `window.spatia`** — antes de dizer "não dá para medir",
+leia lá. E `spatia.cena().aneisPose` é o modelo do que uma sonda deve ser: ela devolve o
+`deltaBillboard` **de controle** ao lado do `deltaCamera`, porque contagem não distingue objeto de
+sinal (o modo do anel caiu duas vezes calado com a contagem intacta).
+
+☠️ **Duas armadilhas que invalidam toda medida de tela**, e são dois testes, não um: a aba precisa
+estar VISÍVEL (`document.hidden`) **e** a janela em foco (`document.hasFocus()`) — aba oculta é
+estrangulada pelo motor, e qualquer comando de shell rouba o foco de volta. E `quadros` tem de
+ANDAR entre duas leituras. ⚠️ `quadros` andando prova que a cena não congelou; **não** prova que ela
+parou de se mover — grandeza que ainda se acomoda não é regime.
+
+⚠️ **O objeto é `spatia`.** Quando um doc e o código discordarem, **o código está certo**. ⚠️ Não confunda com as CHAVES do
+`localStorage` (`espatial.trace`, `espatial.*.v1`) e as métricas `espatial_*`: essas mantêm o nome
+antigo **de propósito** — renomear a chave não migra o que está gravado, e a afinação feita à mão
+evapora em silêncio (a tabela de `docs/identidade.md` existe para proteger exatamente isso).

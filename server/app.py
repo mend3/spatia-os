@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch
+from . import agent, ambient, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, fio, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch, graphdb
 
 logger = logging.getLogger("espatial.app")
 
@@ -47,8 +47,15 @@ ROUTE_LABELS = {
     "/api/speech": "speech",
     "/api/attach": "attach",
     "/api/dirty": "dirty",
+    "/api/vizinhanca": "vizinhanca",
+    "/api/thread": "thread",
     "/metrics": "metrics",
 }
+
+# O canal desta rota. Ele nomeia o FIO da conversa (`fio.py`) e vai no diário como `origin` — os
+# dois têm de ser a mesma palavra, senão a linha do diário e a conversa retomada falam de canais
+# diferentes com o mesmo nome.
+ORIGEM_CONSOLE = "console"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -77,12 +84,12 @@ class Handler(BaseHTTPRequestHandler):
             self._hook(parsed.path[len("/hooks/"):].strip("/"))
             return
 
-        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate"):
+        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate", "/api/thread"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
-        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget") and not self._same_site():
+        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/thread") and not self._same_site():
             metrics.crosssite_refused.inc()
             journal.denial("cross-site", parsed.path, f"Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')}")
             self._json({"error": "requisição cross-site recusada"}, status=403)
@@ -116,6 +123,14 @@ class Handler(BaseHTTPRequestHandler):
                 permissions.update(payload)
                 self._json(permissions.describe())
                 return
+            if parsed.path == "/api/thread":
+                # Cortar o fio é o controle que torna a continuidade uma ESCOLHA: sem ele a única
+                # forma de começar assunto novo seria reiniciar o servidor.
+                cortados = fio.forget(
+                    str(payload.get("origin") or ORIGEM_CONSOLE), "cortado pelo operador"
+                )
+                self._json({"cut": cortados, **fio.describe()})
+                return
             if parsed.path == "/api/speech":
                 speech.update(payload)
                 self._json(speech.describe())
@@ -145,11 +160,14 @@ class Handler(BaseHTTPRequestHandler):
         self._json(result, status=status)
 
     def _system_events(self) -> None:
-        """SSE de eventos que não vêm de uma pergunta — webhooks, hoje.
+        """SSE de eventos que não vêm de uma pergunta: os webhooks e o vigia do `ambient`.
 
         Stream separado do `/api/ask` de propósito: aquele é o ciclo de UMA pergunta e fecha
-        no `done`. Este vive enquanto a página viver, porque o mundo externo não espera o
-        operador perguntar nada.
+        no `done`. Este vive enquanto a página viver, porque nem o mundo externo nem o próprio
+        sistema esperam o operador perguntar nada.
+
+        Quem assina recebe de saída os `notice` que estão DE PÉ (`ambient.subscribe`): abrir a
+        página depois do boot não pode mostrar tela limpa sobre um índice vencido.
         """
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -157,7 +175,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
 
-        queue = webhooks.subscribe()
+        queue = ambient.subscribe()
         try:
             while True:
                 if queue:
@@ -171,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
         finally:
-            webhooks.unsubscribe(queue)
+            ambient.unsubscribe(queue)
             self.close_connection = True
 
     def _attach(self) -> None:
@@ -304,10 +322,18 @@ class Handler(BaseHTTPRequestHandler):
                     payload["day"] = day
                     payload["runs"] = journal.read(day)
                 self._json(payload)
+            elif route == "/api/thread":
+                # O fio de cada canal: se a próxima pergunta sabe da anterior, e de quantos
+                # turnos. A tela precisa poder dizer isso ANTES de perguntar — depois já é tarde.
+                self._json(fio.describe())
             elif route == "/api/system-events":
                 self._system_events()
             elif route == "/api/graph":
                 self._json(graph.load(force=query.get("force", ["0"])[0] == "1"))
+            elif route == "/api/vizinhanca":
+                # A rede lateral de um corpo, do snapshot em disco. Rota própria porque ela é 3,4×
+                # a topologia inteira e só a SELEÇÃO a lê — ver `graphdb.network`.
+                self._json(graphdb.network(_first(query, "source") or None))
             elif route == "/api/search":
                 self._json(self._search(query))
             elif route == "/api/node":
@@ -365,10 +391,40 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    @staticmethod
+    def _texturas() -> list[str]:
+        """As texturas que ESTÃO em disco, para o cliente não adivinhar.
+
+        ⚠️ **O navegador não lista sistema de arquivos**, e a alternativa seria uma sondagem por
+        arquivo — nove requisições para responder uma pergunta que o servidor responde lendo um
+        diretório. Pior: um 404 de rede é indistinguível de um arquivo ausente, e o modelo de
+        favoritos distingue **três** estados (`disponivel` é `true | false | null`, com `null` =
+        *"ninguém me disse o que existe"*). Adivinhação devolveria `false` onde o fato é `null`.
+
+        ⚠️ Devolve **caminho relativo à raiz**, no mesmo formato que `APARENCIAS[*].arquivo` usa
+        (`assets/textures/<nome>.jpg`) — comparar formatos diferentes é a armadilha de espaço de
+        chave que já mordeu três vezes nesta base.
+
+        Diretório ausente devolve lista vazia, e lista vazia é um FATO ("medi e não há"): quem não
+        quiser afirmar nada não chama, e aí o cliente fica com `null`.
+        """
+        raiz = config.ROOT / "assets" / "textures"
+        try:
+            return sorted(
+                f"assets/textures/{p.name}" for p in raiz.iterdir()
+                if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
+            )
+        except OSError:
+            return []
+
     def _health(self) -> dict:
         """O que a HUD acende no canto: cada serviço com seu estado real."""
         health: dict = {
             "brain": config.get("BRAIN"),
+            # O que o carregador de textura PODE carregar. Viaja no health porque a pergunta é a
+            # mesma que as outras daqui — "isto está disponível agora?" — e porque a tela já
+            # espera o health antes do primeiro quadro.
+            "texturas": self._texturas(),
             "embed_ready": embed.is_ready(),
             "providers": websearch.availability(),
             "claude_cli": bool(brain.available()),
@@ -406,6 +462,11 @@ class Handler(BaseHTTPRequestHandler):
 
         models = llm.available()
         health["ollama"] = {"online": models is not None, "models": models or []}
+
+        # O grafo de RELAÇÃO. Ele pode faltar sem impedir nada — e a tela precisa saber a
+        # diferença entre "não configurado", "fora" e "no ar", porque as três pedem reações
+        # diferentes do operador. Ver `docs/integracao-neo4j.md` §1.2.
+        health["neo4j"] = graphdb.describe()
 
         # O health reflete o estado CONFIGURADO, não o default do .env: é o que a UI mostra,
         # e mostrar o default depois de o operador ter mudado a voz seria mentira.
@@ -452,9 +513,14 @@ class Handler(BaseHTTPRequestHandler):
         `permissionDecision: deny` é o que o CLI entende como "não faça"; devolver `{"allow":
         false}` seria um campo que ninguém do outro lado lê — a quinta linha da tabela da REGRA
         DO CATÁLOGO, escrita de novo.
+
+        ⚠️ A chave da contagem é `run`, carimbado pela `--settings` daquela execução, e não
+        `session_id`: o CLI repete a sessão em toda retomada, e contar por ela faria o teto de
+        `calls_per_run` valer para o fio inteiro. O `session_id` continua vindo no corpo porque
+        é ele que liga a decisão à transcrição na hora de investigar.
         """
         decisao = capabilities.decide(
-            str(payload.get("session_id") or ""),
+            str(payload.get("run") or ""),
             str(payload.get("tool") or ""),
             str(payload.get("target") or ""),
         )
@@ -569,10 +635,10 @@ class Handler(BaseHTTPRequestHandler):
             # A vaga de concorrência não é tomada aqui: quem conta é o registro de execuções
             # vivas, alimentado pelo `recorder` — e ele cobre exatamente o mesmo intervalo.
             for event in recorder.instrument(
-                agent.run(question, web=forced),
+                agent.run(question, origin=ORIGEM_CONSOLE, web=forced),
                 config.get("BRAIN"),
                 question=question,
-                origin="console",
+                origin=ORIGEM_CONSOLE,
             ):
                 self._sse(event)
         except (BrokenPipeError, ConnectionResetError):
@@ -631,6 +697,7 @@ def serve() -> None:
     metrics.bootstrap(VERSION, config.get("BRAIN"), config.get("AGENT_MODEL"))
     embed.warm()
     graph.warm()
+    ambient.watch()
 
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.daemon_threads = True
@@ -660,13 +727,17 @@ def serve() -> None:
     )
     journal.lifecycle("boot", f"{VERSION} · {host}:{port} · cérebro={config.get('BRAIN')}")
 
-    def encerrar(signum, _frame) -> None:
+    encerrando = threading.Event()
+
+    def drenar_e_parar(nome_sinal: str) -> None:
         """Drena e REGISTRA. É o que responde depois "caiu ou eu fechei?".
 
         Parar de aceitar vem primeiro e esperar vem depois: matar uma execução em curso paga o
         custo sem entregar nada, e o diário guardaria `aborted` sem ninguém ter abortado. A
         espera tem teto porque um cliente pendurado não pode impedir o servidor de morrer — e
         quando o teto vence, o registro DIZ quantas ficaram, em vez de fingir saída limpa.
+
+        ⚠️ RODA NUMA THREAD PRÓPRIA, e as duas linhas abaixo são o motivo. Ver `encerrar`.
         """
         budget.drain()
         limite = time.monotonic() + DRAIN_SECONDS
@@ -675,10 +746,39 @@ def serve() -> None:
         pendentes = budget.running()
         journal.lifecycle(
             "shutdown",
-            f"sinal {signal.Signals(signum).name}"
+            f"sinal {nome_sinal}"
             + (f" · {pendentes} execuções não drenaram em {DRAIN_SECONDS}s" if pendentes else " · drenado"),
         )
         httpd.shutdown()
+
+    def encerrar(signum, _frame) -> None:
+        """Só AGENDA o encerramento. O trabalho não pode acontecer aqui dentro.
+
+        Um handler de sinal roda na thread PRINCIPAL, no meio do que ela estava fazendo — que
+        neste processo é o `serve_forever()` logo abaixo. Isso trava de duas formas, e as duas
+        já aconteceram nesta base (medidas em 2026-08-08, com pilha amostrada):
+
+        1. `httpd.shutdown()` espera o laço do `serve_forever()` terminar. Chamado de dentro do
+           handler, ele espera um laço que não pode avançar porque a thread dele está presa no
+           próprio handler. A doc do Python é explícita: `shutdown()` tem de vir de OUTRA thread.
+        2. `journal.lifecycle` pega o `_lock` do diário, que é `threading.Lock` — NÃO reentrante.
+           Se a principal já o segurava quando o sinal chegou, o handler trava nela mesma.
+
+        O sintoma não é "servidor morre devagar": é servidor que NÃO MORRE, com a porta ainda em
+        LISTEN e ninguém aceitando — que lê como cena congelada — e SEM o registro `shutdown` no
+        diário, ou seja, perdendo justamente a resposta que este caminho existe para dar.
+
+        ⚠️ E o segundo sinal é descartado de propósito. `uv run` repassa o TERM que recebe, então
+        o processo leva DOIS pelo mesmo `kill` — e o segundo, reentrando no meio do primeiro, é
+        o que fazia o diário travar no próprio lock antes de escrever.
+        """
+        if encerrando.is_set():
+            return
+        encerrando.set()
+        # `daemon=False`: o processo não pode sair antes de o diário terminar de escrever.
+        threading.Thread(
+            target=drenar_e_parar, args=(signal.Signals(signum).name,), name="shutdown"
+        ).start()
 
     for sinal in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sinal, encerrar)

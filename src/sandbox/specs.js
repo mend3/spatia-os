@@ -33,6 +33,8 @@ import { PULSAR_SPEC } from './pulsar-rig.js';
 import { CROWN_SPEC } from './crown-rig.js';
 import { COMET_SPEC, NEBULA_SPEC, STATION_SPEC } from './skin-rigs.js';
 import { REMNANT_SPEC, LINKS_SPEC } from './field-rigs.js';
+import { SYSTEM_SPEC } from './system-rig.js';
+import { UNIVERSE_SPEC } from './universe-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
@@ -67,7 +69,7 @@ export const SPECS = [
      */
     distance: 6,
     controls: [
-      { key: 'familia', label: 'FAMÍLIA', type: 'enum', options: Object.keys(RING_FAMILIES), value: 'saturn' },
+      { key: 'familia', label: 'FAMÍLIA', type: 'enum', options: Object.keys(RING_FAMILIES), value: 'modified' },
       { key: 'estado', label: 'ESTADO GIT', type: 'enum', options: Object.keys(DIRTY_COLORS), value: 'modified' },
       { key: 'tombo', label: 'TOMBO', type: 'range', min: 0, max: 1.5, step: 0.01, value: 1.1 },
       { key: 'raio', label: 'RAIO DA ESTRELA', type: 'range', min: 0.2, max: 1.4, step: 0.02, value: 0.7, roll: false },
@@ -306,7 +308,7 @@ export const SPECS = [
           const near = planet.update(params, camera, px, clock.elapsed);
 
           ctx.report({
-            'massa': base.mass.toFixed(2),
+            'chunksNorm': base.chunksNorm.toFixed(2),
             'relevo': params.amplitude.toFixed(3),
             'mar': params.sea.toFixed(3),
             'cristas': base.ridged.toFixed(2),
@@ -577,6 +579,19 @@ export const SPECS = [
    */
   REMNANT_SPEC,
   LINKS_SPEC,
+
+  /*
+   * O primeiro espécime da cena UNIVERSO, e ele vem ANTES de qualquer corpo novo de propósito: a
+   * spec de transição proíbe morfologia nova enquanto a classificação não estiver correta, e o que
+   * falta provar primeiro é gravidade LOCAL — estrela segurando os planetas dela, sem centro
+   * global. Ver `docs/replanejamento-celeste.md` e o cabeçalho de `system-rig.js`.
+   */
+  SYSTEM_SPEC,
+  /*
+   * E o que responde "isto cabe?". O SISTEMA LOCAL prova que um sistema funciona; este prova que
+   * 221 deles convivem, que é a única pergunta capaz de reprovar a cena inteira.
+   */
+  UNIVERSE_SPEC,
 
   ...RING_VARIANTS,
   /*

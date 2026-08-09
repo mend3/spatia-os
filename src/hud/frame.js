@@ -8,12 +8,49 @@
  * Os indicadores de serviço mostram três estados, não dois — `online`, `offline` e
  * `não configurado`. Um provedor de busca sem chave não é uma falha, e pintá-lo de vermelho
  * ensinaria o operador a ignorar vermelho.
+ *
+ * ## A AFERIÇÃO — de quando é o que os pontos afirmam
+ *
+ * Os pontos afirmam no presente (*"MEMORY está online"*), e quem os escreve é `applyHealth`.
+ * Uma leitura sozinha faz a afirmação envelhecer sem que nada na tela mude: o ponto continua
+ * verde sobre um serviço que caiu depois dela. **`null` ≠ `0` aplicado ao TEMPO** — *"não
+ * aferi agora"* e *"aferi agora e está online"* são fatos diferentes e tinham o mesmo pixel.
+ *
+ * A idade da aferição é o leitor que faltava: enquanto ela for recente, o ponto vale como
+ * presente; passada `AFERICAO_VENCIDA_MS`, o grupo inteiro declara `data-afericao="vencida"`
+ * e para de afirmar agora. Nada é apagado — o que o sistema mediu continua na tela, com a
+ * idade ao lado dizendo de quando é.
+ *
+ * ⚠️ **TRÊS IDADES NESTA TELA, e nenhuma é a outra.** A célula `ÍNDICE` mede há quantos DIAS
+ * o corpus foi indexado; a `.aviso-age` da timeline mede há quanto tempo aconteceu o FATO de
+ * um aviso de pé; esta mede há quanto tempo o cliente OLHOU. Unidades e rampas diferentes de
+ * propósito — uma condição de pé envelhece em dias, uma leitura envelhece em segundos.
  */
 import { on } from '../core/bus.js';
 import { snapshot } from '../core/state.js';
 import { el, set, clock, money } from './dom.js';
 
 const REFRESH_MS = 1000;
+
+/**
+ * O período da aferição, e ele é TRANSCRITO de `server/ambient.py` (`SCAN_SECONDS`).
+ *
+ * O vigia do servidor declara de quanto em quanto tempo o sistema olha para si mesmo. Um
+ * cliente que aferisse mais fino afirmaria um frescor que não existe em lugar nenhum do
+ * sistema; mais grosso, seria ele o atrasado. Um número escolhido aqui seria um segundo dono
+ * do mesmo ritmo — e dois ritmos divergem na primeira vez que um deles muda.
+ *
+ * ⚠️ Transcrição é cópia: mudou lá, muda aqui. `scripts/lei-afericao.mjs` compara os dois e
+ * reprova a divergência.
+ */
+export const AFERICAO_MS = 30_000;
+
+/*
+ * Quando a leitura deixa de valer como presente. DERIVADO do período, nunca escolhido: são
+ * duas aferições perdidas — uma pode ser atraso, duas são ausência. Um limiar independente
+ * expiraria sozinho no dia em que o período mudasse.
+ */
+const AFERICAO_VENCIDA_MS = 3 * AFERICAO_MS;
 
 export function createFrame(root) {
   const time = root.querySelector('[data-clock-time]');
@@ -31,6 +68,9 @@ export function createFrame(root) {
   // Último /api/health recebido: o tique de 1s redesenha o cabeçalho com ele sem refazer a
   // chamada. Declarado aqui porque o `setInterval` abaixo o lê.
   let lastHealth = null;
+  // Instante da última aferição BEM-SUCEDIDA. `null` é "nunca aferi", e não se desenha como
+  // idade zero: a tela nasceria afirmando uma leitura que não houve.
+  let aferidoEm = null;
 
   /*
    * Os subsistemas são PONTOS, e o nome vem no hover.
@@ -62,6 +102,55 @@ export function createFrame(root) {
     ['stream', 'LINK'],
   ]) {
     service(id, label);
+  }
+
+  /*
+   * A idade da aferição mora COLADA nos pontos, e não numa célula própria do `.headstat`.
+   *
+   * O que ela qualifica são exatamente eles: sozinha, a idade não diz nada; ao lado da coisa
+   * que afirma no presente, ela é a diferença entre *"está vivo"* e *"estava vivo quando eu
+   * olhei"*. Um valor solto do outro lado do cabeçalho vira mais um número para reconciliar.
+   */
+  const afericao = el('span', 'svc-afericao', '—');
+  afericao.title = 'ÚLTIMA AFERIÇÃO DOS SUBSISTEMAS';
+  services.append(afericao);
+
+  /**
+   * A idade da LEITURA, na escala em que uma leitura envelhece.
+   *
+   * Grossa de propósito, como a das outras idades desta tela: o que decide se o ponto ainda
+   * vale é a ordem de grandeza, não o segundo. Ela anda no tique de 1 s que já existia — nenhum
+   * temporizador novo — e `set()` só escreve quando o texto muda, então quase todo tique é uma
+   * comparação e nenhum layout.
+   */
+  function pintarAfericao() {
+    if (aferidoEm === null) {
+      set(afericao, '—');
+      delete afericao.dataset.tone;
+      delete services.dataset.afericao;
+      return;
+    }
+    /*
+     * Sem piso em zero, e é medido: relógio que anda para trás dá idade negativa, e negativo cai
+     * no primeiro degrau (`< 1000` → AGORA) por construção. Um `max(0, …)` aqui seria guarda que
+     * não guarda nada — passa verde em qualquer mutação, que é a definição de teste inútil. O que
+     * PRECISA ser verdade é que idade negativa não vire `HÁ 5S` (um `abs` faria isso), e é essa a
+     * lei do oráculo.
+     */
+    const idade = Date.now() - aferidoEm;
+    set(
+      afericao,
+      idade < 1000 ? 'AGORA'
+        : idade < 60_000 ? `HÁ ${Math.floor(idade / 1000)}S`
+          : `HÁ ${Math.floor(idade / 60_000)}MIN`
+    );
+    if (idade >= AFERICAO_VENCIDA_MS) {
+      afericao.dataset.tone = 'bad';
+      services.dataset.afericao = 'vencida';
+    } else {
+      delete afericao.dataset.tone;
+      delete services.dataset.afericao;
+    }
   }
 
   function meter(id, label, unit = '') {
@@ -171,6 +260,7 @@ export function createFrame(root) {
       set(meters.get('window'), `${hours}h${String(minutes).padStart(2, '0')}`);
     }
     mark('stream', store.streaming ? 'busy' : 'on');
+    pintarAfericao();
   }, REFRESH_MS);
 
   /*
@@ -217,13 +307,21 @@ export function createFrame(root) {
   });
 
   return {
-    /** Estado real dos serviços, vindo de `/api/health`. */
+    /**
+     * Estado real dos serviços, vindo de `/api/health`.
+     *
+     * ☠️ **Só quem AFERIU chama isto.** Uma aferição que falhou não tem estado a entregar, e
+     * chamar com o `health` velho carimbaria uma leitura que não aconteceu — a idade voltaria a
+     * zero e a tela afirmaria no presente sobre um servidor que não respondeu.
+     */
     applyHealth(health) {
       lastHealth = health;
+      aferidoEm = Date.now();
       drawHead(health);
       mark('brain', health.claude_cli || health.brain === 'ollama' ? 'on' : 'off');
       mark('qdrant', health.qdrant?.online ? 'on' : 'off');
       mark('ollama', health.ollama?.online ? 'on' : 'off');
+      pintarAfericao();
       /*
        * O medidor CORPUS não recebe mais os chunks.
        *

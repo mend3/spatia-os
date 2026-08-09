@@ -34,9 +34,9 @@ import os
 import threading
 import time
 from collections import deque
-from typing import Iterator, Optional
+from typing import Iterator
 
-from . import config, hookqueue, journal, metrics
+from . import ambient, config, hookqueue, journal, metrics
 
 logger = logging.getLogger("espatial.webhooks")
 
@@ -54,9 +54,6 @@ SOURCES = {
 
 _lock = threading.Lock()
 _history: deque = deque(maxlen=HISTORY)
-# Assinantes do stream SSE de eventos do sistema. Cada um é uma fila própria: um cliente lento
-# não pode segurar a entrega para os outros nem para quem fez o POST.
-_subscribers: list[deque] = []
 
 
 def secret_for(source: str) -> str:
@@ -201,9 +198,7 @@ def deliver(source: str, body: bytes, headers) -> dict:
 
     with _lock:
         _history.appendleft(record)
-        for queue in _subscribers:
-            for event in events:
-                queue.append(event)
+    ambient.publish(events)
 
     metrics.webhook_total.inc(source=_bounded(source), outcome="success")
     metrics.webhook_events.observe(len(events))
@@ -288,19 +283,6 @@ def _summarize(source: str, payload: dict, headers) -> tuple[str, bool]:
 
     keys = ", ".join(list(payload)[:4]) or "corpo vazio"
     return f"{keys}", True
-
-
-def subscribe() -> deque:
-    queue: deque = deque(maxlen=200)
-    with _lock:
-        _subscribers.append(queue)
-    return queue
-
-
-def unsubscribe(queue: deque) -> None:
-    with _lock:
-        if queue in _subscribers:
-            _subscribers.remove(queue)
 
 
 def history() -> list[dict]:

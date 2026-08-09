@@ -49,17 +49,6 @@ export const DEFAULTS = Object.freeze({
   'route.last': '',
 
   /*
-   * Onde o operador deixou o observatório apontando.
-   *
-   * Três escalares e não um objeto `{azimuth, polar, distance}`: o `set` daqui compara com
-   * `===`, e dois objetos com o mesmo conteúdo nunca são `===`. Guardado como objeto, TODO
-   * salvamento escreveria no localStorage e notificaria os assinantes — inclusive o salvamento
-   * periódico que não mudou nada. Em escalares, a guarda que já existe faz o trabalho.
-   *
-   * Os defaults são os mesmos de `CAMERA.start`/`orbit` em `space/scene.js`. Divergir aqui
-   * faria a primeira sessão nascer num enquadramento e a segunda em outro.
-   */
-  /*
    * FUNDO DO UNIVERSO — imagens reais do Webb, alternando.
    *
    * Desligado por padrão, e não por cautela de performance: o fundo muda o caráter da cena
@@ -84,9 +73,41 @@ export const DEFAULTS = Object.freeze({
    */
   'camera.focus': '',
 
+  /*
+   * Onde o operador deixou o observatório apontando.
+   *
+   * Três escalares e não um objeto `{azimuth, polar, distance}`: o `set` daqui compara com
+   * `===`, e dois objetos com o mesmo conteúdo nunca são `===`. Guardado como objeto, TODO
+   * salvamento escreveria no localStorage e notificaria os assinantes — inclusive o salvamento
+   * periódico que não mudou nada. Em escalares, a guarda que já existe faz o trabalho.
+   *
+   * Os defaults são os mesmos de `CAMERA.start`/`orbit` em `space/scene.js`. Divergir aqui
+   * faria a primeira sessão nascer num enquadramento e a segunda em outro.
+   */
   'camera.azimuth': 0,
   'camera.polar': 1.36,
   'camera.distance': 88,
+
+  /*
+   * OS FAVORITOS — os corpos que o operador marcou para acompanhar, e a aparência nomeada que ele
+   * escolheu para alguns deles.
+   *
+   * Mora aqui, e não no corpus, porque é isso que a torna MARCA em vez de afirmação: dois operadores
+   * veem marcas diferentes sobre a MESMA topologia. Se o dado escolhesse a aparência, o modo de
+   * olhar estaria decidindo a classe — o defeito que esta base já pagou duas vezes.
+   *
+   * ⚠️ **A CHAVE NUNCA É RENOMEADA.** Renomear não migra o que já está gravado, e a afinação feita à
+   * mão evapora em silêncio. Formato novo entra pelo `v` de DENTRO do valor.
+   *
+   * ⚠️ O default é `null` de propósito: a FORMA do valor é de `space/favoritos.js`, e escrevê-la
+   * aqui criaria uma segunda fonte da verdade livre para divergir. `normalizar()` é a porta única —
+   * ele trata `null`, storage de outra versão e valor editado à mão do mesmo jeito.
+   *
+   * ⚠️ É objeto, então a guarda `===` do `set` abaixo nunca desduplica: toda escrita notifica. Vale
+   * porque favorito só muda por GESTO do operador — ao contrário da pose da câmera, que é salva
+   * periodicamente e por isso mora em escalares.
+   */
+  'favorites.marks': null,
 });
 
 const listeners = new Set();

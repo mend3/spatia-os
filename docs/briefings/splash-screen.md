@@ -1,3 +1,30 @@
+> ## Triagem — T-13 · o que deste texto virou código, e o que está RECUSADO
+>
+> A splash é `src/hud/splash.js`: camada registrada em `core/tela.js`, DOM sobre a cena que já
+> está desenhando. **O fundo cinematográfico é o universo REAL** — nenhum passe novo, nenhum
+> quadro a mais, porque o orçamento desta cena está todo no pós-processamento.
+>
+> **O que o briefing acerta é a ESTRUTURA:** a tela é uma pilha de profundidade (HUD → vidro →
+> buraco negro → disco → estrelas) e a interface é *projetada sobre* o universo, não desenhada por
+> cima dele. É literalmente a pilha de camadas de `core/tela.js` com o canvas de piso.
+>
+> **Recusado, e não reabra sem medida nova:**
+>
+> | pedido | por quê |
+> |---|---|
+> | `PRESS ANY KEY TO START` | pergunta de resposta única. Recusa por escrito no REFUTADO do `roadmap.md`. A camada sai no primeiro gesto **sem pedi-lo**, e o gesto atravessa |
+> | `SYSTEM ONLINE` · `AI CORE READY` · `UNIVERSE STABLE` | é a *"sequência falsa de SISTEMAS OK que ensinaria o operador a não ler a tela"*. O `#boot` já responde os três com `/api/health` REAL |
+> | respiração de ±3%, *light sweep*, especular seguindo o cursor | decoração — princípio 7. **Esta camada não anima nada de si**: o que se move atrás dela é a cena |
+> | paleta cyan/teal, *"jamais amarelo"* | a identidade desta base é âmbar (`--amber`), e a marca sai da MESMA regra do `#boot` para não saltar na troca |
+> | *frosted glass* / `backdrop-filter` | desfocar o fundo de uma camada de tela cheia obriga o compositor a reler o canvas VIVO todo quadro. A legibilidade sai da sombra de 1px da HUD, que custa zero |
+> | 21:9, buraco negro a 40% da largura, planeta à direita | direção de arte de uma IMAGEM. A câmera é de VOO LIVRE por decisão do usuário, e enquadrá-la seria a cena obedecendo à composição |
+> | câmera mergulhando no horizonte de eventos na saída | a lente está **desligada** no UNIVERSO (`lensing.pass.enabled = !universo`), por decisão de cena e por custo (3,8–5,1 ms) |
+>
+> **O que ela mostra, e tudo é fato já medido:** a marca e o posicionamento (texto exato de
+> `docs/identidade.md`), a contagem de corpos que `scene.loadGraph` devolveu — a mesma que a nota
+> `TOPOLOGIA CARREGADA` publica atrás de uma tela opaca — e **de qual corpus veio esse céu**
+> (coleção · raiz · prefixo, ditos pelo servidor, que é quem lê o `.env`).
+
 quero uma splash screen nesse formato (imagem1 [https://i.ytimg.com/vi/318QozVlibY/maxresdefault.jpg](https://i.ytimg.com/vi/318QozVlibY/maxresdefault.jpg)) mas com o nosso buraco-negro de fundo e um astro orbitando, como nessa imagem [https://astrocamp.org/wp-content/uploads/2015/12/IS-BH-1024x576-1.jpg](https://astrocamp.org/wp-content/uploads/2015/12/IS-BH-1024x576-1.jpg);
 
 

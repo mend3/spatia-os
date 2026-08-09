@@ -58,6 +58,25 @@ export const oauthForget = (provider) =>
 // Sem `day` vem só o índice (dias, gasto, estado da cadeia); com `day`, as execuções dele.
 export const journal = (day = '') =>
   json(day ? `/api/journal?day=${encodeURIComponent(day)}` : '/api/journal');
+/**
+ * O FIO de cada canal — se a próxima pergunta vai saber da anterior.
+ *
+ * A tela precisa poder dizer isso ANTES de perguntar: depois da resposta já é tarde, porque a
+ * dúvida ("ele lembrou ou adivinhou?") nasce olhando o texto que já está lá.
+ */
+export const threads = () => json('/api/thread');
+
+/**
+ * Corta o fio de uma origem. Devolve o que o servidor sabe DEPOIS do corte (`cut` e os fios que
+ * sobraram), nunca um `ok`: quem diz se ainda há fio é quem o guarda.
+ */
+export const cutThread = (origin) =>
+  fetch('/api/thread', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ origin }),
+  }).then((r) => (r.ok ? r.json() : r.json().then((b) => Promise.reject(new Error(b.error || r.status)))));
+
 export const integrations = () => json('/api/integrations');
 export const mcp = () => json('/api/mcp');
 export const speech = () => json('/api/speech');

@@ -13,7 +13,7 @@
  * O que a promoção acrescenta são as duas perguntas que não cabiam num painel sobreposto:
  * ALCANCE e EXPOSIÇÃO.
  */
-import { registerApp } from '../kernel/registry.js';
+import { declararApp } from './residentes.js';
 import { listWidget } from './widgets-core.js';
 import { el, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
@@ -70,7 +70,7 @@ export function registerSecurity() {
   registerExposure();
   registerEffective();
 
-  registerApp({
+  declararApp({
     id: 'security',
     name: 'PERMISSÕES',
     tagline: 'o que o agente alcança, e a prova disso',
@@ -78,7 +78,7 @@ export function registerSecurity() {
     key: '7',
     widgets: [
       'context', 'sec-mode', 'sec-tools', 'sec-catalog',
-      'sec-reach', 'sec-exposure', 'sec-effective', 'answer', 'sky-time',
+      'sec-reach', 'sec-exposure', 'sec-effective', 'answer', 'sky-time', 'timeline',
     ],
   });
 }

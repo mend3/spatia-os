@@ -20,6 +20,10 @@ import { on, ui } from '../core/bus.js';
 import * as tuning from '../core/tuning.js';
 import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
+import { createUniverse } from './universe.js';
+// A ontologia nova, e a tabela que a traduz em pele. Ver `decisaoDoUniverso`.
+import { entityPhysics, classificar, fenomenos } from './entity-physics.js';
+import { superficieDe } from './superficies.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
 import { createGraph, hash01, starSeed } from './graph.js';
@@ -28,7 +32,8 @@ import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
 import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
-import { createPlanet, planetParams } from './planet.js';
+import { createPlanet, planetParams, LOD_FAR_PX as PLANETA_FAR } from './planet.js';
+import { RS_POR_RAIO } from './astrofisica.js';
 import { createLinks } from './links.js';
 import { createGalaxy, galaxyParams, diskPx, LOD_ARM_PX, LOD_FULL_PX } from './galaxy.js';
 import { createQuasars, quasarParams } from './quasar.js';
@@ -36,12 +41,12 @@ import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
 import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown, BODY_SPAN } from './lod.js';
-import { createPhotosphere, photosphereParams } from './photosphere.js';
+import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } from './photosphere.js';
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
 import { createStation, stationParams } from './station.js';
-import { createComet, cometParams } from './comet.js';
-import { createPulsar, pulsarParams } from './pulsar.js';
+import { createComet, cometParams, LOD_FAR_PX as COMETA_FAR } from './comet.js';
+import { createPulsar, pulsarParams, LOD_FAR_PX as PULSAR_FAR } from './pulsar.js';
 import { createNebula, nebulaParams } from './nebula.js';
 
 /*
@@ -117,6 +122,15 @@ const NODE_FOCUS_POLAR = 1.18;
  */
 /** Free-flight range, when nothing is locked. */
 const ZOOM_RANGE = { min: 12, max: 260 };
+/**
+ * Distância de casa da cena UNIVERSO — o enquadramento que mostra a teia inteira.
+ *
+ * O universo foi normalizado para caber no zoom de hoje (`universe.js`), então isto é só o recuo que
+ * o enquadra. Ele é constante e não some no `HOME` do AGENTE porque as duas cenas têm mundos de
+ * tamanhos diferentes: entrar numa com a distância da outra põe o operador dentro de um sistema sem
+ * saber que existe um universo em volta.
+ */
+const HOME_UNIVERSO = 150;
 /** Caminho de ponteiro, em px CSS, acima do qual o `click` do browser é órbita e não clique. */
 const CLICK_SLOP_PX = 6;
 /**
@@ -175,6 +189,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   camera.position.copy(CAMERA.start);
 
   const blackHole = createBlackHole();
+  /* A cena UNIVERSO. Nasce oculta: o modo padrão é AGENTE, que é o céu de hoje. */
+  const universe = createUniverse();
+  let modo = 'agente';
   const stars = createStars();
   const graph = createGraph();
   const particles = createParticles();
@@ -207,6 +224,219 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   let hubs = [];
   const planet = createPlanet();
+
+  /*
+   * ─────────────────── AS PELES SEM FOCO, e o teto que impede isto de virar uma conta aberta
+   *
+   * O relato: *"mesmo sem foco, ao chegar perto o suficiente deveríamos poder ver suas formas
+   * reais"*. Até 08/08 isso era impossível por PIXEL — o §4b do `distancia-e-forma` mediu `0 de 71`
+   * corpos acima de 22 px no enquadramento de casa e concluiu que a pele só era alcançável por foco.
+   *
+   * ⚠️ **Aquela conclusão morreu com a câmera que a produziu.** Ela valia enquanto a câmera orbitava
+   * a ORIGEM a 150 unidades, sem como se aproximar sem travar num corpo. Com a chegada por envelope,
+   * medido sem foco nenhum: P50 5,52 px, máximo 91,34 px, **3 de 71 acima de 22 px e 1 acima de 90**.
+   * A pele passou a ser alcançável, e o que bloqueava deixou de ser pixel e passou a ser ARQUITETURA
+   * — `photosphere` e `planet` eram objetos ÚNICOS, alimentados por `ancoraDoUniverso(focusedNode)`.
+   *
+   * ## O desenho, e por que ele é ADITIVO
+   *
+   * O caminho do corpo em FOCO não foi tocado. Ele carrega a sonda, o `fitPending`, a coroa, a
+   * cessão e a casca de supernova, tudo afinado no olho ao longo de várias rodadas — reescrevê-lo
+   * para caber num laço genérico trocaria uma feature nova por um risco de regressão em tudo que já
+   * funciona. Estas peles são as dos OUTROS corpos, e elas param onde o foco começa.
+   *
+   * ## O teto, e por que ele é PUBLICADO
+   *
+   * Cada pele é uma esfera de 96×96 com ~27 avaliações de ruído por pixel coberto. O orçamento desta
+   * cena é 0,23 ms de geometria; a cena AGENTE gasta 1,95 ms com UMA pele em foco. Sem teto, chegar
+   * perto de um sistema apertado ligaria dezenas. `cortadas` vai na sonda porque *um corte calado lê
+   * como "cobri tudo"* — a armadilha nº 4 do handoff, o resto que não sabe se nomear.
+   *
+   * ⚠️ **PLANETA, FOTOSFERA e COMETA** entram no pool — 69 dos 71 corpos do fixture. Estação, pulsar
+   * e nebulosa continuam só no foco, e o motivo é população: o fixture tem **ZERO** de cada uma.
+   * Pool para população que não existe é código sem quem o exerça — a REGRA DO CATÁLOGO pelo avesso —
+   * e a bancada não teria como provar que ele desenha.
+   *
+   * ⚠️ **O cometa exigiu um conserto antes de caber aqui:** a `update` dele derivava a direção das
+   * caudas de `−normalize(position)`, ou seja, *para longe da ORIGEM*. Isso acerta na cena AGENTE,
+   * onde a origem é o buraco negro; no UNIVERSO a origem é vazio, e toda cauda apontaria para longe
+   * de nada — reafirmando o centro único que esta cena existe para negar. Agora a fonte é parâmetro,
+   * e aqui ela é a **estrela do sistema do próprio cometa**, pela mesma lei que o `CORPO_VS` aplica
+   * à luz: *"cada planeta é iluminado pela ESTRELA DELE"*.
+   */
+  /*
+   * Pixels de raio que um corpo ANEXADO recebe na chegada. 1,5× o piso de pele (90) — acende a pele
+   * com margem e não enche a tela, que é o que separa anexar de travar.
+   */
+  const CHEGADA_PX = 135;
+  const PELES_VIZINHAS_MAX = 4;
+  const poolPlaneta = [];
+  const poolFotosfera = [];
+  const poolCometa = [];
+  const poolPulsar = [];
+  /** `planetParams`/`photosphereParams` são PUROS e caros: derivá-los por quadro seria desperdício. */
+  const paramsPorFonte = new Map();
+  let pelesVizinhas = { desenhadas: 0, teto: PELES_VIZINHAS_MAX, cortadas: 0, corpos: [] };
+
+  /**
+   * A TABELA DE ROTAS do pool: uma pele, um piso, uma forma de derivar parâmetro e uma de desenhar.
+   *
+   * ⚠️ Ela existe porque as três peles têm assinaturas de `update` DIFERENTES — o planeta quer a
+   * direção da luz em `params`, o cometa quer posição, câmera e a fonte como argumentos. Escritas
+   * como `if` encadeado, a quarta pele viraria um quarto ramo e o laço deixaria de ser legível.
+   * Aqui, pele nova é uma linha; e quem esquecer o `far` não compila um caso silencioso, porque a
+   * rota inteira falta.
+   */
+
+  /**
+   * AS APARÊNCIAS NOMEADAS — `source` → caminho do arquivo de textura.
+   *
+   * ⚠️ **A cena não sabe o que é um favorito, e não pode saber.** Ela recebe *"este corpo quer este
+   * arquivo"* e carrega; quem decidiu, por que decidiu e se a decisão ainda vale é assunto de quem
+   * declara. Importar o módulo de favoritos aqui faria a marca do operador entrar no caminho do
+   * quadro, e a marca é composição — a REGRA DA FÍSICA proíbe composição alterar a simulação.
+   *
+   * ⚠️ O carregamento é ASSÍNCRONO e a falta de um arquivo NÃO pode apagar o corpo: enquanto a
+   * textura não chega, `mapa` é `undefined` e o planeta desenha a rampa procedural, como sempre.
+   * É o mesmo contrato da pele solar (`photosphere.js`).
+   */
+  const aparenciaDe = new Map();
+  const texturasDeAparencia = new Map();
+
+  function texturaDeAparencia(source) {
+    const arquivo = aparenciaDe.get(source);
+    if (!arquivo) return null;
+    let tex = texturasDeAparencia.get(arquivo);
+    if (tex === undefined) {
+      tex = new THREE.TextureLoader().load(`/${arquivo}`);
+      // O JPEG está em sRGB e o shader calcula em linear — sem isto o mapa sai com gama embutida,
+      // que é o mesmo conserto que a pele solar já carrega.
+      tex.colorSpace = THREE.SRGBColorSpace;
+      texturasDeAparencia.set(arquivo, tex);
+    }
+    return tex;
+  }
+
+  const ROTAS_DO_POOL = {
+    [SURFACE.PLANET]: {
+      pool: poolPlaneta, criar: createPlanet, far: PLANETA_FAR,
+      params: (node) => ({ ...planetParams(node), mapa: texturaDeAparencia(node.source) }),
+      desenhar: (pele, base, c, elapsed) => {
+        // A luz vem da ESTRELA DO SISTEMA, não da origem: iluminar de outra direção poria o
+        // terminador em desacordo com o que se vê, e é o terminador que faz a esfera ler como esfera.
+        estrelaDoSistema(c.source, c.position, LIGHT_DIR);
+        pele.update({ ...base, light: [LIGHT_DIR.x, LIGHT_DIR.y, LIGHT_DIR.z] }, camera, c.px, elapsed);
+      },
+      // Esconder é `px = 0`: o próprio módulo derruba o nível de detalhe e some. Um `visible = false`
+      // por fora deixaria a pele sem saber que parou — e ela reapareceria no meio da rampa.
+      esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
+    },
+    [SURFACE.PHOTOSPHERE]: {
+      pool: poolFotosfera, criar: createPhotosphere, far: FOTOSFERA_FAR,
+      params: (node) => photosphereParams(node, hash01, graph.kindColor(node.kind)),
+      // A fotosfera EMITE: não tem terminador e não pede direção de luz nenhuma.
+      desenhar: (pele, base, c, elapsed) => pele.update(base, camera, c.px, elapsed),
+      esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
+    },
+    [SURFACE.COMET]: {
+      pool: poolCometa, criar: createComet, far: COMETA_FAR,
+      params: (node) => cometParams(node, graph.kindColor(node.kind)),
+      desenhar: (pele, base, c, elapsed) => {
+        // ⚠️ `estrelaDoSistema` PRIMEIRO: é ela que preenche `FONTE_DA_CAUDA`. Sem esta linha a
+        // cauda usaria a fonte do corpo anterior — um erro que só aparece com dois cometas na tela.
+        estrelaDoSistema(c.source, c.position, LIGHT_DIR);
+        pele.update(base, c.position, camera, c.px, elapsed, motion.isReduced(), FONTE_DA_CAUDA);
+      },
+      // O cometa segue o idioma do caminho de foco: as morfológicas somem por `visible`, porque a
+      // coma e as caudas não têm rampa de nível própria para descer.
+      esconder: (pele) => { pele.object.visible = false; },
+    },
+    /*
+     * O PULSAR entrou no pool em 2026-08-08, quando deixou de ter população zero — o §2.7.1 do
+     * `replanejamento-celeste.md` roteou o cadáver de um GIGANTE para cá. Antes disso ele estava
+     * fora por um motivo que não existe mais: pool para população inexistente é código sem quem o
+     * exerça, e a bancada não teria como provar que ele desenha.
+     *
+     * ⚠️ Ele NÃO alimenta a lente. Quem dobra a luz é o `corpoDaLente`, e ele só olha o corpo em
+     * FOCO — uma lente por pulsar visível estouraria o quadro (o pós já é 89–97% dele). O oráculo
+     * `lente-estelar.mjs` audita aquele caminho, não este.
+     */
+    [SURFACE.PULSAR]: {
+      pool: poolPulsar, criar: createPulsar, far: PULSAR_FAR,
+      params: (node) => pulsarParams(node, graph.kindColor(node.kind)),
+      desenhar: (pele, base, c, elapsed) => pele.update(base, c.px, elapsed, motion.isReduced(), camera),
+      esconder: (pele) => { pele.object.visible = false; },
+    },
+  };
+
+  /**
+   * A posição da ESTRELA do sistema de um corpo — a fonte de luz dele nesta cena.
+   *
+   * Devolve a DIREÇÃO normalizada do corpo para a estrela em `saida`, e deixa `FONTE_DA_CAUDA` com a
+   * posição dela. Sem estrela (corpo órfão), cai na origem: é a degradação, não o padrão.
+   */
+  function estrelaDoSistema(source, posicao, saida) {
+    const i = universe.sistemaDe(source);
+    const sis = i === null ? null : universe.sistemas()[i];
+    FONTE_DA_CAUDA.copy(sis ? sis.pos : ZERO);
+    return saida.copy(FONTE_DA_CAUDA).sub(posicao).normalize();
+  }
+  const FONTE_DA_CAUDA = new THREE.Vector3();
+
+  /** Um slot do pool, criado sob demanda — a mesma preguiça do `build` das peles. */
+  function slotDaPele(pool, criar) {
+    for (const p of pool) if (!p.usado) return p;
+    const nova = { pele: criar(), usado: false, fonte: null };
+    scene.add(nova.pele.object);
+    pool.push(nova);
+    return nova;
+  }
+
+  /**
+   * O laço do A/B DENTRO DO MESMO QUADRO. Uma lei só, duas cenas.
+   *
+   * ## Por que ele existe
+   *
+   * A primeira tentativa mediu uma condição por quadro e não concluiu nada: entre duas amostras a
+   * câmera acomoda, o corpo gira e a paralaxe anda, e a dispersão da PRÓPRIA condição base ficou
+   * maior que a diferença entre os tratamentos (limbo 13,6 a 27,0 em seis réplicas, 2026-08-08).
+   * Um controle que não distingue a si mesmo não distingue mais nada.
+   *
+   * Aqui as condições são desenhadas em sequência sem soltar o quadro: nada avança entre elas —
+   * nem relógio, nem câmera, nem rotação. **A única coisa que difere entre duas amostras é o
+   * uniform.** Medido depois de pronto: a primeira e a última amostra da mesma condição saem com
+   * ZERO pixels de diferença, e é esse zero que torna a diferença atribuível.
+   *
+   * ⚠️ **Não usa `requestAnimationFrame`, de propósito.** Redesenhar é ordem ao driver, não quadro
+   * de animação — o mesmo argumento já escrito no `sampleRenderCost`. Consequência: é a única
+   * medida desta base que NÃO depende da aba estar visível.
+   *
+   * ⚠️ **`ler` roda com o desenho ainda no buffer** — é onde entra o `gl.readPixels`, e ela é
+   * chamada SÍNCRONA. Qualquer `await` ali dentro devolve o quadro ao compositor e a amostra passa
+   * a ser de outra coisa.
+   *
+   * `restaurar` roda no `finally` e redesenha: sair daqui com a tela num tratamento seria a
+   * bancada mudando a composição pelas costas de quem mediu.
+   *
+   * @param {object[]} condicoes  na ordem de desenho
+   * @param {(c: object) => void} aplicar
+   * @param {() => void} restaurar
+   * @param {(c: object, i: number) => any} [ler]  síncrona, com o desenho ainda no buffer
+   */
+  function mesmoQuadro(condicoes, aplicar, restaurar, ler) {
+    const amostras = [];
+    try {
+      for (let i = 0; i < condicoes.length; i++) {
+        aplicar(condicoes[i]);
+        desenharQuadro();
+        amostras.push(ler ? ler(condicoes[i], i) : null);
+      }
+    } finally {
+      restaurar();
+      desenharQuadro();
+    }
+    return amostras;
+  }
   const photosphere = createPhotosphere();
   const remnant = createRemnant();
   const moonOrbits = createMoonOrbits();
@@ -232,7 +462,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   scene.add(
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
-    stars.object, blackHole.group, graph.group, planet.object, photosphere.object, remnant.object, moonOrbits.object,
+    stars.object, blackHole.group, universe.object, graph.group, planet.object, photosphere.object, remnant.object, moonOrbits.object,
     station.object, comet.object, pulsar.object, nebula.object,
     /*
      * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
@@ -344,6 +574,89 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
+  /**
+   * DESENHAR UM QUADRO — e o par de buffers é FIXADO antes, todo quadro.
+   *
+   * ☠️ **O composer NÃO reinicia o par a cada quadro, e passe desabilitado é PULADO.**
+   * `EffectComposer.render` percorre a cadeia com `if (pass.enabled === false) continue`, então o
+   * passe desligado não roda e não troca; e `readBuffer`/`writeBuffer` sobrevivem ao fim do laço,
+   * porque só o construtor e o `reset()` os atribuem (`vendor/jsm/postprocessing/EffectComposer.js`,
+   * linhas 41-42, 128-145 e 188-189). O que decide onde o `RenderPass` grava é, portanto, a
+   * PARIDADE acumulada dos passes que trocam.
+   *
+   * Com a cadeia inteira ligada, quem troca são dois — a lente e o `OutputPass` — e a paridade PAR
+   * devolve o par ao estado inicial a cada quadro: o `RenderPass` cai sempre no `renderTarget2`,
+   * que é o único alvo com a `depthTexture` da cena anexada.
+   *
+   * ⚠️ **O UNIVERSO desliga a lente** (`CENAS.universo.passes.lensing = false`), e aí sobra UM
+   * passe que troca: o par INVERTE a cada quadro enquanto se está lá. A cena UNIVERSO não se
+   * importa — ninguém ali lê profundidade —, mas a volta ao AGENTE em paridade ímpar põe o
+   * `RenderPass` gravando no `renderTarget1` e a lente escrevendo no `renderTarget2`, que é o alvo
+   * cuja `depthTexture` ela própria amostra. **Feedback loop**, que a WebGL trata como indefinido e
+   * que chega à tela como PRETO, em silêncio e sem erro nenhum — o mesmo desfecho que as duas
+   * tentativas descritas acima já tinham pago por outro caminho.
+   *
+   * ⚠️ **A intermitência do relato é a paridade, e ela conta QUADROS, não tempo:** volta-se preto
+   * quando o número de quadros passados no UNIVERSO é ímpar, e trocar de cena de novo a sorteia
+   * outra vez — que é exatamente o remédio que o operador achou sozinho.
+   *
+   * ⭑ **Fixar o começo é o conserto; renderizar duas vezes na troca seria o contrário dele** —
+   * esconderia a paridade em vez de removê-la, e ela voltaria no dia em que alguém acrescentasse um
+   * passe. Aqui o quadro começa sempre do mesmo estado, e quantos passes trocam deixa de decidir
+   * ONDE a profundidade é gravada.
+   *
+   * ⚠️ **O que isto NÃO alcança:** um passe que troque inserido ANTES da lente põe a lente lendo e
+   * escrevendo os alvos errados de novo, e fixar o começo não vê isso. A conferência é de
+   * `scripts/lei-paridade.mjs`, que simula a cadeia de cada cena no motor de swap vendorizado.
+   */
+  function desenharQuadro() {
+    composer.readBuffer = composer.renderTarget2;
+    composer.writeBuffer = composer.renderTarget1;
+    composer.render();
+  }
+
+  /**
+   * A COMPOSIÇÃO DESTE QUADRO — `spatia.cena().composicao`.
+   *
+   * ⚠️ Ela existe porque **"a tela está preta" é o sintoma de três causas diferentes** e a foto não
+   * as separa: buffer errado, câmera no vazio, laço parado. O roadmap já anotava a régua — *quadro
+   * preto com `renderCost` normal aponta para buffer errado* — e não havia quem medisse o buffer.
+   *
+   * ⚠️ **`leitura` é RESÍDUO do quadro que acabou**, não o estado de partida do próximo: numa cena
+   * de paridade ímpar ela sai no outro alvo por construção, e isso está certo. Quem responde pela
+   * partida é `fixado`, e quem responde pelo defeito é `realimentacao` — simulada a partir do
+   * começo fixo, ela diz se a lente escreveria no alvo cuja profundidade ela amostra.
+   */
+  function composicao() {
+    const nomeDe = (p) => (p === lensing.pass ? 'lente' : p.constructor.name);
+    const alvoDaProfundidade =
+      composer.renderTarget2.depthTexture === profundidadeDaCena ? 'rt2'
+        : composer.renderTarget1.depthTexture === profundidadeDaCena ? 'rt1' : 'nenhum';
+    const habilitados = composer.passes.filter((p) => p.enabled !== false);
+    // A simulação anda o par a partir do começo FIXO, com a mesma regra do laço vendorizado.
+    let leitor = 'rt2', escritor = 'rt1';
+    let gravaACena = null, escreveALente = null;
+    for (const p of habilitados) {
+      if (p.constructor.name === 'RenderPass') gravaACena = leitor;
+      if (p === lensing.pass) escreveALente = escritor;
+      if (p.needsSwap) [leitor, escritor] = [escritor, leitor];
+    }
+    return {
+      passes: composer.passes.map((p) => ({
+        nome: nomeDe(p), ligado: p.enabled !== false, troca: !!p.needsSwap,
+      })),
+      trocas: habilitados.filter((p) => p.needsSwap).length,
+      fixado: { leitura: 'rt2', escrita: 'rt1' },
+      leitura: composer.readBuffer === composer.renderTarget2 ? 'rt2' : 'rt1',
+      profundidadeEm: alvoDaProfundidade,
+      gravaACena, escreveALente,
+      /* ☠️ O defeito, nomeado: a lente escrevendo no alvo que carrega a profundidade que ela lê. */
+      realimentacao: escreveALente !== null && escreveALente === alvoDaProfundidade,
+      /* A cena tem de gravar profundidade onde a lente vai lê-la. */
+      coerente: gravaACena === alvoDaProfundidade,
+    };
+  }
+
   /*
    * Órbita restaurada da sessão anterior — corrente E alvo no mesmo valor.
    *
@@ -371,6 +684,56 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * é levantada nos gestos reais (arrasto, roda) e no foco de um app.
    */
   let orbitMoved = false;
+
+  /**
+   * AS GRANDEZAS DA POSE, SEPARADAS — porque `orbit.distance` respondia a QUATRO perguntas.
+   *
+   * ⚠️ `orbit.distance` **não é uma distância às coisas**: é o raio de uma órbita em torno de uma
+   * ÂNCORA. Enquanto a âncora está em cima do que se olha os dois números coincidem; quando ela
+   * fica para trás eles divergem em silêncio, e o sintoma é *"cheguei perto e a pele não acendeu"* —
+   * que não aponta para a câmera em lugar nenhum. É a armadilha nº 5 (medir a grandeza errada
+   * parece medir) com um nome só servindo a perguntas diferentes.
+   *
+   * As quatro perguntas, e quem responde cada uma:
+   *
+   * | pergunta | grandeza | unidade | quem lê |
+   * |---|---|---|---|
+   * | qual o raio da minha órbita? | `orbit.distance` / `.targetDistance` | comprimento | posição da câmera, roda, amortecimento, `prefs`, a sonda |
+   * | quão longe está o que eu olho? | `escalaLocal()` | comprimento | escala do pan, amplitude da paralaxe |
+   * | que TAMANHO tem o que está aqui? | `porteLocal()` | raio de mundo | piso do zoom |
+   * | a que distância isto enche N px? | `chegada` (cada call site) | comprimento | `CENAS.chegada`, `adotarSistema`, o encaixe do foco, `universeAttach` |
+   *
+   * ⭑ **A terceira NÃO é distância** — confundi-la com as outras é o que faz um piso pensado para
+   * não atravessar um corpo virar um chão sem dono.
+   * ⭑ **A quarta é derivada de um ALVO NOMEADO** (o envelope daquele sistema, o raio daquele corpo),
+   * nunca de "onde eu estou" — por isso ela não passa por `escalaLocal`.
+   */
+
+  /**
+   * *"Quão longe está o que eu olho, daqui?"* — em unidades de mundo.
+   *
+   * Numa câmera que ORBITA, a resposta é o raio da órbita, e é por isso que ela devolve
+   * `orbit.distance` sem transformar nada. Uma câmera sem âncora (voo em primeira pessoa) não tem
+   * raio de órbita e continua tendo esta pergunta: é aqui, e só aqui, que a resposta muda.
+   */
+  function escalaLocal() {
+    return orbit.distance;
+  }
+
+  /**
+   * *"Que tamanho tem o que está aqui?"* — o raio de mundo do corpo que a câmera pode atravessar.
+   * `null` quando não há corpo de referência a consultar.
+   *
+   * Separada de `escalaLocal` porque **a unidade é outra**: um piso derivado de raio protege de
+   * atravessar um corpo; um piso derivado de distância é um chão sem dono. O corpo em FOCO vem
+   * antes do mais próximo porque é ele que a câmera está tentando alcançar.
+   */
+  function porteLocal() {
+    if (focusGeometry) return focusGeometry.radius;
+    if (modo === 'universo') return universe.corpoMaisProximo(anchor)?.radius ?? 0;
+    return null;
+  }
+
   /** O foco só se restaura UMA vez: recarga de topologia não deve arrastar a câmera de volta. */
   let focoRestaurado = false;
   /** O astro salvo esperando posição resolver. Ver `aplicarFocoPendente`. */
@@ -385,6 +748,91 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * sessão. Sair de um app tem que devolver ao enquadramento DO OPERADOR, não ao de fábrica.
    */
   const HOME = { polar: startOrbit.polar, distance: startOrbit.distance };
+
+  /**
+   * AS CENAS, DECLARADAS — e o que muda entre elas é DADO, não `if`.
+   *
+   * ## O que uma cena É, aqui
+   *
+   * Uma cena é uma **LENTE sobre o mesmo mundo**, nunca uma dona dele. Ela decide o que se
+   * ACENDE e de onde se OLHA; ela não decide o que um corpo é. Essa fronteira não é preferência de
+   * arquitetura — é a mesma forma da 1ª lei do Neo4j (*muda o brilho, nunca a classe*), aplicada a
+   * um eixo que ainda não a tinha, e esta base já pagou duas vezes pelo oposto: o modo de olhar
+   * fazendo uma lua resolver como galáxia, e a taxonomia velha virando 228 de 228 agregados em
+   * galáxia.
+   *
+   * ⚠️ **`passes` é campo de primeira classe, e não "mais uma camada".** Esconder o GRUPO do buraco
+   * negro NÃO o tira da cena: ele é, acima de tudo, um PASSE de pós-processamento, e a lente
+   * gravitacional deforma o quadro inteiro com o disco invisível. Foi o que aconteceu na primeira
+   * versão do switcher — a cena trocou, os corpos sumiram, e a distorção do espaço-tempo ficou.
+   * Desligar o passe é o que de fato muda de universo, e devolve o orçamento junto: a lente custa
+   * **3,8–5,1 ms** contra **0,31–0,35 ms** do céu inteiro com 213 instâncias.
+   *
+   * ⚠️ **`galaxia` sai no UNIVERSO e não é economia:** aquela camada desenha TODO agregado como
+   * galáxia, que é o modelo refutado. Deixá-la ligada faria a cena nova afirmar a taxonomia velha
+   * por cima da nova.
+   *
+   * ## Por que a chegada é FUNÇÃO e não número
+   *
+   * A escala muda com o mundo: o céu AGENTE cabe em ~60 unidades e o UNIVERSO tem raio 150. E a
+   * volta ao AGENTE **com um astro travado** tem de voltar ao enquadramento DELE — sem isso a
+   * câmera recuava para a casa com o foco intacto, e a tela afirmava duas coisas diferentes sobre o
+   * mesmo estado: o astro travado, o painel nomeando-o, e o céu inteiro no quadro.
+   *
+   * ⚠️ **Trocar de cena ENQUADRA A CENA, não mergulha no astro travado** — *"me mostre o universo"*
+   * e *"me leve até este corpo"* são gestos diferentes. Por isso `fitPending` só religa na volta ao
+   * AGENTE, onde a distância de foco é do outro céu e precisa ser refeita pelo raio real.
+   *
+   * ⭑ **Cena nova é uma entrada nesta tabela**, no mesmo idioma de `ROTAS_DO_POOL`. ⚠️ O que ela
+   * **não** pode declarar é o que um corpo é: classe, física e pele saem de `entity-physics.js` e
+   * `superficies.js`, e nenhuma das duas recebe a cena.
+   */
+  const CENAS = Object.freeze({
+    agente: Object.freeze({
+      id: 'agente',
+      passes: Object.freeze({ lensing: true }),
+      camadas: Object.freeze({ blackHole: true, graph: true, galaxy: true, universe: false }),
+      chegada: () => (focusedNode ? NODE_FOCUS_DISTANCE : HOME.distance),
+      aoEntrar: () => {
+        if (focusedNode) {
+          orbit.targetPolar = NODE_FOCUS_POLAR;
+          fitPending = true;
+        }
+        /*
+         * O desenho do vínculo é derivado do FOCO, e o foco sobrevive à troca de cena: sem esta
+         * linha, sair do UNIVERSO deixava a rede acesa por baixo do céu AGENTE — o grupo some, a
+         * lista não.
+         */
+        universe.selecionar(null, null);
+      },
+    }),
+    universo: Object.freeze({
+      id: 'universo',
+      passes: Object.freeze({ lensing: false }),
+      camadas: Object.freeze({ blackHole: false, graph: false, galaxy: false, universe: true }),
+      // O universo já foi normalizado para caber no zoom de hoje (ver `universe.js`), então aqui
+      // basta recuar até enquadrá-lo.
+      chegada: () => HOME_UNIVERSO,
+    }),
+  });
+
+  /**
+   * Aplica uma cena. **A ORDEM É A DO CÓDIGO QUE ISTO SUBSTITUIU** e não é livre: as camadas antes
+   * da câmera, a câmera antes do `aoEntrar` (que pode religar `fitPending`), e o vínculo por
+   * último, porque ele lê o foco depois de tudo já ter mudado.
+   */
+  function aplicarCena(cena) {
+    lensing.pass.enabled = cena.passes.lensing;
+    blackHole.group.visible = cena.camadas.blackHole;
+    graph.group.visible = cena.camadas.graph;
+    galaxy.object.visible = cena.camadas.galaxy;
+    universe.setVisible(cena.camadas.universe);
+    orbit.targetDistance = cena.chegada();
+    fitPending = false;
+    cena.aoEntrar?.();
+    paintLinks();
+  }
+
   const pointer = new THREE.Vector2(-2, -2);
   const raycaster = new THREE.Raycaster();
   const clock = new THREE.Clock();
@@ -454,6 +902,104 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   // ao fundo. `anchor` interpola entre a origem (sistema) e a posição do corpo.
   const anchor = new THREE.Vector3();
   const anchorTarget = new THREE.Vector3();
+
+  /*
+   * O SISTEMA CORRENTE — o que a câmera do UNIVERSO orbita quando nada está em foco.
+   *
+   * ## Por que ele existe
+   *
+   * `anchorTarget.copy(bodyAt || ZERO)` punha a câmera a orbitar a ORIGEM. Na cena AGENTE isso é
+   * certo — a origem é o buraco negro, um objeto que está lá. Na UNIVERSO **não há nada ali**, e
+   * orbitar o vazio afirma um centro que esta cena existe para negar. Escrito pelo usuário em
+   * 08/08: *"não existe centro no universo real"*.
+   *
+   * ⚠️ **E o defeito não era a âncora, era a falta de deslocamento.** Medido no mesmo dia: o
+   * arraste move só `azimuth`/`polar`, a roda move só `distance`, e a posição é derivada inteira
+   * (`anchor + direção × distância`). A câmera não sabe transladar — o único jeito de a âncora
+   * mudar era travar num corpo. Trocar `ZERO` por um sistema sem dar como TROCAR de sistema teria
+   * mudado qual vazio se orbita, e nada mais.
+   *
+   * Por isso a adoção viaja junto com o foco: travar num corpo adota o sistema DELE, e soltar o
+   * foco deixa a câmera lá — que é o "sair de um é adotar outro" sem inventar gesto novo.
+   */
+  let sistemaCorrente = null;
+  const ANCORA_LARGA = new THREE.Vector3();
+
+  /*
+   * VOO LIVRE — o padrão desta cena desde 08/08, por decisão do usuário.
+   *
+   * `ancoraLivre` é onde a câmera olha quando nada está em foco e nada está anexado. Ela não é um
+   * lugar privilegiado: começa no centroide só para o primeiro quadro ter um alvo, e a partir daí
+   * quem a move é o operador (arraste com SHIFT ou botão do meio) ou uma chegada a sistema.
+   *
+   * ⚠️ **Ela é o que faltava para "não existe centro".** Trocar a origem por um sistema mudava qual
+   * ponto se orbita; só a translação livre remove a pergunta "orbitando o quê". Medido antes: o
+   * arraste movia só ângulo e a roda só raio — a câmera não sabia transladar, e por isso a âncora
+   * era destino, não posição.
+   *
+   * `objetoAnexado` é o degrau intermediário pedido junto: um corpo que a câmera adota como alvo
+   * padrão, viajando com ele. Hoje é um corpo qualquer do céu, como prova de conceito; o destino é
+   * uma sonda 3D representando o operador, e aí ela passa a ser quem "detém o centroide".
+   */
+  const ancoraLivre = new THREE.Vector3();
+  let ancoraLivreIniciada = false;
+  let objetoAnexado = null;
+  /** Quem a âncora persegue neste quadro — lido pela sonda, escrito pelo laço. */
+  let seguindoId = null;
+  const PAN_FWD = new THREE.Vector3();
+  const PAN_RIGHT = new THREE.Vector3();
+  const PAN_UP = new THREE.Vector3();
+
+  /**
+   * Translada a âncora livre no plano da tela. É o gesto que faltava para a câmera ir a algum lugar.
+   *
+   * ⚠️ A escala sai da `escalaLocal` e do fov, não de uma constante: um pixel de arraste tem de
+   * valer o mesmo tanto de tela perto e longe, senão o gesto vira teleporte num extremo e melado no
+   * outro. A pergunta aqui é *"quão longe está o plano que estou arrastando"* — não o raio da
+   * órbita, que só por ora é o mesmo número.
+   */
+  function transladarLivre(dxPx, dyPx) {
+    const alturaCss = Math.max(canvas.clientHeight, 1);
+    const k = (2 * Math.tan((camera.fov * Math.PI) / 360) * escalaLocal()) / alturaCss;
+    camera.getWorldDirection(PAN_FWD);
+    PAN_RIGHT.crossVectors(PAN_FWD, camera.up).normalize();
+    PAN_UP.crossVectors(PAN_RIGHT, PAN_FWD).normalize();
+    ancoraLivre.addScaledVector(PAN_RIGHT, -dxPx * k).addScaledVector(PAN_UP, dyPx * k);
+  }
+
+  /**
+   * Adota um sistema como âncora, e opcionalmente CHEGA nele.
+   *
+   * ⚠️ A distância de chegada sai do ENVELOPE do sistema, não de uma constante. `HOME_UNIVERSO` são
+   * 150 unidades derivadas do universo inteiro; um envelope mede ~14 no fixture. Chegar a 150 de um
+   * sistema de 14 é continuar olhando o aglomerado de fora — que é exatamente o relato que abriu
+   * esta linha de trabalho. O fator 2,6 põe o envelope inteiro no quadro com folga.
+   *
+   * @param {number|null} i  índice do sistema, ou `null` para soltar
+   * @param {boolean} chegar `true` = reenquadra a distância pelo envelope
+   */
+  function adotarSistema(i, chegar = false) {
+    if (i === null || i === undefined) { sistemaCorrente = null; return; }
+    sistemaCorrente = i;
+    const s = universe.sistemas()[i];
+    if (!s) return;
+    // A viagem é a âncora LIVRE indo até lá — não um degrau à parte. Um só lugar decide onde a
+    // câmera está, e "cheguei num sistema" vira um caso de voo livre em vez de um modo novo.
+    ancoraLivre.copy(s.pos);
+    ancoraLivreIniciada = true;
+    if (!chegar) return;
+    orbit.targetDistance = clampDistance(Math.max(s.envelope * 2.6, ZOOM_RANGE.min));
+  }
+  /**
+   * Onde o corpo em foco estava no quadro ANTERIOR, e de quem era.
+   *
+   * É o que permite separar o deslocamento do CORPO (que a âncora acompanha sem atraso) do voo até
+   * ele (que continua amortecido). `alvoAnteriorDe` guarda o `source` porque, na troca de foco, a
+   * diferença entre dois corpos não é deslocamento nenhum — é justamente o voo.
+   */
+  let alvoAnterior = null;
+  let alvoAnteriorDe = null;
+  const ANCHOR_DELTA = new THREE.Vector3();
   /*
    * `hidden` marca a janela de amostragem que NÃO é medida.
    *
@@ -625,7 +1171,68 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * a interface tem.
    */
   let hoveredNode = null;
+
+  /*
+   * ─────────────────── A REDE DA CENA UNIVERSO — só na seleção, e por outro caminho
+   *
+   * Duas diferenças em relação ao arco da cena AGENTE, e as duas são a spec, não preferência:
+   *
+   * 1. **Só a SELEÇÃO acende.** Lá o cursor vence o foco, porque o vínculo é de contenção e
+   *    responder ao gesto mais barato é um ganho. Aqui a regra é o §5 do `integracao-neo4j.md`:
+   *    *"a teia só existe na seleção"*, e o corpo selecionado **vira o centro temporário daquela
+   *    topologia**. Rede acendendo no hover seria a teia de volta, agora perseguindo o cursor.
+   * 2. **O dado não vem do `/api/graph`.** São 3 705 vínculos, 3,4× a topologia inteira — eles têm
+   *    rota própria (`/api/vizinhanca`), lida sob demanda. Continua sendo a lei nº 2: o que se lê é
+   *    um SNAPSHOT em disco, e o Neo4j nunca está no caminho do quadro.
+   *
+   * ⚠️ O `pedido` é um carimbo contra resposta fora de ordem. Selecionar A e B em sequência dispara
+   * duas buscas, e a de A pode voltar depois — sem o carimbo, a rede de A se desenharia em volta de
+   * B, que é o pior tipo de erro aqui: plausível.
+   */
+  let pedido = 0;
+  const paintUniverseLinks = async () => {
+    const alvo = focusedNode;
+    const meu = ++pedido;
+    if (!alvo) {
+      universe.selecionar(null, null);
+      ui('links', { subject: null, dirty: null, origin: 'focus', nodes: [], rede: null });
+      return;
+    }
+    let resposta = null;
+    try {
+      resposta = await fetch(`/api/vizinhanca?source=${encodeURIComponent(alvo)}`).then((r) => r.json());
+    } catch {
+      // Rede indisponível é `null`, nunca lista vazia: "não perguntei" e "perguntei e não há
+      // vizinho" são fatos diferentes, e só o segundo pode ser desenhado como ausência.
+      resposta = null;
+    }
+    if (meu !== pedido) return;
+    const vizinhanca = resposta?.disponivel ? resposta.vizinhanca : null;
+    const desenho = universe.selecionar(alvo, vizinhanca);
+    ui('links', {
+      subject: graph.nodeAt(alvo),
+      dirty: graph.dirtyOf(alvo),
+      origin: 'focus',
+      // A legenda sai da MESMA lista que virou linha, e na mesma ordem — a regra do arco da outra
+      // cena vale inteira aqui. O nó vem do céu; o tipo e a força vêm do vínculo.
+      nodes: (vizinhanca?.v || [])
+        .slice(0, desenho?.desenhados ?? 0)
+        .map((v) => ({ ...(graph.nodeAt(v.para) || { source: v.para, type: 'file' }), vinculo: v })),
+      rede: desenho
+        ? { ...desenho, teto: resposta?.teto, tipos: resposta?.tipos, as_of: resposta?.as_of }
+        : { indisponivel: resposta?.motivo || 'rede não materializada' },
+      // Os ASSUNTOS vêm na MESMA resposta e no mesmo evento: eles respondem a mesma pergunta que a
+      // rede — com o que este corpo se relaciona —, por um caminho que liga corpo a CONCEITO em vez
+      // de corpo a corpo. Dois eventos fariam o painel montar em duas etapas e piscar.
+      conceitos: resposta?.conceitos ?? null,
+    });
+  };
+
   const paintLinks = () => {
+    if (modo === 'universo') {
+      paintUniverseLinks();
+      return;
+    }
     const alvo = hoveredNode || focusedNode;
     const desenhados = links.show(
       alvo ? graph.linksOf(alvo) : null,
@@ -654,6 +1261,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   };
   on('ui.hover', ({ node }) => {
     hoveredNode = alvoDe(node);
+    /*
+     * ⚠️ **No UNIVERSO o cursor NÃO repinta a rede, e isso não é economia.** Lá o arco é a
+     * topologia do corpo ESCOLHIDO; deixar o hover trocar o sujeito faria a legenda nomear os
+     * vínculos de um corpo enquanto a tela desenha os de outro — as duas afirmações discordando
+     * sobre de quem estão falando, que é pior do que não ter painel.
+     */
+    if (modo === 'universo') return;
     paintLinks();
   });
   on('ui.node-focus', () => paintLinks());
@@ -722,6 +1336,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     );
     if (!dragging) return;
     pressTravel += Math.hypot(event.movementX, event.movementY);
+    /*
+     * TRANSLADAR × GIRAR — e o UNIVERSO é a única cena que translada.
+     *
+     * SHIFT ou botão do meio movem a âncora livre; o arraste simples continua girando, que é o
+     * gesto que já estava no dedo de quem usa. Na cena AGENTE não há para onde transladar: a
+     * âncora de lá é o núcleo, um objeto real, e pan sobre ele seria sair de órbita do que se veio
+     * ver. `buttons & 4` é o do meio — `event.button` não vale em `pointermove`, ele só é o botão
+     * que INICIOU o gesto.
+     */
+    if (modo === 'universo' && !focusedNode && (event.shiftKey || (event.buttons & 4))) {
+      userControlled = true;
+      orbitMoved = true;
+      transladarLivre(event.movementX, event.movementY);
+      return;
+    }
     // O mouse move o ALVO, não a câmera. Delta de ponteiro é ruidoso e não vem alinhado com
     // o quadro; aplicá-lo direto na câmera transporta esse ruído para a imagem.
     orbitMoved = true;
@@ -868,8 +1497,30 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * distance that yields `FOCUS_FIT_PX`. The correction lands inside the camera's own easing,
      * so it reads as one flight, not as two.
      */
-    orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
-    orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
+    /*
+     * ⚠️ **No UNIVERSO a distância NÃO sai daqui**, e não porque a seleção não deva aproximar — ela
+     * deve, e a primeira versão desta linha errou nisso. É que `NODE_FOCUS_DISTANCE` são 7 unidades
+     * derivadas do céu AGENTE, e os corpos desta cena medem de 0,1 a 1,6: voar para 7 é parar a dez
+     * vezes o tamanho do que se pediu para ver. Quem resolve é o enquadramento por RAIO, no quadro
+     * seguinte, com a âncora da cena em vigor — o mesmo mecanismo do `fitPending` do AGENTE.
+     */
+    if (modo !== 'universo') {
+      orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
+      orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
+    } else if (source) {
+      /*
+       * TRAVAR NUM CORPO ADOTA O SISTEMA DELE — e é este o gesto de viagem, sem inventar entrada
+       * nova. A distância não sai daqui (ver a nota acima); quem enquadra é o `fitPending`.
+       */
+      adotarSistema(universe.sistemaDe(source));
+    } else {
+      /*
+       * SOLTAR O FOCO deixa a câmera NO SISTEMA, e não de volta ao vazio da origem. Sem sistema
+       * adotado ainda, `HOME_UNIVERSO` continua sendo o enquadramento largo.
+       */
+      if (sistemaCorrente === null) orbit.targetDistance = HOME_UNIVERSO;
+      else adotarSistema(sistemaCorrente, true);
+    }
     fitPending = Boolean(source);
     if (!source) focusGeometry = null;
     if (motion.isReduced()) {
@@ -889,19 +1540,95 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   }
 
   /**
+   * A âncora do corpo em foco na cena UNIVERSO, na MESMA forma que `graph.planetAnchor` devolve.
+   *
+   * ⚠️ **A constante de projeção é escrita pela definição, e é a única cópia dela nesta base.** No
+   * caminho do AGENTE ela é RECUPERADA da saída do `planetAnchor` (`px · distância / raio`) de
+   * propósito, para não existir uma segunda fórmula livre para divergir. Aqui não há âncora de onde
+   * recuperá-la — então ela nasce da definição da projeção em perspectiva, `altura / (2·tan(fov/2))`,
+   * que é exatamente o que a outra recupera. As duas divergirem é o defeito a vigiar.
+   */
+  function ancoraDoUniverso(source) {
+    const ancora = universe.ancoraDe(source);
+    if (!ancora) return null;
+    const k = canvas.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+    const distancia = camera.position.distanceTo(ancora.position);
+    return {
+      node: ancora.node,
+      position: ancora.position,
+      radius: ancora.radius,
+      // Distância mínima de 1e-3: dentro do corpo o `px` estouraria para infinito e levaria junto o
+      // LOD, que decide nível por pixel aparente.
+      px: (k * ancora.radius) / Math.max(distancia, 1e-3),
+    };
+  }
+
+  /**
+   * A pele do corpo em foco na cena UNIVERSO, pela ontologia NOVA. Ver `space/superficies.js`.
+   *
+   * A forma do retorno é a de `resolveBody` no que o quadro consome — `surface` e `recusados` —,
+   * porque o bloco que desenha é o MESMO. O que muda é quem decide, não quem desenha.
+   */
+  function decisaoDoUniverso(node) {
+    /*
+     * ☠️ Aqui era `universe.tipoDe(node.source) === 'ESTRELA'` — **um rótulo de TELA lido como
+     * dado.** Ele acertava enquanto `tipos` guardava a classe em maiúsculas, e quebrou no instante
+     * em que o rótulo passou a nomear a PELE: estrela com atividade de cometa rotula COMETA, perdia
+     * a dominância e caía para planeta (medido: 22 fotosferas → 21, 3 cometas → 2). Dominância é
+     * FATO e agora vem publicada como fato.
+     */
+    const fisica = entityPhysics(node, { dominante: universe.ehDominante(node.source) });
+    const classe = classificar(fisica, node);
+    const ativos = fenomenos(fisica, node).map((f) => f.tipo);
+    const surface = superficieDe(classe, fisica, ativos);
+    /*
+     * ⚠️ **A FORMA é a de `resolveBody`, com os nomes dele — `modifiers` e `rejected`.** A primeira
+     * versão devolveu `recusados`, e o laço de quadro morreu na linha que escreve o traço
+     * (`decisao.rejected.map`), num erro que só aparece quando o corpo em foco troca de superfície.
+     * Quem desenha é o MESMO bloco: quem muda é quem decide, e o contrato de saída é dele.
+     */
+    return {
+      surface,
+      modifiers: [],
+      rejected: surface === SURFACE.NONE
+        ? [{ feature: 'surface', motivo: `classe ${classe.tipo} não roteia pele` }]
+        : [],
+      // O que a ontologia NOVA concluiu, para a sonda poder dizer por que esta pele e não outra.
+      classe,
+      fenomenos: ativos,
+    };
+  }
+
+  /**
    * The zoom range in force right now.
    *
    * One function because there were two clamps before — the wheel's literals and the focus flight
    * — and they disagreed: the floor was farther out than the place focus flew to. Two rules over
    * one number is how the wheel ended up undoing the gesture that preceded it.
    *
-   * `focusGeometry` is written by the frame loop from the SAME anchor that sizes and places the
-   * body, so the floor cannot drift from the geometry it is protecting.
+   * `porteLocal()` lê o `focusGeometry` que o frame loop escreve pela MESMA âncora que dimensiona e
+   * posiciona o corpo, então o piso não pode divergir da geometria que ele protege.
    */
   function clampDistance(value) {
-    const floor = focusGeometry
-      ? Math.max(focusGeometry.radius * FOCUS_FLOOR_RADII, CAMERA.near * 4)
-      : ZOOM_RANGE.min;
+    /*
+     * ⚠️ **`ZOOM_RANGE.min` PRESSUPÕE UM CENTRO, e no UNIVERSO não há um.**
+     *
+     * As 12 unidades existem para a câmera não entrar no buraco negro da cena AGENTE — ali a âncora
+     * é o núcleo, um objeto real, e o piso protege dele. Em voo livre a âncora é um ponto no vazio:
+     * o mesmo 12 vira um chão sem dono, e ele impede de chegar perto de qualquer corpo. Medido em
+     * 08/08: a roda encosta em 12 unidades com o maior corpo em 34 px, contra um piso de pele de 90
+     * — e o §2.1 do `distancia-e-forma` já dizia que o corpo mediano precisa de 3,4 unidades para
+     * alcançar 90 px. Nenhum planeta era alcançável, e a causa não era a pele.
+     *
+     * É a mesma forma do defeito da âncora: uma constante da outra cena viajando junto com o modelo
+     * de câmera. O piso é para não ATRAVESSAR um corpo, então ele tem de vir do RAIO de um corpo —
+     * `porteLocal()` —, nunca de uma distância. `ZOOM_RANGE.min` fica sendo a última degradação:
+     * a cena AGENTE sem foco, onde a âncora é o núcleo do buraco negro e não há corpo a consultar.
+     */
+    const raio = porteLocal();
+    const floor = raio === null
+      ? ZOOM_RANGE.min
+      : Math.max(raio * FOCUS_FLOOR_RADII, CAMERA.near * 4);
     return THREE.MathUtils.clamp(value, floor, ZOOM_RANGE.max);
   }
 
@@ -1083,6 +1810,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
 
   function frame() {
     /*
+     * ⚠️ **A cena UNIVERSO atualiza AQUI, no topo do quadro e fora de todo bloco condicional.**
+     *
+     * Ela já morou em dois lugares errados, e os dois falharam em silêncio. Primeiro no `fanOut`
+     * (que é afinação, não quadro): o `elapsed` de lá não é o do quadro, as matrizes saíam com
+     * `NaN` e os corpos iam para lugar nenhum. Depois dentro do bloco `if (hubs.length)` da
+     * galáxia: ali o `update` simplesmente NUNCA rodava, e a prova foi um contador — `quadros = 0`
+     * com a cena montada e visível.
+     *
+     * Nenhum dos dois deu erro. `NaN` é posição e bloco não executado é ausência — os dois modos de
+     * falha favoritos deste projeto, no mesmo lugar.
+     */
+
+    /*
      * DOIS RELÓGIOS, e a divisão entre eles é a regra inteira do multiplicador global.
      *
      * `real` é o tempo da parede: RESPOSTA a gesto (suavização de órbita, zoom, âncora, decaimento
@@ -1100,6 +1840,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const delta = real * (tune.timeScale ?? 1);
     sceneTime += delta;
     const elapsed = sceneTime;
+    // A cena UNIVERSO, logo que o relógio dos objetos avança e ANTES de qualquer condicional.
+    // `canvas.height` é o framebuffer (CSS × devicePixelRatio) — a MESMA régua que o `pick` e o
+    // `graph.update` recebem. O anel decide nível de detalhe em pixels, e duas réguas dariam duas
+    // distâncias de troca na mesma tela.
+    if (modo === 'universo') universe.update(elapsed, delta, camera, canvas.height);
     const started = performance.now();
 
     // Deriva automática é movimento contínuo sem evento por trás — o primeiro a sair.
@@ -1123,13 +1868,78 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // primeiro quadro em que ele tem posição.
     // ⚠️ TEMPO REAL: `FOCO_PRAZO_S` é um prazo de rede em segundos, não uma fase de animação.
     aplicarFocoPendente(clock.elapsedTime);
-    const nodeAt = focusedNode ? graph.worldPositionOf(focusedNode) : null;
+    /*
+     * ⚠️ **A posição do astro em foco é a da CENA EM VIGOR.** O mesmo `source` existe nas duas, em
+     * lugares completamente diferentes: no AGENTE ele orbita o buraco negro por recência; no
+     * UNIVERSO ele orbita a estrela do sistema dele. Perguntar sempre ao grafo fazia a câmera voar,
+     * dentro do universo, para a coordenada do OUTRO céu — e como as duas cenas compartilham o
+     * corpus, o destino era sempre plausível e sempre errado.
+     */
+    const nodeAt = focusedNode
+      ? (modo === 'universo' ? universe.posicaoDe(focusedNode) : graph.worldPositionOf(focusedNode))
+      : null;
     // Astro que saiu do céu (recarga da topologia) solta o foco em vez de prender a câmera
     // apontando para o vazio.
     if (focusedNode && !nodeAt) focusedNode = null;
     const bodyAt = nodeAt || (focusedBody ? bodies.positionOf(focusedBody) : null);
-    anchorTarget.copy(bodyAt || ZERO);
+    /*
+     * ⚠️ **A SUAVIZAÇÃO É DO VOO, NÃO DO CORPO** — e sem essa distinção a câmera trava PERTO do
+     * astro, nunca nele.
+     *
+     * Um `lerp` de taxa fixa contra alvo em MOVIMENTO tem erro permanente: ele converge para uma
+     * distância proporcional à velocidade do alvo (`v / taxa`), e nunca a zero. No céu AGENTE isso
+     * é invisível porque `ω ∝ r^-1,5` e os raios são grandes; na cena UNIVERSO a órbita mais interna
+     * fecha a volta em ~15 s, e a 0,4 rad/s o atraso vira quase um raio do corpo. Relatado da tela
+     * exatamente assim: *"o zoom no astro não fixa nele, parece fixar perto dele"*.
+     *
+     * O conserto separa os dois movimentos que estavam somados: o deslocamento que o CORPO fez
+     * neste quadro é aplicado à âncora sem amortecimento nenhum — ela viaja junto —, e o `lerp`
+     * passa a amortecer só o que sobra, que é a diferença entre onde a câmera estava olhando e o
+     * corpo novo. O voo continua macio; a perseguição deixa de existir.
+     */
+    /*
+     * A ÂNCORA DO UNIVERSO NÃO É A ORIGEM. Ver `sistemaCorrente`.
+     *
+     * Ordem de queda, e cada degrau é um fato menor que o anterior: o corpo em foco → o sistema
+     * corrente → o centroide dos sistemas (pendência declarada, ver `universe.centroideDosSistemas`)
+     * → a origem, que só sobra quando não há sistema nenhum carregado. `ZERO` deixou de ser o
+     * padrão e virou a degradação.
+     */
+    let alvoDaCena = bodyAt;
+    if (!alvoDaCena && modo === 'universo') {
+      if (!ancoraLivreIniciada) {
+        // O primeiro quadro precisa de UM alvo. O centroide é o menos arbitrário que existe antes
+        // de o operador ter voado para algum lugar — e deixa de valer no instante em que ele voa.
+        ancoraLivre.copy(universe.centroideDosSistemas());
+        ancoraLivreIniciada = true;
+      }
+      const anexado = objetoAnexado ? universe.posicaoDe(objetoAnexado) : null;
+      if (anexado) ancoraLivre.copy(anexado);
+      alvoDaCena = ancoraLivre;
+    }
+    anchorTarget.copy(alvoDaCena || ZERO);
+    /*
+     * ⚠️ **A CORREÇÃO ANTI-PERSEGUIÇÃO VALE PARA QUALQUER CORPO QUE A ÂNCORA SIGA, não só o em foco.**
+     *
+     * O comentário acima explica por que um `lerp` de taxa fixa contra alvo em MOVIMENTO tem erro
+     * permanente. A correção existia, e só olhava `focusedNode` — então o objeto ANEXADO, que também
+     * orbita, era perseguido com amortecimento e a âncora ficava para trás dele. Medido em 08/08:
+     * anexar um planeta e chegar a 3,03 unidades dava **89,7 px** onde a conta pedia 135 — abaixo do
+     * piso de pele de 90, então a pele não acendia por 0,3 px. O sintoma era "anexei, cheguei perto,
+     * e a forma não aparece", que não aponta para a câmera em lugar nenhum.
+     *
+     * `seguindo` é a identidade do que a âncora persegue — o corpo em foco, ou o anexado. Uma
+     * pergunta, uma variável: usar `focusedNode` para decidir isso era o modelo antigo (só o foco
+     * movia a âncora) sobrevivendo dentro do novo.
+     */
+    const seguindo = focusedNode ?? (modo === 'universo' ? objetoAnexado : null);
+    seguindoId = seguindo;
+    if (alvoAnterior && alvoAnteriorDe === seguindo && seguindo) {
+      anchor.add(ANCHOR_DELTA.copy(anchorTarget).sub(alvoAnterior));
+    }
     anchor.lerp(anchorTarget, 1 - Math.exp(-2.6 * real));
+    alvoAnterior = (alvoAnterior || new THREE.Vector3()).copy(anchorTarget);
+    alvoAnteriorDe = seguindo;
 
     // A câmera olha para o núcleo, mas se inclina na direção do que foi recuperado: o
     // sistema aponta a atenção para onde a memória acendeu, e depois relaxa de volta.
@@ -1229,10 +2039,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       camera.getWorldDirection(PARALLAX_FWD);
       PARALLAX_RIGHT.crossVectors(PARALLAX_FWD, camera.up).normalize();
       PARALLAX_UP.crossVectors(PARALLAX_RIGHT, PARALLAX_FWD).normalize();
-      // A amplitude acompanha a distancia: a 88 unidades sao ~1,3 de mundo, e ao travar num
-      // astro (distancia 7) cai para ~0,1 — sem isso, o mesmo deslocamento que e sutil de longe
-      // sacudiria o planeta na tela.
-      const amplitude = orbit.distance * PARALLAX_SCALE;
+      // A amplitude acompanha a `escalaLocal`: a 88 unidades sao ~1,3 de mundo, e ao travar num
+      // astro (escala 7) cai para ~0,1 — sem isso, o mesmo deslocamento que e sutil de longe
+      // sacudiria o planeta na tela. A pergunta e "quao longe esta o que eu olho", nao o raio da
+      // orbita: numa camera sem ancora a paralaxe continua tendo de encolher perto das coisas.
+      const amplitude = escalaLocal() * PARALLAX_SCALE;
       PARALLAX_SHIFT.set(0, 0, 0)
         .addScaledVector(PARALLAX_RIGHT, PARALLAX_AIM.x * amplitude)
         .addScaledVector(PARALLAX_UP, PARALLAX_AIM.y * amplitude);
@@ -1272,7 +2083,23 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         hoveredBody = body;
         canvas.style.cursor = body ? 'pointer' : '';
       }
-      const picked = body ? null : graph.pick(raycaster);
+      /*
+       * ⚠️ **Cada cena responde pelo próprio picking, e o raycast não sabe disso.**
+       *
+       * O `raycaster` do three NÃO olha `object.visible`: ele trabalha sobre as posições, e o grafo
+       * da cena AGENTE continua tendo todas as suas mesmo escondido. No modo UNIVERSO, portanto,
+       * passar o cursor pelo céu acertava um corpo da OUTRA cena — hover e clique respondiam com
+       * convicção total sobre um objeto que ninguém estava vendo, sem erro nenhum no caminho.
+       *
+       * A cena UNIVERSO pica por proximidade na TELA (`universe.pick`), e não por malha: os corpos
+       * dela têm poucos pixels, e exigir o acerto dentro da esfera deixaria só as estrelas
+       * clicáveis.
+       */
+      const picked = body
+        ? null
+        : modo === 'universo'
+          ? universe.pick(pointer, camera, canvas.height)
+          : graph.pick(raycaster);
       if (picked?.node?.id !== hovered?.node?.id) {
         hovered = picked;
         /*
@@ -1297,9 +2124,29 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * É a mesma regra do anel, e pelo mesmo motivo — um quadro de atraso aqui aparece como a
      * esfera arrastando atrás do próprio halo.
      */
-    const pouso = focusedNode
-      ? graph.planetAnchor(focusedNode, camera, canvas.height, elapsed)
-      : null;
+    /*
+     * ⚠️ **No UNIVERSO não há pouso, e é a regra do cabeçalho do replanejamento em uma linha:**
+     * *nenhuma morfologia nova enquanto a classificação não fechar.* Todo o aparato de PELE do
+     * astro em foco — planeta, fotosfera, estação, cometa, pulsar, nebulosa, luas — sai daqui, e
+     * ele desenha a taxonomia ANTIGA (`solver.js` sobre o `kind`).
+     *
+     * Sem esta guarda, travar num corpo do universo abria a esfera texturizada da outra cena por
+     * cima da teia: o céu novo respondendo com o corpo do céu velho, e ainda por cima com a câmera
+     * a 7 unidades de um objeto que a cena nova desenha com 0,7.
+     */
+    /*
+     * ⚠️ **A ÂNCORA vem da cena em vigor, e o caminho depois dela é UM SÓ.**
+     *
+     * `graph.planetAnchor` resolve posição, raio e `px` no céu AGENTE. No UNIVERSO o corpo está em
+     * outro lugar, com outro tamanho — mas o que o resto do quadro precisa é a mesma tupla, então
+     * ela é montada aqui em vez de existir um segundo bloco de pele. Um bloco só é o que garante
+     * que enquadramento, piso de zoom, LOD e sonda contam a mesma história nas duas cenas.
+     */
+    const pouso = !focusedNode
+      ? null
+      : modo === 'universo'
+        ? ancoraDoUniverso(focusedNode)
+        : graph.planetAnchor(focusedNode, camera, canvas.height, elapsed);
 
     /*
      * The zoom floor and the fit are derived from the anchor, never from a second formula.
@@ -1327,11 +2174,27 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       moonOrbits.build(luas);
       moonSource = focusedNode;
     }
-    if (pouso) moonOrbits.show(pouso.position, graph.spread());
+    // O traço das luas é do céu AGENTE: as luas são as SEÇÕES do arquivo, e a escala dele é a do
+    // grupo do grafo. No UNIVERSO ele desenharia elipses de outro mundo, no espaço errado.
+    if (pouso && modo !== 'universo') moonOrbits.show(pouso.position, graph.spread());
     else moonOrbits.hide();
 
+    /*
+     * ⚠️ **QUEM ESCOLHE A PELE É A ONTOLOGIA DA CENA EM VIGOR.**
+     *
+     * `resolveBody` decide a partir do `kind` — a taxonomia que a Fase B refutou, em que um `config`
+     * de 2 chunks desenha uma ESTRELA ao lado de um `doc` de 200 desenhado como planeta. Usá-la na
+     * cena nova seria o modelo velho falando por cima do novo, exatamente o defeito que `ce8ad95`
+     * consertou na HUD.
+     *
+     * No UNIVERSO quem responde é `superficieDe(classe, física, fenômenos)` — a tabela da Fase D,
+     * medida antes de escrita (`scripts/censo-superficies.mjs`): fotosfera 17 · planeta 152 ·
+     * cometa 8 · sem pele 11, e nenhuma pele roteada nasce vazia.
+     */
     const decisao = pouso
-      ? resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) })
+      ? (modo === 'universo'
+          ? decisaoDoUniverso(pouso.node)
+          : resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) }))
       : null;
     if (pouso) {
       const distancia = camera.position.distanceTo(pouso.position);
@@ -1513,14 +2376,27 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         planetParamsCache = planetParams(pouso.node);
         planetSource = focusedNode;
       }
+      // A aparência é lida FORA do cache: ela muda por gesto do operador, e o cache só invalida
+      // quando o corpo em foco troca — sem esta linha a marca só apareceria ao trocar de corpo.
+      planetParamsCache = { ...planetParamsCache, mapa: texturaDeAparencia(pouso.node.source) };
+      {
+      }
       planet.object.position.copy(pouso.position);
       planet.object.scale.setScalar(pouso.radius);
       /*
-       * A luz vem do NÚCLEO. É o único corpo emissivo da cena, então iluminar de qualquer outra
-       * direção poria o terminador em desacordo com o que se vê — e o terminador é justamente o
-       * que faz a esfera ler como esfera.
+       * DE ONDE VEM A LUZ, e a resposta depende da CENA.
+       *
+       * Na AGENTE o núcleo é o único corpo emissivo, então a direção é o corpo → origem: iluminar
+       * de outro lugar poria o terminador em desacordo com o que se vê, e é o terminador que faz a
+       * esfera ler como esfera.
+       *
+       * ⚠️ **No UNIVERSO não há nada na origem**, e a luz é da ESTRELA DO SISTEMA — a mesma lei que
+       * o `CORPO_VS` já aplica ao céu instanciado (*"luz global afirmaria de novo um centro único,
+       * que é justamente o que ela nega"*). Sem esta distinção o mesmo planeta ficava iluminado de
+       * um lado quando travado e de outro quando desenhado pelo pool, que é a pior das duas.
        */
-      LIGHT_DIR.copy(pouso.position).negate().normalize();
+      if (modo === 'universo') estrelaDoSistema(focusedNode, pouso.position, LIGHT_DIR);
+      else LIGHT_DIR.copy(pouso.position).negate().normalize();
       const level = planet.update(
         { ...planetParamsCache, light: [LIGHT_DIR.x, LIGHT_DIR.y, LIGHT_DIR.z] },
         camera,
@@ -1552,6 +2428,94 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * geometria entra exatamente na medida em que o sprite sai: nunca as duas somadas, nunca
      * nenhuma das duas. Ver `space/remnant.js`.
      */
+    /*
+     * ⚠️ **A esfera CEDE o lugar para a pele — ela não some.**
+     *
+     * A primeira versão escondia a instância, e o corpo desaparecia ao afastar a câmera: a pele tem
+     * escada de LOD e apaga abaixo de ~90 px (medido: 35 270 pixels acesos a px 103 contra 3 430 a
+     * px 82), e sem a esfera não sobrava nada. Relatado da tela: *"objeto em foco some quando
+     * afastamos o zoom dele"*.
+     *
+     * ⚠️ E trocar o limiar não resolveria — só mudaria o degrau em que o buraco aparece. Quem
+     * resolve é a esfera virar NÚCLEO (2% menor): a pele opaca a cobre de perto, e ela reaparece
+     * sozinha conforme a pele apaga. Transição contínua, sem quadro nenhum decidindo nada.
+     */
+    /*
+     * ─────────────────── AS PELES SEM FOCO. Ver o bloco do pool para o porquê e para o teto.
+     *
+     * A ORDEM é por pixel, e não por massa nem por proximidade: quem tem mais pixel é quem tem mais
+     * a mostrar, e é a mesma grandeza que o `LOD_FAR_PX` de cada pele já usa para decidir se vale
+     * desenhar. Duas réguas para "quem ganha pele" divergiriam na primeira mudança de fov.
+     */
+    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa, ...poolPulsar]) p.usado = false;
+    const vizinhas = [];
+    let cortadas = 0;
+    if (modo === 'universo') {
+      for (const c of universe.candidatosAPele(PELES_VIZINHAS_MAX * 3, focusedNode)) {
+        const sup = decisaoDoUniverso(c.node)?.surface;
+        const rota = ROTAS_DO_POOL[sup];
+        if (!rota) continue;
+        if (c.px < rota.far) continue;
+        if (vizinhas.length >= PELES_VIZINHAS_MAX) { cortadas += 1; continue; }
+        const slot = slotDaPele(rota.pool, rota.criar);
+        slot.usado = true;
+        slot.fonte = c.source;
+        if (!paramsPorFonte.has(c.source)) paramsPorFonte.set(c.source, rota.params(c.node));
+        slot.pele.object.position.copy(c.position);
+        slot.pele.object.scale.setScalar(c.radius);
+        slot.rota = sup;
+        rota.desenhar(slot.pele, paramsPorFonte.get(c.source), c, elapsed);
+        vizinhas.push({ source: c.source, px: +c.px.toFixed(1), pele: sup });
+      }
+    }
+    // Slot que ninguém pediu neste quadro tem de PARAR DE DESENHAR. `px = 0` derruba o nível de
+    // detalhe a zero e o próprio módulo esconde o grupo — o mesmo caminho que o corpo em foco usa
+    // ao soltar, e não um `visible = false` por fora que a pele não saberia explicar.
+    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa, ...poolPulsar]) {
+      if (p.usado || !p.fonte) continue;
+      ROTAS_DO_POOL[p.rota]?.esconder(p.pele, paramsPorFonte.get(p.fonte), elapsed);
+      p.fonte = null;
+    }
+    pelesVizinhas = { desenhadas: vizinhas.length, teto: PELES_VIZINHAS_MAX, cortadas, corpos: vizinhas };
+
+    /*
+     * A CESSÃO é PLURAL: o corpo em foco e cada vizinho com pele cedem o sprite e viram núcleo.
+     * Um só chamador, uma só lista — ver `universe.cederParaVarios`.
+     */
+    universe.cederParaVarios([
+      ...(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE && focusedNode
+        ? [{ source: focusedNode, span: BODY_SPAN[decisao.surface] ?? 1 }]
+        : []),
+      // Cada pele cede conforme o PORTE dela: a esfera vira o núcleo sob o corpo desenhado, e não
+      // uma bola 2% menor que o cobre. Ver `cederParaVarios`.
+      ...vizinhas.map((v) => ({ source: v.source, span: BODY_SPAN[v.pele] ?? 1 })),
+    ],
+    /*
+     * ⚠️ **O FOCO vai no segundo argumento, e não como item da lista.** É ele que decide qual
+     * anel é objeto de mundo e qual é billboard. O `universe` inferia isso de
+     * `cedidos.size === 1`; desde que a cessão virou plural a inferência erra nos DOIS sentidos —
+     * some com o anel de mundo quando há vizinho com pele, e o inventa num vizinho quando não há
+     * foco. E ele é independente de PELE de propósito: um corpo em foco sem pele continua sendo
+     * o corpo que se está inspecionando. Ver `indiceFocado` em `universe.js`.
+     */
+    modo === 'universo' ? focusedNode : null);
+    /*
+     * ⚠️ **A COROA da estrela, e ela existe porque a cena AGENTE a tinha por outro caminho.**
+     *
+     * Lá quem faz a estrela brilhar é o sprite do grafo, aceso por trás da fotosfera
+     * (`graph.haloOf`, e `keepsCrown` já diz o motivo: *"a fotosfera É o corpo: a coroa fica, e é
+     * ela a atmosfera iluminada por trás"*). O UNIVERSO esconde o grafo inteiro, então o corpo
+     * ganhava superfície e perdia a LUZ — relatado da tela: *"estrela está sem brilho (estrelas
+     * emitem luz própria)"*.
+     *
+     * Ela acompanha o nível de LOD da pele: acende com ela e apaga com ela, em vez de ter um
+     * limiar próprio para discordar do corpo que está iluminando.
+     */
+    universe.coroar(
+      modo === 'universo' && decisao?.surface === SURFACE.PHOTOSPHERE ? focusedNode : null,
+      probe.level ?? 0
+    );
+
     probe.casca = probe.desenhado ? (pouso.node.supernova || 0) * probe.level : 0;
     remnant.update(
       pouso?.position ?? ZERO,
@@ -1623,7 +2587,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * informação nenhuma aqui — a figura fica, só para de girar.
        */
       galaxy.tune({ omega: motion.isReduced() ? 0 : rateOf(MOTION.patternSpin) });
-      const acesas = galaxy.update(lote, camera, canvas.height, elapsed, focadaNoLote);
+      /*
+       * ⚠️ A galáxia se REACENDE sozinha: o `update` dela repõe a visibilidade por instância, então
+       * esconder o objeto no `setMode` durava um quadro. A guarda tem de ser na CHAMADA — e ela vale
+       * como economia também, porque a cena UNIVERSO não paga o LOD de 228 discos que não desenha.
+       */
+      const acesas = modo === 'universo' ? [] : galaxy.update(lote, camera, canvas.height, elapsed, focadaNoLote);
       /*
        * A MESMA projeção e a MESMA escada da galáxia, injetadas — não recalculadas aqui.
        *
@@ -1700,12 +2669,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * bloco em `lensing.js`, e a escolha foi do usuário.
      */
     const corpoDaLente = pouso && decisao?.surface === SURFACE.PULSAR
-      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SURFACE.PULSAR] * 0.4 }
+      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SURFACE.PULSAR] * RS_POR_RAIO.pulsar }
       : null;
     lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente });
     lensing.setTime(elapsed);
 
-    composer.render();
+    desenharQuadro();
 
     frames.count += 1;
     if (performance.now() - started > LONG_FRAME_MS) frames.long += 1;
@@ -1757,8 +2726,169 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     moonReport: () => graph.moonReport(),
 
+    /**
+     * Troca entre as duas cenas: `agente` (buraco negro no centro) e `universo` (gravidade local).
+     *
+     * ⚠️ Ela ESCONDE, não destrói. As duas ficam montadas: reconstruir 1 636 corpos a cada clique
+     * daria um engasgo de meio segundo no gesto que mais se repete, e o custo de manter as duas em
+     * memória é geometria instanciada, que não custa quadro enquanto invisível.
+     *
+     * O que sai no modo UNIVERSO é o que afirma um centro: o buraco negro e o campo de corpos por
+     * recência. O campo estelar de fundo fica — ele é cenário, não afirmação.
+     */
+    /**
+     * Declara quais corpos vestem aparência nomeada: `Map<source, caminho>` ou objeto simples.
+     *
+     * ⚠️ Declaração VAZIA é um fato ("nenhum corpo veste"), e é diferente de nunca declarar. Quem
+     * não chama deixa o céu como está.
+     */
+    declararAparencias: (mapa) => {
+      aparenciaDe.clear();
+      const entradas = mapa instanceof Map ? mapa.entries() : Object.entries(mapa || {});
+      for (const [source, arquivo] of entradas) if (source && arquivo) aparenciaDe.set(source, arquivo);
+      return aparenciaDe.size;
+    },
+    setMode: (proximo) => {
+      /*
+       * ⚠️ `Object.hasOwn`, e não `CENAS[proximo]` direto. A lista branca explícita que estava aqui
+       * (`!== 'agente' && !== 'universo'`) recusava qualquer coisa; indexar um objeto literal aceita
+       * a CADEIA DE PROTÓTIPOS junto — `CENAS['constructor']` devolve valor truthy, e a cena
+       * trocaria para `undefined` sem erro nenhum. E este caminho é alcançável de fora
+       * (`spatia.cena(...)`, a rota).
+       */
+      const cena = Object.hasOwn(CENAS, proximo) ? CENAS[proximo] : null;
+      if (!cena) return modo;
+      modo = cena.id;
+      aplicarCena(cena);
+      /*
+       * ⚠️ **A CENA ANUNCIA A TROCA — quem a pediu não é responsável por contar aos outros.**
+       *
+       * O switcher só se repintava dentro do PRÓPRIO handler de clique/tecla. Toda outra porta que
+       * chega aqui — `spatia.cena('universo')`, a rota, qualquer caminho futuro — trocava a cena e
+       * deixava o HUD marcando a anterior. Medido: a sonda trocava para UNIVERSO e o botão seguia
+       * aceso em AGENTE, em quatro capturas seguidas.
+       *
+       * Devolver `modo` e mandar cada chamador repintar seria a mesma dívida com outro nome: a
+       * primeira porta que esquecesse voltaria a mentir, e um switcher mentindo é exatamente o que
+       * faz alguém duvidar da sonda certa. `estado observável > estado implícito` do `CLAUDE.md`.
+       *
+       * Sem laço: quem escuta pinta, e pintar não chama `setMode`.
+       */
+      ui('scene-mode', { modo });
+      return modo;
+    },
+    mode: () => modo,
+    universeStats: () => universe.stats(),
+    /** A cadeia de pós-processamento como ela está NESTE quadro. Ver `composicao`. */
+    composicao,
+    /**
+     * "Os corpos se atravessam?" — a pergunta que a foto não responde, porque colisão e oclusão
+     * produzem a mesma imagem. Sob demanda: `spatia.universo.sobreposicoes()`.
+     */
+    universeOverlaps: (limite) => universe.sobreposicoes(limite),
+    /** O par nomeado: distância viva, raios e penetração. `spatia.universo.entre(a, b)`. */
+    universePair: (a, b) => universe.entre(a, b),
+    /**
+     * O raio APARENTE de cada corpo, em pixels de framebuffer — esfera e sprite lado a lado.
+     *
+     * `spatia.universo.pixels()`. Ela existe porque "os astros somem de longe" e "os astros estão
+     * opacos de longe" são dois relatos diferentes sobre a mesma foto, e só o histograma os separa.
+     */
+    universePixels: () => universe.pixels(),
+    /** As peles desenhadas SEM foco, e o que o teto cortou. `spatia.universo.peles()`. */
+    universeSkins: () => pelesVizinhas,
+
+    /**
+     * Onde a câmera do UNIVERSO está ancorada, e por quê. `spatia.universo.ancora()`.
+     *
+     * ⚠️ Ela existe porque "a âncora mudou" não tem imagem: a origem e um sistema a 40 unidades
+     * dela produzem a MESMA foto se o enquadramento for largo. `porque` nomeia o degrau em vigor —
+     * sem isso, "continua orbitando o vazio" e "adotou um sistema que por acaso está perto do
+     * centro" seriam indistinguíveis, que é a confusão que abriu esta linha de trabalho.
+     */
+    universeAnchor() {
+      const lista = universe.sistemas();
+      const sis = sistemaCorrente === null ? null : lista[sistemaCorrente];
+      const porque = focusedNode ? 'corpo em foco' : objetoAnexado ? 'objeto anexado' : 'voo livre';
+      return {
+        modo, porque, focado: focusedNode, anexado: objetoAnexado,
+        ancoraLivre: [+ancoraLivre.x.toFixed(2), +ancoraLivre.y.toFixed(2), +ancoraLivre.z.toFixed(2)],
+        sistema: sis ? { i: sistemaCorrente, id: sis.id, envelope: +sis.envelope.toFixed(3),
+          distanciaDaOrigem: +sis.pos.length().toFixed(2) } : null,
+        sistemas: lista.length,
+        centroideDaOrigem: +universe.centroideDosSistemas().length().toFixed(2),
+        ancoraAtual: [+anchor.x.toFixed(2), +anchor.y.toFixed(2), +anchor.z.toFixed(2)],
+        ancoraDaOrigem: +anchor.length().toFixed(2),
+        distancia: +orbit.distance.toFixed(2), alvoDeDistancia: +orbit.targetDistance.toFixed(2),
+        /*
+         * ⚠️ O ERRO DA ÂNCORA, e ele existe porque `distancia` MENTE sobre o que se vê.
+         *
+         * `orbit.distance` é a distância à ÂNCORA. O pixel de um corpo sai da distância ao CORPO.
+         * Enquanto a âncora está em cima dele os dois são o mesmo número; quando ela fica para trás
+         * (o corpo orbita, o `lerp` amortece) eles divergem — e a divergência aparece como "cheguei
+         * perto e a pele não acendeu", que não aponta para a câmera em lugar nenhum. Medido em
+         * 08/08: `distancia` 3,03 com o corpo a 3,81 e 107,5 px onde a conta pedia 135.
+         */
+        ...(() => {
+          const alvo = seguindoId ? universe.posicaoDe(seguindoId) : null;
+          if (!alvo) return { seguindo: seguindoId, erroDaAncora: null, distanciaAoCorpo: null };
+          return {
+            seguindo: seguindoId,
+            erroDaAncora: +anchor.distanceTo(alvo).toFixed(3),
+            distanciaAoCorpo: +camera.position.distanceTo(alvo).toFixed(3),
+          };
+        })(),
+      };
+    },
+
+    /**
+     * Anexa um corpo: a câmera passa a ter ELE como alvo padrão e viaja junto.
+     *
+     * ⚠️ Prova de conceito com um corpo do céu. O destino declarado é uma sonda 3D representando o
+     * operador — e aí "quem detém o centroide" deixa de ser um cálculo e vira um objeto que está lá,
+     * que é a diferença entre um centro computado e um corpo de referência.
+     *
+     * @param {string|null} source  `null` desanexa e devolve a câmera ao voo livre
+     */
+    universeAttach(source, chegar = true) {
+      objetoAnexado = source && universe.sistemaDe(source) !== null ? source : null;
+      /*
+       * ANEXAR TAMBÉM CHEGA — senão a câmera adota o corpo e continua a 150 unidades dele, que é
+       * adotar sem visitar. `irPara` já chega no sistema pelo envelope; a assimetria era um descuido,
+       * e ela aparecia como "anexei e não mudou nada".
+       *
+       * ⚠️ A distância NÃO é a do foco. `FOCUS_FIT_PX` (260) enche a tela com o corpo, que é a pose
+       * de quem TRAVOU nele. Anexar não é travar: o corpo vira a casa da câmera e o sistema tem de
+       * continuar visível em volta. `CHEGADA_PX` é 1,5× o piso de pele — o bastante para a pele
+       * acender com margem, longe o bastante para o resto continuar na tela.
+       */
+      if (objetoAnexado && chegar) {
+        const anc = universe.ancoraDe(objetoAnexado);
+        if (anc) {
+          const k = canvas.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+          orbit.targetDistance = clampDistance((k * anc.radius) / CHEGADA_PX);
+        }
+      }
+      return this.universeAnchor();
+    },
+
+    /** Adota um sistema pelo índice e CHEGA nele. `spatia.universo.irPara(3)`. */
+    universeGoTo(i) {
+      adotarSistema(i, true);
+      return this.universeAnchor();
+    },
+    /** O tipo de um corpo na cena em vigor: novo no UNIVERSO, `null` no AGENTE. */
+    bodyTypeOf: (source) => (modo === 'universo' ? universe.tipoDe(source) : null),
+
     loadGraph: (payload) => {
       const count = graph.load(payload);
+      // A cena UNIVERSO lê o MESMO payload: um corpus, duas leituras dele. Montar as duas no
+      // carregamento evita o engasgo de construir 1 636 corpos no clique do switcher.
+      universe.load(payload);
+      // Topologia nova reconstrói os sistemas: o índice guardado passa a apontar para outro lugar.
+      // `SCHEMA_VERSION` protege dado em disco; isto protege um índice em memória, pelo mesmo motivo.
+      sistemaCorrente = null;
+      paramsPorFonte.clear();
       hubs = buildHubs(payload);
       // Só agora o céu sabe responder se conhece o astro salvo. Ver `aplicarFocoPendente`.
       agendarFoco();
@@ -1771,7 +2901,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     applyBackdrop: (options) => backdrop.apply(options),
     /** Qual imagem está no ar — a tela de configuração precisa dela para creditar. */
     backdropPlate: () => backdrop.plate(),
-    markDirty: (table) => graph.markDirty(table),
+    markDirty: (table) => {
+      const resultado = graph.markDirty(table);
+      /*
+       * ⚠️ **A cena UNIVERSO tem o próprio anel, e ele precisa da MESMA varredura.**
+       *
+       * `rings` vive dentro de `graph.js` e o grupo dele é filho de `graph.group`, que o UNIVERSO
+       * esconde inteiro — então o estado do git chegava ao painel ("NÃO RASTREADO") e não à
+       * geometria. Relatado da tela exatamente assim. Aqui a mesma tabela alimenta as duas cenas,
+       * de um ponto só: duas chamadas em lugares diferentes divergiriam no dia em que uma delas
+       * fosse esquecida.
+       */
+      universe.sujar((source) => graph.dirtyOf(source));
+      return resultado;
+    },
     /** Apaga os anéis sem afirmar árvore limpa — quando o disco deixa de ser verificável. */
     forgetDirty: () => graph.forgetDirty(),
     dirtyOf: (source) => graph.dirtyOf(source),
@@ -1849,7 +2992,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           setTimeout(colher, 8);
         });
 
-      const comCadeia = await medir(() => composer.render());
+      const comCadeia = await medir(() => desenharQuadro());
       const semCadeia = await medir(() => renderer.render(scene, camera));
       if (comCadeia === null || semCadeia === null) {
         return { erro: 'relógio da GPU perturbado (GPU_DISJOINT) — amostra descartada' };
@@ -1990,6 +3133,40 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         radius: bloom.radius,
         doStore: tune?.bloomStrength,
       };
+    },
+
+    /**
+     * O A/B dos dois termos de borda da pele do planeta. Ver `planet.termos`.
+     *
+     * Ela responde a pergunta que a medida de 2026-08-08 deixou aberta: o disco em foco é aceso na
+     * BORDA e escuro no meio (centro 5,9 contra limbo 80,7 em `nucleo/bloco-10`), e os dois
+     * candidatos a autor — o fresnel na superfície e a casca aditiva — são cortados pelo MESMO
+     * `params.atmosphere`. Sem separá-los, "é a atmosfera" é tudo o que se consegue dizer.
+     */
+    skinTerms: (ajuste) => planet.termos(ajuste),
+
+    /**
+     * O A/B dos dois termos de borda da pele do planeta, no mesmo quadro. Ver `mesmoQuadro`.
+     *
+     * @param {Array<{limbo?: number, casca?: number}>} condicoes  na ordem de desenho
+     * @param {(cond: object, i: number) => any} [ler]  síncrona, com o desenho ainda no buffer
+     * @returns {{amostras: any[], estado: object}}
+     */
+    skinAB(condicoes = [], ler) {
+      const amostras = mesmoQuadro(condicoes, (c) => planet.termos(c), () => planet.termos({ limbo: 1, casca: 1 }), ler);
+      return { amostras, estado: planet.termos() };
+    },
+
+    /**
+     * O mesmo A/B, na cena UNIVERSO: o ganho do ARO da estrela. Ver `universe.termos`.
+     *
+     * ⚠️ Ela mede a ESTRELA porque `CORPO_FS` não tem aro — o passo 2 do `distancia-e-forma.md`
+     * cria um em vez de ajustar um. O que esta sonda responde é quanto um aro compra no tamanho
+     * que um corpo REALMENTE tem nesta cena, que é a pergunta que decide se vale criá-lo.
+     */
+    universeAB(condicoes = [], ler) {
+      const amostras = mesmoQuadro(condicoes, (c) => universe.termos(c), () => universe.termos({ borda: 1 }), ler);
+      return { amostras, estado: universe.termos() };
     },
 
     /** Devolve o controle da câmera à deriva automática. */

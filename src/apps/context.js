@@ -35,12 +35,14 @@
  * discordando sobre de quem estão falando seria pior que não ter painel.
  */
 import { listWidget } from './widgets-core.js';
+import { tipoDeCorpo } from '../core/cena-atual.js';
 import { el, plural, shortPath } from '../hud/dom.js';
 import { on, emit } from '../core/bus.js';
 import * as attention from '../core/attention.js';
 import { button } from '../hud/button.js';
 import { classify, morphologyOf } from '../space/catalog.js';
 import { DIRTY_LABELS } from '../space/rings.js';
+import { desenharFavorito, aoMudar } from '../hud/favoritos-ui.js';
 
 /**
  * Vazio que ENSINA o gesto, em vez de afirmar a ausência.
@@ -66,17 +68,27 @@ export function registerContextWidget() {
     hint: 'SOB ATENÇÃO',
     slot: 'right',
     render(view) {
-      const pintar = ({ subject, dirty, origin, links }) => {
+      const pintar = ({ subject, dirty, origin, links, rede, conceitos }) => {
         if (!subject) {
           view.empty(VAZIO);
           return;
         }
-        view.set(desenhar(subject, dirty, origin, links || []));
+        view.set(desenhar(subject, dirty, origin, links || [], rede || null, conceitos || null));
       };
 
-      const off = on('ui.links', ({ subject, dirty, origin, nodes }) =>
-        pintar({ subject, dirty, origin, links: nodes })
+      const off = on('ui.links', ({ subject, dirty, origin, nodes, rede, conceitos }) =>
+        pintar({ subject, dirty, origin, links: nodes, rede, conceitos })
       );
+
+      /*
+       * A MARCA repinta do STORE, não de um evento próprio.
+       *
+       * Marcar não muda o que está sob atenção — nenhum `ui.links` sai daí —, então sem isto o
+       * operador clicaria em MARCAR e o painel continuaria oferecendo MARCAR: a tela contradizendo
+       * um gesto que já aconteceu, que é o mesmo defeito do leitor que pedia um gesto já feito.
+       * A repintura sai do `prefs`, então vale também para escrita vinda do console numa medida.
+       */
+      const offMarca = aoMudar(() => pintar(attention.snapshot()));
 
       /*
        * Mount reads the STORE, not the last event — and this is the fix for a bug seen on screen.
@@ -88,12 +100,12 @@ export function registerContextWidget() {
        * present instead of waiting for the operator to move the mouse again.
        */
       pintar(attention.snapshot());
-      return { destroy: off };
+      return { destroy: () => { off(); offMarca(); } };
     },
   });
 }
 
-function desenhar(node, dirty, origin, vizinhos) {
+function desenhar(node, dirty, origin, vizinhos, rede, conceitos) {
   const linhas = [];
   const classe = classify(node, { dirty });
 
@@ -118,12 +130,20 @@ function desenhar(node, dirty, origin, vizinhos) {
    * sendo a resposta certa, porque ali ela é que decide o que a tela desenha.
    */
   const meta = el('div', 'hover-meta');
-  const corpo = classe.id === 'estrela' ? morphologyOf(node.kind).body.toUpperCase() : classe.name;
+  /*
+   * ⚠️ A CENA responde primeiro. Na UNIVERSO o corpo vem da ontologia nova (`entity-physics`), e
+   * ignorá-la fazia a HUD anunciar `GALÁXIA · dir · AGREGADO` sobre um agregado que aquela cena
+   * chama de SISTEMA — o modelo velho falando por cima do novo. `null` significa "a cena não tem
+   * opinião", e aí o catálogo antigo continua sendo a resposta certa.
+   */
+  const daCena = tipoDeCorpo(node.source);
+  const corpo = daCena
+    ?? (classe.id === 'estrela' ? morphologyOf(node.kind).body.toUpperCase() : classe.name);
   meta.textContent = [
     corpo,
     origin === 'focus' ? 'TRAVADO' : null,
     node.kind,
-    node.type === 'file' ? null : 'AGREGADO',
+    node.type === 'file' || daCena ? null : 'AGREGADO',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -139,7 +159,32 @@ function desenhar(node, dirty, origin, vizinhos) {
     if (node.churn) linhas.push(vital('REESCRITAS', `${node.churn}×`, 'em 30d'));
     if (dirty) linhas.push(vital('DISCO', DIRTY_LABELS[dirty] ?? dirty.toUpperCase()));
     if (node.indexed_at) linhas.push(vital('INDEXADO', node.indexed_at));
+    /*
+     * ALCANCE — e ele é o LEITOR de `connectivity`, não um enfeite.
+     *
+     * A dimensão nasceu materializada nesta sessão e sem consumidor ela seria mais um campo
+     * declarado que ninguém lê — o defeito que esta base já pagou cinco vezes. Aqui ela responde a
+     * pergunta que a rede acabou de levantar: dos vínculos deste corpo, quantos SAEM da pasta dele?
+     * A posição já comunica quem mora junto; isto é a outra metade.
+     *
+     * ⚠️ `typeof`, não `if (valor)`: `0` é uma medida — "todos os vínculos dele ficam em casa" — e
+     * um teste de verdade a apagaria justamente no corpo mais fechado do céu. `null` (não
+     * materializado) não escreve linha nenhuma, que é o silêncio honesto.
+     */
+    if (typeof node.connectivity === 'number') {
+      linhas.push(vital('ALCANCE', `${Math.round(node.connectivity * 100)}%`, 'fora do sistema'));
+    }
   }
+
+  /*
+   * A MARCA fecha o bloco DESTE corpo, antes dos vínculos, que já falam de outros.
+   *
+   * ⚠️ Ela é a única seção do painel que não é medida, e por isso ela mesma diz de que natureza é —
+   * a mesma disciplina de ASSUNTOS logo abaixo. As linhas acima saem de disco, de git e do snapshot;
+   * esta saiu de um gesto de gente, e a legitimidade da aparência nomeada depende de a tela dizer
+   * isso (`space/favoritos.js`, a condição 3).
+   */
+  linhas.push(...desenharFavorito(node));
 
   /*
    * VÍNCULOS antes de SEÇÕES, e a ordem foi corrigida OLHANDO.
@@ -148,7 +193,8 @@ function desenhar(node, dirty, origin, vizinhos) {
    * dobra do trilho — o painel existe para nomear os arcos e justamente isso ficava escondido
    * atrás do detalhe de um documento. O que responde à pergunta vem primeiro; o resto rola.
    */
-  linhas.push(...vinculos(vizinhos));
+  linhas.push(...vinculos(vizinhos, rede));
+  linhas.push(...assuntos(conceitos));
 
   const secoes = node.sections || [];
   if (secoes.length) {
@@ -182,8 +228,14 @@ function desenhar(node, dirty, origin, vizinhos) {
  * DELE, que é o gesto de percorrer o grafo. `ui.select` abriria o inspetor de conteúdo por cima,
  * e ler o arquivo é outra intenção, com outro caminho.
  */
-function vinculos(vizinhos) {
+function vinculos(vizinhos, rede) {
   const linhas = [titulo(vizinhos.length ? `VÍNCULOS · ${vizinhos.length}` : 'VÍNCULOS')];
+  if (rede?.indisponivel) {
+    // ⚠️ "Não materializei" ≠ "não tem vizinho". A frase é diferente de propósito: um snapshot
+    // ausente não pode ser lido como um corpo periférico — é o `null` ≠ `0` do lado do texto.
+    linhas.push(el('div', 'widget-empty', `rede não medida — ${rede.indisponivel}`));
+    return linhas;
+  }
   if (!vizinhos.length) {
     linhas.push(el('div', 'widget-empty', 'nenhum arco desenhado para este corpo'));
     return linhas;
@@ -199,8 +251,93 @@ function vinculos(vizinhos) {
     });
     linha.append(el('span', 'fs-glyph', vizinho.type === 'file' ? '·' : '▸'));
     linha.append(el('span', 'fs-name', vizinho.label || shortPath(alvo)));
-    linha.append(el('span', 'fs-meta', String(vizinho.chunks ?? '')));
+    /*
+     * O TIPO do vínculo no lugar da massa, quando ele existe.
+     *
+     * A cena UNIVERSO desenha vínculos de tipos diferentes ao mesmo tempo, com cores diferentes —
+     * e cor sem nome é decoração. `SIMILAR_TO` e `CO_EDITED` não afirmam a mesma coisa
+     * (`integracao-neo4j.md` §3.2.2), e a linha tem de dizer qual das duas está na tela junto com
+     * o número BRUTO que a sustenta: "3 commits" é verificável, "0,10" não é nada.
+     */
+    linha.append(el('span', 'fs-meta', vizinho.vinculo ? forcaDe(vizinho.vinculo) : String(vizinho.chunks ?? '')));
+    if (vizinho.vinculo) linha.dataset.vinculo = vizinho.vinculo.tipo;
     linhas.push(linha);
+  }
+  linhas.push(...legenda(rede));
+  return linhas;
+}
+
+/**
+ * ASSUNTOS — o P7, e a única seção deste painel que NÃO é fato.
+ *
+ * ⚠️ Ela diz de onde veio. As outras linhas saem de disco, de git ou de vetor e qualquer pessoa
+ * recalcula; esta saiu de um modelo, e duas execuções podem discordar. Um painel que apresenta
+ * inferência com a mesma voz de medida ensina o operador a confiar na coisa errada.
+ *
+ * ⚠️ E ela separa os dois tipos de assunto, porque eles afirmam coisas diferentes: exercido por UM
+ * corpo, o conceito DESCREVE o documento; por dois ou mais, ele LIGA os dois — e é o segundo que
+ * faz dois arquivos distantes se tocarem. Medido: dos 100 conceitos do corpus, só 16 ligam.
+ */
+function assuntos(conceitos) {
+  const lista = conceitos?.lista;
+  if (!lista?.length) return [];
+  const linhas = [titulo(`ASSUNTOS · ${lista.length}`)];
+  for (const c of [...lista].sort((a, b) => b.corpos - a.corpos)) {
+    const linha = el('div', 'vital');
+    linha.append(
+      el('span', 'vital-label', c.label),
+      el('strong', 'vital-value', c.corpos > 1 ? `${c.corpos}` : '·')
+    );
+    linha.append(el('span', 'vital-unit', c.corpos > 1 ? 'corpos' : 'só aqui'));
+    linhas.push(linha);
+  }
+  linhas.push(el('div', 'widget-hint', `inferido por ${conceitos.modelo} — não é medida`));
+  return linhas;
+}
+
+/** Como se lê cada tipo — a legenda do §3.2.2, que é o que impede a cor de ser enfeite. */
+const LEITURA = {
+  SIMILAR_TO: 'afinidade semântica',
+  CO_EDITED: 'afinidade de trabalho',
+  REFERENCES: 'dependência documental',
+  IMPORTS: 'dependência estrutural',
+  TOUCHED: 'uso por agentes',
+};
+
+/**
+ * O valor BRUTO do vínculo, na unidade dele.
+ *
+ * ⚠️ Contagem e score não se escrevem igual: "3×" é verificável (três commits, três citações) e
+ * "0,74" é um cosseno. Formatar os dois do mesmo jeito faria a legenda afirmar precisão onde há
+ * contagem, e contagem onde há medida contínua.
+ */
+const CONTAGEM = new Set(['CO_EDITED', 'REFERENCES', 'IMPORTS']);
+const forcaDe = (v) => (CONTAGEM.has(v.tipo) ? `${v.valor}×` : v.valor.toFixed(2));
+
+/**
+ * O que a rede desenhou, o que ela CORTOU, e quando mediu.
+ *
+ * ⚠️ Sem a contagem cortada, um corpo de 113 vínculos mostra 28 e a tela afirma que são todos —
+ * truncamento silencioso lê como "isto é tudo o que existe". O teto está no snapshot e a legenda
+ * sai do mesmo lugar que o desenho, então as duas nunca discordam.
+ */
+function legenda(rede) {
+  if (!rede?.total) return [];
+  const linhas = [];
+  const total = Object.values(rede.total).reduce((a, b) => a + b, 0);
+  for (const [tipo, n] of Object.entries(rede.total).sort()) {
+    const linha = el('div', 'vital');
+    linha.append(el('span', 'vital-label', LEITURA[tipo] || tipo), el('strong', 'vital-value', String(n)));
+    linha.dataset.vinculo = tipo;
+    linhas.push(linha);
+  }
+  if (total > (rede.desenhados ?? 0)) {
+    linhas.push(el('div', 'widget-hint', `${total - rede.desenhados} não desenhados — o teto é ${rede.teto ?? '?'} arcos`));
+  }
+  if (rede.recusados) {
+    // Vizinho que não é corpo desta cena. Some do desenho por não ter onde aterrissar, e some
+    // dito — descartar em silêncio faria a soma da legenda não fechar sem explicação.
+    linhas.push(el('div', 'widget-hint', `${rede.recusados} vizinho(s) fora desta cena`));
   }
   return linhas;
 }

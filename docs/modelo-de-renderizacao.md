@@ -333,7 +333,7 @@ a decisão fica sem dono.
 
 **O solver precisa ser OBSERVÁVEL.** Um modificador descartado em silêncio é indistinguível de um
 fato ausente: "por que este arquivo sujo não tem anel?" passa a não ter resposta na tela nem no
-console. A sonda (`window.espatial.planet()`) já segue essa disciplina — ela escreve inclusive o caso
+console. A sonda (`window.spatia.planet()`) já segue essa disciplina — ela escreve inclusive o caso
 negativo, porque *"diagnóstico que só existe no caminho feliz não é diagnóstico"*. O solver expõe
 pela mesma sonda os candidatos rejeitados **com o motivo**.
 

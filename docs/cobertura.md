@@ -50,7 +50,7 @@ que o caracteriza não tem régua*. Os três eixos acima têm slider próprio em
 ⚠️ **Um quarto foi acusado por engano, e o erro era do censo.** O sistema de luas Roche→Hill
 parecia morto (zero luas) porque a medição chamava `moonsOf` no nó CRU do servidor — e ele precisa
 do RAIO ORBITAL, que nasce em `graph.js:load` a partir da recência e não existe no payload. A cena
-tinha 197 luas em órbita o tempo todo. A sonda `window.espatial.moons()` foi criada para que a
+tinha 197 luas em órbita o tempo todo. A sonda `window.spatia.moons()` foi criada para que a
 pergunta tenha uma resposta que não dependa de reimplementar a lei fora do dono dela.
 
 ## A causa é comum, e por isso o conserto é barato

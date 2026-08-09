@@ -7,7 +7,7 @@
  * ⚠️ **O SpatIA NÃO INDEXA.** Ele lê uma coleção que outro pipeline escreveu, então não existe
  * botão REINDEXAR. Reconstruir a TOPOLOGIA, sim, é deste sistema — e esse botão é real.
  */
-import { registerApp } from '../kernel/registry.js';
+import { declararApp } from './residentes.js';
 import { listWidget } from './widgets-core.js';
 import { el, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
@@ -70,7 +70,7 @@ export function registerStorage() {
   registerCoverage();
   registerCaches();
 
-  registerApp({
+  declararApp({
     id: 'storage',
     name: 'ARMAZENAMENTO',
     tagline: 'o corpus é confiável?',

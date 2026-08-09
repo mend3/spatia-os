@@ -5,10 +5,9 @@
  * de widgets é a ordem visual, e a ordem de registro dos apps é a ordem na dock e nos atalhos
  * numéricos — `1` abre o primeiro.
  *
- * `answer` entra em TODAS as listas, como `context`, `sky-time` e `timeline`. O compositor é
- * residente e se pergunta de qualquer rota — se a resposta só tivesse onde aparecer em algumas,
- * as outras executariam, pagariam e jogariam o texto no sótão. Ele não desenha nada enquanto não
- * há resposta, então custa zero na tela que não a usa.
+ * O CONJUNTO RESIDENTE — os widgets que toda lista monta, e o motivo de cada um — está em
+ * `residentes.js`, e `declararApp` recusa a lista que não o traz. Repeti-lo aqui em prosa foi
+ * exatamente como `#/security` perdeu a `timeline` sem nada acusar.
  *
  * A **Ponte MCP** merece uma nota de honestidade: este servidor NÃO é cliente MCP. Os
  * servidores (Slack, Notion, Drive, hub-board) são alcançados pelo agente, não por aqui.
@@ -16,7 +15,8 @@
  * poderia falsificar uma lista de canais e ninguém notaria na tela — e é exatamente por isso
  * que não faz.
  */
-import { registerApp } from '../kernel/registry.js';
+import { ROUTE_ROOT } from '../kernel/registry.js';
+import { declararApp, declararVista } from './residentes.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
 import { registerContextWidget } from './context.js';
@@ -50,7 +50,7 @@ export function registerApps() {
   registerWebWidgets();
   registerBridgeWidgets();
 
-  registerApp({
+  declararApp({
     id: 'files',
     name: 'ARQUIVOS',
     tagline: 'o grafo como sistema de arquivos',
@@ -62,18 +62,10 @@ export function registerApps() {
     claims: ['ui.select:file', 'ui.select:dir'],
     // A janela do tempo entra aqui também: este é o app sobre o corpus, e navegar o corpus por
     // data é a mesma operação que navegá-lo por pasta.
-    /*
-     * `context` entra em TODAS as listas, como `sky-time` e `timeline`.
-     *
-     * O céu está visível em toda rota, e o painel fala do céu — mas ele só existia na vista de
-     * sistema, e clicar num astro NAVEGA (o router leva para `files`). O gesto que trava a câmera
-     * era o mesmo que apagava o painel que ia descrever o astro travado. Widget de rota única para
-     * uma superfície que não é de rota nenhuma.
-     */
     widgets: ['context', 'fs-tree', 'fs-shape', 'fs-locate', 'fs-content', 'answer', 'sky-time', 'timeline'],
   });
 
-  registerApp({
+  declararApp({
     id: 'system',
     name: 'SISTEMA',
     tagline: 'saúde, custo, permissões, afinação',
@@ -82,7 +74,7 @@ export function registerApps() {
     widgets: ['context', 'sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'answer', 'sky-time', 'timeline'],
   });
 
-  registerApp({
+  declararApp({
     id: 'web',
     name: 'WEB',
     tagline: 'provedores, resultados, ingestão',
@@ -91,7 +83,7 @@ export function registerApps() {
     widgets: ['context', 'web-search', 'web-providers', 'web-results', 'answer', 'sky-time', 'timeline'],
   });
 
-  registerApp({
+  declararApp({
     id: 'bridge',
     name: 'PONTE',
     tagline: 'integrações, webhooks, MCP',
@@ -114,8 +106,13 @@ export function registerApps() {
   registerStorage();
 }
 
-/** Widgets da vista de sistema (a rota raiz). */
-export const SYSTEM_VIEW = [
+/**
+ * Widgets da vista de sistema (a rota raiz).
+ *
+ * ⚠️ Ela é a DÉCIMA rota e não passa pelo registro de apps — um portão montado só no `registerApp`
+ * deixaria justamente a rota inicial de fora. `declararVista` é o mesmo portão para ela.
+ */
+export const SYSTEM_VIEW = declararVista(ROUTE_ROOT, [
   'vitals', 'plan', 'timeline', 'answer',
   /*
    * O CONTEXTO abre o trilho da direita: é o widget de maior taxa de mudança da vista (troca a
@@ -123,10 +120,8 @@ export const SYSTEM_VIEW = [
    * acontecendo AGORA. Abaixo dele fica o que só muda quando o núcleo responde.
    */
   'context', 'memory', 'tools', 'web-results',
-  // A fenda `strip` é dos residentes, e o scrubber pertence a ela: ele controla o CÉU, que está
-  // visível em toda rota, então tirá-lo da tela deixaria a janela temporal ativa e sem controle.
   'sky-time',
-];
+]);
 
 // ---------------------------------------------------------------- ARQUIVOS
 
@@ -1159,6 +1154,11 @@ function registerBridgeWidgets() {
     id: 'br-deliveries',
     title: 'ENTREGAS RECENTES',
     slot: 'stage',
+    // DECIDIDO que sim: são linhas de texto no centro do palco, que é onde o disco de acreção é
+    // desenhado. Sem a moldura opaca o disco atravessa a lista — o mesmo caso que `index.html`
+    // nomeia na superfície de painel, e o que separa isto da RESPOSTA (prosa sobre o céu, que
+    // fica sem moldura de propósito) é que uma entrega não tem lugar nenhum no céu.
+    surface: true,
     render(view) {
       async function draw() {
         try {

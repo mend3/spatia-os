@@ -23,6 +23,9 @@ tempo real, e não está gravado no arquivo.
 | alta | 3200×1800 | `<id>.jpg` |
 | baixa | 1280×720 | `<id>-low.jpg` |
 
-**São os únicos binários do projeto.** Todo o resto — áudio, anéis, buraco negro, campo estelar —
-é procedural. A exceção existe porque nebulosa sintética parece ruído fractal, e o que se quer
-aqui é a imagem que existe de verdade.
+**A exceção existe porque nebulosa sintética parece ruído fractal**, e o que se quer aqui é a
+imagem que existe de verdade. Anéis, buraco negro e campo estelar continuam procedurais, e o motor
+de áudio é síntese pura, sem asset.
+
+⚠️ Estes **não são os únicos binários** — o inventário completo, com licença e pendências, está em
+[`../CREDITS.md`](../CREDITS.md).

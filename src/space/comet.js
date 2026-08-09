@@ -532,6 +532,8 @@ export function createComet() {
   const DIREITA = new THREE.Vector3();
   const CIMA_CAM = new THREE.Vector3();
   const PARA_FONTE = new THREE.Vector3();
+  /** A fonte padrão: a ORIGEM. Ver a nota de `fonte` no `update`. */
+  const ORIGEM = new THREE.Vector3();
   const PARA_FORA = new THREE.Vector3();
   const OLHAR = new THREE.Vector3();
   const CIMA = new THREE.Vector3();
@@ -549,7 +551,19 @@ export function createComet() {
      * @param {boolean} reduced  `prefers-reduced-motion` — congela escoamento e rotação
      * @returns {number} nível de detalhe aplicado, 0…1
      */
-    update(params, position, camera, px, elapsed, reduced = false) {
+    /**
+     * @param {THREE.Vector3} [fonte]  DE ONDE VEM A LUZ que empurra as caudas. Padrão: a origem.
+     *
+     * ⚠️ **Ele era implícito, e implícito só funcionava numa das duas cenas.** Na AGENTE a origem é
+     * o buraco negro — um corpo emissivo real —, então `−normalize(position)` acertava. Na cena
+     * UNIVERSO **não há nada na origem**: toda cauda apontaria para longe do vazio, reafirmando o
+     * centro único que essa cena existe para negar. É a mesma correção que o `CORPO_VS` já fez para
+     * a luz (*"cada planeta é iluminado pela ESTRELA DELE"*) e que a câmera fez para a âncora.
+     *
+     * O padrão `ORIGEM` reproduz o comportamento anterior EXATAMENTE: `normalize(0 − position)` é
+     * `−normalize(position)`. Nenhum chamador antigo muda de imagem.
+     */
+    update(params, position, camera, px, elapsed, reduced = false, fonte = ORIGEM) {
       /*
        * O MESMO PORTÃO DA GERAÇÃO PROCEDURAL vale para o escoamento, e ele já está aqui.
        *
@@ -579,7 +593,10 @@ export function createComet() {
        * apontam. O crescente iluminado e o rastro ficam em lados opostos, que é a geometria real
        * de um cometa e o que amarra as três partes numa leitura só.
        */
-      nucleoMat.uniforms.uLight.value.copy(position).normalize().negate();
+      // A direção da fonte, calculada UMA vez: o núcleo aceso, a coma e as caudas leem a mesma.
+      PARA_FONTE.copy(fonte).sub(position).normalize();
+      if (PARA_FONTE.lengthSq() < 1e-6) PARA_FONTE.set(1, 0, 0);
+      nucleoMat.uniforms.uLight.value.copy(PARA_FONTE);
 
       comaMat.uniforms.uColor.value.set(params.color);
       comaMat.uniforms.uAmount.value = params.amount * level;
@@ -597,7 +614,6 @@ export function createComet() {
        */
       DIREITA.setFromMatrixColumn(camera.matrixWorld, 0);
       CIMA_CAM.setFromMatrixColumn(camera.matrixWorld, 1);
-      PARA_FONTE.copy(position).normalize().negate();
       comaMat.uniforms.uSun.value.set(PARA_FONTE.dot(DIREITA), PARA_FONTE.dot(CIMA_CAM)).normalize();
 
       /*
@@ -609,8 +625,7 @@ export function createComet() {
        * movimento reconhecível. O terceiro eixo é a linha de visada, então a curvatura da poeira
        * arqueia no plano da tela em vez de sumir em profundidade.
        */
-      PARA_FORA.copy(position).normalize();
-      if (PARA_FORA.lengthSq() < 1e-6) PARA_FORA.set(1, 0, 0);
+      PARA_FORA.copy(PARA_FONTE).negate();
       OLHAR.copy(camera.position).sub(position).normalize();
       CIMA.crossVectors(OLHAR, PARA_FORA).normalize();
       BASE.makeBasis(PARA_FORA, CIMA, OLHAR);

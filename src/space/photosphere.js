@@ -42,6 +42,55 @@ import { MOTION } from './motion-catalog.js';
 import { glslFloat } from './glsl.js';
 
 const BOIL = MOTION.boil.rates;
+
+/**
+ * A PELE FOTOGRAFADA de uma estrela — uma imagem para todas, colorida por temperatura.
+ *
+ * ⭑ **Procedência RESOLVIDA, e por hash — não por semelhança.** `assets/textures/sun.jpg` é a
+ * *2k Sun* do **Solar System Scope**, **CC BY 4.0**: o `sha256` do arquivo aqui e o do
+ * `solarsystemscope.com/textures/download/2k_sun.jpg` são o mesmo. Ela havia chegado por um
+ * intermediário que não declara licença nenhuma — e intermediário não licencia o que não é dele.
+ * A atribuição exigida está em `assets/CREDITS.md`, junto do comando que reconfere.
+ *
+ * ⚠️ **O carregamento é OPCIONAL e assíncrono, e a falta dela não pode apagar a estrela.** A força
+ * só sobe depois que a imagem chega; se ela não existir, `onError` deixa tudo como está e o céu
+ * desenha a granulação procedural sozinha, como desenhava antes.
+ */
+const MAPA_SOLAR = { textura: null, pronta: false };
+const FORCA_DO_MAPA = 0.55;
+
+/** Carrega a pele solar uma vez, para todas as estrelas. Chamado no primeiro `build()`. */
+function carregarMapaSolar(aoChegar) {
+  if (MAPA_SOLAR.textura) return;
+  MAPA_SOLAR.textura = new THREE.TextureLoader().load(
+    '/assets/textures/sun.jpg',
+    (t) => {
+      /*
+       * `SRGBColorSpace`: o JPEG está em sRGB e o cálculo do shader é linear. Sem isto a
+       * luminância vem com gama embutida, o desvio em torno de 0,5 fica torto e o grão sai com
+       * contraste errado — o tipo de erro que parece "escolha de valor" e é conversão faltando.
+       */
+      t.colorSpace = THREE.SRGBColorSpace;
+      /*
+       * ESPELHADA nos dois eixos. A projeção equirretangular dá a volta em `u`, e desde que a
+       * escala passou a seguir a temperatura o `v` também sai de [0,1] — com `ClampToEdge` a
+       * última linha da imagem viraria uma faixa esticada sobre o polo. Espelhar fecha a costura
+       * sem repetir o mesmo pedaço reconhecível lado a lado.
+       */
+      t.wrapS = THREE.MirroredRepeatWrapping;
+      t.wrapT = THREE.MirroredRepeatWrapping;
+      t.anisotropy = 4;
+      MAPA_SOLAR.pronta = true;
+      aoChegar?.();
+    },
+    undefined,
+    () => {
+      // Sem imagem, sem acréscimo — e sem erro no console de quem clonou o repo sem os assets.
+      MAPA_SOLAR.textura = null;
+      MAPA_SOLAR.pronta = false;
+    }
+  );
+}
 const SPIN = MOTION.spin;
 
 /**
@@ -138,6 +187,9 @@ const FRAGMENT = /* glsl */ `
   // Rotacao propria: angulo acumulado e eixo (inclinacao). Ver photosphereParams.
   uniform float uSpin;
   uniform float uTilt;
+  uniform sampler2D uMapa;
+  uniform float uMapaForca;
+  uniform float uCroma;
   varying vec3 vObject;
 
   // Taxas de fervura, do motion-catalog.js. A ORDEM entre elas e a fisica: supergranulacao
@@ -195,6 +247,67 @@ const FRAGMENT = /* glsl */ `
     float cells = granulation(corpo);
 
     /*
+     * ─────────────────── A TEXTURA DO SOL, e ela entra como DETALHE, nao como cor
+     *
+     * A pele fotografada da uma estrutura de granulacao que ruido nenhum reproduz de graca. Mas
+     * ela e UMA imagem, e o ceu tem muitas estrelas: usada como cor, todas ficariam laranjas e
+     * iguais — que e exatamente o defeito que a temperatura existe para negar (a mesma textura em
+     * outra posicao nao le como outro corpo).
+     *
+     * Entao o que se usa dela e a LUMINANCIA, centrada em zero, somada ao campo de granulacao que
+     * ja existe. Tres coisas se preservam por construcao:
+     *
+     * - a COR continua vindo de uHot/uCool, isto e, da temperatura derivada da massa;
+     * - a FERVURA continua viva, porque o termo procedural anda no tempo e a foto nao;
+     * - o LIMBO, as manchas e as faculas continuam sendo fisica, nao pixel.
+     *
+     * A projecao e equirretangular sobre o vetor do CORPO (ja girado pelo eixo), entao a textura
+     * gira com a estrela em vez de ficar colada na tela. E o deslocamento por uSeed impede que
+     * duas estrelas mostrem a mesma mancha no mesmo lugar.
+     */
+    vec3 croma = vec3(1.0);
+    if (uMapaForca > 0.0) {
+      /*
+       * ⚠️ A foto e UMA so, e deslocar a longitude nao basta: e literalmente "a mesma textura em
+       * outra posicao", que este modulo ja registra como o que o olho NAO le como outro corpo.
+       * Girar tambem em latitude troca o pedaco do mapa que cruza o disco visivel E move os polos,
+       * entao duas estrelas mostram regioes diferentes da imagem em orientacoes diferentes.
+       */
+      float giroLat = (fract(uSeed * 7.31) - 0.5) * 2.4;
+      float cl = cos(giroLat);
+      float sl = sin(giroLat);
+      vec3 d = normalize(corpo);
+      d = vec3(d.x, d.y * cl - d.z * sl, d.y * sl + d.z * cl);
+      vec2 uv = vec2(atan(d.z, d.x) / 6.2831853 + 0.5 + uSeed, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+      /*
+       * ⚠️ A ESCALA da foto segue a temperatura, e sem isso ela CANCELA a fisica.
+       *
+       * uCells ja diz quantos granulos cabem na volta — estrela fria tem granulo GRANDE. Amostrada
+       * em escala fixa, a foto impunha o mesmo tamanho de grao a todas as estrelas e apagava
+       * exatamente o eixo que separa uma da outra. Aqui ela e esticada ou repetida na razao entre o
+       * uCells do corpo e o do Sol, que e a referencia de onde a imagem veio.
+       */
+      uv *= uCells / ${glslFloat(CELLS)};
+      vec3 amostra = texture2D(uMapa, uv).rgb;
+      float lum = dot(amostra, vec3(0.2126, 0.7152, 0.0722));
+      // Centrada: o que interessa e o DESVIO em relacao ao brilho medio da foto, que e o grao.
+      // Somar a luminancia crua deslocaria a exposicao inteira e apagaria o escurecimento de limbo.
+      // A forca tambem varia por corpo: com uma foto so para todo o ceu, um peso unico faz de
+      // todas as estrelas a mesma mistura. O desvio e do proprio hash do corpo.
+      float peso = uMapaForca * (0.55 + fract(uSeed * 13.7) * 0.9);
+      cells += (lum - 0.5) * 2.0 * peso;
+      /*
+       * O MATIZ da foto, separado do brilho dela.
+       *
+       * Dividir a amostra pela propria luminancia deixa so a RAZAO entre canais — a cor sem a
+       * intensidade. Assim o vermelho de uma regiao quente da foto aquece aquele ponto sem
+       * clarea-lo, e o brilho continua saindo inteiro da fisica (limbo, granulacao, faculas).
+       * uCroma decide quanto disso passa; em 0 a estrela volta a ser so temperatura.
+       */
+      croma = mix(vec3(1.0), amostra / max(lum, 0.001), uCroma);
+    }
+
+    /*
      * MANCHAS. Campo separado, de escala muito maior, cortado por limiar alto — mancha e evento
      * raro e localizado, nao modulacao continua do brilho. Elas tambem migram, so que devagar
      * demais para se perceber num olhar; o termo de tempo existe para que duas visitas ao mesmo
@@ -238,7 +351,12 @@ const FRAGMENT = /* glsl */ `
      * alaranjada CONTRA o branco, e nao cinza.
      */
     float cold = clamp(spot * 0.85 + max(-cells, 0.0) * 0.45, 0.0, 1.0);
-    vec3 color = mix(uHot, uCool, cold);
+    /*
+     * ⚠️ A TEMPERATURA continua mandando na cor; a foto so a MODULA. Invertido — a foto como cor
+     * base — todas as estrelas do ceu ficariam laranjas iguais, e a temperatura, que e derivada da
+     * massa e existe justamente para duas estrelas serem duas estrelas, deixaria de aparecer.
+     */
+    vec3 color = mix(uHot, uCool, cold) * croma;
 
     /*
      * EXPOSICAO. A conta acima e fisica e passa de 1 com folga (limbo ~1 vezes granulacao
@@ -321,9 +439,28 @@ export function photosphereParams(node, hash01, kindColor) {
    * O hash entra como DESVIO pequeno (±12%), não como fonte: sem ele, dois arquivos de mesmo
    * tamanho seriam gêmeos exatos; com ele mandando, a temperatura deixaria de informar.
    */
-  const massa = Number.isFinite(node.massRank)
-    ? node.massRank
-    : THREE.MathUtils.clamp(Math.log2(1 + chunks) / MASS_LOG_FULL, 0, 1);
+  /*
+   * ⚠️ **A temperatura de uma estrela é o posto dela entre ESTRELAS, não entre todos os arquivos.**
+   *
+   * `massRank` é a posição no ranking de massa do céu inteiro, e desde que a ontologia nova passou a
+   * eleger a estrela como a entidade DOMINANTE do sistema isso virou uma constante disfarçada: a
+   * estrela é, por definição, o arquivo mais massivo da pasta dela, então todas caem no topo do
+   * ranking global. Medido no `espatial_vivo`: das 17 estrelas, **dez têm `massRank` acima de 0,85**
+   * e catorze acima de 0,47. O eixo chegava saturado, e o céu ficava com dezessete estrelas iguais —
+   * relatado exatamente assim.
+   *
+   * `postoEstelar` é o posto DENTRO da população estelar, escrito por quem sabe quem é estrela
+   * (`universe.js`). Ele devolve a faixa inteira, e é também a comparação certa em física: a
+   * temperatura efetiva de uma estrela se lê contra outras estrelas, não contra planetas.
+   *
+   * A queda para `massRank` e depois para o log da massa continua, porque quem chama daqui pode não
+   * ter população estelar nenhuma para ranquear — e um número saturado ainda é melhor que nenhum.
+   */
+  const massa = Number.isFinite(node.postoEstelar)
+    ? node.postoEstelar
+    : Number.isFinite(node.massRank)
+      ? node.massRank
+      : THREE.MathUtils.clamp(Math.log2(1 + chunks) / MASS_LOG_FULL, 0, 1);
   const temp = THREE.MathUtils.clamp(massa * 0.88 + (seed - 0.5) * 0.24, 0, 1);
 
   /*
@@ -338,11 +475,46 @@ export function photosphereParams(node, hash01, kindColor) {
    * frio para o laranja (0,07). O tipo continua governando o traço de cor; a temperatura governa
    * de que lado do branco ele cai — que é o que separa um corpo do outro à primeira vista.
    */
-  const matizQuente = THREE.MathUtils.lerp(hsl.h, 0.58, temp * 0.55);
+  /*
+   * ⚠️ **A MATIZ BASE passou a ser a TEMPERATURA; o `kind` virou desvio.** Ela era o contrário — a
+   * matiz do tipo, empurrada um pouco para o azul conforme a temperatura — e nesta ontologia isso
+   * empata o céu: **13 das 17 estrelas são `kind: other`**, então 76% delas partiam da mesma matiz
+   * cinza-azulada e chegavam à mesma cor.
+   *
+   * Agora a temperatura varre a sequência real, de laranja (0,075) a branco-azulado (0,58), e o
+   * tipo entra como 30% de desvio — o suficiente para um `doc` e um `config` de mesma massa não
+   * serem gêmeos, sem devolver o empate. A regra do §4 do replanejamento continua valendo: o
+   * `kind` perdeu o CORPO e mantém a COR — ele só deixou de ser a única voz nela.
+   *
+   * E a SATURAÇÃO agora cai com a temperatura em vez de subir: estrela fria é laranja saturada,
+   * estrela quente é quase branca. Era o oposto, e por isso as frias saíam brancas como as
+   * quentes.
+   */
+  /*
+   * ⚠️ **O caminho entre laranja e azul passa pelo BRANCO, não pelo verde** — e interpolar a matiz
+   * direto foi um erro meu que a medida pegou: em `temp` 0,5 a matiz caía em 0,33, e o céu ganhava
+   * estrelas VERDES. Não existe estrela verde: o locus de Planck atravessa o branco, e é a
+   * SATURAÇÃO que vai a zero no meio, não a matiz que passeia pelo espectro.
+   *
+   * Então a matiz tem dois ancoradouros — laranja no frio, azul no quente — e quem varia
+   * continuamente é a saturação, que morre no tipo solar. É a mesma leitura de um diagrama H-R:
+   * K/M laranja saturada · G branca · B azul-clara.
+   */
+  const quente = temp >= 0.5;
+  const matizBase = quente ? 0.58 : 0.075;
+  /*
+   * O `kind` entra como DESVIO pequeno e limitado, nunca como matiz base: a diferença de matiz é
+   * medida pelo caminho curto no círculo e presa a ±0,06 (~22°). Sem a trava, um tipo azul puxando
+   * uma estrela fria devolveria o verde pela porta dos fundos.
+   */
+  const curto = ((hsl.h - matizBase + 1.5) % 1) - 0.5;
+  const desvio = THREE.MathUtils.clamp(curto * 0.35, -0.06, 0.06);
+  // A distância ao tipo solar é o que satura: 0 no meio (branca), 1 nos extremos.
+  const extremo = Math.abs(temp - 0.5) * 2;
   const hot = new THREE.Color().setHSL(
-    matizQuente,
-    Math.min(hsl.s, 0.34) * (0.6 + temp * 0.7),
-    THREE.MathUtils.lerp(0.88, 0.97, temp)
+    (matizBase + desvio + 1) % 1,
+    extremo * (quente ? 0.3 : 0.62) * (0.7 + Math.min(hsl.s, 0.5) * 0.6),
+    THREE.MathUtils.lerp(0.74, 0.97, temp)
   );
   const cool = new THREE.Color().setHSL(
     THREE.MathUtils.lerp(0.045, 0.11, temp),
@@ -454,6 +626,26 @@ export function createPhotosphere() {
         uCells: { value: 26.0 },
         uUmbra: { value: 0.19 },
         uDetail: { value: 0 },
+        uMapa: { value: MAPA_SOLAR.textura },
+        /*
+         * ⚠️ **Zero enquanto a imagem não chegou, e zero para sempre se ela não existir.**
+         *
+         * A pele fotografada é um ACRÉSCIMO, não um requisito: um clone sem `assets/textures/` tem
+         * de desenhar a estrela do mesmo jeito, com a granulação procedural sozinha. Sem esta
+         * guarda o shader amostraria uma textura nula e o corpo sairia preto — a falha silenciosa
+         * clássica, e a pior possível aqui, porque ela some justamente com o corpo que emite luz.
+         */
+        uMapaForca: { value: 0 },
+        /*
+         * Quanto do MATIZ da foto atravessa. Ela é uma imagem do SOL — uma anã G — e o céu tem
+         * estrelas de outras temperaturas; deixar a cor dela dominar pintaria todas de laranja.
+         * ⚠️ **Ele é um EQUALIZADOR, e por isso desceu de 0,45 para 0,22.** A foto é a mesma para
+         * todo o céu, então o matiz dela é a única coisa que TODAS as estrelas compartilham — em
+         * 0,45 ele pintava as dezessete do mesmo salmão e cobria a temperatura, que é justamente o
+         * eixo que as separa. Em 0,22 as regiões ativas continuam aquecendo o disco sem impor a
+         * cor de uma anã G a uma estrela azul.
+         */
+        uCroma: { value: 0.22 },
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
@@ -467,6 +659,15 @@ export function createPhotosphere() {
     // toda a estrutura mora no fragmento.
     mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), material);
     group.add(mesh);
+    /*
+     * A força sobe no CALLBACK, não aqui: entre o pedido e a chegada da imagem existem quadros, e
+     * ligar antes faria o shader amostrar uma textura vazia — estrela preta por um instante, que é
+     * o mesmo modo de falha que a guarda do uniforme evita no caso permanente.
+     */
+    carregarMapaSolar(() => {
+      material.uniforms.uMapa.value = MAPA_SOLAR.textura;
+      material.uniforms.uMapaForca.value = FORCA_DO_MAPA;
+    });
   }
 
   return {

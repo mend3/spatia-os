@@ -47,8 +47,76 @@ const claims = new Map();
  */
 const keys = new Map();
 
+/**
+ * O CATÁLOGO do contrato de widget: o que ele ACEITA, e de que cada chave responde.
+ *
+ * ⚠️ Esta tabela é a fonte única do vocabulário — a assinatura em `@param` seria uma segunda,
+ * livre para divergir em silêncio. Chave nova entra AQUI, com a frase do que ela responde, e o
+ * portão passa a aceitá-la sem ninguém editar mais nada.
+ *
+ * ☠️ **Chave declarada precisa de LEITOR.** Um campo que ninguém lê é o `orbit` do manifesto de
+ * app outra vez: copiado por cada registro novo, sem efeito nenhum. `scripts/lei-catalogo.mjs`
+ * varre os dois sentidos — declarada sem leitor, e lida sem declaração.
+ */
+export const VOCABULARIO_DO_WIDGET = Object.freeze({
+  id: 'identidade — o nome pelo qual o app pede o widget e o host o encontra',
+  title: 'o rótulo da seção, e o alvo de clique que a recolhe',
+  hint: 'o texto pequeno à direita do rótulo (contagem, estado)',
+  slot: 'em que FENDA cabe — uma de `FENDAS`',
+  grow: 'peso elástico na fenda (flex); 0 = altura do conteúdo',
+  collapsed: 'nasce recolhido? só vale onde há rótulo para recolher',
+  surface: 'é JANELA? o palco não tem moldura, e quem precisa de fundo declara que precisa',
+  mount: '(host, ctx) => ({ destroy? }) | void — quem desenha',
+});
+
+/**
+ * As FENDAS do layout: o que cada uma significa, o que EXIGE declarado e o que ela PROÍBE.
+ *
+ * A semântica é a de `OS-SCREENS.md` §0 e mora aqui porque o portão a usa — doc não recusa nada.
+ *
+ * ⚠️ **`exige` é sobre DECLARAR, não sobre o valor.** No palco, `surface` ausente e
+ * `surface: false` não são a mesma coisa: um é "ninguém decidiu", o outro é "decidi que não".
+ * É a distinção `null` ≠ `0` das leis do Neo4j aplicada ao contrato — e é a que faltava quando um
+ * widget de palco nasceu sem fundo e o disco de acreção atravessou o texto da página
+ * (`index.html:811-814`).
+ *
+ * ⚠️ **`proibe` é a proibição em campo próprio, com leitor** — a REGRA DO CATÁLOGO manda nomear o
+ * que se aceita, e o que se recusa vai em campo separado em vez de virar exclusão espalhada. No
+ * palco o host não desenha rótulo (`kernel/widgets.js:104`), então `collapsed` ali promete um
+ * recolhimento que não existe: declaração inerte é invariante declarada e não implementada.
+ */
+export const FENDAS = Object.freeze({
+  left: Object.freeze({
+    semantica: 'o que É — identidade, configuração, o estado declarado',
+    exige: Object.freeze([]),
+    proibe: Object.freeze([]),
+  }),
+  right: Object.freeze({
+    semantica: 'o que está ACONTECENDO — medido, observado, agora',
+    exige: Object.freeze([]),
+    proibe: Object.freeze([]),
+  }),
+  stage: Object.freeze({
+    semantica: 'o OBJETO do app — a coisa única que a tela serve para olhar',
+    exige: Object.freeze(['surface']),
+    proibe: Object.freeze(['collapsed']),
+  }),
+  strip: Object.freeze({
+    semantica: 'RESIDENTES — o que nunca deve sair da tela',
+    exige: Object.freeze([]),
+    proibe: Object.freeze([]),
+  }),
+});
+
 /** As fendas do layout. `stage` é o centro, onde a resposta nasce. */
-export const SLOTS = ['left', 'right', 'stage', 'strip'];
+export const SLOTS = Object.freeze(Object.keys(FENDAS));
+
+/** O contrato aceita esta chave? */
+export const aceitaNoWidget = (chave) => Object.hasOwn(VOCABULARIO_DO_WIDGET, chave);
+/** O que esta fenda exige DECLARADO — leitor de `FENDAS.exige`. */
+export const exigidasDaFenda = (slot) => FENDAS[slot]?.exige ?? [];
+/** O que esta fenda recusa — leitor de `FENDAS.proibe`. */
+export const proibidasNaFenda = (slot) => FENDAS[slot]?.proibe ?? [];
 
 /**
  * @param {object} manifest
@@ -100,22 +168,50 @@ export function registerApp(manifest) {
 }
 
 /**
- * @param {object} contract
- * @param {string} contract.id
- * @param {string} contract.title       rótulo do widget
- * @param {string} [contract.hint]      texto pequeno à direita do rótulo
- * @param {string} contract.slot        uma de SLOTS
- * @param {number} [contract.grow]      peso na fenda (flex); 0 = altura do conteúdo
- * @param {Function} contract.mount     (host, ctx) => ({ destroy? }) | void
+ * Registra um widget. As chaves aceitas — e de que cada uma responde — estão em
+ * `VOCABULARIO_DO_WIDGET`; o que cada fenda exige e proíbe, em `FENDAS`.
+ *
+ * ☠️ **A recusa é no REGISTRO, alta, como a da tecla duplicada.** `...contract` espalhado sem
+ * conferência aceitava qualquer chave: `surafce: true` entrava, ninguém lia, e o defeito só
+ * aparecia como um painel sem fundo — uma fenda vazia não diz o motivo, e um campo ignorado diz
+ * menos ainda. O erro tem de estourar no boot, com o nome do culpado (`main.js:146-150`).
+ *
+ * @param {object} contract  as chaves de `VOCABULARIO_DO_WIDGET`
  */
 export function registerWidget(contract) {
   if (!contract?.id) throw new Error('widget sem id');
+  const intrusas = Object.keys(contract).filter((chave) => !aceitaNoWidget(chave));
+  if (intrusas.length) {
+    throw new Error(
+      `widget ${contract.id}: chave fora do vocabulário: ${intrusas.join(', ')} — ` +
+        `o contrato aceita ${Object.keys(VOCABULARIO_DO_WIDGET).join(', ')}`
+    );
+  }
   if (!SLOTS.includes(contract.slot)) {
-    throw new Error(`widget ${contract.id}: fenda inválida "${contract.slot}"`);
+    throw new Error(`widget ${contract.id}: fenda inválida "${contract.slot}" — as fendas são ${SLOTS.join(', ')}`);
   }
   if (typeof contract.mount !== 'function') {
     throw new Error(`widget ${contract.id}: mount não é função`);
   }
+  // Ausente é diferente de `false`: quem não declarou não decidiu, e a fenda não decide por ele.
+  const faltando = exigidasDaFenda(contract.slot).filter((chave) => contract[chave] == null);
+  if (faltando.length) {
+    throw new Error(
+      `widget ${contract.id}: a fenda "${contract.slot}" exige ${faltando.join(', ')} DECLARADO — ` +
+        `não dizer nada não é dizer que não. ${faltando.map((c) => `${c}: ${VOCABULARIO_DO_WIDGET[c]}`).join('; ')}`
+    );
+  }
+  // Pedir é declarar valor VERDADEIRO: um `false` que o invólucro repassa não pede nada.
+  const recusadas = proibidasNaFenda(contract.slot).filter((chave) => Boolean(contract[chave]));
+  if (recusadas.length) {
+    throw new Error(
+      `widget ${contract.id}: a fenda "${contract.slot}" (${FENDAS[contract.slot].semantica}) ` +
+        `não lê ${recusadas.join(', ')} — campo sem leitor é promessa que a tela não cumpre`
+    );
+  }
+  // Registro duplicado é a mesma falha calada da tecla com dois donos: o segundo contrato
+  // substituiria o primeiro pela ordem de importação, e o widget mudaria de dono sozinho.
+  if (widgets.has(contract.id)) throw new Error(`widget duplicado: ${contract.id}`);
   widgets.set(contract.id, Object.freeze({ hint: '', grow: 0, ...contract }));
   return contract.id;
 }

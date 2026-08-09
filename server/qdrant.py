@@ -37,8 +37,24 @@ def _url(path: str) -> str:
     return f"{config.get('QDRANT_URL').rstrip('/')}{path}"
 
 
+class CorpusNaoDeclarado(RuntimeError):
+    """Ninguém disse qual é o corpus, e adivinhar é montar um céu que não é o de quem pediu."""
+
+
 def _collection() -> str:
-    return config.get("QDRANT_COLLECTION")
+    """A coleção do Qdrant, e ela é OBRIGATÓRIA.
+
+    ⚠️ Sem declaração isto levanta em vez de cair num default. Um corpus adivinhado não produz
+    erro: produz um céu inteiro — 1 636 corpos, classes, órbitas — descrevendo o índice de outra
+    pessoa. É a falha mais convincente que este sistema sabe cometer, e ela já aconteceu duas vezes
+    no mesmo dia por dois caminhos diferentes.
+    """
+    nome = config.get("QDRANT_COLLECTION")
+    if not nome:
+        raise CorpusNaoDeclarado(
+            "QDRANT_COLLECTION não declarado — declare no .env qual índice é o corpus deste céu"
+        )
+    return nome
 
 
 def info() -> dict:

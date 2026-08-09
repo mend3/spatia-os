@@ -1,0 +1,30 @@
+#!/bin/sh
+# Depois de TROCAR DE BRANCH: diz o que mudou que obriga a fazer algo. Nunca bloqueia.
+#
+# ⚠️ `post-checkout` também dispara em `git checkout <arquivo>`, e aí o terceiro argumento é 0.
+# Sem esta guarda o aviso sairia a cada arquivo restaurado, e aviso que sai sempre é aviso que
+# ninguém lê — a mesma razão pela qual `ambient.py` recusa heartbeat.
+[ "$3" = "1" ] || exit 0
+anterior="$1"; novo="$2"
+[ "$anterior" = "$novo" ] && exit 0
+
+mudou() { git diff --name-only "$anterior" "$novo" -- "$1" 2>/dev/null | head -1; }
+
+# O portão mudou: as leis do tree novo não são as que você viu passar no tree velho.
+if [ -n "$(mudou scripts/)" ]; then
+  n=$(ls scripts/*.mjs scripts/*.py scripts/*.js 2>/dev/null | wc -l | tr -d ' ')
+  printf '\033[33m⚠  o portão mudou\033[0m — %s scripts aqui. Rode \033[1mmake leis\033[0m antes de confiar na árvore.\n' "$n"
+fi
+
+# ☠️ Os snapshots de `.cache/` NÃO são versionados e NÃO seguem o branch: eles são do CORPUS que
+# você indexou. Trocar de branch com o materializador mudado deixa a rede lendo foto velha, e o
+# sintoma é o pior desta base — o cabeçalho AFIRMA e a carga está vazia.
+if [ -n "$(mudou scripts/vizinhanca.mjs)$(mudou scripts/conectividade.mjs)$(mudou scripts/citacoes.mjs)" ]; then
+  printf '\033[33m⚠  um materializador de snapshot mudou\033[0m — \033[1mmake snapshots\033[0m (a ordem é obrigatória).\n'
+fi
+
+# O ambiente é a premissa de toda medida, e ele não viaja no branch.
+if [ -n "$(mudou server/)" ] || [ -n "$(mudou serve.py)" ]; then
+  printf '\033[33m⚠  o servidor mudou\033[0m — reinicie o `make serve` que estiver de pé.\n'
+fi
+exit 0

@@ -9,7 +9,7 @@
  * mentiria sobre dados que não existem. Quem quer histórico aponta um Prometheus para
  * `/metrics`, e a resposta honesta desta tela é dizer isso.
  */
-import { registerApp } from '../kernel/registry.js';
+import { declararApp } from './residentes.js';
 import { listWidget } from './widgets-core.js';
 import { el, money, plural } from '../hud/dom.js';
 import * as prom from '../core/promtext.js';
@@ -200,7 +200,7 @@ export function registerMetrics() {
   registerCost();
   registerClient();
 
-  registerApp({
+  declararApp({
     id: 'metrics',
     name: 'INSTRUMENTOS',
     tagline: 'demorou onde, custou quanto, a tela aguenta',

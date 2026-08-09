@@ -19,6 +19,7 @@
  * reimplementar picking à mão.
  */
 import * as THREE from 'three';
+import { entityPhysics, remanescente } from './entity-physics.js';
 import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
@@ -85,8 +86,15 @@ const REVEAL_DIM = 0.09;
 // parecer direto, baixa o suficiente para a frente ser legível como movimento.
 const REVEAL_RATE = 16;
 
-// O `300.0 / -viewPosition.z` do vertex shader. Vive aqui porque duas contas dependem dele.
-const POINT_SCALE = 300;
+/*
+ * O `300.0 / -viewPosition.z` do vertex shader. Vive aqui porque duas contas dependem dele.
+ *
+ * ⚠️ **Exportado, e o motivo é o de sempre nesta base:** a cena UNIVERSO dimensiona o sprite dela
+ * INVERTENDO esta expressão (ver `universe.js`, a camada de sprite), e a alternativa era um `300`
+ * literal do outro lado — uma segunda cópia da mesma constante, que é o defeito que
+ * `starRadius`/`VERTEX` já pagaram e que o comentário do `starRadius` manda vigiar.
+ */
+export const POINT_SCALE = 300;
 const VERTEX = /* glsl */ `
   uniform float uSize, uTime, uReveal, uRevealBand, uRevealDim, uPulse;
   attribute float aSize;
@@ -835,7 +843,17 @@ export function createGraph() {
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
       supernovae[i] = node.type === 'file' ? node.supernova || 0 : 0;
-      dwarfs[i] = node.type === 'file' ? node.dwarf || 0 : 0;
+      /*
+       * ⚠️ **`node.dwarf` é FATO, não classe.** Ele diz "a atividade acabou e sobrou massa" — e o
+       * cadáver que isso produz depende da MASSA: gigante colapsa em estrela de nêutrons, o resto
+       * vira anã branca (§2.7.1 do `replanejamento-celeste.md`). Lendo o campo cru, o aro fino
+       * azul-branco caía também sobre um PULSAR, e um corpo não tem dois cadáveres.
+       *
+       * Quem responde é `remanescente()`, o mesmo chamado que `fenomenos()` faz. Uma lei, dois
+       * chamadores — escrita nos dois lugares ela divergiria, e a divergência seria invisível até
+       * alguém fotografar um pulsar com aro de anã branca.
+       */
+      dwarfs[i] = node.type === 'file' && remanescente(entityPhysics(node), node) === 'ana-branca' ? 1 : 0;
       seeds[i] = starSeed(node);
       color.setHex(KIND_COLORS[node.kind] ?? KIND_COLORS.other);
       colors.set([color.r, color.g, color.b], i * 3);
@@ -1176,9 +1194,26 @@ export function createGraph() {
       dirtyState = new Map();
       ringed = [];
 
+      /*
+       * ⚠️ **QUATRO DESFECHOS, e a nota colapsava todos em "fora do índice".**
+       *
+       * Um arquivo sujo pode: (1) não casar com nó nenhum — aí ele de fato não está indexado;
+       * (2) casar e o SOLVER recusar o anel, porque o corpo dele não hospeda a feição; (3) casar,
+       * aceitar, e estar escondido pelo filtro de tipo; (4) virar anel. Só o primeiro é "fora do
+       * índice", e o `dirtyNote` calculava `total − shown − dropped`, o que jogava os três
+       * primeiros no mesmo balde.
+       *
+       * Medido em 08/08: 17 sujos · 17 casaram · 11 anéis — e a tela anunciava "6 FORA DO ÍNDICE"
+       * sobre 6 arquivos que estavam no índice e foram RECUSADOS pelo corpo. Quem lesse iria
+       * reindexar o corpus para consertar uma decisão do catálogo.
+       */
+      let casados = 0;
+      let recusados = 0;
+      let escondidos = 0;
       for (const [path, state] of Object.entries(files)) {
         const i = byPath.get(path);
         if (i === undefined) continue;
+        casados += 1;
         dirtyState.set(nodes[i].source, state);
         /*
          * O SOLVER decide se este corpo pode ter anel — não este laço.
@@ -1195,10 +1230,10 @@ export function createGraph() {
         const decisao = resolveBody(nodes[i], { dirty: state });
         const anel = decisao.modifiers.includes(MODIFIER.RING);
         const detritos = decisao.modifiers.includes(MODIFIER.DEBRIS);
-        if (!anel && !detritos) continue;
+        if (!anel && !detritos) { recusados += 1; continue; }
         // Corpo escondido não deixa o anel dele para trás: um anel sem estrela no meio lê como
         // defeito de render, e o filtro é justamente o gesto de tirar aquele tipo da tela.
-        if (hidden?.[i]) continue;
+        if (hidden?.[i]) { escondidos += 1; continue; }
         // `detritos` diz QUAL objeto em órbita — anel planetário ou disco de detritos. Os dois
         // saem do mesmo módulo porque os dois são material orbital; o que muda é o perfil.
         entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency, detritos });
@@ -1230,7 +1265,18 @@ export function createGraph() {
       if (mudouCasca) points.geometry.getAttribute('aSupernova').needsUpdate = true;
 
       ringEntries = entries;
-      return { ...rings.set(entries), total: Object.keys(files).length };
+      /*
+       * `casados` é o que separa "não está no índice" de "o corpo não quis o anel" — e sem ele
+       * quem lê a nota não tem como distinguir um problema de indexação de uma decisão do
+       * catálogo. `dropped` continua vindo do `rings.set`: é o teto de anéis simultâneos.
+       */
+      return {
+        ...rings.set(entries),
+        total: Object.keys(files).length,
+        casados,
+        recusados,
+        escondidos,
+      };
     },
 
     /** Estado local do arquivo daquele nó, ou `null` se limpo/desconhecido. */

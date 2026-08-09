@@ -45,12 +45,28 @@ const EDGE = 0.006;
  * TELA, calibrado para o billboard. Reusado como rotação de mundo, 1,1 rad põe todo anel a **63°
  * do plano orbital** — mais perto de Urano que de Saturno, com as referências pedindo Saturno.
  *
- * ⚠️ Urano é 97,8° de verdade e por isso o anel dele fica de pé. Não é defeito e não vai ser
- * suavizado: `staged → uranus` foi a família escolhida, e falsear a obliquidade faria o rótulo
- * mentir. Se a pose incomodar, o conserto é remapear o ESTADO para outra família.
+ * ⚠️ Urano é 97,8° de verdade e por isso o anel de `staged` fica de pé. Não é defeito e não vai
+ * ser suavizado: falsear a obliquidade faria o rótulo mentir. Se a pose incomodar, o conserto é
+ * trocar QUAL física o estado transcreve — nunca adulterar o número do planeta.
+ */
+/*
+ * ⚠️ **AS CHAVES SÃO O ESTADO DO GIT, e os números continuam sendo do PLANETA.**
+ *
+ * Elas eram `saturn`/`uranus`/`jupiter` — os planetas cuja física cada perfil transcreve. Mas o
+ * anel desta cena **não significa planeta**: ele significa o que o git vê. E desde que as
+ * aparências nomeadas entraram (`assets/textures/saturn.jpg`), o mesmo nome passou a designar duas
+ * coisas na mesma base — o perfil de anel e a pele que o operador escolhe. Mesma palavra, duas
+ * grandezas, que é o defeito mais frequente daqui.
+ *
+ * ⭑ **O planeta não sumiu: virou `planeta`, um campo.** Ele precisa continuar escrito porque os
+ * números NÃO são de "modificado" — `obliquity: 0.4665` é a obliquidade REAL de Saturno, e as
+ * divisões são as dele. Apagar o nome faria o catálogo deixar de dizer de quem é o dado, que é
+ * pior que a ambiguidade que a troca resolve.
  */
 export const RING_FAMILIES = {
-  saturn: {
+  modified: {
+    /** De quem são estes números. Ver o bloco acima: o dado é do planeta, a chave é do git. */
+    planeta: 'Saturno',
     reach: 2.45,
     /** 26,73° — a obliquidade que dá a pose de todas as fotos de Saturno. */
     obliquity: 0.4665,
@@ -72,7 +88,8 @@ export const RING_FAMILIES = {
     ],
   },
 
-  uranus: {
+  staged: {
+    planeta: 'Urano',
     reach: 2.20,
     /** 97,77° — Urano rola deitado, então o anel dele fica quase de pé. É o dado, não um exagero. */
     obliquity: 1.7064,
@@ -146,7 +163,8 @@ export const RING_FAMILIES = {
     gaps: [],
   },
 
-  jupiter: {
+  untracked: {
+    planeta: 'Júpiter',
     reach: 3.20,
     /** 3,13° — praticamente no plano orbital, e é o que faz o anel de Júpiter ser sempre de perfil. */
     obliquity: 0.0546,
@@ -217,7 +235,7 @@ function smoothed(values) {
  * contexto ser WebGL2, o que tira um modo de falha do caminho.
  */
 export function profileTexture(name) {
-  const family = RING_FAMILIES[name] ?? RING_FAMILIES.saturn;
+  const family = RING_FAMILIES[name] ?? RING_FAMILIES.modified;
 
   /*
    * O perfil vai de 1 (o limbo do planeta) até `reach`, e NÃO de 0.
@@ -277,6 +295,6 @@ export function profileTexture(name) {
     texture,
     reach: family.reach,
     forward: family.forward ?? 0,
-    obliquity: family.obliquity ?? RING_FAMILIES.saturn.obliquity,
+    obliquity: family.obliquity ?? RING_FAMILIES.modified.obliquity,
   };
 }

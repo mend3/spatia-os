@@ -14,7 +14,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, metrics, qdrant, recency, services
+from . import config, metrics, qdrant, recency, services, graphdb
 
 logger = logging.getLogger("espatial.graph")
 
@@ -29,7 +29,15 @@ CACHE_PATH = config.ROOT / ".cache" / "graph.json"
 # 7: `services` (as partes nomeadas de um compose) chega no nó de compose — 164 deles em 44
 #    arquivos, medido em 2026-08-07. Mesmo motivo do bump 5: campo novo não muda o fingerprint
 #    do corpus, e sem ele a nebulosa continuaria sem luas em qualquer clone com cache.
-SCHEMA_VERSION = 8
+# 10: `usage` (P5 — quantas execuções de agente tocaram o corpo) chega no nó, do snapshot de
+#    `scripts/uso.mjs`. Mesmo motivo dos bumps 5 e 7, e aqui ele morde mais: o snapshot muda
+#    sozinho conforme o diário cresce, e sem o bump o primeiro clone com cache nunca veria a
+#    dimensão aparecer — ela nasceria morta justamente na base que mais a acumulou.
+# 11: `connectivity` (o ALCANCE — que fração dos vínculos laterais sai do sistema) chega no nó, do
+#     snapshot de `scripts/conectividade.mjs`. Mesmo motivo dos bumps 5, 7 e 10. ⚠️ E o bump não
+#     bastaria sozinho: o valor envelhece sem o corpus mudar, então a anotação também entra no
+#     overlay de `_reanexar_snapshots` — as duas coisas, sempre, ver `9fa42a1`.
+SCHEMA_VERSION = 11
 
 # Cada tipo é uma cor no céu. A ordem importa: o primeiro padrão que casar ganha, então
 # o específico (memória, decisão datada) vem antes do genérico (.md é "doc").
@@ -120,6 +128,23 @@ def build() -> dict:
     # Lê disco, então vem depois da recência (que também lê) e antes da hierarquia, que só
     # agrega. Arquivo ilegível sai sem o campo — a nebulosa fica como era.
     services.annotate(nodes)
+    # INFLUÊNCIA, do snapshot que `scripts/centralidade.mjs` materializa. Ler daqui e não do Neo4j
+    # é a lei nº 2 de `docs/integracao-neo4j.md`: o grafo nunca está no caminho do quadro, e cair
+    # entre duas materializações não muda nada na tela até a próxima.
+    # ⚠️ O retorno era DESCARTADO, e isso ficou insustentável quando a anotação passou a poder
+    # RECUSAR (snapshot de outro corpus, `graphdb._recusa_de_corpus`): sem publicar o cabeçalho, a
+    # recusa seria tão silenciosa quanto o defeito que ela conserta — `centrality` some do céu e
+    # ninguém sabe por quê. As outras duas dimensões já publicavam; esta era a exceção.
+    influencia = graphdb.annotate_influence(nodes)
+    # USO (P5): quantas execuções de agente tocaram o corpo. Mesma lei — snapshot em disco, nunca
+    # consulta no caminho do quadro. Vem depois da influência porque são dimensões distintas com
+    # snapshots distintos: `centrality` é "quantos se parecem comigo", `usage` é "quantos me
+    # abriram". Fundi-las num número só reconstruiria o score composto já refutado.
+    uso = graphdb.annotate_usage(nodes)
+    # ALCANCE: que fração dos vínculos laterais deste corpo sai do sistema dele. É `connectivity`,
+    # a última das quatro dimensões sem fato — e ela não é o grau, que repetiria a centralidade
+    # (ρ 0,821, medido). Ver `graphdb.annotate_connectivity`.
+    conexao = graphdb.annotate_connectivity(nodes)
     hubs, edges = _hierarchy(nodes)
     payload = {
         "nodes": hubs + nodes,
@@ -130,6 +155,15 @@ def build() -> dict:
             "hubs": len(hubs),
             "kinds": _histogram(node["kind"] for node in nodes),
             "repos": _histogram(node["repo"] for node in nodes),
+            # Os metadados do uso viajam com a topologia para a tela poder dizer "a dimensão existe
+            # e a evidência é rala" em vez de calar. Omitir o veredito faria um `usage` pequeno
+            # parecer medida forte de pouco uso, quando é medida fraca de uso nenhum.
+            # O cabeçalho da influência, pelo mesmo motivo dos outros dois — e ver `annotate_influence`.
+            "influencia": influencia,
+            "uso": uso,
+            # Os metadados do alcance viajam pelo mesmo motivo que os do uso: o número sozinho não
+            # diz contra o que foi conferido, e esta dimensão nasceu de uma REFUTAÇÃO (o grau).
+            "conexao": conexao,
             "built_in_ms": round((time.monotonic() - started) * 1000),
         },
     }
@@ -140,6 +174,66 @@ def build() -> dict:
     )
     _warn_if_class_empty(nodes)
     return payload
+
+
+# Carimbo dos snapshots do grafo já aplicados na topologia em memória. Ver `_reanexar_snapshots`.
+_stamp_snapshots: tuple | None = None
+
+
+def _carimbo_snapshots() -> tuple:
+    """`mtime` dos snapshots do grafo — é o que acusa dimensão nova sem corpus novo.
+
+    ⚠️ **Dimensão nova entra AQUI e no `_reanexar_snapshots`, sempre nos dois.** Anotar só na
+    construção é o defeito de `9fa42a1`: o cache casa (o fingerprint é do CORPUS), o script imprime
+    sucesso, e o céu serve zero sem uma linha no console.
+    """
+    def quando(caminho) -> int:
+        try:
+            return caminho.stat().st_mtime_ns
+        except OSError:
+            return 0
+
+    return (quando(graphdb.SNAPSHOT), quando(graphdb.SNAPSHOT_USO), quando(graphdb.SNAPSHOT_CONEXAO))
+
+
+def _reanexar_snapshots(payload: dict) -> bool:
+    """Reaplica `centrality` e `usage` numa topologia servida do CACHE.
+
+    ⚠️ **Sem isto a materialização do Neo4j não chega à tela**, e o modo de falha é o característico
+    desta base: silencioso e convincente. O fingerprint do cache é do CORPUS
+    (`SCHEMA_VERSION:coleção:pontos:prefixo:cwd`), e o snapshot muda **sem o corpus mudar** — então
+    ele casa, o cache é servido inteiro, e `scripts/centralidade.mjs` parece não ter feito nada.
+    Medido em 2026-08-08: 188 corpos materializados no Neo4j, **0 chegando ao céu**, e o único jeito
+    de ver a dimensão era apagar `.cache/graph.json` à mão.
+
+    Bump de `SCHEMA_VERSION` NÃO resolve: ele protege campo novo em nó, que é mudança de FORMATO.
+    Aqui o formato é o mesmo e o VALOR é que envelheceu — o fingerprint é estruturalmente cego a
+    isso, porque nenhuma das cinco parcelas dele olha para o snapshot.
+
+    A anotação é OVERLAY, não topologia: sai de arquivo em disco e é barata, então pode ser
+    reaplicada na leitura em vez de obrigar a reconstruir o corpus inteiro contra o Qdrant. É a lei
+    nº 2 intacta — o grafo continua fora do caminho do quadro, só o snapshot é relido.
+
+    ⚠️ Os campos são REMOVIDOS antes de reaplicar. Snapshot novo que não traz um corpo que o antigo
+    trazia significa "não medi mais"; deixar o valor velho grudado afirmaria uma medida que ninguém
+    fez, que é a mesma mentira que `null` ≠ `0` existe para impedir.
+    """
+    global _stamp_snapshots
+    carimbo = _carimbo_snapshots()
+    if carimbo == _stamp_snapshots:
+        return False
+
+    nodes = payload.get("nodes") or []
+    for node in nodes:
+        node.pop("centrality", None)
+        node.pop("usage", None)
+        node.pop("connectivity", None)
+    payload.setdefault("stats", {})["influencia"] = graphdb.annotate_influence(nodes)
+    payload["stats"]["uso"] = graphdb.annotate_usage(nodes)
+    payload["stats"]["conexao"] = graphdb.annotate_connectivity(nodes)
+    _stamp_snapshots = carimbo
+    logger.info("snapshots do grafo reaplicados sobre a topologia em cache")
+    return True
 
 
 # Piso de regularidade do PULSAR. ⚠️ A SSOT é `src/space/catalog.js`
@@ -217,6 +311,32 @@ def _tree_path(source: str) -> str:
     return f"{repo_of(source)}/{name}"
 
 
+def served() -> dict | None:
+    """A topologia que está sendo servida AGORA, sem tocar upstream nem reconstruir nada.
+
+    Quem observa o corpus de fora (`ambient`) precisa comparar o que o céu carrega entre duas
+    voltas. Chamar `load()` para isso faria uma segunda cópia do laço de atualização e uma
+    consulta a mais ao Qdrant por volta, para ler um valor que já está em memória.
+    """
+    return _cached
+
+
+def _indexed_date(stamp: str) -> date | None:
+    """Data de indexação a partir do carimbo do ponto, nas duas formas em que ele existe.
+
+    ⚠️ O indexador carimba ISO-8601 COMPLETO (`2026-08-09T04:01:47.388964+00:00`) e a forma
+    só-data também aparece no corpus. Recusar uma delas devolve `None`, e `None` aqui apaga o
+    gauge `espatial_index_age_seconds` e o campo que o cabeçalho mostra em toda tela — a idade
+    do índice é justamente o número que decai sem ninguém perceber.
+    """
+    if not stamp:
+        return None
+    try:
+        return datetime.fromisoformat(stamp.replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
 def age_days() -> int | None:
     """Idade do índice em dias, do cache — sem tocar upstream.
 
@@ -228,9 +348,8 @@ def age_days() -> int | None:
     if not payload:
         return None
     newest = max((node.get("indexed_at") or "" for node in payload.get("nodes") or []), default="")
-    try:
-        indexed = datetime.strptime(newest, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
+    indexed = _indexed_date(newest)
+    if indexed is None:
         return None
     return max(0, (date.today() - indexed).days)
 
@@ -278,9 +397,8 @@ def publish_gauges(payload: dict) -> None:
 
 
 def _age_seconds(stamp: str) -> float | None:
-    try:
-        indexed = datetime.strptime(stamp, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
+    indexed = _indexed_date(stamp)
+    if indexed is None:
         return None
     return max(0.0, (date.today() - indexed).days * 86400.0)
 
@@ -348,10 +466,32 @@ def _histogram(values) -> dict[str, int]:
     return dict(sorted(counts.items(), key=lambda item: -item[1]))
 
 
+def _corpus() -> dict:
+    """QUEM é o corpus, dito por quem lê o `.env` — e é só o servidor que o lê.
+
+    ⚠️ Isto existe porque os scripts de `scripts/` **adivinhavam**, e adivinhar casa zero em
+    silêncio. `similares.mjs` fazia `CORPUS_PREFIX ?? 'vault/'` e `QDRANT_COLLECTION ||
+    'workspace_embedding'`; `vinculos.mjs` tinha o caminho ABSOLUTO de uma máquina como default de
+    `AGENT_CWD`. Nenhum dos três falha: eles medem o corpus errado com convicção total, e a leitura
+    que sobra é "a vizinhança semântica não cobre o corpus" — foi exatamente o que mordeu no P4.
+
+    As três parcelas já estão no `fingerprint`, então este bloco **não pode envelhecer em relação
+    ao payload**: mudar qualquer uma delas derruba o cache junto.
+    """
+    return {
+        "collection": config.get("QDRANT_COLLECTION"),
+        # ⚠️ Declarado vazio é ESCOLHA, não ausência (ver `config.py`) — e é por isso que o valor
+        # viaja como string, nunca omitido. Chave ausente devolveria o script ao `??` que o
+        # defeito original tinha.
+        "prefix": config.get("CORPUS_PREFIX"),
+        "cwd": config.get("AGENT_CWD") or str(config.ROOT),
+    }
+
+
 def load(force: bool = False) -> dict:
     """Memória → disco → reconstrução. A chave de validade é `points_count` da coleção:
     reindexou, muda a contagem, o cache cai sozinho."""
-    global _cached
+    global _cached, _stamp_snapshots
     collection = qdrant.info()
     # ⚠️ `SCHEMA_VERSION` no fingerprint: campo NOVO em nó (`churn`, `supernova`) não muda o
     # `points_count` do Qdrant, então o cache em disco continuaria válido e serviria nós sem o
@@ -373,12 +513,19 @@ def load(force: bool = False) -> dict:
 
     with _lock:
         if not force and _cached and _cached.get("fingerprint") == fingerprint:
+            _cached["corpus"] = _corpus()
+            _reanexar_snapshots(_cached)
             return _cached
         if not force and CACHE_PATH.is_file():
             try:
                 disk = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
                 if disk.get("fingerprint") == fingerprint:
                     disk.setdefault("files_root", files_root(disk))
+                    # Atribuído, nunca `setdefault`: cache gravado por uma versão anterior não tem
+                    # a chave, e um `setdefault` deixaria o payload sem ela justamente no clone que
+                    # já tinha `.cache/graph.json` — a mesma morte silenciosa dos bumps de schema.
+                    disk["corpus"] = _corpus()
+                    _reanexar_snapshots(disk)
                     _cached = disk
                     publish_gauges(disk)
                     return disk
@@ -386,8 +533,11 @@ def load(force: bool = False) -> dict:
                 logger.warning("cache de topologia ilegível, reconstruindo")
 
         payload = build()
+        # `build()` já anotou; o carimbo evita que a primeira leitura do cache refaça o trabalho.
+        _stamp_snapshots = _carimbo_snapshots()
         payload["fingerprint"] = fingerprint
         payload["collection"] = collection
+        payload["corpus"] = _corpus()
         payload["files_root"] = files_root(payload)
         _cached = payload
         publish_gauges(payload)

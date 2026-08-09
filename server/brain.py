@@ -12,15 +12,32 @@ janela de rate limit e o custo final. Cada um desses tem um lugar na HUD.
 `--setting-sources ""` é deliberado: sem isso o processo carrega as regras globais do
 usuário e os hooks da sessão — 20k tokens de cache e efeitos colaterais que não têm nada
 a ver com responder uma pergunta na tela.
+
+## Continuidade — `--resume`, e o que ela NÃO afrouxa
+
+A segunda pergunta continua a primeira por `--resume <session_id>`, e a sessão tem dono próprio
+(`fio.py`). Medido em 2026-08-09 contra o CLI 2.1.226, porque a compatibilidade com a `--settings`
+efêmera era incógnita: a `--settings` **sobrevive à retomada** — o hook `PreToolUse` roda na
+execução retomada e uma negação continua chegando como `tool_result` de erro. Retomar não é uma
+porta lateral ao portão de capacidades: a `--settings` é escrita por execução e vale para as
+chamadas daquela execução, sejam elas do primeiro turno ou do décimo.
+
+⚠️ **O `session_id` do CLI é o MESMO em toda a retomada** (só `--fork-session` o troca). Por isso
+a chave que o portão conta é a da EXECUÇÃO e não a da sessão — ver `capabilities.settings_file`.
+
+⚠️ **Sessão inexistente derruba a execução inteira**: o CLI sai 1 com um `result` de
+`error_during_execution` e `num_turns: 0`, sem nunca emitir o `init`. Isso é fio quebrado, não
+falha do núcleo — o fio é esquecido e a pergunta roda de novo do zero, com o evento `thread`
+dizendo `broken`.
 """
 import json
 import logging
 import shutil
 import subprocess
 import time
-from typing import Iterator, Optional
+from typing import Generator, Iterator, Optional
 
-from . import capabilities, config, permissions
+from . import capabilities, config, fio, permissions
 
 logger = logging.getLogger("espatial.brain")
 
@@ -68,7 +85,7 @@ def available() -> Optional[str]:
     return shutil.which("claude")
 
 
-def _command(prompt: str, gate: Optional[str] = None) -> list[str]:
+def _command(prompt: str, gate: Optional[str] = None, resume: Optional[str] = None) -> list[str]:
     argv = [
         "claude", "-p", prompt,
         "--output-format", "stream-json",
@@ -92,26 +109,74 @@ def _command(prompt: str, gate: Optional[str] = None) -> list[str]:
     # vocabulário do CLI, e o hook `PreToolUse` é o único ponto ANTES da chamada acontecer.
     if gate:
         argv += ["--settings", gate]
+    # A retomada é a ÚLTIMA flag e não substitui nenhuma outra: as permissões, o portão e o
+    # `--max-turns` desta execução continuam sendo os de agora, não os de quando o fio nasceu.
+    if resume:
+        argv += ["--resume", resume]
     return argv
 
 
-def stream(prompt: str) -> Iterator[dict]:
+def _thread_event(continuity: str, origin: str) -> dict:
+    """O fato da continuidade, publicado ANTES de o processo existir.
+
+    Antes e não depois porque ele tem de valer mesmo quando a execução falha: "esta pergunta não
+    sabe da anterior" é verdade a dizer inclusive quando não há resposta nenhuma. É o princípio 10
+    aplicado à conversa — a tela parece um diálogo, e o que a torna um diálogo é este campo.
+    """
+    estado = fio.state(origin)
+    return {
+        "t": "thread",
+        "continuity": continuity,
+        "thread": estado["session"],
+        "turn": estado["turns"] + 1,
+        "since": estado["since"],
+        "origin": origin,
+    }
+
+
+def stream(prompt: str, origin: str) -> Iterator[dict]:
     """Roda o agente e traduz o stream-json para eventos do SpatIA.
 
-    O processo é encerrado no `finally`: se o browser fechar a conexão SSE, o generator é
-    fechado e um `claude` órfão continuaria queimando a janela de uso do usuário.
+    `origin` é o canal, e ele é obrigatório porque é o que separa um fio do outro: sem ele um
+    caminho automático continuaria a conversa que o operador abriu na tela.
     """
     if not available():
         yield {"t": "error", "service": "claude", "message": "CLI `claude` não encontrado no PATH"}
         return
 
-    # Uma settings por execução: o `session` é o que separa a contagem de `calls_per_run` de uma
+    retomar = fio.current(origin)
+    if retomar:
+        yield _thread_event("resumed", origin)
+        vivo = yield from _executar(prompt, origin, retomar)
+        if vivo:
+            return
+        # O CLI recusou a sessão sem começar um turno. A pergunta não se perde: o fio é cortado e
+        # ela roda do zero — mas a tela é avisada de que a continuidade quebrou, porque uma
+        # resposta sem memória entregue como se tivesse memória é o defeito que o `thread` existe
+        # para não repetir.
+        fio.forget(origin, "o CLI não encontrou a sessão")
+        yield _thread_event("broken", origin)
+    else:
+        yield _thread_event("new", origin)
+    yield from _executar(prompt, origin, None)
+
+
+def _executar(prompt: str, origin: str, resume: Optional[str]) -> Generator[dict, None, bool]:
+    """Uma execução do CLI. Devolve `False` quando a RETOMADA foi recusada antes do primeiro turno.
+
+    O processo é encerrado no `finally`: se o browser fechar a conexão SSE, o generator é
+    fechado e um `claude` órfão continuaria queimando a janela de uso do usuário.
+    """
+    # Uma settings por execução: o `run` é o que separa a contagem de `calls_per_run` de uma
     # execução da seguinte. `None` quando não há capacidade declarada — hook que sempre permite
     # é uma requisição por chamada de ferramenta sem nenhuma decisão em troca.
-    session = f"{int(time.time() * 1000)}"
-    gate = capabilities.settings_file(session)
-    argv = _command(prompt, gate)
-    logger.info(f"agente: {' '.join(argv[:6])} … ({len(prompt)} chars de prompt)")
+    run = f"{int(time.time() * 1000)}"
+    gate = capabilities.settings_file(run)
+    argv = _command(prompt, gate, resume)
+    logger.info(
+        f"agente: {' '.join(argv[:6])} … ({len(prompt)} chars de prompt"
+        f"{', retomando ' + resume if resume else ''})"
+    )
     started = time.monotonic()
 
     process = subprocess.Popen(
@@ -123,6 +188,7 @@ def stream(prompt: str) -> Iterator[dict]:
         bufsize=1,
     )
     tool_names: dict[str, str] = {}
+    iniciou = False
     try:
         # O PID vai para o registro de execuções: a tela de atividade mostra O QUE o botão
         # ENCERRAR vai atingir, em vez de pedir confiança.
@@ -136,10 +202,21 @@ def stream(prompt: str) -> Iterator[dict]:
                 frame = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if frame.get("type") == "system" and frame.get("subtype") == "init":
+                iniciou = True
+                # Quem declara a sessão é o CLI, no frame que ele emite. Derivá-la de outro lugar
+                # seria um segundo caminho para o mesmo fato, e os dois divergiriam na primeira
+                # execução que morresse antes do `init`.
+                fio.remember(origin, str(frame.get("session_id") or ""))
+            elif resume and not iniciou and frame.get("type") == "result" and frame.get("is_error"):
+                # Fio quebrado: o CLI recusou a sessão e não houve turno nenhum. Traduzir este
+                # frame emitiria `error`/`FALHA DO NÚCLEO` para uma falha que não é do núcleo.
+                logger.info(f"retomada recusada ({resume}): {frame.get('subtype')}")
+                return False
             yield from _translate(frame, tool_names, started)
     finally:
         capabilities.drop_settings(gate)
-        capabilities.release(session)
+        capabilities.release(run)
         if process.poll() is None:
             process.terminate()
             try:
@@ -149,6 +226,7 @@ def stream(prompt: str) -> Iterator[dict]:
         stderr = (process.stderr.read() or "").strip() if process.stderr else ""
         if process.returncode not in (0, None) and stderr:
             logger.warning(f"agente saiu {process.returncode}: {stderr[:400]}")
+    return True
 
 
 def _translate(frame: dict, tool_names: dict[str, str], started: float) -> Iterator[dict]:

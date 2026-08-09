@@ -210,11 +210,35 @@
   .svc { display: flex; align-items: center; cursor: default; padding: 2px; }
   .status-services { gap: 9px; }
 
+  /*
+    A IDADE DA AFERIÇÃO — de quando é o que os pontos ao lado afirmam.
+
+    Menor e mais apagada que tudo à volta de propósito: ela qualifica os pontos, não compete
+    com eles. Quem lê o cabeçalho vê a cor do ponto; quem duvida dela acha a idade a 4px.
+  */
+  .svc-afericao {
+    font-size: 8px; letter-spacing: 0.18em; color: var(--ink-faint);
+    padding-left: 4px; white-space: nowrap;
+  }
+  .svc-afericao[data-tone="bad"] { color: var(--bad); }
+  /*
+    Leitura vencida: o grupo inteiro para de afirmar o presente.
+
+    Nada é apagado — o que foi medido continua na tela. O que sai é a CERTEZA: sem brilho, os
+    pontos deixam de ler como "isto está vivo agora" e passam a ler como o registro que são.
+  */
+  .status-services[data-afericao="vencida"] .dot { box-shadow: none; opacity: 0.45; }
+
   /* ---------------- systray ---------------- */
 
   .header-right { display: flex; align-items: flex-start; gap: 16px; }
   /* Os glifos alinham pela primeira linha do relógio, não pelo bloco inteiro. */
   .systray { display: flex; align-items: center; gap: 4px; padding-top: 2px; }
+  /* Segmentado: uma moldura, dois lados, e o ativo se destaca por PREENCHIMENTO — a mesma
+     gramática dos outros grupos da HUD, e legível sem cor (o `aria-pressed` também o diz). */
+  .cena-switch { display: flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; margin-right: 8px; }
+  .cena-switch .btn { border: 0; border-radius: 0; letter-spacing: .08em; opacity: .55; }
+  .cena-switch .btn[aria-pressed="true"] { background: var(--accent-dim, #1b2540); color: var(--accent, #ffd9a0); opacity: 1; }
   /* `relative` para o menu ancorar no item, e não no header inteiro. */
   .tray-item { position: relative; }
 
@@ -319,6 +343,15 @@
     pointer-events: auto;
   }
 
+  /* A COR DO VÍNCULO, e ela é a MESMA do arco na cena — `universe.js` (`COR_DO_VINCULO`) é a
+     fonte, isto é a cópia que a tela precisa. Sem o par, a linha colorida no céu e o nome no
+     painel seriam dois fatos sem ligação declarada, e a cor viraria enfeite.
+     ⚠️ Divergiram? O código está certo e isto está velho. */
+  [data-vinculo="SIMILAR_TO"] .fs-meta, [data-vinculo="SIMILAR_TO"] .vital-label { color: #6fe0ff; }
+  [data-vinculo="CO_EDITED"] .fs-meta, [data-vinculo="CO_EDITED"] .vital-label { color: #ff5fa2; }
+  [data-vinculo="REFERENCES"] .fs-meta, [data-vinculo="REFERENCES"] .vital-label { color: #ffcf5c; }
+  [data-vinculo="IMPORTS"] .fs-meta, [data-vinculo="IMPORTS"] .vital-label { color: #8affc0; }
+
   .vital { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 6px; padding: 3px 0; }
   .vital-label { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.18em; }
   .vital-value { color: var(--ink); font-size: 14px; font-weight: 400; }
@@ -330,6 +363,40 @@
   .row.dim { color: var(--ink-faint); }
   .row.good .row-text { color: var(--good); }
   .row.bad .row-text { color: var(--bad); }
+
+  /*
+    OS AVISOS DE PÉ (`notice`) — a CABEÇA da timeline, não uma superfície nova.
+
+    Quem conta o que o sistema fez sozinho já é este widget; o que muda é a VIDA. Uma linha de
+    timeline é um INSTANTE e rola embora; um aviso de pé é uma CONDIÇÃO e fica até um `info` do
+    mesmo tópico apagá-la. Por isso os dois moram no mesmo nó e em containers separados: o
+    `feed` da timeline poda pelo último filho, e um aviso de pé dentro dele seria podado.
+
+    A codificação é de DUAS perguntas em dois pixels, nunca duas rampas na mesma tinta:
+    a SEVERIDADE colore o que aconteceu (marca + rótulo), a IDADE colore há quanto tempo — na
+    mesma rampa da célula ÍNDICE do cabeçalho (3d âmbar, 7d vermelho), porque o que envelhece
+    devagar passa despercebido em cinza.
+
+    O `action` é a linha mais clara do bloco depois do rótulo: é o que o operador vai fazer. É o
+    mesmo degrau de `.tool-detail.out` sobre `.tool-detail` — a metade que informa vem um tom
+    acima da que descreve.
+  */
+  .avisos:empty { display: none; }
+  .avisos { display: flex; flex-direction: column; gap: 9px; padding-bottom: 11px; }
+  .timeline-rows { display: flex; flex-direction: column; gap: 4px; }
+
+  .aviso { animation: slide-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both; display: flex; flex-direction: column; gap: 2px; }
+  .aviso-head { display: grid; grid-template-columns: auto auto 1fr auto; gap: 7px; align-items: baseline; }
+  .aviso-mark { width: 4px; height: 4px; display: block; align-self: center; background: var(--busy); }
+  .aviso[data-severity="alert"] .aviso-mark { background: var(--bad); }
+  .aviso-topic { color: var(--amber-faint); font-size: 8px; letter-spacing: 0.2em; }
+  .aviso-label { color: var(--busy); }
+  .aviso[data-severity="alert"] .aviso-label { color: var(--bad); }
+  .aviso-age { color: var(--ink-faint); font-size: 9px; }
+  .aviso-age[data-tone="warn"] { color: var(--busy); }
+  .aviso-age[data-tone="bad"] { color: var(--bad); }
+  .aviso-detail { color: var(--ink-faint); font-size: 9px; line-height: 1.45; }
+  .aviso-action { color: var(--ink-dim); font-size: 9.5px; line-height: 1.45; }
 
   .plan-step { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; align-items: center; padding: 2px 0; }
   .plan-mark { width: 4px; height: 4px; background: var(--amber-dim); display: block; }
@@ -424,8 +491,79 @@
 
   .answer-meta { color: var(--ink-faint); font-size: 8.5px; letter-spacing: 0.2em; }
 
-  .sources { display: flex; flex-direction: column; gap: 2px; max-width: min(680px, 94%); width: 100%; padding: 0 18px; }
-  .source { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; font-size: 9px; color: var(--ink-faint); }
+  /*
+    A LISTA DE FONTES — teto, rolagem, scrim, e o CORTE PUBLICADO.
+
+    Ela nasceu sem os quatro. As 24 linhas do caso normal não são amostra: são
+    `MEMORY_LIMIT` 6 (`server/agent.py`) + `MAX_RESULTS` 6 (`server/websearch.py`) × os provedores
+    com chave — um provedor a mais são mais seis linhas, por construção. Sem teto elas empilham
+    sobre o disco de acreção, e o que passa da altura do palco não rola: **SUMIA**, porque
+    `.widget-body` é `overflow: hidden`. É o modo de falha desta base — a tela deixa de afirmar sem
+    acusar — e aqui ele é pior que em outros lugares, porque `[n]` é CONTRATO com o prompt
+    (`agent.sources_of`, `EVENTS.md`): a linha que some leva junto o destino de uma citação que
+    continua escrita na resposta.
+
+    As quatro peças, e nenhuma sozinha basta:
+
+    1. TETO (`max-height`) — e ele é do CSS, NUNCA do JS. Cortar a lista em JS jogaria fora fontes
+       que o modelo citou; cortar a VISTA deixa as 24 no DOM, alcançáveis pela rolagem e pelo
+       clique na citação (`hud/answer.js`, `deslocamentoAte`).
+    2. ROLAGEM (`overflow-y: auto`), e ela anda em par com o PONTEIRO: o `#hud` é
+       `pointer-events: none`, e barra que não se pode agarrar é enfeite — é a lição 1 do
+       `.surface`, que já custou um painel com `overflow-y: auto` que mesmo assim não rolava.
+       ⚠️ O preço é uma zona morta sobre o canvas (~680×20vh), que CANCELA órbita e zoom nesse
+       retângulo. É custo DECLARADO, não descoberto: quem o mede é `spatia.hud().ponteiro`, e a
+       zona morta do palco é T-51.
+    3. SCRIM em GRADIENTE, o mesmo do `.answer` — nunca fundo opaco: `hud/yield.js` já mediu que a
+       HUD hairline vive de pouco contraste e o perderia com painel sólido. Sem `backdrop-filter`
+       aqui: o `.answer` logo acima já paga um passe de composição, e o segundo compraria
+       contraste que o gradiente e o `text-shadow` do `#hud` já dão.
+    4. O CORTE PUBLICADO (`.sources-total`, grudado no topo) — a peça que impede o teto de mentir.
+       O precedente é o teto de 28 arcos da rede, que viaja com o `total` real ao lado
+       (`apps/context.js`, `legenda()`): *"truncamento silencioso lê como 'isto é tudo o que
+       existe'"*. Com o cabeçalho dizendo 24 e sete linhas à vista, o corte está DITO.
+
+    A ARITMÉTICA do teto, e ela só é exata porque `line-height` é DECLARADO abaixo:
+
+        node -e 'const l=9*1.45, p=l+2, v=742*0.20-20-21; console.log(l, p, Math.floor(v/p))'
+        # 13.05 (linha) · 15.05 (passo) · 7 (linhas à vista)
+
+    20vh na janela de 742px CSS (a do §6 do `HANDOFF.md`) = 148,4px; menos 20px de padding e ~21px
+    de cabeçalho sobram ~107px → **7 linhas à vista, 24 no DOM**. Em janela maior cabem mais, e é
+    isso que o teto em `vh` compra.
+    ⚠️ Sem `line-height` declarado a altura da linha é `normal` (~1,2, e depende da fonte): a conta
+    vira estimativa, que foi como o "≈305px" da varredura nasceu sem procedência.
+    Portão: `scripts/lei-fontes.mjs`.
+  */
+  .sources {
+    display: flex; flex-direction: column; gap: 2px;
+    max-width: min(680px, 94%); width: 100%;
+    max-height: 20vh;
+    overflow-y: auto; overscroll-behavior: contain;
+    pointer-events: auto;
+    scrollbar-width: thin; scrollbar-color: var(--amber-dim) transparent;
+    padding: 10px 18px;
+    background: linear-gradient(180deg, rgba(4,6,10,0) 0%, rgba(4,6,10,0.82) 12%, rgba(4,6,10,0.82) 88%, rgba(4,6,10,0) 100%);
+  }
+  /* Sem resposta não há lista, e uma caixa vazia que reivindica o ponteiro é zona morta de graça. */
+  .sources:empty { display: none; }
+  /* Lição 3 do `.surface`: item de flex ENCOLHE por padrão — sem isto as linhas se espremem dentro
+     do teto em vez de transbordar, e não sobra o que rolar. */
+  .sources > * { flex: 0 0 auto; }
+  /*
+    O TOTAL fica GRUDADO no topo: rolar não pode levar embora a única coisa que diz quantas são.
+    Opaco o bastante para as linhas passarem POR BAIXO — texto hairline sobre texto hairline é
+    ilegível nos dois. As margens negativas o fazem cobrir o padding da caixa, senão a primeira
+    linha reaparece pelas beiradas.
+  */
+  .sources-total {
+    position: sticky; top: 0; z-index: 1;
+    margin: -10px -18px 2px; padding: 10px 18px 3px;
+    background: rgba(4, 6, 10, 0.92);
+    color: var(--amber-faint); font-size: 8px; letter-spacing: 0.2em;
+  }
+  /* `line-height` DECLARADO: é ele que torna o teto acima uma conta, e não uma estimativa. */
+  .source { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; font-size: 9px; line-height: 1.45; color: var(--ink-faint); }
   .source-n { color: var(--amber-dim); }
   .source-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; text-decoration: none; color: inherit; }
   .source-label:hover { color: var(--amber); }
@@ -749,36 +887,59 @@
   .widget[data-panel-surface] {
     align-items: stretch; justify-content: flex-start;
     /*
-      As lições 1 e 2 valem aqui TAMBÉM, e por herança nenhuma: o widget recebe o ATRIBUTO
-      `data-panel-surface`, não a classe `.surface` (a classe traz fundo e rolagem próprios, que
-      no palco moram no `.widget-body` para o título poder grudar). Ao refatorar, estas três
-      linhas foram removidas supondo herança que não existia, e o painel voltou a ser
-      atravessado pelo ponteiro — `elementFromPoint` no centro dele devolvia CANVAS de novo.
+      ☠️ A MOLDURA NÃO REIVINDICA O PONTEIRO — ela não pinta nada, e reivindicava o palco INTEIRO.
+
+      A lição 2 vale aqui e por herança nenhuma: o widget recebe o ATRIBUTO `data-panel-surface`,
+      não a classe `.surface`, e a elevação tem de ser declarada de novo. Já a lição 1 (o ponteiro)
+      estava no elemento ERRADO, e a diferença é de área, não de estilo.
+
+      A moldura é `flex: 1` dentro do palco (`.widget-stage`) — ela ESTICA até a altura da coluna
+      central inteira, enquanto o que pinta é o `.widget-body`, que para em `max-height: 62vh` e na
+      altura do próprio conteúdo. Tudo entre o fim do corpo e o fim da coluna era retângulo
+      transparente com `pointer-events: auto` sobre o céu: e um retângulo desses não DISPUTA o
+      clique, ele CANCELA órbita, zoom e pick ali (os cinco ouvintes de gesto da cena estão presos
+      ao `canvas`, `space/scene.js`, sem fallback em `window`). O corpo em foco e o buraco negro são
+      desenhados exatamente no meio dessa faixa.
+
+      O escape que existia só cobria o painel VAZIO, que é o caso raro — em 7 das 10 rotas o painel
+      nasce com conteúdo e a zona morta ficava de pé o tempo todo.
+
+      A REGRA, e ela vale para qualquer superfície nova sobre o céu:
+      **quem PINTA reivindica; quem só POSICIONA cede.** Aqui quem pinta é o `.widget-body`.
+      `pointer-events` não move um pixel: a moldura continua ocupando o mesmo espaço, com o mesmo
+      conteúdo, no mesmo lugar — o que muda é quem recebe o gesto onde não há nada desenhado.
+      Portão: `scripts/lei-palco.mjs`.
     */
-    pointer-events: auto;
+    pointer-events: none;
     position: relative; z-index: 8;
     /* A moldura NÃO rola em si: quem rola é o `.widget-body`, para o título ficar grudado. */
     overflow: visible;
     background: none; border: none; padding: 0; backdrop-filter: none;
   }
   /*
-    O LEITOR EM REPOUSO NÃO ROUBA O PONTEIRO — e roubava, no pior lugar possível.
-
-    A moldura mede ~448×436px e fica no centro do palco, que é exatamente onde o astro em foco é
-    desenhado. Com `pointer-events: auto` ela criava uma zona morta em cima dele: roda e arraste
-    iam para o painel e a câmera não respondia. Reportado como "não consigo dar zoom nem controlar
-    a câmera quando o astro está em foco — se eu afastar o mouse para as laterais, funciona", e
-    `document.elementFromPoint` no centro da tela confirmava, devolvendo a `section.widget` em vez
-    do canvas.
+    O LEITOR EM REPOUSO NÃO ROUBA NEM O PRÓPRIO FUNDO.
 
     O ponteiro só é necessário quando há o que ROLAR ou SELECIONAR. Em repouso o conteúdo é uma
     dica de uma linha — nem uma coisa nem outra. `:only-child` é o que separa os dois estados: com
     um arquivo aberto o painel volta a capturar, porque aí ele é um documento.
+
+    ⚠️ E o `.scroll` PRECISA estar na regra. Ele declara `pointer-events: auto` por conta própria
+    (a caixa rolável dos trilhos), e `pointer-events` não é herança que um descendente respeite:
+    um filho com `auto` volta a ser alvo mesmo sob um ancestral `none`. Cedendo só o corpo, a
+    faixa de uma linha do `.scroll` continuava reivindicando — pouco, e do jeito que esta base
+    perde guarda: em silêncio.
   */
-  .widget[data-panel-surface]:has(> .widget-body > .scroll > .widget-empty:only-child) {
+  .widget[data-panel-surface]:has(> .widget-body > .scroll > .widget-empty:only-child) > .widget-body,
+  .widget[data-panel-surface]:has(> .widget-body > .scroll > .widget-empty:only-child) > .widget-body > .scroll {
     pointer-events: none;
   }
   .widget[data-panel-surface] > .widget-body {
+    /*
+      ☠️ QUEM PINTA REIVINDICA. Esta é a caixa que tem fundo, borda e rolagem — e é ela, não a
+      moldura, que pode cobrar o gesto ao céu. Ela para na altura do conteúdo (teto de 62vh);
+      a moldura estica pela coluna toda, e por isso cede (ver o bloco acima).
+    */
+    pointer-events: auto;
     align-items: stretch;
     /* Vertical apenas, como pedido: linha longa quebra (`chunk-text` já faz word-break) em vez
        de criar uma segunda barra que rola o texto para fora da leitura. */
@@ -959,6 +1120,30 @@
   .fs-results { display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; }
 
   /*
+    FAVORITO. A marca é a única coisa deste painel que não é medida, e os quatro estados dela têm
+    de se distinguir SEM texto extra — quem lê de relance vê o glifo e a tinta.
+
+    `nao-marcado` não chega aqui: ele é uma linha de ação (`btn[data-variant="row"]`), sem faixa,
+    porque não há nada a anunciar. `degradada` é ANÚNCIO e usa `--busy`, o âmbar de atenção da HUD:
+    desenhá-la em cinza a faria ler como ausência, que é o oposto de "marquei e não vale mais aqui".
+    `--bad` seria errado — a marca não quebrou, ela continua guardada.
+  */
+  .marca { display: grid; grid-template-columns: auto 1fr; gap: 6px; align-items: baseline;
+           padding: 4px 0 2px; }
+  .marca-glifo { color: var(--ink-faint); font-size: 10px; }
+  .marca-texto { color: var(--ink-dim); font-size: 9px; letter-spacing: 0.18em; }
+  .marca[data-estado="marcada"] .marca-glifo,
+  .marca[data-estado="sem-aparencia"] .marca-glifo { color: var(--amber); }
+  .marca[data-estado="degradada"] .marca-glifo,
+  .marca[data-estado="degradada"] .marca-texto { color: var(--busy); }
+  /* O motivo do modelo, na íntegra: é ele que nomeia QUAL das três causas degradou a marca. */
+  .marca-motivo { grid-column: 2; color: var(--ink-faint); font-size: 8px; line-height: 1.5; }
+  /* A procedência tem a identidade do rótulo sem o peso dele — ela é assinatura, não valor. */
+  .marca-proveniencia { color: var(--amber-faint); font-size: 8px; letter-spacing: 0.14em;
+                        padding-bottom: 4px; }
+  .marca-aparencias { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
+
+  /*
     Scrubber da janela temporal. Hairline: a pista é uma linha, a frente revelada é a mesma
     linha em âmbar, e o playhead é um traço vertical. Sem trilho, sem knob, sem caixa.
   */
@@ -1136,10 +1321,27 @@
    */
   #boot h1.marca { color: var(--amber); letter-spacing: 0.02em; font-size: 34px; font-weight: 300; }
   #boot .sub { color: var(--ink-faint); font-size: 9px; letter-spacing: 0.32em; }
-  .boot-log { display: flex; flex-direction: column; gap: 3px; width: min(560px, 84vw); margin-top: 8px; }
-  .boot-line { display: grid; grid-template-columns: 1fr auto; gap: 14px; font-size: 9.5px;
+  .boot-log { display: flex; flex-direction: column; gap: 18px; width: min(560px, 84vw); margin-top: 8px; }
+  /*
+    Os dois blocos NOMEADOS — `CÉU` e `SUBSISTEMAS` — são duas perguntas, não uma lista longa
+    partida ao meio para caber. O cabeçalho é nível 3 da rampa (`--amber-faint`) e a régua que o
+    acompanha é nível 4: mobília nunca disputa com o dado que ela separa.
+  */
+  .boot-group { display: flex; flex-direction: column; gap: 3px; animation: reveal 320ms ease both; }
+  .boot-group-title { display: flex; align-items: center; gap: 10px; margin: 0 0 3px;
+                      color: var(--amber-faint); font-size: 8px; font-weight: 400;
+                      letter-spacing: 0.3em; }
+  .boot-group-title::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  .boot-group-lines { display: flex; flex-direction: column; gap: 3px; }
+  .boot-line { display: grid; grid-template-columns: auto 1fr; gap: 14px; font-size: 9.5px;
                border-bottom: 1px solid rgba(255,255,255,0.04); padding: 3px 0;
                animation: reveal 320ms ease both; }
+  /*
+    O valor é a coluna ELÁSTICA, e o rótulo é que se ajusta ao conteúdo. Invertido, a leitura do
+    disco — que é longa e chega tarde — quebrava em duas linhas e empurrava o gate para baixo
+    depois de o operador já ter lido a tela.
+  */
+  .boot-value { text-align: right; }
   @keyframes reveal { from { opacity: 0; transform: translateY(-3px); } }
   @keyframes slide-in { from { opacity: 0; transform: translateX(-6px); } }
 
@@ -1154,7 +1356,7 @@
     feedback junto com o movimento.
   */
   @media (prefers-reduced-motion: reduce) {
-    .row, .hit, .tool, .answer, .sources, .answer-meta,
+    .row, .hit, .tool, .aviso, .answer, .sources, .answer-meta,
     .inspector.open, .controls.open, .perms.open {
       animation-name: fade-only;
       animation-duration: 160ms;
@@ -1177,6 +1379,8 @@
   .boot-label { color: var(--ink-faint); letter-spacing: 0.2em; }
   .boot-line.ok .boot-value { color: var(--ink-dim); }
   .boot-line.bad .boot-label, .boot-line.bad .boot-value { color: var(--bad); }
+  /* `warn` é o corte que ainda deixa entrar — seção que não coube em órbita, disco sem anel. */
+  .boot-line.warn .boot-value { color: var(--busy); }
   .boot-status { color: var(--ink-dim); font-size: 9.5px; letter-spacing: 0.16em; min-height: 1.2em; }
   /*
     Só o LAYOUT da fileira. A aparência dos dois botões vem do primitivo `.btn` (`hud/button.js`)
@@ -1265,6 +1469,16 @@
       é ali que o macOS põe wifi, bateria e relógio, nessa ordem, colados.
     -->
     <div class="header-right">
+    <!--
+      O SWITCHER DE CENA. Ele fica FORA da systray de propósito: a systray é onde moram estados que
+      se consultam (voz, permissões, relógio), e isto é uma troca de MUNDO. Segmentado, com os dois
+      lados sempre visíveis, porque um toggle de um botão só esconde metade do que existe — e o
+      usuário precisa saber que a outra cena existe antes de querer ir para ela.
+    -->
+    <div class="cena-switch" data-cena role="group" aria-label="cena">
+      <button type="button" class="btn" data-variant="ghost" data-size="sm" data-cena-btn="agente" aria-pressed="true" title="o buraco negro no centro: como a IA pensa">AGENTE</button>
+      <button type="button" class="btn" data-variant="ghost" data-size="sm" data-cena-btn="universo" aria-pressed="false" title="gravidade local, sem centro: onde o conhecimento vive">UNIVERSO</button>
+    </div>
     <div class="systray" data-systray>
       <div class="tray-item">
         <button type="button" class="btn" data-variant="icon" data-size="md" data-tray="voice"

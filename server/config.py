@@ -16,12 +16,23 @@ DEFAULTS = {
     "ESPATIAL_HOST": "127.0.0.1",
     "ESPATIAL_PORT": "8787",
     "QDRANT_URL": "http://localhost:6333",
-    "QDRANT_COLLECTION": "workspace_embedding",
+    # ⚠️ **VAZIO DE PROPÓSITO — corpus não tem default.** Ele valia `workspace_embedding`, que é a
+    # coleção de UMA máquina, e isso contradiz o princípio declarado três linhas abaixo para o
+    # Neo4j: sem valor, a sonda diz "nunca configurado" em vez de tentar e acertar outro alvo.
+    #
+    # Um default de corpus não falha: ele monta um céu inteiro, com convicção total, sobre um
+    # índice que não é o do operador. Foi o modo de falha que mordeu duas vezes em 2026-08-08 —
+    # uma pela variável exportada no perfil do shell, outra por este default.
+    "QDRANT_COLLECTION": "",
     "EMBED_MODEL": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
     "SPARSE_MODEL": "Qdrant/bm25",
     "OLLAMA_URL": "http://localhost:11434",
     "OLLAMA_MODEL": "gpt-oss:20b",
     "NEO4J_HTTP": "http://localhost:7474",
+    # Vazios de propósito: sem eles a sonda reporta "nunca configurado" em vez de tentar e falhar.
+    # O Neo4j é a única dependência OPCIONAL que faz parte da hierarquia quando ativa.
+    "NEO4J_USER": "",
+    "NEO4J_PASSWORD": "",
     # TTS global do oracle (shared/speech.compose.yml). Kokoro, API OpenAI-compatível.
     "TTS_URL": "http://localhost:8880",
     "TTS_MODEL": "kokoro",

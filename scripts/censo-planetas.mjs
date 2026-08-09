@@ -9,7 +9,7 @@
  *
  * Rode quando:
  *   - o céu parecer homogêneo demais («todos iguais»);
- *   - mexer numa constante de `planetParams` (`MASS_LOG_FULL`, `ORIGIN_SPAN`, qualquer `lerp`);
+ *   - mexer numa constante de `planetParams` (`CHUNKS_LOG_FULL`, `ORIGIN_SPAN`, qualquer `lerp`);
  *   - o corpus mudar de tamanho ou de escopo — as faixas dependem de `chunks`, e `chunks` muda.
  *
  *     node scripts/censo-planetas.mjs
@@ -237,7 +237,7 @@ const EIXOS = [
  * Não é uma conta à mão sobre as fórmulas — seria a cópia que este arquivo se recusa a fazer. É a
  * derivação real avaliada num barrido denso das ENTRADAS que ela admite: caminhos quaisquer (as
  * sementes saem de `hash01`, que é ~uniforme em [0,1)) e `chunks` de 0 até bem além do ponto em
- * que `mass` satura. O envelope que sai daí é o que o código consegue produzir.
+ * que `chunksNorm` satura. O envelope que sai daí é o que o código consegue produzir.
  */
 function faixasTeoricas(amostras = 60000) {
   const acc = new Map(EIXOS.map((e) => [e.nome, { min: Infinity, max: -Infinity }]));
@@ -246,7 +246,7 @@ function faixasTeoricas(amostras = 60000) {
     const p = planetParams({
       source: `sonda/${i}/${(i * 2654435761) % 1e9}.md`,
       kind: 'doc',
-      // Log-espaçado até 512: `mass` satura em chunks = 2⁸-1, então isso cobre a faixa inteira.
+      // Log-espaçado até 512: `chunksNorm` satura em chunks = 2⁸-1, então isso cobre a faixa inteira.
       chunks: Math.round(2 ** ((i % 512) / 512 * 9.1)),
     });
     for (const e of EIXOS) {
@@ -374,7 +374,7 @@ console.log(`  formatos com um único planeta: ${solitarios} (${frac(solitarios,
 
 titulo('4. CORRELAÇÃO SUSPEITA — eixos que andam juntos porque saem da mesma semente');
 console.log('  |ρ| de Spearman >= 0,90. Cada par destes é UM eixo de variação, não dois.');
-const numericos = [{ nome: 'mass', valor: (p) => p.mass }, ...EIXOS];
+const numericos = [{ nome: 'chunksNorm', valor: (p) => p.chunksNorm }, ...EIXOS];
 let pares = 0;
 for (let i = 0; i < numericos.length; i++) {
   for (let j = i + 1; j < numericos.length; j++) {
@@ -469,9 +469,9 @@ for (let b = 0; b < BANDS.length; b++) {
 }
 
 titulo('7. O DIAGNÓSTICO — o que está colapsado');
-const mass = planetas.map((x) => x.p.mass);
+const chunksNorm = planetas.map((x) => x.p.chunksNorm);
 console.log(
-  `  mass = log2(1+chunks)/8 →  mín ${f(Math.min(...mass))} · MED ${f(pct(mass, 0.5))} · máx ${f(Math.max(...mass))}` +
+  `  chunksNorm = log2(1+chunks)/8 →  mín ${f(Math.min(...chunksNorm))} · MED ${f(pct(chunksNorm, 0.5))} · máx ${f(Math.max(...chunksNorm))}` +
     `  (chunks MED ${pct(planetas.map((x) => x.node.chunks || 0), 0.5)}) — a MÃE de amplitude, sea, ridged e atmosphere`
 );
 

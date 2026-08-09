@@ -268,7 +268,7 @@ taxa de acreção**. Regime que processa mais matéria infla; regime parado asse
 **Carga cognitiva** (`cogload`, tokens estimados) engrossa até +45% e ilumina até +20%, saturando
 por `1 - exp(-t/60000)` — saturação porque o cliente não conhece o teto da janela do modelo.
 
-Bancada: `espatial.core({ regime: 'thinking', tokens: 120000 })`.
+Bancada: `spatia.core({ regime: 'thinking', tokens: 120000 })`.
 
 ---
 
@@ -536,8 +536,13 @@ por isso mexer só na força não resolvia.
 O brilho de cada objeto **nasce no shader**; o bloom só amplifica. Conferido com o bloom em zero:
 o buraco negro não perde brilho, ele ganha estrutura.
 
-Sondas: `espatial.bloom({ threshold, radius })` · `espatial.core({ regime, tokens })` ·
-`espatial.lod()` · `espatial.planet()` · `espatial.galaxy()` · `espatial.moons()`.
+Sondas: `spatia.bloom({ threshold, radius })` · `spatia.core({ regime, tokens })` ·
+`spatia.lod()` · `spatia.planet()` · `spatia.galaxy()` · `spatia.moons()`.
+
+⚠️ **O objeto é `window.spatia`**, e a lista viva está em `src/main.js` — quando os dois
+discordarem, o código está certo. ⚠️ Não confundir com as CHAVES `espatial.trace` / `espatial.*.v1` do
+`localStorage`, que continuam com o nome antigo **de propósito** (renomeá-las apaga o que está
+gravado, em silêncio — ver a tabela de `docs/identidade.md`).
 
 ---
 

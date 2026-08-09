@@ -9,11 +9,12 @@
 import { on, ui, emit } from './core/bus.js';
 import * as state from './core/state.js';
 import * as session from './core/session.js';
+import * as tela from './core/tela.js';
 import * as attention from './core/attention.js';
 import * as api from './core/api.js';
 import { createScene } from './space/scene.js';
 import { createAudio } from './audio/engine.js';
-import { createFrame } from './hud/frame.js';
+import { createFrame, AFERICAO_MS } from './hud/frame.js';
 import { createStreams } from './hud/streams.js';
 import { createAnswer } from './hud/answer.js';
 import { createTerminal } from './hud/terminal.js';
@@ -23,10 +24,14 @@ import { createPermissions } from './hud/permissions.js';
 import { createVoice } from './hud/voice.js';
 import { createSpeechPanel } from './hud/speech-panel.js';
 import { createSystray } from './hud/systray.js';
+import { createCenaSwitch } from './hud/cena.js';
+import * as favoritos from './hud/favoritos-ui.js';
+import { APARENCIAS } from './space/favoritos.js';
+import { registrarTipoDeCorpo } from './core/cena-atual.js';
 import { createYield } from './hud/yield.js';
 import { createWidgetHost } from './kernel/widgets.js';
 import { createRouter, ROUTE_ROOT } from './kernel/router.js';
-import { listApps } from './kernel/registry.js';
+import { listApps, listWidgets, getApp } from './kernel/registry.js';
 import { registerApps, SYSTEM_VIEW, closeFileReader } from './apps/index.js';
 import * as tuning from './core/tuning.js';
 import * as prefs from './core/prefs.js';
@@ -41,6 +46,370 @@ const hud = document.getElementById('hud');
 const canvas = document.getElementById('space');
 const bootRoot = document.getElementById('boot');
 const bodyLayer = document.getElementById('bodies');
+
+/* ⟦sonda-hud⟧ ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * A SONDA DA HUD — quanto da janela a interface reivindica AO PONTEIRO, e o que está recolhido.
+ *
+ * ☠️ **A grandeza é ÁREA QUE ACEITA PONTEIRO, nunca área desenhada.** Todo ouvinte de gesto da
+ * cena está preso ao `canvas` (`space/scene.js`), e não há em `window` quem reencaminhe o gesto:
+ * um retângulo com `pointer-events: auto` por cima do céu não DISPUTA o clique — ele impede que
+ * o evento exista para a cena, sem fallback e sem nada acusar. Medir pixel pintado responderia outra
+ * pergunta, e responderia errado nos dois sentidos: a HUD é hairline (quase toda transparente,
+ * e mesmo assim reivindica) e o painel de palco tem fundo opaco que às vezes CEDE o ponteiro.
+ *
+ * O instrumento é `document.elementFromPoint`, que já honra `pointer-events` por especificação —
+ * ele devolve quem RECEBERIA o gesto naquele ponto, e é o mesmo teste que diagnosticou a zona
+ * morta do leitor de arquivo. A varredura é uma grade de passo DECLARADO sobre a janela inteira;
+ * ela substitui os 45 pontos avulsos de `hud/yield.js` por comportamento permanente.
+ *
+ * ## Nada aqui é lista branca
+ *
+ * A atribuição não escolhe elementos: varre a janela toda e sobe do alvo até achar IDENTIDADE
+ * declarada (`data-widget` · `data-slot` · `data-surface` · qualquer `data-*` · `id` · um marco
+ * de HTML). Quem não tem identidade nenhuma é nomeado PELA FORMA e entra em `desconhecidos` —
+ * forma nova ACUSA, nunca é tolerada em silêncio. E `conservacao` confere que nenhum ponto se
+ * perdeu no caminho: soma dos donos + canvas + fundo + nulos tem de dar `pontos`.
+ *
+ * ## Recolhido ≠ não montado ≠ sem controle
+ *
+ * `espatial.collapsed.v1` faz widget recolhido PARECER vazio, e por isso "o painel não apareceu"
+ * tem causas indistinguíveis a olho. Elas saem separadas, e cada uma é um fato diferente:
+ *
+ * | campo | o que significa |
+ * |---|---|
+ * | `recolhidos` | montado nesta rota, e o operador fechou (`data-collapsed="true"`) |
+ * | `abertos` | montado e com corpo visível |
+ * | `semControle` | montado e sem botão de recolher — é a fenda `stage`, que não tem rótulo |
+ * | `naoMontados` | registrado no kernel e ausente desta rota — decisão do manifesto |
+ * | `ausentes` | ☠️ **declarado pela rota e ausente do DOM** — isto é defeito, não decisão |
+ * | `recolhidosForaDaRota` | o operador fechou, e o widget nem está aqui para parecer vazio |
+ *
+ * ## Procedência de todo número
+ *
+ * `passoPx`, `colunas`, `linhas` e `pontos` voltam junto: qualquer fração daqui se refaz por
+ * `pontos_do_dono / pontos`. Fração de ponto é fração de ÁREA porque a grade é uniforme — as
+ * células da borda direita e de baixo são parciais, e é por isso que `colunas`/`linhas` saem por
+ * `ceil` e o ponto é o centro da célula, clampeado dentro da janela.
+ *
+ * ## O que ela NÃO responde
+ *
+ * - **Não diz o que a cena desenhou.** Mede LAYOUT, não quadro; aba oculta não invalida esta
+ *   medida (o layout continua vivo), mas também não a torna prova de que o céu está no ar.
+ * - **Não navega.** Mede a rota que está na tela e CARIMBA `rota` no resultado. Para varrer as
+ *   dez, navegue e colecione — a marca de rota é o que impede misturar duas telas num número só:
+ *
+ *       const r = []; for (const id of ['', 'files', 'system', 'web', 'bridge', 'journal',
+ *                                       'metrics', 'security', 'activity', 'storage']) {
+ *         location.hash = `#/${id}`; await new Promise((f) => setTimeout(f, 900));
+ *         r.push(spatia.hud());
+ *       }
+ *       console.table(r.map((h) => ({ rota: h.rota.id, ponteiro: h.ponteiro.fracaoReivindicada,
+ *                                     recolhidos: h.widgets.recolhidos.length,
+ *                                     ausentes: h.widgets.ausentes.join(',') })));
+ *
+ * - **Não julga legibilidade.** "O painel está na frente" e "o painel tem o mesmo âmbar do anel"
+ *   dão a mesma foto; esta sonda separa o primeiro do segundo e não opina sobre o segundo.
+ */
+
+/** Passo padrão da varredura, em px CSS. Sobrepõe-se com `spatia.hud({ passo: 8 })`. */
+const SONDA_PASSO_PX = 16;
+
+/**
+ * Marcos de HTML que já SÃO identidade, quando não há `data-*` nem `id` no caminho.
+ *
+ * Não é lista de quem pode reivindicar o ponteiro — todo elemento é varrido de qualquer jeito.
+ * É o vocabulário com que a atribuição NOMEIA quem encontrou; fora dele o dono cai em
+ * `desconhecido:`, que é o campo que acusa.
+ */
+const SONDA_MARCOS = new Set(['HEADER', 'FOOTER', 'NAV', 'MAIN', 'ASIDE', 'DIALOG', 'FORM']);
+
+/** A identidade DECLARADA de um nó, da mais específica para a mais grosseira, ou `null`. */
+function sondaIdentidade(no) {
+  const dados = no.dataset || {};
+  if (dados.widget) return `widget:${dados.widget}`;
+  if (dados.slot) return `fenda:${dados.slot}`;
+  if (dados.surface) return `superficie:${dados.surface}`;
+  const chaves = Object.keys(dados);
+  if (chaves.length) return `data-${chaves[0]}`;
+  if (no.id) return `#${no.id}`;
+  if (SONDA_MARCOS.has(no.tagName)) return String(no.tagName).toLowerCase();
+  return null;
+}
+
+/** O nome da FORMA de quem não tem identidade — para acusar em vez de sumir com o ponto. */
+function sondaForma(no) {
+  const classe = typeof no.className === 'string' ? no.className.trim().split(/\s+/)[0] : '';
+  const tag = String(no.tagName || '?').toLowerCase();
+  return `desconhecido:${tag}${classe ? `.${classe}` : ''}`;
+}
+
+const sondaFrac = (v) => (Number.isFinite(v) ? Math.round(v * 1e4) / 1e4 : null);
+const sondaPx = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
+
+/** A caixa de um nó em px CSS e em fração da janela. */
+function sondaCaixa(no, janela) {
+  const r = no.getBoundingClientRect();
+  return {
+    larguraPx: sondaPx(r.width),
+    alturaPx: sondaPx(r.height),
+    esquerdaPx: sondaPx(r.left),
+    topoPx: sondaPx(r.top),
+    fracaoLargura: sondaFrac(r.width / janela.larguraPx),
+    fracaoAltura: sondaFrac(r.height / janela.alturaPx),
+    fracaoJanela: sondaFrac((r.width * r.height) / janela.areaPx2),
+  };
+}
+
+/**
+ * O QUINTO dono do estado de tela, lido cru.
+ *
+ * `formato` distingue os três estados que colapsariam em "vazio": `ausente` é o operador que
+ * nunca decidiu (`fechadas: []` é medida), `ilegivel` é armazém que não respondeu (`null`, que
+ * é *"não medi"*), e `lista` é o formato antigo que `kernel/widgets.js` ainda aceita — lê-lo
+ * como `{}` devolveria zero recolhido para quem tem todos fechados.
+ */
+function sondaOperador(armazem) {
+  let bruto;
+  try {
+    bruto = JSON.parse(armazem?.getItem('espatial.collapsed.v1') ?? 'null');
+  } catch {
+    return { formato: 'ilegivel', fechadas: null, abertas: null };
+  }
+  if (bruto === null || bruto === undefined) return { formato: 'ausente', fechadas: [], abertas: [] };
+  if (Array.isArray(bruto)) return { formato: 'lista', fechadas: [...bruto], abertas: [] };
+  return {
+    formato: 'v1',
+    fechadas: [...(bruto.fechadas || [])],
+    abertas: [...(bruto.abertas || [])],
+  };
+}
+
+/**
+ * @param {object} env
+ * @param {Document} env.doc
+ * @param {Window} env.win
+ * @param {Element} env.canvas       o `<canvas>` da cena — o único destino que NÃO é reivindicação
+ * @param {Element} env.hud          a raiz da HUD, para ler a elevação em vigor
+ * @param {object} env.rota          `tela.estado().rota` — o carimbo do resultado
+ * @param {string[]} env.montados    o que o HOST diz estar montado (cruzado com o DOM)
+ * @param {string[]} env.registrados todo widget conhecido pelo kernel
+ * @param {string[]} env.declarados  o que ESTA rota declara montar
+ * @param {Storage} env.armazem      onde `espatial.collapsed.v1` mora
+ * @param {object} [opcoes]
+ * @param {number} [opcoes.passo]    passo da grade, em px CSS
+ */
+export function medirHud(env, opcoes = {}) {
+  const { doc, win, canvas: tela3d, hud: raizHud, rota, montados, registrados, declarados, armazem } = env;
+  const larguraPx = win.innerWidth;
+  const alturaPx = win.innerHeight;
+  const janela = {
+    larguraPx,
+    alturaPx,
+    areaPx2: larguraPx * alturaPx,
+    dpr: Number.isFinite(win.devicePixelRatio) ? win.devicePixelRatio : null,
+  };
+  const estilo = (no) => (no ? win.getComputedStyle(no) : null);
+  const raiz = doc.documentElement;
+
+  // ───────────────────────────────────────────────── a varredura, ponto a ponto
+  const passoPx = Math.max(2, Math.round(Number(opcoes.passo) || SONDA_PASSO_PX));
+  const colunas = Math.max(1, Math.ceil(larguraPx / passoPx));
+  const linhas = Math.max(1, Math.ceil(alturaPx / passoPx));
+  const pontos = colunas * linhas;
+
+  const porDono = new Map();
+  const porFenda = new Map();
+  let aoCanvas = 0;
+  let aoFundo = 0;
+  let nulos = 0;
+  let reivindicados = 0;
+
+  for (let i = 0; i < colunas; i++) {
+    const x = Math.min(larguraPx - 0.5, (i + 0.5) * passoPx);
+    for (let j = 0; j < linhas; j++) {
+      const y = Math.min(alturaPx - 0.5, (j + 0.5) * passoPx);
+      const alvo = doc.elementFromPoint(x, y);
+      // `null` é ponto fora do documento; contá-lo como canvas inventaria gesto que chega.
+      if (!alvo) { nulos++; continue; }
+      if (alvo === raiz || alvo === doc.body) { aoFundo++; continue; }
+
+      let dono = null;
+      let fenda = null;
+      let noCanvas = false;
+      for (let no = alvo; no; no = no.parentElement) {
+        if (no === tela3d) { noCanvas = true; break; }
+        if (!dono) dono = sondaIdentidade(no);
+        if (!fenda && no.dataset?.slot) fenda = no.dataset.slot;
+        if (no === raiz) break;
+      }
+      if (noCanvas) { aoCanvas++; continue; }
+
+      reivindicados++;
+      const chave = dono || sondaForma(alvo);
+      const registro = porDono.get(chave) || { dono: chave, fenda: fenda ?? null, pontos: 0 };
+      registro.pontos++;
+      porDono.set(chave, registro);
+      const chaveFenda = fenda ?? 'fora';
+      porFenda.set(chaveFenda, (porFenda.get(chaveFenda) ?? 0) + 1);
+    }
+  }
+
+  const donos = [...porDono.values()]
+    .map((d) => ({ ...d, fracaoJanela: sondaFrac(d.pontos / pontos) }))
+    .sort((a, b) => b.pontos - a.pontos);
+  const somaDonos = donos.reduce((t, d) => t + d.pontos, 0);
+  const fendasAoPonteiro = Object.fromEntries(
+    [...porFenda].map(([k, v]) => [k, { pontos: v, fracaoJanela: sondaFrac(v / pontos) }])
+  );
+
+  const ponteiro = {
+    passoPx,
+    colunas,
+    linhas,
+    pontos,
+    aoCanvas,
+    aoFundo,
+    nulos,
+    reivindicados,
+    fracaoAoCanvas: sondaFrac(aoCanvas / pontos),
+    fracaoReivindicada: sondaFrac(reivindicados / pontos),
+    donos,
+    /** ☠️ Forma que a atribuição não soube nomear. Vazio é o normal; cheio é tarefa. */
+    desconhecidos: donos.filter((d) => d.dono.startsWith('desconhecido:')),
+    porFenda: fendasAoPonteiro,
+    /** Nenhum ponto se perde: se `bate` for falso, todo número acima está sob suspeita. */
+    conservacao: {
+      pontos,
+      soma: aoCanvas + aoFundo + reivindicados + nulos,
+      somaDonos,
+      bate: aoCanvas + aoFundo + reivindicados + nulos === pontos && somaDonos === reivindicados,
+    },
+  };
+
+  // ───────────────────────────────────────────────────── a geometria das fendas
+  const fendas = [...doc.querySelectorAll('[data-slot]')].map((no) => {
+    const est = estilo(no);
+    return {
+      fenda: no.dataset.slot,
+      ...sondaCaixa(no, janela),
+      display: est ? est.display : null,
+      montados: [...no.querySelectorAll('[data-widget]')].map((w) => w.dataset.widget),
+      aoPonteiro: fendasAoPonteiro[no.dataset.slot] ?? { pontos: 0, fracaoJanela: 0 },
+    };
+  });
+
+  /*
+   * O painel de palco: `null` quando não há um montado, nunca um objeto de zeros.
+   *
+   * `aceitaPonteiro` é lido do estilo em vigor, não deduzido: o escape do CSS só desarma o
+   * painel quando ele está VAZIO, e a diferença entre "existe e cede" e "existe e captura" é
+   * exatamente a zona morta sobre o corpo em foco.
+   */
+  const painelNo = doc.querySelector('[data-panel-surface]');
+  const estPainel = estilo(painelNo);
+  const painelDePalco = painelNo
+    ? {
+        widget: painelNo.dataset.widget ?? null,
+        ...sondaCaixa(painelNo, janela),
+        pointerEvents: estPainel ? estPainel.pointerEvents : null,
+        aceitaPonteiro: estPainel ? estPainel.pointerEvents !== 'none' : null,
+        aoPonteiro: painelNo.dataset.widget
+          ? (porDono.get(`widget:${painelNo.dataset.widget}`)?.pontos ?? 0)
+          : null,
+      }
+    : null;
+
+  // ────────────────────────────────────────── montado, recolhido e não montado
+  const nos = [...doc.querySelectorAll('[data-widget]')];
+  const montadosNoDom = nos.map((no) => no.dataset.widget);
+  const conjMontados = new Set(montadosNoDom);
+  const decl = [...(declarados ?? [])];
+  const operador = sondaOperador(armazem);
+  const doHost = [...(montados ?? [])];
+
+  const widgets = {
+    declarados: decl,
+    montados: montadosNoDom,
+    recolhidos: nos.filter((n) => n.dataset.collapsed === 'true').map((n) => n.dataset.widget),
+    abertos: nos.filter((n) => n.dataset.collapsed === 'false').map((n) => n.dataset.widget),
+    semControle: nos.filter((n) => n.dataset.collapsed === undefined).map((n) => n.dataset.widget),
+    /** ☠️ Declarado pela rota e AUSENTE do DOM. Não é o operador: é defeito. */
+    ausentes: decl.filter((id) => !conjMontados.has(id)),
+    /** Montado sem a rota ter declarado — a outra ponta do mesmo portão que falta. */
+    intrusos: montadosNoDom.filter((id) => !decl.includes(id)),
+    naoMontados: [...(registrados ?? [])].filter((id) => !conjMontados.has(id)),
+    operador,
+    recolhidosForaDaRota: (operador.fechadas ?? []).filter((id) => !conjMontados.has(id)),
+    /** O host e o DOM discordarem é o host tendo perdido um nó, ou o DOM tendo ganhado um. */
+    divergenciaHost: {
+      soNoHost: doHost.filter((id) => !conjMontados.has(id)),
+      soNoDom: montadosNoDom.filter((id) => !doHost.includes(id)),
+    },
+  };
+
+  /*
+   * A lista de referências, medida em vez de estimada.
+   *
+   * `alturaLinhaPx` é a MEDIDA da caixa de uma linha, não `line-height` — nenhum é declarado
+   * para `.source`, e o computado devolve a palavra `normal` em vez de um número. `null` aqui é
+   * *"não há linha para medir"*, e nunca `0`.
+   *
+   * ⚠️ `ancorado` separa a lista que está NA TELA da que está estacionada no sótão
+   * (`.attic`, em `left: -9999px`): lá a caixa existe, tem 320 px de largura, e a altura dela
+   * não é a altura que o palco produziria.
+   */
+  const contFontes = doc.querySelector('[data-sources]');
+  let fontes = null;
+  if (contFontes) {
+    const linhasFonte = [...contFontes.querySelectorAll('.source')];
+    const caixa = sondaCaixa(contFontes, janela);
+    const est = estilo(contFontes);
+    const alturas = linhasFonte
+      .map((l) => l.getBoundingClientRect().height)
+      .filter((v) => Number.isFinite(v) && v > 0)
+      .sort((a, b) => a - b);
+    const mediana = alturas.length ? alturas[Math.floor(alturas.length / 2)] : null;
+    const estLinha = linhasFonte.length ? estilo(linhasFonte[0]) : null;
+    const fontePx = estLinha ? Number.parseFloat(estLinha.fontSize) : null;
+    fontes = {
+      n: linhasFonte.length,
+      ancorado: caixa.esquerdaPx !== null && caixa.esquerdaPx > -1000,
+      caixa,
+      alturaLinhaPx: sondaPx(mediana),
+      fontePx: Number.isFinite(fontePx) ? fontePx : null,
+      razaoLinha:
+        Number.isFinite(mediana) && Number.isFinite(fontePx) && fontePx > 0
+          ? sondaFrac(mediana / fontePx)
+          : null,
+      lineHeightComputado: estLinha ? estLinha.lineHeight : null,
+      maxHeight: est ? est.maxHeight : null,
+      overflowY: est ? est.overflowY : null,
+    };
+  }
+
+  const estHud = estilo(raizHud);
+  return {
+    quando: new Date().toISOString(),
+    janela,
+    rota: { ...(rota ?? {}) },
+    ponteiro,
+    fendas,
+    painelDePalco,
+    widgets,
+    fontes,
+    /*
+     * A elevação do `#hud` é `:has()`-ada no painel de palco, e o comentário do CSS declara que
+     * elevá-la sempre "mataria a ilusão de profundidade". Com um painel montado ela está de pé.
+     */
+    elevacao: {
+      hudZIndex: estHud ? estHud.zIndex : null,
+      hudPointerEvents: estHud ? estHud.pointerEvents : null,
+      porPainelDePalco: Boolean(painelNo),
+    },
+  };
+}
+/* ⟦/sonda-hud⟧ ═════════════════════════════════════════════════════════════════════════════ */
 
 async function main() {
   if (!canvas.getContext('webgl2') && !canvas.getContext('webgl')) {
@@ -123,6 +492,14 @@ async function main() {
   }
   const scene = createScene(canvas, { labelLayer: bodyLayer, signals: hudYield });
   /*
+   * Antes do router e do boot, de propósito: `tela` é espelho de `ui.scene-mode` e `ui.route`, e
+   * a emissão que ela não pode perder é a primeira — a que o `router.start` produz.
+   *
+   * `scene.mode()` é o único fato daqui que não chega por evento: a cena só anuncia quando TROCA.
+   * Quem o conhece declara uma vez, em vez de o estado nascer com um palpite.
+   */
+  tela.install({ cena: scene.mode() });
+  /*
    * `document`, não `hud`, para os módulos que ADOTAM nós.
    *
    * Os nós de conteúdo nascem no depósito, que vive fora do `#hud` — buscar só dentro do hud
@@ -161,6 +538,33 @@ async function main() {
    * systray é a moldura dos controles, não a dona deles.
    */
   const systray = createSystray(hud);
+  /*
+   * O switcher de cena. Ele vem depois da systray porque depende de `scene`, e a nota que ele
+   * publica na timeline é o que torna a troca um EVENTO em vez de um piscar — o céu inteiro muda,
+   * e uma mudança dessas sem registro parece defeito.
+   */
+  // A HUD passa a poder perguntar o tipo à CENA, em vez de deduzi-lo do catálogo antigo.
+  registrarTipoDeCorpo((source) => scene.bodyTypeOf(source));
+  /*
+   * O guardador das MARCAS, com o `prefs` injetado — o modelo é puro e nunca importa o storage.
+   *
+   * Antes de qualquer painel, porque o widget de CONTEXTO desenha a marca no primeiro `mount` e um
+   * store ligado depois faria o painel nascer dizendo "favoritos não ligados" na única tela em que
+   * ninguém está olhando para descobrir o motivo.
+   */
+  favoritos.instalarFavoritos(prefs);
+  const cenaSwitch = createCenaSwitch(hud, {
+    scene,
+    onChange: (modo) => {
+      const s = scene.universeStats?.();
+      streams.note(
+        modo === 'universo'
+          ? `CENA UNIVERSO · ${s?.sistemas ?? 0} SISTEMAS · ${s?.corpos ?? 0} CORPOS${s?.colisoes ? ` · ${s.colisoes} COLISÕES` : ''}`
+          : 'CENA AGENTE · O NÚCLEO NO CENTRO',
+        'good'
+      );
+    },
+  });
   // A onda da HUD passa a ser desenhada com a amplitude real do áudio que o motor toca.
   const voice = createVoice(document, { onLevel: (level) => terminal.setLevel(level) });
 
@@ -207,6 +611,12 @@ async function main() {
     for (const name of events) window.addEventListener(name, unlock, true);
   }
 
+  /*
+   * ⚠️ **A tela de entrada é UMA, e ela é o `#boot`.** Camada de CHEGADA própria, sobre a cena já
+   * desenhando, está refutada por uso: virava uma segunda parede entre o diagnóstico e o céu, e
+   * afirmava (`CÉU`, `CORPUS`) o que esta tela agora afirma dentro do bloco `CÉU`. Duas telas
+   * dizendo o mesmo fato é o pedágio que o princípio 11 recusa.
+   */
   const boot = createBoot(bootRoot, {
     /**
      * `ambient` é a resposta do gate do boot — som ligado ou entrada em silêncio.
@@ -278,6 +688,55 @@ async function main() {
   window.spatia = Object.freeze({
     session: () => session.snapshot(),
     state: () => state.snapshot(),
+    /**
+     * O que está na tela AGORA, de um lugar só: camada na frente, pilha, cena e rota.
+     *
+     * ⚠️ É a sonda que separa "o botão não fez nada" de "fez, e a tela não seguiu": camada, cena
+     * e rota lidas em leituras diferentes podem discordar sem que nada acuse. Ver `core/tela.js`.
+     */
+    tela: () => tela.estado(),
+    /**
+     * Quanto da janela a HUD reivindica AO PONTEIRO nesta rota, e o que está recolhido.
+     *
+     * ☠️ A grandeza é área que ACEITA ponteiro, não área desenhada: um retângulo sobre o céu não
+     * disputa o clique, ele cancela órbita, zoom e pick ali. Ver `medirHud`, acima, para a grade,
+     * a atribuição sem lista branca e a receita de varrer as dez rotas.
+     */
+    hud: (opcoes) => {
+      const atual = tela.estado().rota;
+      return medirHud(
+        {
+          doc: document,
+          win: window,
+          canvas,
+          hud,
+          rota: atual,
+          montados: host.mounted(),
+          registrados: listWidgets().map((w) => w.id),
+          /*
+           * ⚠️ `rota.id` nulo é ANTES da primeira navegação, e aí a rota não declarou nada.
+           * Devolver `SYSTEM_VIEW` aí inventaria nove `ausentes` — defeito onde só há ordem de
+           * inicialização.
+           */
+          declarados: atual.id === null
+            ? []
+            : atual.id === ROUTE_ROOT
+              ? SYSTEM_VIEW
+              : (getApp(atual.id)?.widgets ?? []),
+          armazem: window.localStorage,
+        },
+        opcoes
+      );
+    },
+    /**
+     * As MARCAS do operador: quem marcou, quando, de qual céu, e em que estado cada uma está.
+     *
+     * ⚠️ Ela distingue o que o modelo distingue e a tela desenha: `degradadas` conta a marca que não
+     * vale mais AQUI, `foraDoCeu` a que foi feita em outro corpus, `ausentes` a que aponta para um
+     * corpo que sumiu da topologia, e `emDisco` é `null` porque ninguém mediu o disco — não é `0`,
+     * que diria "medi e não há". Ver `space/favoritos.js`.
+     */
+    favoritos: () => favoritos.sonda(),
     /** Custo da cadeia de pós-processamento, medido na hora. Ver `scene.sampleRenderCost`. */
     renderCost: (n) => scene.sampleRenderCost(n),
     /** Raio aparente, nível de detalhe e distância do planeta em foco — ou `null`. */
@@ -299,6 +758,80 @@ async function main() {
     bloom: (ajuste) => scene.bloomProbe(ajuste),
     /** Bancada da camada 4: `spatia.core({ regime: 'thinking', tokens: 120000 })`. */
     core: (opcoes) => scene.blackHoleProbe(opcoes),
+    /**
+     * A/B dos dois termos que acendem a BORDA do planeta: `spatia.pele({ limbo: 0 })`.
+     *
+     * Sem argumento só lê. `limbo` é a cor do ar na própria superfície (fresnel²), `casca` é a
+     * atmosfera aditiva em BackSide. Os dois em 1 é a composição de hoje. Ver `space/planet.js`.
+     */
+    pele: (ajuste) => scene.skinTerms(ajuste),
+    /**
+     * O A/B dos termos da pele no MESMO quadro: `spatia.peleAB([{limbo:1},{limbo:0}], ler)`.
+     *
+     * `ler` roda com o desenho ainda no buffer — é onde vai o `gl.readPixels`, e ela tem de ser
+     * síncrona. Ver `scene.skinAB` para o porquê de a pose ter de ser a mesma.
+     */
+    peleAB: (condicoes, ler) => scene.skinAB(condicoes, ler),
+    /**
+     * O mesmo A/B na cena UNIVERSO: `spatia.aroAB([{borda:1},{borda:0}], ler)`.
+     *
+     * ⚠️ Ele mede o aro da ESTRELA. `CORPO_FS` é meia-lambert puro e não tem aro — o passo 2 do
+     * `distancia-e-forma.md` cria um, não ajusta um. Ver `space/universe.js`, `termos`.
+     */
+    aroAB: (condicoes, ler) => scene.universeAB(condicoes, ler),
+    /**
+     * A cena em vigor, e a troca por código: `spatia.cena('universo')`.
+     *
+     * Existe pelo mesmo motivo das outras sondas — sem ela, "cliquei e não mudou" não distingue
+     * botão morto de cena que não trocou, e foi exatamente essa dúvida que custou a primeira
+     * validação deste switcher.
+     *
+     * ⚠️ **`quadros` conta só o UNIVERSO** — ele vem de `universeStats()` e congela no AGENTE, então
+     * usá-lo como prova de vida ali devolve "não mudou" com a tela viva. Medida que atravessa as
+     * duas cenas conta `requestAnimationFrame`.
+     * ⭑ **`composicao` é a que separa "preto por buffer" de "preto por câmera ou por laço"**: ela
+     * diz onde a cena grava profundidade, onde a lente escreve, e se as duas colidem.
+     */
+    cena: (modo) => (modo
+      ? scene.setMode(modo)
+      : { modo: scene.mode(), ...scene.universeStats(), composicao: scene.composicao() }),
+    /**
+     * A geometria da cena UNIVERSO, medida em vez de olhada.
+     *
+     * ⚠️ `sobreposicoes()` existe porque **colisão e oclusão produzem a mesma imagem** numa cena
+     * sem sombra projetada: dois corpos alinhados com a câmera parecem se atravessar, e um defeito
+     * de geometria de verdade parece a mesma coisa. A foto não decide; a distância decide.
+     */
+    universo: {
+      sobreposicoes: (limite) => scene.universeOverlaps(limite),
+      entre: (a, b) => scene.universePair(a, b),
+      /**
+       * O histograma do raio DESENHADO, esfera contra sprite. Ver `universe.pixels`.
+       *
+       * ⚠️ Leia `quadros` ANTES de acreditar em qualquer número daqui: aba oculta congela o `rAF` e
+       * a sonda devolve um quadro velho com toda a cara de presente.
+       */
+      pixels: () => scene.universePixels(),
+      /**
+       * As peles desenhadas SEM foco, e quantas o teto cortou: `spatia.universo.peles()`.
+       *
+       * ⚠️ `cortadas` existe porque corte calado lê como "cobri tudo". Ver `scene.js`, o pool.
+       */
+      peles: () => scene.universeSkins(),
+      /**
+       * Onde a câmera desta cena está ancorada, e por quê: `spatia.universo.ancora()`.
+       *
+       * A origem deixou de ser o padrão — ela é a última degradação. Ver `scene.universeAnchor`.
+       */
+      ancora: () => scene.universeAnchor(),
+      /** Adota um sistema e chega nele: `spatia.universo.irPara(3)`. */
+      irPara: (i) => scene.universeGoTo(i),
+      /**
+       * Anexa um corpo como alvo padrão da câmera: `spatia.universo.anexar('<source>')`.
+       * Sem argumento (ou `null`) desanexa e devolve ao VOO LIVRE, que é o padrão desta cena.
+       */
+      anexar: (source = null) => scene.universeAttach(source),
+    },
   });
 
   // A intenção de abrir um app, venha de onde vier, vira navegação num lugar só. Desde
@@ -319,26 +852,82 @@ async function main() {
     return;
   }
 
-  let nodeCount = 0;
+  /*
+   * ☠️ **O retorno de `scene.loadGraph` soma corpos + LUAS, e não é `corpos`.** Publicá-lo sob
+   * essa palavra dá **460 num corpus de 72** (fixture, 09/08) — e `corpos` é ARQUIVO em
+   * `stats.files`, em `cena().corpos` e em todo censo. Uma palavra, duas grandezas, com a maior
+   * na primeira tela que alguém lê. A contagem sai de onde a palavra já significa isso: o censo
+   * do servidor, que é quem lê o `.env` e assina o `corpus` ao lado. As luas se contam com o
+   * nome delas.
+   *
+   * ⚠️ `?? null` e não `?? 0`: servidor que não contou é *"não medi"*, e céu vazio é outra coisa.
+   */
+  let corpos = null;
   try {
     const graph = await api.graph();
-    nodeCount = scene.loadGraph(graph);
-    frame.applyGraph(nodeCount);
-    streams.note(`TOPOLOGIA CARREGADA · ${nodeCount} CORPOS`, 'good');
-    // Seção que não coube em órbita é informação perdida da tela: quem corta avisa.
-    const luas = scene.moonReport?.();
-    if (luas?.dropped) {
-      streams.note(
-        `${luas.shown} LUAS EM ÓRBITA · ${luas.dropped} SEÇÕES SEM ESPAÇO`,
-        'warn'
-      );
+    scene.loadGraph(graph);
+    /*
+     * O MESMO payload que a cena leu — não uma segunda busca.
+     *
+     * O contexto de aparência sai de `classificar()`/`superficieDe()`, e as duas dependem de quem é
+     * o dominante do sistema. Derivar de outra leitura abriria a porta para a HUD oferecer TERRA a
+     * um corpo que a cena desenha como fotosfera.
+     */
+    /*
+     * As aparências vão para a CENA, que carrega a textura e a aplica no albedo. A cena não sabe o
+     * que é um favorito — recebe `source → arquivo` e desenha; a marca fica do lado de cá.
+     *
+     * ⚠️ Só entram as marcas que RESOLVERAM: `sonda()` já devolve `degradada` para escolha que não
+     * vale mais aqui, e mandar essas pintaria o corpo com a textura que a própria tela diz não valer.
+     */
+    function sincronizarAparencias() {
+      const { itens = [] } = favoritos.sonda();
+      const mapa = {};
+      for (const it of itens) {
+        if (it.estado !== 'marcada' || !it.aparencia) continue;
+        // ⚠️ `sonda()` NÃO devolve `arquivo` — conferido na saída real, não no JSDoc. O caminho vive
+        // no catálogo, que é do MODELO.
+        const arquivo = APARENCIAS[it.contexto]?.[it.aparencia]?.arquivo;
+        if (arquivo) mapa[it.id] = arquivo;
+      }
+      scene.declararAparencias(mapa);
     }
+
+    favoritos.carregarTopologia(graph);
+    sincronizarAparencias();
+    // A marca muda por GESTO, não só no carregamento — sem isto a textura só apareceria
+    // no próximo boot. `aoMudar` é o canal que o próprio módulo publica.
+    favoritos.aoMudar(sincronizarAparencias);
+    corpos = graph.stats?.files ?? null;
+    // Sem contagem o medidor fica no travessão de nascença: `0 arq` seria uma medida inventada.
+    if (corpos !== null) frame.applyGraph(corpos);
+    const luas = scene.moonReport?.() ?? null;
+    streams.note(`TOPOLOGIA CARREGADA · ${corpos ?? '—'} CORPOS`, 'good');
+    // Seção que não coube em órbita é informação perdida da tela: quem corta avisa.
+    if (luas?.dropped) {
+      streams.note(`${luas.shown} LUAS EM ÓRBITA · ${luas.dropped} SEÇÕES SEM ESPAÇO`, 'warn');
+    }
+    /*
+     * As duas notas acima caem numa superfície que a tela de entrada está cobrindo, no único
+     * minuto em que ninguém pode lê-las. A entrada não produz número novo — mostra o que já
+     * estava sendo afirmado, na hora em que dá para ler, junto do CORPUS que lhe dá sentido.
+     *
+     * ⚠️ `graph.corpus` vem do SERVIDOR. Um default aqui (`?? 'vault/'`) não falha: mede o corpus
+     * errado com convicção total.
+     */
+    boot.ceu({ corpos, luas, corpus: graph.corpus ?? null });
   } catch (error) {
     streams.note(`TOPOLOGIA INDISPONÍVEL: ${error.message}`, 'bad');
+    // `null`, nunca 0: um céu que não carregou e um céu vazio dão a mesma imagem, e só um deles
+    // é um defeito. A tela de entrada não pode ser o lugar onde essa diferença se perde.
+    boot.ceu({ corpos: null, corpus: null, motivo: error.message });
   }
 
   // Sem topologia não há estrela para receber anel — sondar o disco só gastaria `git status`.
-  if (nodeCount) watchDirty(scene, streams);
+  if (corpos) watchDirty(scene, streams, boot);
+  // Sem condição: os pontos de subsistema afirmam com ou sem céu, e é a afirmação que precisa
+  // de idade.
+  watchHealth(frame);
 
   // O router entra em cena depois de saúde e topologia: um app que carrega dados no onEnter
   // não deve fazê-lo antes de o sistema saber o que está no ar.
@@ -402,7 +991,7 @@ async function main() {
     streams.note(`PERFIL ${perfil.name} APLICADO`, 'good');
   });
 
-  await boot.report(health, nodeCount);
+  await boot.report(health);
   /*
    * Janela sem medida não vira beacon. `startTelemetry` já pula o `null` — o espalhamento é que
    * o desfazia, transformando "não medi" num relatório vazio que o servidor registra como se
@@ -502,6 +1091,59 @@ const PROFILE_PROBE_MS = 12_000;
 const DIRTY_POLL_MS = 6_000;
 
 /**
+ * Mantém os pontos de subsistema afirmando o PRESENTE.
+ *
+ * `/api/health` era lido uma vez, no boot, e os pontos ficavam com aquela leitura para sempre:
+ * cinco minutos parado deixavam MEMORY verde sobre um Qdrant que podia ter caído no minuto dois,
+ * e nada na tela mudava. ☠️ **Isso não é um `notice` que falta** — falha de serviço é o evento
+ * `error`, que só existe dentro de uma pergunta, e o vigia de `server/ambient.py` observa corpus,
+ * topologia, índice, Neo4j e credencial, **nunca qdrant/ollama/TTS**. A afirmação não tinha
+ * substrato e não tinha dono.
+ *
+ * ⚠️ **Só `frame.applyHealth` é realimentado.** Os outros três consumidores do boot MONTAM coisa
+ * (`scene.installProviders` põe corpo no céu, `streams.showProviders` redesenha a lista,
+ * `voice.applyHealth` depende de uma segunda chamada a `/api/units`): remontar não é aferir, e
+ * um laço que remonta a cada volta é decoração cara com cara de atualização.
+ *
+ * ⚠️ **Falha não repinta nada.** O `catch` é vazio de propósito — sem `applyHealth`, a idade
+ * segue subindo e o cabeçalho declara a leitura vencida sozinho. Repintar com o `health` velho
+ * carimbaria uma aferição que não houve; apagar os pontos jogaria fora a última medida boa. É a
+ * mesma escolha do anel sujo, pelo outro lado: lá não se sabe mais, aqui sabe-se de quando é.
+ *
+ * ⚠️ **Ele não emite no barramento e não escreve linha de timeline.** Um evento por volta seria
+ * a mesma frase a cada 30 s, que é exatamente o que ensina o operador a não ler a tela.
+ */
+
+function watchHealth(frame) {
+  async function poll() {
+    // Aba escondida não afere: a leitura chegaria para ninguém, e ao voltar a idade dela já
+    // estaria velha de qualquer jeito. O retorno à aba afere na hora.
+    if (document.hidden) return;
+    try {
+      const saude = await api.health();
+      frame.applyHealth(saude);
+      /*
+       * ⚠️ **Quem sabe do disco é o SERVIDOR** — o navegador não lista sistema de arquivos, e
+       * sondar arquivo por arquivo confundiria 404 de rede com arquivo ausente. O modelo de
+       * favoritos distingue TRÊS estados (`true | false | null`), e adivinhação devolveria `false`
+       * onde o fato é `null`.
+       *
+       * `texturas` ausente do payload deixa `emDisco` em `null` — servidor velho não vira "medi e
+       * não há". É a mesma leitura que já vinha, sem chamada nova.
+       */
+      favoritos.declararEmDisco(Array.isArray(saude?.texturas) ? new Set(saude.texturas) : null);
+    } catch {
+      // Sem leitura não há o que carimbar. A idade que sobe é o anúncio.
+    }
+  }
+
+  setInterval(poll, AFERICAO_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) poll();
+  });
+}
+
+/**
  * Mantém os anéis em dia com o disco.
  *
  * Aba escondida não sonda: cada sondagem que vence o cache é um `git status --porcelain` por
@@ -509,11 +1151,21 @@ const DIRTY_POLL_MS = 6_000;
  * gastar CPU do operador para desenhar o que ele não vê. Ao voltar para a aba a sondagem é
  * imediata — esperar o próximo tique mostraria o disco de até 15s atrás.
  */
-function watchDirty(scene, streams) {
+function watchDirty(scene, streams, boot) {
   // Começa em 0 e não em `null`: árvore limpa no boot é o caso comum, e anunciar "0 arquivos"
   // toda vez que o observatório sobe é ruído.
   let announced = 0;
   let failing = false;
+
+  /*
+   * A PRIMEIRA leitura do disco chega enquanto a tela de entrada ainda cobre a timeline — é o
+   * fato que se perdia. As duas superfícies recebem o MESMO texto: uma delas reescrevendo a
+   * frase seria um número que muda conforme onde se lê.
+   */
+  const anunciar = (texto, tom = '') => {
+    streams.note(texto, tom);
+    boot.disco(texto, tom);
+  };
 
   async function poll() {
     if (document.hidden) return;
@@ -537,15 +1189,15 @@ function watchDirty(scene, streams) {
         scene.forgetDirty();
         if (!failing) {
           failing = true;
-          streams.note('SEM RAIZ GIT CONFIGURADA (AGENT_CWD) · ANÉIS DESLIGADOS', 'bad');
+          anunciar('SEM RAIZ GIT CONFIGURADA (AGENT_CWD) · ANÉIS DESLIGADOS', 'bad');
         }
         return;
       }
-      const { shown, dropped, total } = scene.markDirty(files);
+      const resultado = scene.markDirty(files);
       failing = false;
-      if (shown === announced) return;
-      announced = shown;
-      streams.note(dirtyNote(shown, dropped, total), shown ? '' : 'good');
+      if (resultado.shown === announced) return;
+      announced = resultado.shown;
+      anunciar(dirtyNote(resultado), resultado.shown ? '' : 'good');
     } catch (error) {
       /*
        * Falha = APAGAR os anéis, não mantê-los.
@@ -561,7 +1213,7 @@ function watchDirty(scene, streams) {
       // Uma nota por queda, não uma a cada tique: um servidor fora do ar não pode encher o log.
       if (failing) return;
       failing = true;
-      streams.note(`ALTERAÇÕES LOCAIS INDISPONÍVEIS: ${error.message} · ANÉIS REMOVIDOS`, 'bad');
+      anunciar(`ALTERAÇÕES LOCAIS INDISPONÍVEIS: ${error.message} · ANÉIS REMOVIDOS`, 'bad');
     }
   }
 
@@ -580,13 +1232,30 @@ function watchDirty(scene, streams) {
  * teto de anéis. As duas são contadas em separado — calar qualquer uma faz o céu afirmar que
  * só aquilo mudou.
  */
-function dirtyNote(shown, dropped, total) {
+/**
+ * A nota do trabalho local — e ela nomeia CADA razão de um arquivo sujo não virar anel.
+ *
+ * ⚠️ **Ela dizia "FORA DO ÍNDICE" para três coisas diferentes.** O cálculo era
+ * `total − shown − dropped`, e nesse resto cabiam: arquivo que não casou com nó nenhum (o único
+ * que de fato não está indexado), arquivo cujo CORPO recusou o anel pelo solver, e arquivo
+ * escondido pelo filtro de tipo. Medido em 2026-08-08: **17 sujos · 17 casaram · 11 anéis**, e a
+ * tela anunciava "6 FORA DO ÍNDICE" sobre seis arquivos que estavam no índice e foram recusados
+ * pelo catálogo.
+ *
+ * A diferença não é cosmética: mandava reindexar o corpus para consertar uma decisão de
+ * morfologia. Diagnóstico que aponta o lugar errado é pior que diagnóstico nenhum — é a mesma
+ * lição do verificador do diário, que acusava a linha íntegra em vez da órfã.
+ */
+function dirtyNote({ shown, dropped, total, casados, recusados, escondidos }) {
   if (!total) return 'ÁRVORE LIMPA · NENHUM ANEL';
-  const unindexed = total - shown - dropped;
+  const foraDoIndice = total - casados;
   const parts = [`TRABALHO LOCAL · ${plural(total, 'ARQUIVO').toUpperCase()}`];
   if (shown !== total) parts.push(`${shown} NO CÉU`);
   if (dropped) parts.push(`${dropped} ALÉM DO TETO`);
-  if (unindexed > 0) parts.push(`${unindexed} FORA DO ÍNDICE`);
+  // "o corpo não hospeda anel" — decisão do catálogo, não falta de indexação.
+  if (recusados) parts.push(`${recusados} SEM ANEL POR CLASSE`);
+  if (escondidos) parts.push(`${escondidos} OCULTOS PELO FILTRO`);
+  if (foraDoIndice > 0) parts.push(`${foraDoIndice} FORA DO ÍNDICE`);
   return parts.join(' · ');
 }
 
@@ -700,6 +1369,37 @@ function installShortcuts(scene, audio, answer, terminal, router, streams, systr
   });
 
   keys.bind({ code: 'KeyR', alt: true, label: 'SOLTAR CÂMERA', group: 'CENA' }, () => scene.release());
+
+  /*
+   * F marca e desmarca o corpo SOB ATENÇÃO — o mesmo que o painel de CONTEXTO está nomeando.
+   *
+   * ⚠️ O sujeito sai de `attention.snapshot()`, e não de `scene.focusedNode()`, porque é ele que o
+   * painel desenha: dois sujeitos para o mesmo gesto fariam a tecla marcar um corpo enquanto a tela
+   * mostra a marca de outro. Na cena UNIVERSO o cursor não troca o sujeito (`paintLinks` só repinta
+   * no foco), então ali a tecla age sobre o corpo TRAVADO; no AGENTE o cursor vence enquanto existe,
+   * que é a mesma precedência do arco.
+   *
+   * ⚠️ **Colisão de tecla falha no REGISTRO** — `keys.bind` recusa combinação já tomada e derruba o
+   * boot com o nome do dono. É por isso que ela mora aqui, junto dos outros atalhos globais, e não
+   * no `mount` do widget: registrada por rota, a duplicidade só apareceria na rota que a montasse.
+   *
+   * A recusa do modelo (marca sem carimbo de corpus) vira NOTA, não exceção: ela traz o conserto
+   * dentro do motivo, e engoli-la deixaria a tecla falhando em silêncio.
+   */
+  keys.bind({ code: 'KeyF', label: 'FAVORITAR', group: 'CENA' }, () => {
+    const alvo = attention.snapshot().subject;
+    if (!alvo) {
+      streams.note('NENHUM CORPO SOB ATENÇÃO — PASSE O CURSOR OU TRAVE UM ASTRO', 'warn');
+      return;
+    }
+    const r = favoritos.alternar(alvo);
+    if (!r.ok) {
+      streams.note(`MARCA RECUSADA — ${r.erro}`, 'bad');
+      return;
+    }
+    streams.note(`${r.marcada ? 'MARCADO' : 'DESMARCADO'} · ${alvo.source || alvo.id}`, 'good');
+    audio.click({ frequency: r.marcada ? 660 : 330, gain: 0.04, decay: 0.3 });
+  });
 
   /*
    * ⌘S grava o enquadramento. Vale COM foco no prompt (`whileTyping`) porque o modificador não

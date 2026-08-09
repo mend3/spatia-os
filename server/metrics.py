@@ -187,6 +187,24 @@ webhook_events = registry.histogram(
     SMALL_COUNT,
 )
 
+# ---------------------------------------------------------------- avisos ambientais
+
+NOTICE_SEVERITIES = ("info", "warn", "alert")
+NOTICE_TOPICS = ("corpus", "topology", "index", "graphdb", "credential", "other")
+
+notice_total = registry.counter(
+    "espatial_notice_total",
+    "Avisos publicados pelo vigia do sistema, por tópico e nível.",
+    {"topic": NOTICE_TOPICS, "severity": NOTICE_SEVERITIES},
+)
+notice_standing = registry.gauge(
+    "espatial_notice_standing",
+    "1 enquanto um aviso acionável está DE PÉ no tópico; volta a 0 quando o fato se resolve. "
+    "É o que separa 'aconteceu uma vez' de 'está acontecendo agora' — o contador sozinho não "
+    "distingue os dois.",
+    {"topic": NOTICE_TOPICS},
+)
+
 # ---------------------------------------------------------------- voz
 
 tts_total = registry.counter(

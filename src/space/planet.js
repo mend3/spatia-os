@@ -115,11 +115,11 @@ const SHININESS = 12;
 const SHELL_MARGIN = 0.035;
 
 /*
- * Régua da massa. `graph.js:360` já usa `log2(1 + chunks)` para o tamanho do ponto; 8 é o topo
- * porque o maior arquivo citado em `docs/catalogo-celeste.md` tem 226 chunks e log2(227)≈7,8.
- * É calibragem por um único caso, não estatística do corpus — PALPITE com âncora.
+ * Régua do VOLUME DE CONHECIMENTO. `graph.js:360` já usa `log2(1 + chunks)` para o tamanho do
+ * ponto; 8 é o topo porque o maior arquivo citado em `docs/catalogo-celeste.md` tem 226 chunks e
+ * log2(227)≈7,8. É calibragem por um único caso, não estatística do corpus — PALPITE com âncora.
  */
-const MASS_LOG_FULL = 8;
+const CHUNKS_LOG_FULL = 8;
 
 /* Largura do sorteio da geografia, em unidades do domínio do ruído. Ver `planetParams.origin`. */
 const ORIGIN_SPAN = 64;
@@ -190,10 +190,15 @@ const SURFACE_FRAGMENT = /* glsl */ `
   precision highp float;
 
   uniform sampler2D uRamp;
+  uniform sampler2D uMapa;
+  uniform float uUsaMapa;
   uniform float uAmplitude, uSharpness, uSea;
   uniform float uPeriod, uPersistence, uLacunarity, uDetail, uRidged;
   uniform float uScale, uBump, uBumpStrength, uWet, uFade;
   uniform float uAmount, uCloudPeriod;
+  // Ganho do LIMBO, e so da bancada: 1 e a composicao de hoje. Ver o bloco dos dois termos
+  // em createPlanet. Separado de uAmount porque uAmount alimenta a casca tambem.
+  uniform float uLimbo;
   uniform vec2 uSpin;
   uniform vec3 uLight, uCam, uSky, uTwilight;
   // O MESMO deslocamento do vertice — ver a nota la. Divergir aqui separa relevo de sombra.
@@ -243,6 +248,24 @@ const SURFACE_FRAGMENT = /* glsl */ `
     float t = clamp(h / uScale, 0.0, 1.0);
     vec3 albedo = texture2D(uRamp, vec2(t, 0.5)).rgb;
 
+    /*
+     * APARENCIA NOMEADA — a MARCA do operador, e ela substitui SO o albedo.
+     *
+     * O relevo, a nuvem, a atmosfera e a luz continuam saindo do corpus: e a mesma esfera, com a
+     * mesma fisica, vestida com outra pele. Trocar a geometria junto faria a marca decidir a FORMA,
+     * e forma e afirmacao sobre o arquivo — a marca nao afirma nada sobre ele.
+     *
+     * A UV sai de vSphere, a posicao na esfera UNITARIA, e nao de um atributo: equiretangular e
+     * funcao da direcao, entao derivar aqui dispensa varying novo e nao muda o vertex shader.
+     *
+     * uUsaMapa e 0 quando ninguem marcou — e com 0 o mix devolve a rampa BIT A BIT, entao o
+     * corpo nao marcado desenha exatamente como desenhava. E a REGRA DA FISICA: composicao nao
+     * altera a simulacao.
+     */
+    vec3 n = normalize(vSphere);
+    vec2 uvMapa = vec2(atan(n.z, n.x) / 6.2831853 + 0.5, asin(clamp(n.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+    albedo = mix(albedo, texture2D(uMapa, uvMapa).rgb, uUsaMapa);
+
     // NUVEM: mesmo fbm, direcao GIRADA por conta propria. Ela mora na superficie e nao na casca
     // porque nuvem esta dentro da atmosfera, nao em volta dela — na casca ela apareceria como
     // um anel de neblina no limbo em vez de uma cobertura sobre o continente.
@@ -271,7 +294,7 @@ const SURFACE_FRAGMENT = /* glsl */ `
     float sunOrient = dot(Ng, L);
     float fres = 1.0 - abs(dot(V, Ng));
     vec3 air = mix(uTwilight, uSky, smoothstep(-0.25, 0.75, sunOrient));
-    float airMix = clamp(smoothstep(-0.5, 1.0, sunOrient) * fres * fres, 0.0, 1.0) * uAmount;
+    float airMix = clamp(smoothstep(-0.5, 1.0, sunOrient) * fres * fres, 0.0, 1.0) * uAmount * uLimbo;
     color = mix(color, air, airMix);
 
     gl_FragColor = vec4(color * uFade, uFade);
@@ -313,6 +336,8 @@ const SHELL_FRAGMENT = /* glsl */ `
 
   uniform vec3 uLight, uCam, uSky, uTwilight;
   uniform float uAmount, uRimEdge, uFade;
+  // Ganho da CASCA, e so da bancada: 1 e a composicao de hoje. Par do uLimbo da superficie.
+  uniform float uCasca;
 
   varying vec3 vDir;
   varying vec3 vPos;
@@ -326,7 +351,7 @@ const SHELL_FRAGMENT = /* glsl */ `
     // 1 no limbo do planeta, 0 na borda externa da casca. Ao cubo: a coroa cai rapido, que e
     // como uma coluna de ar se comporta com a altitude.
     float rim = clamp(1.0 - (fres - uRimEdge) / max(1.0 - uRimEdge, 0.001), 0.0, 1.0);
-    float alpha = pow(rim, 3.0) * smoothstep(-0.5, 1.0, sunOrient) * uAmount * uFade;
+    float alpha = pow(rim, 3.0) * smoothstep(-0.5, 1.0, sunOrient) * uAmount * uFade * uCasca;
     if (alpha < 0.004) discard;
 
     vec3 air = mix(uTwilight, uSky, smoothstep(-0.25, 0.75, sunOrient));
@@ -350,7 +375,23 @@ export function planetParams(node = {}) {
   const seedB = hash01(path, 23);
   const seedC = hash01(path, 41);
   const chunks = Number.isFinite(node.chunks) ? node.chunks : 1;
-  const mass = THREE.MathUtils.clamp(Math.log2(1 + chunks) / MASS_LOG_FULL, 0, 1);
+  /*
+   * ⚠️ **ESTE CAMPO SE CHAMAVA `mass`, e era o SEGUNDO `mass` desta base.** O primeiro morreu em
+   * 08/08 (`EntityPhysics.mass` → `chunks`) porque com `mass` no contrato `gravity = mass * k`
+   * passa em revisão. Este aqui nunca atravessou para a luz — governa relevo, mar e atmosfera —
+   * mas era a mesma confusão com outro dono: um número normalizado 0–1 chamado de massa, num
+   * arquivo cujos comentários dizem "corpo de pouca massa não retém gás".
+   *
+   * `chunksNorm` diz o que ele é: `log2(1+chunks)/8`, contagem de conhecimento em escala log,
+   * saturada em 1. Com este nome, `gravity = chunksNorm * k` se lê como o absurdo que é — e é
+   * esse o serviço que o nome presta, o guarda mais barato que existe.
+   *
+   * ⚠️ A METÁFORA CONTINUA VÁLIDA e é o que faz a cena significar algo: mais conhecimento → menos
+   * relevo relativo, mais mar, mais atmosfera. O que a FRONTEIRA (§11.2 do `replanejamento-celeste`)
+   * proíbe é uma grandeza cognitiva atravessar para onde a matemática precisa ser física. Aqui ela
+   * não atravessa: relevo e mar são apresentação, e nenhum deles vira `R_s/R`.
+   */
+  const chunksNorm = THREE.MathUtils.clamp(Math.log2(1 + chunks) / CHUNKS_LOG_FULL, 0, 1);
 
   /*
    * O relevo é EXAGERADO, e o exagero é o ponto.
@@ -360,7 +401,7 @@ export function planetParams(node = {}) {
    * com relevo relativo maior, que é o fato físico (a montanha máxima cai com a gravidade, e é
    * por isso que Vesta é amassada e a Terra é lisa).
    */
-  const amplitude = THREE.MathUtils.lerp(0.115, 0.038, mass) * (0.82 + seed * 0.36);
+  const amplitude = THREE.MathUtils.lerp(0.115, 0.038, chunksNorm) * (0.82 + seed * 0.36);
   // Mais massa segura mais volátil: mais água, e menos terreno exposto.
   /*
    * ⚠️ Era `lerp(0,1 → 0,5)`, e ele é a SEGUNDA de duas compressões em série.
@@ -373,12 +414,12 @@ export function planetParams(node = {}) {
    * Nenhuma das duas compressões errava sozinha; elas se multiplicavam. Esta cai junto com o
    * `sharpness` porque corrigir só uma trocaria "tudo submerso" por "tudo pico".
    */
-  const sea = amplitude * THREE.MathUtils.lerp(0.05, 0.3, mass) * (0.55 + seedB * 0.9);
+  const sea = amplitude * THREE.MathUtils.lerp(0.05, 0.3, chunksNorm) * (0.55 + seedB * 0.9);
   const palette = planetPalette(node.kind ?? 'other', seed);
 
   return Object.freeze({
     seed,
-    mass,
+    chunksNorm,
     /*
      * ONDE, no campo de ruído, este planeta é amostrado — a geografia dele.
      *
@@ -399,7 +440,7 @@ export function planetParams(node = {}) {
     amplitude,
     sea,
     // Corpo leve não arredonda: o relevo cristado (`1 - |ruído|`) é a assinatura dele.
-    ridged: THREE.MathUtils.clamp(1.12 - mass * 1.45, 0, 1),
+    ridged: THREE.MathUtils.clamp(1.12 - chunksNorm * 1.45, 0, 1),
     /*
      * ⚠️ Era `1,7 + seed·1,5` (1,70–3,20), e a faixa assumia um campo UNIFORME.
      *
@@ -421,7 +462,7 @@ export function planetParams(node = {}) {
      * A transição é suave porque a retenção depende também da temperatura, e o corte duro
      * afirmaria uma fronteira que a física não tem.
      */
-    atmosphere: THREE.MathUtils.smoothstep(mass, 0.24, 0.68) * (0.6 + seedC * 0.7),
+    atmosphere: THREE.MathUtils.smoothstep(chunksNorm, 0.24, 0.68) * (0.6 + seedC * 0.7),
     // Retrógrado é possível — Vênus e Urano giram ao contrário, e um céu em que todo mundo gira
     // para o mesmo lado lê como carimbo. A largura da faixa e a fatia retrógrada vêm do
     // `motion-catalog.js`; a assimetria entre os dois sentidos está documentada lá.
@@ -455,6 +496,36 @@ export function createPlanet() {
   // textura por quadro — e o nó focado troca com o clique, não com o quadro.
   let rampKey = null;
 
+  /*
+   * OS DOIS TERMOS DE BORDA, SEPARADOS — e eles existem para MEDIR, não para compor.
+   *
+   * Medido em 2026-08-08 na cena AGENTE, com a aba visível e a sonda lida antes E depois do
+   * `readPixels`: o disco do planeta em foco é aceso na BORDA e escuro no meio — `nucleo/bloco-10`
+   * dá centro 5,9 contra limbo 80,7 (13,7x), `nucleo/bloco-12` dá 21,0 contra 79,3 (3,8x). Na
+   * média radial uma esfera sólida iluminada faz o contrário, e uma casca acesa só na borda é
+   * literalmente a leitura que o usuário relatou: "o planeta está transparente".
+   *
+   * A medida derrubou a suspeita que estava registrada (o sprite de `graph.js` esvaziando o miolo
+   * com `uHaloYield = 0`): no raio onde o núcleo do sprite teria PICO — `d ~ 0,35` — o perfil tem
+   * um MÍNIMO local, e luz aditiva não produz mínimo. O que sobe até a silhueta são estes dois, e
+   * eles são de quem acende borda:
+   *
+   *   LIMBO  a cor do ar entrando na PRÓPRIA superfície por fresnel ao quadrado (ver o `airMix`)
+   *   CASCA  a atmosfera em BackSide, com blending ADITIVO, que é a coroa fora da silhueta
+   *
+   * ⚠️ **Zerar `uAmount` não separa nada**: `params.atmosphere` alimenta os DOIS, então ele apaga
+   * a atmosfera inteira e responde uma pergunta que ninguém fez. Daí dois ganhos independentes.
+   *
+   * ⚠️ **Eles são reaplicados no `update`, todo quadro, de propósito.** `shell.visible` já é
+   * reescrito por quadro ali; um gate que vivesse fora do `update` seria apagado no quadro
+   * seguinte e a bancada leria "não mudou nada" sobre um controle que nunca chegou à GPU.
+   *
+   * Os dois nascem em 1 e 1 = a composição de hoje, byte por byte. Enquanto ninguém chamar
+   * `termos()`, este bloco não muda um pixel.
+   */
+  let ganhoLimbo = 1;
+  let ganhoCasca = 1;
+
   function build() {
     geometry = new THREE.SphereGeometry(1, SEGMENTS, SEGMENTS);
     // Obrigatório: o fragmento reconstrói a normal do relevo ao longo da tangente, e sem este
@@ -467,6 +538,9 @@ export function createPlanet() {
       new THREE.ShaderMaterial({
         uniforms: {
           uRamp: { value: null },
+          // A aparencia nomeada. `uUsaMapa` em 0 devolve a rampa bit a bit — ver o fragmento.
+          uMapa: { value: null },
+          uUsaMapa: { value: 0 },
           uAmplitude: { value: 0.08 },
           uSharpness: { value: 2.2 },
           uSea: { value: 0.02 },
@@ -481,6 +555,7 @@ export function createPlanet() {
           uBumpStrength: { value: BUMP_STRENGTH },
           uWet: { value: WET_EDGE },
           uAmount: { value: 0 },
+          uLimbo: { value: 1 },
           uCloudPeriod: { value: 0.3 },
           uSpin: { value: new THREE.Vector2(1, 0) },
           uFade: { value: 0 },
@@ -509,6 +584,7 @@ export function createPlanet() {
           uSky: { value: new THREE.Color(0x4db2ff) },
           uTwilight: { value: new THREE.Color(TWILIGHT) },
           uAmount: { value: 0 },
+          uCasca: { value: 1 },
           uRimEdge: { value: 0.73 },
           uShell: { value: 1.05 },
           uFade: { value: 0 },
@@ -574,6 +650,18 @@ export function createPlanet() {
         surface.material.uniforms.uRamp.value = ramp;
       }
 
+      /*
+       * A APARÊNCIA NOMEADA, se o operador escolheu uma. Ela chega por `params.mapa` — uma
+       * `THREE.Texture` já carregada — e **quem carrega não é este módulo**: o planeta não sabe o
+       * que é um favorito, e não pode saber. Ele recebe uma textura ou não recebe.
+       *
+       * ⚠️ Sem mapa, `uUsaMapa` é 0 e o `mix` do fragmento devolve a rampa BIT A BIT: corpo não
+       * marcado desenha exatamente como desenhava. É a REGRA DA FÍSICA — composição não altera a
+       * simulação, e a marca é composição.
+       */
+      surface.material.uniforms.uMapa.value = params.mapa ?? null;
+      surface.material.uniforms.uUsaMapa.value = params.mapa ? 1 : 0;
+
       // A altura útil é o que sobra do relevo depois do mar. Casca e rampa saem os dois daqui —
       // divergir move a linha de costa ou faz a montanha furar a atmosfera.
       const relief = Math.max(params.amplitude - params.sea, 1e-4);
@@ -604,6 +692,7 @@ export function createPlanet() {
        */
       u.uDetail.value = 3 + near * 5;
       u.uAmount.value = params.atmosphere;
+      u.uLimbo.value = ganhoLimbo;
       u.uSpin.value.set(Math.cos(cloudAngle), Math.sin(cloudAngle));
       u.uFade.value = near;
       u.uLight.value.copy(OBJ_LIGHT);
@@ -613,6 +702,7 @@ export function createPlanet() {
 
       const s = shell.material.uniforms;
       s.uAmount.value = params.atmosphere;
+      s.uCasca.value = ganhoCasca;
       s.uFade.value = near;
       s.uShell.value = shellRadius;
       /*
@@ -632,6 +722,55 @@ export function createPlanet() {
       shell.visible = params.atmosphere > 0.004;
 
       return near;
+    },
+
+    /**
+     * O A/B dos dois termos de borda. Lê sem argumento; força com argumento.
+     *
+     * `termos({ limbo: 0 })` desliga a cor do ar na superfície e deixa a casca; `termos({ casca: 0 })`
+     * faz o inverso; `termos({ limbo: 1, casca: 1 })` devolve a composição de hoje. É a mesma forma
+     * do `spatia.bloom(ajuste)`, e pelo mesmo motivo: um controle que só lê não decide nada, e um
+     * que só escreve não deixa provar o que escreveu.
+     *
+     * ⚠️ `montado` é metade da resposta. A pele nasce no primeiro quadro em que o astro cruza
+     * `LOD_FAR_PX` — com ela `null` os ganhos ficam guardados e não desenham nada, e a bancada
+     * leria "mudei e não mudou". Aqui isso tem nome em vez de virar hipótese sobre o shader.
+     *
+     * @param {{limbo?: number, casca?: number}} [ajuste]
+     */
+    termos(ajuste) {
+      if (ajuste) {
+        if (ajuste.limbo !== undefined) ganhoLimbo = ajuste.limbo;
+        if (ajuste.casca !== undefined) ganhoCasca = ajuste.casca;
+        /*
+         * ESCRITA DIRETA, ALÉM da que o `update` faz por quadro — e é ela que torna possível o
+         * A/B no MESMO quadro.
+         *
+         * O `update` só roda uma vez por quadro. Um A/B que dependesse dele teria de esperar o
+         * quadro seguinte entre as duas amostras — e aí a pose, o giro do planeta e a acomodação
+         * da câmera andam junto. Foi exatamente isso que derrubou a primeira tentativa de medida
+         * em 2026-08-08: as SEIS réplicas da condição base espalharam o limbo entre 13,6 e 27,0,
+         * mais do que qualquer diferença entre os tratamentos. Escrevendo aqui, `skinAB` desenha
+         * as duas condições entre dois `composer.render()` sem soltar o quadro, e a única coisa
+         * que difere entre as amostras é o uniform.
+         *
+         * A escrita do `update` continua: ela é quem mantém o valor depois que o quadro vira.
+         */
+        if (surface) {
+          surface.material.uniforms.uLimbo.value = ganhoLimbo;
+          shell.material.uniforms.uCasca.value = ganhoCasca;
+        }
+      }
+      return {
+        limbo: ganhoLimbo,
+        casca: ganhoCasca,
+        montado: Boolean(surface),
+        // O que a GPU tem AGORA. Com a escrita direta acima os dois casam no mesmo instante;
+        // divergir aqui significa pele ainda não construída, e é isso que `montado` nomeia.
+        naGpu: surface
+          ? { limbo: surface.material.uniforms.uLimbo.value, casca: shell.material.uniforms.uCasca.value }
+          : null,
+      };
     },
 
     dispose() {
