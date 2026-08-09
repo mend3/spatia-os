@@ -170,7 +170,7 @@ com ou sem produtor.
 | **T-79** | **AUDITADOS os 17 «Quem reage»** — 9 têm fenômeno de cena, 0 declarados sem leitor | `done` | — | T-23 | KR1.1 |
 | **T-80** | O inspector tem TRÊS estados (recolhido → **resumo** → aberto) e ganha AÇÕES | `todo` | — | T-71 | KR2.1 |
 | **T-81** | Comprimir o cabeçalho — ⚠️ colide com refutação escrita sobre esconder dado atrás de gesto | `todo` | decisão do usuário | — | KR2.1 |
-| **T-82** | O documento como EXTENSÃO ESPACIAL do astro — ⭑ a ÂNCORA entregue; a PROFUNDIDADE (shader) fica | `doing` | T-53 | — | KR2.1 |
+| **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora, luz do corpo e paralaxe | `done` | T-53 | — | KR2.1 |
 | **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) eram DOIS nomes do mesmo vocabulário — sobrou `SUPERFICIE` | `done` | — | T-70 | KR2.4 |
 | **T-70** | `resolveBody()` decidia uma PELE que ninguém lia — hoje ele só resolve MODIFICADOR | `done` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
@@ -254,10 +254,18 @@ com ou sem produtor.
   gesto — *"dado que exige gesto para aparecer deixa de ser monitorado"*, com ganho medido de ~4% de
   pixel. Mandar custo e janela para um popover é exatamente isso. **Ou a refutação cai com medida
   nova, ou o cabeçalho encolhe sem esconder** (menos rótulo, mais densidade). É decisão de produto.
-- **T-82 · A ÂNCORA ESTÁ ENTREGUE E PROVADA NA TELA; falta a PROFUNDIDADE.** O documento do corpo
-  travado nasce colado no limbo dele e anda com a câmera — `space/ancora-de-documento.js`, chamado
-  pelo laço de quadro de `scene.js`, portão `scripts/lei-ancora.mjs` (16 leis, 9 mutações vistas
+- **T-82 FECHADA — âncora e profundidade.** O documento do corpo travado encosta no limbo dele, anda
+  com a câmera e é ILUMINADO por ele: `space/ancora-de-documento.js` publica posição e luz em
+  `--ancora-*`, o CSS as consome, o portão é `scripts/lei-ancora.mjs` (26 leis, 13 mutações vistas
   caindo). Os números estão em [`medidas.md`](./medidas.md).
+  ⭑ **UM mecanismo, dois efeitos.** A luz é centrada no astro em coordenadas da CAIXA, então ela
+  fica presa ao MUNDO enquanto a caixa se move — o paralaxe cai fora disso sem um segundo
+  mecanismo, e só aparece quando o painel prende na borda e o corpo continua andando.
+  ⭑ **O raio da luz não é constante escolhida:** é a distância até o canto mais distante da caixa,
+  então a queda cobre a superfície em qualquer enquadramento. Quem o corpo governa é a FORÇA, razão
+  do raio aparente contra um limiar FIXO — nunca posto de população, que encolheria com o corpus.
+  ⚠️ **Profundidade aqui é COR e GRADIENTE, nunca menos opacidade.** O painel carrega prosa longa
+  sobre campo estelar, e alfa abaixo de ~0,88 põe estrela dentro de linha de texto.
   ☠️ **«VOLTAR A MONTAR É UMA LINHA» APONTAVA PARA A PEÇA ERRADA, e seguir a linha teria desfeito
   uma decisão do usuário.** `installApps` monta os CORPOS DE APP e os interruptores — a mobília
   tirada do céu em 07/08. Religá-lo traz de volta exatamente o que foi desligado. O que se

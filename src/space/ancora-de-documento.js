@@ -1,36 +1,29 @@
 /**
- * O DOCUMENTO DO CORPO EM FOCO, ancorado no MUNDO.
+ * Dá ENDEREÇO NO MUNDO ao painel de conteúdo do corpo em foco: ele encosta no limbo do astro, anda
+ * com a câmera, é iluminado por ele e some quando o corpo some.
  *
- * ## O que ele responde
+ * O escopo é UM caso — **o documento do corpo em foco**. É o único conteúdo de HUD que não compete
+ * com os astros, porque ele É o astro em foco; quota, métrica e permissão não têm lugar no mundo, e
+ * ocluí-las por um planeta seria feição sem fato.
  *
- * O conteúdo do astro travado flutuava no centro da tela **sem relação espacial com o astro**, e
- * o operador não tinha como saber se aquilo pertencia ao corpo, ao sistema ou à cena. Este módulo
- * dá ao painel um ENDEREÇO no mundo: ele nasce colado no limbo do corpo, anda com a câmera, e some
- * quando o corpo some.
+ * ## O contrato
  *
- * ⚠️ **É a MECÂNICA de `bodies.js` aplicada a outra coisa, e a diferença importa.** `bodies.js`
- * posiciona o RÓTULO de um corpo de app — mobília de UI, tirada do céu por decisão do operador em
- * 2026-08-07 (`main.js`, o bloco de `installApps`). Religar `installApps` traria de volta
- * exatamente o que foi desligado: apps e interruptores orbitando o núcleo. **O que se reaproveita
- * é o padrão — projetar pela câmera e ocluir pelo horizonte —, nunca aquele chamador.**
+ * O chamador projeta; este módulo posiciona. Ele não conhece `three`, não lê a cena e só toca o nó
+ * que recebe — daí ser exercitável sem GPU por `scripts/lei-ancora.mjs`.
  *
- * O escopo é UM caso, decidido pelo operador: **o documento do corpo em foco**. Quotas, métricas e
- * permissões continuam fora. O corpo TRAVADO não compete com o astro — ele É o assunto, e o
- * operador acabou de dizer isso com o gesto.
+ * ⚠️ **`installApps`/`bodies.js` NÃO é o caminho para isto.** Aquele par posiciona o rótulo de um
+ * CORPO DE APP — mobília de interface em órbita do núcleo, que está fora da cena por decisão. O que
+ * se reaproveita dele é o padrão (projetar pela câmera, ocluir pelo horizonte), nunca o chamador.
  *
- * ## Por que ele escreve CSS custom property, e não `left`/`top`
+ * ## Por que só propriedades customizadas
  *
- * `transform` é composto na GPU e não invalida layout; `left`/`top` por quadro forçariam reflow do
- * painel inteiro a 120 Hz. É a mesma razão pela qual `bodies.js` usa `visibility` em vez de
- * `display` para os rótulos.
+ * Ele escreve `--ancora-*` e dois atributos de estado; o CSS decide o que fazer com eles.
  *
- * ⚠️ **E quem recebe o gesto NÃO muda.** Ele move o `.widget-body`, que é quem PINTA — e a regra
- * do palco é *quem pinta reivindica; quem só posiciona cede* (`lei-palco.mjs`). A moldura
- * (`[data-panel-surface]`) continua `pointer-events: none` e continua onde o flex a põe. A área
- * reivindicada acompanha a tinta porque é a MESMA caixa, deslocada.
- *
- * ⚠️ **Módulo sem `three` no contrato**: ele recebe a câmera e um ponto já projetado pelo
- * chamador, então é testável sem GPU. Ver `scripts/lei-ancora.mjs`.
+ * - `transform` é composto na GPU; `left`/`top` por quadro forçariam reflow do painel a 120 Hz.
+ * - **Quem recebe o gesto não pode mudar.** O que se move é o `.widget-body`, que é quem PINTA e por
+ *   isso reivindica o ponteiro; a moldura continua `pointer-events: none` e continua onde o flex a
+ *   põe. Propriedade customizada não altera comportamento sozinha — só o CSS que a consome altera —,
+ *   e é isso que impede este módulo de mexer na regra do palco por acidente.
  */
 
 /**
@@ -44,21 +37,40 @@ const FOLGA_EM_RAIOS = 1.15;
 const FOLGA_MINIMA_PX = 24;
 
 /**
- * Quanto de janela fica entre a borda do painel e a borda da tela, em px CSS.
+ * Folga entre a borda da CAIXA PINTADA e a borda da janela, em px CSS.
  *
- * ☠️ **Sem limite, ancorar é PERDER o documento.** O corpo em foco pode sair do quadro (o operador
- * orbita, a câmera deriva), e um painel que o siga sem limite sai junto — o operador fica sem o
- * texto que estava lendo e sem saber por quê. O painel ENCOSTA no limite e para: continua
- * apontando a direção do corpo, sem deixar de ser legível.
- *
- * ☠️ **E o limite é sobre a CAIXA, não sobre o deslocamento — a primeira versão limitou o
- * deslocamento e o defeito sobreviveu na tela.** Com o pulsar preenchendo o quadro (raio aparente
- * 172,8 px), um teto de 34% da janela ainda deixava o painel com a borda esquerda em **−102 px**:
- * o deslocamento estava dentro do teto e o TEXTO estava fora da janela. Um teto sobre o
- * deslocamento é um PROXY do que interessa, e o oráculo que o mede passa verde com o defeito na
- * tela. Quem responde é a caixa pintada contra a janela.
+ * ☠️ **O limite é sobre a CAIXA, nunca sobre o deslocamento.** Um teto sobre o deslocamento é
+ * PROXY: com um corpo de 172,8 px de raio aparente numa janela de 1426, `dx = −484,8` cabe num teto
+ * de 34% da janela e ainda põe a borda esquerda do painel em **−102 px** — deslocamento dentro do
+ * limite, texto fora da tela. O corpo em foco sai do quadro quando a câmera orbita; o painel
+ * ENCOSTA e para, continuando a apontar a direção sem deixar de ser legível.
  */
 const MARGEM_PX = 12;
+
+/**
+ * Quanto a luz precisa andar sobre o painel para valer reescrever o gradiente, em px CSS.
+ *
+ * `transform` é composto e sai de graça; `radial-gradient` é PINTURA, e repintar uma caixa de
+ * ~660×220 por quadro é custo de outra ordem. Abaixo deste passo ninguém vê a diferença.
+ *
+ * ⚠️ **Com o painel livre a luz não anda:** ele segue o corpo, então a posição RELATIVA à caixa é
+ * constante. O gradiente só é reescrito quando o painel prende na borda e o corpo continua — que é
+ * exatamente quando há paralaxe a mostrar.
+ */
+const PASSO_DA_LUZ = 6;
+
+/**
+ * Raio aparente, em px CSS, em que o corpo ilumina a superfície com força plena.
+ *
+ * ⚠️ **Limiar FIXO, e a razão contra ele é adimensional** — nunca posto nem percentil da população.
+ * Grandeza derivada de posto encolhe sozinha conforme o corpus cresce; ancorada num limiar fixo,
+ * um corpo de 120 px de raio ilumina igual em qualquer céu.
+ *
+ * O RAIO do gradiente não é constante: ele é a distância da luz até o canto mais distante da caixa,
+ * então a queda cobre exatamente a superfície iluminada, em qualquer enquadramento. O que o corpo
+ * governa é a FORÇA — astro grande na tela alcança mais longe sobre o painel.
+ */
+const LUZ_PLENA_PX = 120;
 
 /**
  * O estado que o painel publica, para a sonda poder dizer POR QUE ele está onde está.
@@ -82,13 +94,22 @@ const MOTIVOS = Object.freeze({
 export function criarAncoraDeDocumento(acharPainel) {
   let ultimo = { motivo: MOTIVOS.SEM_CORPO, x: null, y: null, px: 0, lado: null };
   let painelAnterior = null;
+  /** A última luz ESCRITA no nó, para o limiar de repintura comparar contra ela. */
+  let luzEscrita = null;
+  let repinturas = 0;
 
   const soltar = (painel, motivo) => {
     if (painel) {
       painel.removeAttribute('data-ancorado');
+      painel.removeAttribute('data-ancora-lado');
       painel.style.removeProperty('--ancora-dx');
       painel.style.removeProperty('--ancora-dy');
+      painel.style.removeProperty('--ancora-luz-x');
+      painel.style.removeProperty('--ancora-luz-y');
+      painel.style.removeProperty('--ancora-luz-raio');
+      painel.style.removeProperty('--ancora-luz-forca');
     }
+    luzEscrita = null;
     ultimo = { motivo, x: null, y: null, px: 0, lado: null };
   };
 
@@ -156,8 +177,41 @@ export function criarAncoraDeDocumento(acharPainel) {
       const dy = presoY - baseY;
 
       painel.dataset.ancorado = 'sim';
+      painel.dataset.ancoraLado = lado > 0 ? 'direita' : 'esquerda';
       painel.style.setProperty('--ancora-dx', `${dx.toFixed(1)}px`);
       painel.style.setProperty('--ancora-dy', `${dy.toFixed(1)}px`);
+
+      /*
+       * A LUZ VEM DO CORPO — a mesma lei que os corpos 3D obedecem, aplicada à superfície.
+       *
+       * O gradiente é centrado no astro em coordenadas da CAIXA, então ele fica preso ao MUNDO
+       * enquanto a caixa se move: é daí que sai o paralaxe, sem um segundo mecanismo. Enquanto o
+       * painel acompanha o corpo, a luz não anda sobre ele; quando o painel encosta na borda da
+       * janela e o corpo continua, ela desliza — que é quando a profundidade tem o que mostrar.
+       */
+      const luzX = cx - presoX;
+      const luzY = cy - presoY;
+      const luz = {
+        x: luzX,
+        y: luzY,
+        /* Até o canto mais distante: a queda cobre a superfície inteira em qualquer enquadramento. */
+        raio: Math.hypot(Math.abs(luzX) + caixa.width / 2, Math.abs(luzY) + caixa.height / 2),
+        forca: Math.min(1, ctx.px / LUZ_PLENA_PX),
+      };
+      const andou = !luzEscrita
+        || Math.abs(luz.x - luzEscrita.x) > PASSO_DA_LUZ
+        || Math.abs(luz.y - luzEscrita.y) > PASSO_DA_LUZ
+        || Math.abs(luz.raio - luzEscrita.raio) > PASSO_DA_LUZ
+        || Math.abs(luz.forca - luzEscrita.forca) > 0.05;
+      if (andou) {
+        painel.style.setProperty('--ancora-luz-x', `${luz.x.toFixed(0)}px`);
+        painel.style.setProperty('--ancora-luz-y', `${luz.y.toFixed(0)}px`);
+        painel.style.setProperty('--ancora-luz-raio', `${luz.raio.toFixed(0)}px`);
+        painel.style.setProperty('--ancora-luz-forca', luz.forca.toFixed(2));
+        luzEscrita = luz;
+        repinturas += 1;
+      }
+
       ultimo = {
         motivo: MOTIVOS.ANCORADO,
         x: +cx.toFixed(1),
@@ -168,6 +222,8 @@ export function criarAncoraDeDocumento(acharPainel) {
         dy: +dy.toFixed(1),
         /* «encostou na borda» e «acompanhou o corpo» não podem ter a mesma leitura na sonda. */
         noTeto: Math.abs(presoX - alvoX) > 0.5 || Math.abs(presoY - cy) > 0.5,
+        /* `repinturas` é o que torna a afirmação «o gradiente não repinta por quadro» checável. */
+        luz: { ...luzEscrita, repinturas },
       };
     },
 
@@ -176,4 +232,10 @@ export function criarAncoraDeDocumento(acharPainel) {
   };
 }
 
-export { MOTIVOS as MOTIVOS_DA_ANCORA, FOLGA_EM_RAIOS, MARGEM_PX };
+export {
+  MOTIVOS as MOTIVOS_DA_ANCORA,
+  FOLGA_EM_RAIOS,
+  MARGEM_PX,
+  PASSO_DA_LUZ,
+  LUZ_PLENA_PX,
+};

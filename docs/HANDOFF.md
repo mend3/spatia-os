@@ -96,10 +96,9 @@ falso nesta base.
 **Branch `main`.** Status de tarefa vive no [`roadmap.md`](./roadmap.md); esta seção é só a ORDEM, e
 ela é por dívida de MODELO, não por tamanho.
 
-1. **T-82, a segunda metade** — a âncora do documento está no ar; falta *"não um retângulo preto
-   sólido"*, profundidade e parallax, e essa metade é SHADER.
-2. **T-40** — a marca de favorito não tem consumidor.
-3. **T-58** — o `prefs` vence o endereço pedido no deeplink de FOCO.
+1. **T-40** — a marca de favorito não tem consumidor.
+2. **T-58** — o `prefs` vence o endereço pedido no deeplink de FOCO.
+3. **T-71 → T-72** — a REGRA DO FOCO no pixel, e ela é inaplicável sem a régua de altura por fenda.
 
 ⭑ **T-41 · T-42 · T-43 · T-45 · T-64 são um CLUSTER, não cinco tarefas soltas:** todas são
 *"declarado sem leitor"* ou *"dois donos para um estado"*. O corolário da REGRA DO CATÁLOGO

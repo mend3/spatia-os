@@ -376,8 +376,29 @@ painel encosta na borda (`ancora().noTeto: true`) e SOBREPÕE a metade direita d
 continua inteira dentro da janela — `[752, 257, 1414, 472]` —, que é a invariante que `lei-ancora.mjs`
 §6 guarda.
 
-☠️ **A primeira versão limitava o DESLOCAMENTO e não a CAIXA, e a §6 passava verde com o defeito na
-tela:** `dx = −484,8` estava dentro do teto de 34% da janela e a borda esquerda do painel ficava em
-**−102 px**. Um oráculo que mede proxy afirma sobre a coisa errada com convicção total.
+☠️ **Teto sobre o DESLOCAMENTO é PROXY e passa verde com o defeito na tela:** `dx = −484,8` cabe num
+teto de 34% da janela e põe a borda esquerda do painel em **−102 px**. Quem responde é a caixa
+pintada contra a janela.
+
+### O que a LUZ custa — o gradiente que dá profundidade e paralaxe
+
+Mesmo enquadramento; `spatia.ancora().luz.repinturas` contra `requestAnimationFrame` contado à mão.
+A grandeza é REPINTURA, e não FPS: o quadro está travado no teto do monitor (120 Hz) nos quatro
+estados, então FPS não discrimina — o que se gasta sai do orçamento, que nesta cena não tem folga.
+
+| estado | quadros | repinturas | por quadro |
+|---|---|---|---|
+| em repouso | 601 | **0** | 0 |
+| roda (zoom, raio aparente 173 → 241 px) | 480 | **0** | 0 |
+| arraste de órbita, painel PRESO na borda | 292 | 3 | **0,01** |
+| voo de chegada ao corpo (a luz atravessa o painel) | — | 28 | — |
+
+⭑ **Zero em repouso e zero no zoom, e as duas por motivos DIFERENTES.** Em repouso nada se move.
+No zoom a luz não anda porque o painel acompanha o corpo, e a força já está SATURADA (o pulsar passa
+de `LUZ_PLENA_PX`), então crescer o raio aparente não muda a superfície iluminada. Saturar é o que
+transforma metade dos gestos de câmera em custo zero.
+
+⚠️ **O paralaxe só existe com o painel PRESO na borda** — enquanto ele acompanha o corpo, a luz fica
+parada sobre a caixa e não há profundidade a revelar. É o mesmo mecanismo, não um segundo.
 
 ---

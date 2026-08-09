@@ -4,31 +4,34 @@
  *
  * ## Por que ela existe
  *
- * O painel do corpo travado passou a ser posicionado pela PROJEÇÃO da câmera, por quadro. Três
- * coisas nesse desenho falham **em silêncio**, e nenhuma delas aparece num screenshot:
+ * O painel do corpo travado é posicionado e iluminado pela PROJEÇÃO da câmera, por quadro. Quatro
+ * coisas nesse desenho falham **em silêncio**, e nenhuma aparece num screenshot:
  *
  * 1. ☠️ **A REALIMENTAÇÃO.** `getBoundingClientRect` inclui o `transform` já aplicado. Ler a caixa
  *    deslocada e calcular o deslocamento a partir dela soma o quadro anterior ao seguinte, e o
  *    painel FOGE — alguns pixels por quadro, sem erro no console, até sair da janela. A 120 Hz
- *    isso é meio segundo. Foi o primeiro defeito desta entrega, e é a §5.
+ *    isso é meio segundo. §5.
  * 2. ☠️ **O documento PERDIDO.** O corpo em foco sai do quadro quando o operador orbita; um painel
  *    que o siga sem teto sai junto, e o operador fica sem o texto que estava lendo e sem saber por
  *    quê. O teto é a §6.
  * 3. ☠️ **A DEGRADAÇÃO MUDA.** *"O documento não se moveu"* tem quatro causas — sem corpo travado,
  *    painel não montado, corpo atrás da câmera, corpo eclipsado pelo horizonte — e a tela mostra a
  *    mesma imagem nas quatro. Cada uma sai por NOME (§1–§4).
+ * 4. ☠️ **A REPINTURA POR QUADRO.** `transform` é composto e sai de graça; o `radial-gradient` da
+ *    luz é PINTURA. Reescrevê-lo a 120 Hz não muda a imagem e não aparece no FPS travado no teto
+ *    do monitor — aparece no orçamento, que nesta cena não tem folga. §10.
  *
  * ⚠️ **E a lei que protege o resto da tela: ancorar NÃO pode mexer em quem recebe o gesto.** A
  * regra do palco é *quem PINTA reivindica; quem só POSICIONA cede* (`lei-palco.mjs`), e ela vale
- * porque o que se move é a caixa que já pintava. A §8 varre o que o módulo escreve e recusa
- * qualquer propriedade fora das duas variáveis e do atributo de estado.
+ * porque o que se move é a caixa que já pintava. A §8 exige que tudo o que o módulo escreve esteja
+ * no namespace `--ancora-*`: propriedade customizada não altera comportamento sozinha.
  *
  * Ele roda em `node` sem navegador: o módulo não importa `three` e só toca o nó que recebe. O DOM
  * é de mentira, com geometria CONHECIDA — é isso que permite afirmar sobre pixel sem GPU.
  *
  * Uso:  node scripts/lei-ancora.mjs
  */
-import { criarAncoraDeDocumento, MOTIVOS_DA_ANCORA, MARGEM_PX, FOLGA_EM_RAIOS }
+import { criarAncoraDeDocumento, MOTIVOS_DA_ANCORA, MARGEM_PX, FOLGA_EM_RAIOS, PASSO_DA_LUZ, LUZ_PLENA_PX }
   from '../src/space/ancora-de-documento.js';
 
 const C = { erro: '\x1b[31m', ok: '\x1b[32m', fraco: '\x1b[2m', forte: '\x1b[1m', fim: '\x1b[0m' };
@@ -255,17 +258,144 @@ console.log(`\n${C.forte}§7  O PAINEL ENCOSTA NO LADO COM MAIS JANELA${C.fim}`)
 
 console.log(`\n${C.forte}§8  O QUE ELE ESCREVE, E NADA ALÉM${C.fim}`);
 {
-  const PERMITIDO = new Set(['--ancora-dx', '--ancora-dy']);
+  /*
+   * A regra é o NAMESPACE, e não uma lista de nomes: propriedade customizada não altera
+   * comportamento sozinha — só o CSS que a consome altera. Enquanto tudo o que sai daqui for
+   * `--ancora-*`, o módulo não tem como mexer em `pointer-events`, `display` ou `position`, que é
+   * o que derrubaria a regra do palco. Uma lista de nomes envelheceria a cada variável nova; esta
+   * não.
+   */
+  const DO_MODULO = /^--ancora-[a-z-]+$/;
+  const ATRIBUTOS = new Set(['ancorado', 'ancoraLado']);
   const p = painelDeMentira();
   const a = criarAncoraDeDocumento(() => p);
   for (const x of [-0.8, -0.2, 0.3, 0.9]) a.atualizar(ctx({ ndc: { x, y: x / 2, z: 0.5 } }));
   a.atualizar(null);
-  const fora = [...new Set([...p.escritas, ...p.removidas])].filter((k) => !PERMITIDO.has(k));
+  const escritas = [...new Set([...p.escritas, ...p.removidas])];
+  const fora = escritas.filter((k) => !DO_MODULO.test(k));
   checar('§8', fora.length === 0,
-    `só \`--ancora-dx\` e \`--ancora-dy\` são escritas (fora da lista: ${fora.join(', ') || 'nenhuma'}) `
+    `as ${escritas.length} escritas são todas \`--ancora-*\` (fora do namespace: ${fora.join(', ') || 'nenhuma'}) `
     + '— `pointer-events`, `display` ou `position` daqui derrubariam a regra do palco');
-  checar('§8b', Object.keys(p.dataset).every((k) => k === 'ancorado'),
-    'e o único atributo é `data-ancorado`');
+  const atribFora = Object.keys(p.dataset).filter((k) => !ATRIBUTOS.has(k));
+  checar('§8b', atribFora.length === 0,
+    `e os atributos são só \`data-ancorado\` e \`data-ancora-lado\` (fora: ${atribFora.join(', ') || 'nenhum'})`);
+}
+
+// ─────────────────────────────────── §10 · A LUZ VEM DO CORPO — profundidade e paralaxe
+
+console.log(`\n${C.forte}§10  A LUZ VEM DO CORPO${C.fim}  ${C.fraco}um mecanismo, dois efeitos${C.fim}`);
+{
+  const lerLuz = (p) => ({
+    x: parseFloat(p.style.props['--ancora-luz-x'] ?? 'NaN'),
+    y: parseFloat(p.style.props['--ancora-luz-y'] ?? 'NaN'),
+    raio: parseFloat(p.style.props['--ancora-luz-raio'] ?? 'NaN'),
+    forca: parseFloat(p.style.props['--ancora-luz-forca'] ?? 'NaN'),
+  });
+
+  /*
+   * ☠️ **O GRADIENTE NÃO PODE REPINTAR POR QUADRO.** `transform` é composto e sai de graça; um
+   * `radial-gradient` numa caixa de ~660×220 é PINTURA. Com o painel acompanhando o corpo, a luz
+   * fica parada RELATIVA à caixa — logo o gradiente é escrito UMA vez e não se toca mais.
+   */
+  const p = painelDeMentira();
+  const a = criarAncoraDeDocumento(() => p);
+  const parado = ctx({ ndc: { x: -0.3, y: 0.1, z: 0.5 }, px: 90 });
+  for (let q = 0; q < 240; q++) a.atualizar(parado);
+  checar('§10', a.estado().luz.repinturas === 1,
+    `câmera parada, 240 quadros → ${a.estado().luz.repinturas} repintura do gradiente`);
+
+  /*
+   * Corpo ANDANDO sem o painel encostar: a luz continua parada, porque o painel o acompanha.
+   *
+   * ⚠️ A PREMISSA É CONFERIDA, não suposta. A primeira versão desta seção varreu até o corpo cruzar
+   * o meio da janela — ali o painel troca de lado E prende na borda —, e a lei reprovou por um
+   * comportamento CERTO. Uma lei que supõe o próprio cenário mede outra coisa.
+   */
+  const pA = painelDeMentira();
+  const aA = criarAncoraDeDocumento(() => pA);
+  let sempreLivre = true;
+  for (const x of [-0.50, -0.43, -0.36, -0.29, -0.22, -0.15]) {
+    aA.atualizar(ctx({ ndc: { x, y: 0.1, z: 0.5 }, px: 90 }));
+    if (aA.estado().noTeto || aA.estado().lado !== 'direita') sempreLivre = false;
+  }
+  checar('§10b-premissa', sempreLivre,
+    'a varredura mantém o painel LIVRE e do mesmo lado — é o cenário que a §10b afirma medir');
+  checar('§10b', aA.estado().luz.repinturas === 1,
+    `corpo atravessando o quadro com o painel livre: ${aA.estado().luz.repinturas} repintura `
+    + '— o painel segue o corpo, então a luz não anda sobre a caixa e não há paralaxe a mostrar');
+
+  /*
+   * E ele APARECE quando o painel encosta na borda e o corpo continua: aí a superfície para e a
+   * luz desliza sobre ela. É o único momento em que profundidade tem o que revelar.
+   */
+  const pB = painelDeMentira();
+  const aB = criarAncoraDeDocumento(() => pB);
+  const trilhaLuz = [];
+  for (const x of [0.6, 0.75, 0.9, 1.05, 1.2]) {
+    aB.atualizar(ctx({ ndc: { x, y: 0, z: 0.5 }, px: 90 }));
+    trilhaLuz.push(lerLuz(pB).x);
+  }
+  const deslizou = Math.abs(trilhaLuz[trilhaLuz.length - 1] - trilhaLuz[0]);
+  checar('§10c', aB.estado().noTeto === true && deslizou > PASSO_DA_LUZ,
+    `painel PRESO na borda e corpo andando: a luz desliza ${deslizou.toFixed(0)} px sobre a superfície `
+    + '— é aqui que o paralaxe existe, e ele sai do mesmo mecanismo da profundidade');
+
+  /*
+   * O RAIO cobre o canto mais distante da caixa. Sem isso o gradiente termina no meio do painel e a
+   * queda vira uma borda dura — «retângulo preto sólido» com um degradê colado em cima.
+   */
+  const semCobrir = [];
+  for (const x of [-1.4, -0.7, 0, 0.7, 1.4]) {
+    for (const y of [-1, 0, 1]) {
+      for (const px of [4, 60, 173, 400]) {
+        const pc = painelDeMentira();
+        const ac = criarAncoraDeDocumento(() => pc);
+        ac.atualizar(ctx({ ndc: { x, y, z: 0.5 }, px }));
+        const l = lerLuz(pc);
+        const canto = Math.hypot(Math.abs(l.x) + CAIXA.largura / 2, Math.abs(l.y) + CAIXA.altura / 2);
+        if (l.raio < canto - 0.5) semCobrir.push({ x, y, px, raio: l.raio, canto });
+      }
+    }
+  }
+  checar('§10d', semCobrir.length === 0,
+    `o raio alcança o canto mais distante em todos os ${5 * 3 * 4} enquadramentos`
+    + (semCobrir.length ? ` — ${semCobrir.length} falham, o primeiro raio ${semCobrir[0].raio.toFixed(0)} < ${semCobrir[0].canto.toFixed(0)}` : ''));
+
+  /*
+   * ⚠️ A FORÇA é razão contra um limiar FIXO, saturada em 1 — nunca posto nem percentil. Grandeza
+   * de posto encolhe sozinha conforme o corpus cresce; esta vale igual em qualquer céu.
+   */
+  const forcaDe = (px) => {
+    const pf = painelDeMentira();
+    const af = criarAncoraDeDocumento(() => pf);
+    af.atualizar(ctx({ ndc: { x: 0, y: 0, z: 0.5 }, px }));
+    return lerLuz(pf).forca;
+  };
+  const f4 = forcaDe(4);
+  const fMeio = forcaDe(LUZ_PLENA_PX / 2);
+  const fPleno = forcaDe(LUZ_PLENA_PX);
+  const fAlem = forcaDe(LUZ_PLENA_PX * 9);
+  checar('§10e', f4 > 0 && Math.abs(fMeio - 0.5) < 0.01 && fPleno === 1 && fAlem === 1,
+    `força ${f4.toFixed(2)} · ${fMeio.toFixed(2)} · ${fPleno.toFixed(2)} · ${fAlem.toFixed(2)} `
+    + `para raio 4 · ${LUZ_PLENA_PX / 2} · ${LUZ_PLENA_PX} · ${LUZ_PLENA_PX * 9} px — `
+    + 'razão adimensional contra limiar FIXO, e ela SATURA em vez de crescer sem fim');
+
+  /* A borda acesa é a que ENCOSTA no corpo, e o CSS a escolhe por este atributo. */
+  const pd = painelDeMentira();
+  const ad = criarAncoraDeDocumento(() => pd);
+  ad.atualizar(ctx({ ndc: { x: 0.6, y: 0, z: 0.5 } }));
+  const ladoDir = pd.dataset.ancoraLado;
+  ad.atualizar(ctx({ ndc: { x: -0.6, y: 0, z: 0.5 } }));
+  checar('§10f', ladoDir === 'esquerda' && pd.dataset.ancoraLado === 'direita',
+    'o lado viaja em `data-ancora-lado` e ACOMPANHA a troca — borda acesa fixa afirmaria uma '
+    + 'direção de luz que a cena não tem');
+
+  /* Soltar apaga a luz: gradiente congelado num painel que não está mais ancorado é afirmação velha. */
+  ad.atualizar(null);
+  const sobrou = ['--ancora-luz-x', '--ancora-luz-y', '--ancora-luz-raio', '--ancora-luz-forca']
+    .filter((k) => pd.style.props[k] !== undefined);
+  checar('§10g', sobrou.length === 0 && !pd.dataset.ancoraLado,
+    `soltar apaga a luz inteira (sobrou: ${sobrou.join(', ') || 'nada'}) e o lado junto`);
 }
 
 // ─────────────────────────────────────────── §9 · TROCA DE PAINEL: o anterior fica limpo

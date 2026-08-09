@@ -664,12 +664,16 @@ Prova, num DOM de mentira com geometria conhecida, que o painel do corpo travado
 caixa de `getBoundingClientRect` já inclui o `transform`, e ler a caixa deslocada realimenta — o
 painel anda `dx` por quadro até sair da janela, **sem erro nenhum**), que a caixa PINTADA fica
 dentro da JANELA nos 180 enquadramentos varridos, que as quatro causas de *"não se moveu"* saem por
-NOME (sem corpo · painel não montado · atrás da câmera · eclipsado) e que ele **só escreve
-`--ancora-dx`/`--ancora-dy`** — `pointer-events` daqui derrubaria a regra do palco.
+NOME (sem corpo · painel não montado · atrás da câmera · eclipsado), que a LUZ do corpo **não
+repinta por quadro** e que tudo o que ele escreve está no namespace `--ancora-*` — propriedade
+customizada não altera comportamento sozinha, e é isso que impede o módulo de mexer na regra do
+palco por acidente.
 ☠️ **O piso da §6 é a JANELA, não a `MARGEM_PX` do módulo:** a lei importa a constante, então
 conferir contra ela é tautologia — visto por mutação, baixar a margem relaxava a lei junto.
-☠️ **E a primeira versão media o DESLOCAMENTO em vez da CAIXA:** `dx` dentro do teto com a borda
-esquerda do painel em **−102 px** na tela. Oráculo que mede proxy afirma sobre a coisa errada.
+☠️ **Teto sobre o DESLOCAMENTO é proxy:** `dx` dentro do teto com a borda esquerda do painel em
+**−102 px** na tela. Oráculo que mede proxy afirma sobre a coisa errada.
+⚠️ **A §10b confere a PRÓPRIA PREMISSA** — ela afirma sobre «o painel livre», e uma varredura que
+deixa o painel prender mede outra coisa e reprova comportamento certo.
 
 ## Ao mexer no teclado
 

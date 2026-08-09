@@ -972,12 +972,11 @@
     flex: 0 0 auto;
   }
   /*
-    ---------------- o DOCUMENTO ancorado no CORPO (T-53 / T-82) ----------------
+    ---------------- o DOCUMENTO ancorado no CORPO ----------------
 
-    O conteúdo do astro travado flutuava no centro **sem relação espacial com o astro**, e o
-    operador não sabia se aquilo pertencia ao planeta, ao sistema ou à cena. Aqui ele passa a ter
-    endereço: encosta no limbo do corpo e anda com a câmera. Quem calcula é
-    `space/ancora-de-documento.js`; este bloco só CONSOME as duas variáveis que ele escreve.
+    O conteúdo do astro travado tem ENDEREÇO: ele encosta no limbo do corpo, anda com a câmera e é
+    iluminado por ele. Quem calcula é `space/ancora-de-documento.js`; este bloco só CONSOME as
+    variáveis `--ancora-*` que ele escreve.
 
     ☠️ **É `transform`, e não `left`/`top`.** A composição não invalida layout; posição absoluta
     reescrita a 120 Hz forçaria reflow do painel inteiro por quadro. É a mesma razão de `bodies.js`
@@ -996,7 +995,46 @@
   */
   .widget[data-panel-surface][data-ancorado="sim"] > .widget-body {
     transform: translate(var(--ancora-dx, 0px), var(--ancora-dy, 0px));
+    /*
+      A LUZ VEM DO ASTRO, e é a mesma lei que os corpos 3D obedecem (`space/bodies.js`: a fonte
+      está na origem, e o lado voltado para ela é o lado aceso). Aqui a fonte é o corpo em foco, e
+      o centro do gradiente chega em coordenadas da CAIXA — logo ele fica preso ao MUNDO enquanto a
+      caixa se move. É daí que sai o paralaxe: um mecanismo, dois efeitos.
+
+      A primeira parada do gradiente é AMBAR e não é decoração: é a cor do que ilumina esta cena
+      (`--amber` do disco de acreção), então o painel encostado num astro fica quente do lado dele
+      e frio do lado oposto. Sem isso o fundo era `linear-gradient(180deg, …)` — luz vinda de cima,
+      que não existe em lugar nenhum desta cena.
+
+      ⚠️ O PISO DE ALFA é 0,88 na parada mais clara, e ele não é gosto: o painel carrega PROSA
+      LONGA sobre campo estelar, e transparência abaixo disso põe estrela dentro de linha de texto.
+      Profundidade aqui é COR e GRADIENTE, nunca menos opacidade.
+
+      O RAIO cobre até o canto mais distante da caixa, então a queda vale em qualquer
+      enquadramento. Quem o corpo governa é a FORÇA (`--ancora-luz-forca`, razão do raio aparente
+      contra um limiar FIXO): astro grande na tela empurra a parada quente mais para dentro do
+      painel; astro de 4 px quase não o alcança.
+    */
+    background-image:
+      radial-gradient(
+        circle var(--ancora-luz-raio, 420px)
+          at calc(50% + var(--ancora-luz-x, 0px)) calc(50% + var(--ancora-luz-y, 0px)),
+        rgba(46, 30, 14, 0.90) 0%,
+        rgba(14, 12, 13, 0.94) calc(8% + var(--ancora-luz-forca, 0.4) * 34%),
+        rgba(4, 6, 10, 0.96) 100%
+      );
+    border-left-color: transparent;
+    border-right: 1px solid transparent;
   }
+  /*
+    O RIM — a borda acesa é a que ENCOSTA no corpo, e ela troca de lado com o painel.
+
+    `border-left` fixo afirmava uma direção de luz que a cena não tem: com o painel à esquerda do
+    astro, a aresta acesa ficava do lado escuro. É o termo `rim` de `space/bodies.js` pelo mesmo
+    motivo — nenhum objeto num campo estelar tem lado completamente chapado.
+  */
+  .widget[data-panel-surface][data-ancora-lado="direita"] > .widget-body { border-left-color: var(--amber-dim); }
+  .widget[data-panel-surface][data-ancora-lado="esquerda"] > .widget-body { border-right-color: var(--amber-dim); }
   .widget[data-panel-surface] .fs-title {
     /* O caminho do arquivo fica fixo ao rolar: sem isso você perde de vista o que está lendo. */
     position: sticky; top: -12px; z-index: 1;

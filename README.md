@@ -256,14 +256,24 @@ corpo — dava para ler sem nunca saber se aquilo era do planeta, do sistema ou 
 Orbite: o texto acompanha o corpo. Leve o corpo para trás do horizonte de eventos: o texto some
 junto, porque ele é do corpo. Destrave, e ele volta ao lugar de sempre.
 
+**E o astro o ILUMINA.** O fundo do documento deixou de ser um retângulo chapado: ele é quente do
+lado que encosta no corpo, esfria até o vazio do lado oposto, e a aresta acesa troca de lado junto
+com o painel. Astro grande na tela alcança mais longe sobre a superfície; um ponto de 4 px quase não
+a toca.
+
+Enquanto o painel acompanha o corpo, a luz fica parada sobre ele — o painel e o astro andam juntos.
+Quando o corpo empurra o painel contra a borda da tela e continua, a luz **desliza** sobre a
+superfície: é aí que a profundidade tem o que mostrar, e é o mesmo mecanismo, não um segundo.
+
 ⚠️ **Ele nunca sai da janela.** Quando o astro chega perto da borda o painel encosta e para — a
 direção continua legível, o texto continua inteiro. Onde ele está e **por que** está lá sai em
 `spatia.ancora()`, com as quatro causas separadas por nome: sem corpo travado, painel não montado,
 corpo atrás da câmera, corpo eclipsado.
 
 ⭑ **A área que ele tira do céu é a mesma de antes** — a caixa que já pintava mudou de lugar, não de
-tamanho: 533 pontos ao ponteiro com e sem a âncora. Seguir a câmera custa **0,9 µs por quadro**,
-0,011% do orçamento a 120 Hz. `scripts/lei-ancora.mjs` guarda as duas coisas.
+tamanho: 533 pontos ao ponteiro com e sem a âncora. Seguir a câmera custa **0,9 µs por quadro**, e o
+gradiente **não repinta**: zero repinturas em 601 quadros parado e em 480 quadros de zoom.
+`scripts/lei-ancora.mjs` guarda as três coisas.
 
 ## Arquitetura
 
