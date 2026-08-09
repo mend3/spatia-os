@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Bancada das SUPERFÍCIES — SpatIA</title>
+<!--
+  A BANCADA DAS SUPERFÍCIES — o storybook do que é 2D, e a irmã de `sandbox.html`.
+
+  `sandbox.html` é a bancada dos objetos 3D: um corpo por vez, sem pós-processamento, cada espécime
+  importando o módulo real. Faltava o equivalente para o outro lado da tela — painel, fenda,
+  moldura, composição. Sem ele, toda proposta de layout se discute por captura de tela e adjetivo,
+  e "o HUD ocupa 25%" entra num documento sem ninguém saber de que grandeza se fala.
+
+  ## As três disciplinas que a fazem valer alguma coisa
+
+  1. **O CSS é o REAL, extraído em runtime.** Ela busca `index.html`, recorta o bloco `<style>` e o
+     injeta. Não há cópia para envelhecer: mudou a regra lá, esta bancada muda junto. É o mesmo
+     contrato que os oráculos de shader têm com o GLSL, só que sem transcrição nenhuma.
+     ⚠️ Se o recorte falhar, ela ACUSA em vermelho e não desenha — bancada com CSS de mentira
+     valida uma tela que não existe.
+
+  2. **UMA composição por vez, em tela cheia.** Não é uma grade de miniaturas: miniatura mente sobre
+     densidade e sobre o que cabe. Em tela cheia, os números saem na MESMA régua que
+     `spatia.hud()` colhe no app, e as duas medidas podem ser comparadas sem conversão.
+
+  3. **Todo espécime declara `watch`** — o defeito que ele existe para pegar. Bancada sem `watch` é
+     vitrine: mostra o painel bonito e não diz o que olhar.
+
+  ## ☠️ SÃO TRÊS GRANDEZAS, e trocá-las é como se fabrica um número plausível e falso
+
+  | grandeza | a pergunta | quem responde |
+  |---|---|---|
+  | **ponteiro** | o gesto de órbita morre aqui? | `spatia.hud()`, no app |
+  | **tinta** | há superfície COBRINDO o céu aqui? | esta bancada |
+  | **texto** | há glifo disputando o olho aqui? | esta bancada — e é a que COMPOSIÇÃO pede |
+
+  `spatia.hud()` mede área que aceita PONTEIRO **de propósito**: os ouvintes de gesto estão presos ao
+  canvas, então um retângulo com `pointer-events: auto` cancela órbita e zoom ali. É a pergunta de
+  INTERAÇÃO, e não serve para falar de composição.
+
+  ☠️ **A primeira versão desta bancada mediu TINTA e respondeu quase nada — e o erro foi instrutivo.**
+  Ela devolveu `left 0,0% · right 0,0%` porque **os painéis dos trilhos não pintam**: são texto com
+  `text-shadow` sobre o céu, e fundo opaco está refutado por escrito em `hud/yield.js`. Quem disputa
+  a tela aqui é GLIFO, não retângulo. Por isso a medida de texto usa `Range.getClientRects()`, que
+  devolve a caixa das LINHAS: um `<div>` de 230 px com a palavra "MASSA" não cobre 230 px de atenção,
+  e medir a caixa do elemento faria seis palavras medirem como um trilho cheio.
+
+  ⚠️ **Nenhuma das três mede ATENÇÃO.** Contraste, movimento e tipografia decidem para onde o olho
+  vai. É o piso MEDIDO da conversa — que é mais do que "aproximadamente 25%" tem.
+-->
+<style>
+  /* O mínimo desta página. Tudo que descreve o APP vem do `index.html`, em runtime. */
+  html, body { margin: 0; height: 100%; background: #05070c; }
+  #ceu {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(1200px 700px at 62% 46%, rgba(120, 90, 40, 0.20), transparent 62%),
+      radial-gradient(700px 520px at 26% 72%, rgba(40, 70, 130, 0.16), transparent 66%),
+      #05070c;
+  }
+  /* O "corpo em foco" de mentira: existe só para haver algo ATRÁS que a composição possa tapar. */
+  #corpo {
+    position: fixed; z-index: 1; left: 50%; top: 52%; width: min(46vh, 520px); aspect-ratio: 1;
+    transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(circle at 38% 34%, #d9c39a, #9a6f3c 46%, #3a2611 78%, #120b04);
+    box-shadow: 0 0 90px rgba(190, 140, 70, 0.28);
+  }
+  #barra {
+    position: fixed; z-index: 40; left: 0; right: 0; bottom: 0;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 8px 12px; background: rgba(6, 9, 15, 0.94); border-top: 1px solid rgba(200, 150, 80, 0.28);
+    font: 11px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: #c9b48d;
+  }
+  #barra button {
+    background: transparent; color: #c9b48d; border: 1px solid rgba(200, 150, 80, 0.4);
+    padding: 4px 10px; cursor: pointer; font: inherit; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  #barra button[aria-pressed="true"] { background: rgba(200, 150, 80, 0.18); color: #f0dcb4; border-color: #c8964e; }
+  #leitura { margin-left: auto; display: flex; gap: 14px; align-items: baseline; white-space: nowrap; }
+  #leitura b { color: #f0dcb4; font-weight: 600; }
+  #vigia {
+    position: fixed; z-index: 40; left: 12px; bottom: 52px; max-width: 46ch;
+    font: 10px/1.6 ui-monospace, Menlo, monospace; color: #8e7c5c;
+  }
+  #vigia u { color: #d8b070; text-decoration: none; display: block; margin-bottom: 3px; letter-spacing: 0.16em; }
+  #erro {
+    position: fixed; inset: 0; z-index: 90; display: none; place-content: center; text-align: center;
+    background: #1a0606; color: #ff9a9a; font: 13px/1.8 ui-monospace, Menlo, monospace; padding: 40px;
+  }
+  /*
+   * A grade de amostragem, quando ligada — ver a medida é o que impede de confiar nela às cegas.
+   * ☠️ Ela é UM canvas, e não um nó por ponto: a primeira versão criava ~7 mil `<div>` a cada
+   * medida e travava a página no clique (reportado da tela). Amostragem densa desenha em raster.
+   */
+  #grade-canvas { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="ceu"></div>
+<div id="corpo"></div>
+<canvas id="grade-canvas"></canvas>
+<div id="erro"></div>
+
+<!-- A casca do app, com os MESMOS nomes de fenda do `index.html`. O CSS real acha o que espera. -->
+<div id="hud">
+  <header></header>
+  <aside class="slot" data-slot="left"></aside>
+  <div class="stage slot keep-cinematic" data-slot="stage"></div>
+  <aside class="slot" data-slot="right"></aside>
+  <div class="slot strip" data-slot="strip"></div>
+</div>
+
+<div id="vigia"></div>
+<div id="barra">
+  <span style="letter-spacing:.2em">COMPOSIÇÃO</span>
+  <span id="botoes"></span>
+  <button id="grade" aria-pressed="false">ver a grade</button>
+  <span id="leitura"></span>
+</div>
+
+<script type="module">
+/*
+ * ─────────────────────────────────────────────── o CSS REAL, recortado em runtime
+ *
+ * Sem cópia. Se o recorte falhar, a bancada recusa desenhar: uma bancada com CSS de mentira valida
+ * uma tela que não existe, e o erro só aparece no dia em que alguém confiar nela.
+ */
+const erro = (msg) => {
+  const n = document.getElementById('erro');
+  n.style.display = 'grid';
+  n.textContent = msg;
+  throw new Error(msg);
+};
+
+const fonte = await fetch('./index.html').then((r) => r.text()).catch(() => null);
+if (!fonte) erro('não consegui ler ./index.html — suba o servidor (make serve) e recarregue.');
+const inicio = fonte.indexOf('<style>');
+const fim = fonte.indexOf('</style>', inicio);
+if (inicio < 0 || fim < 0) erro('não achei o bloco <style> em index.html — o CSS real mudou de casa, e esta bancada não pode adivinhar onde.');
+const css = fonte.slice(inicio + '<style>'.length, fim);
+if (css.length < 2000) erro(`o bloco <style> tem ${css.length} caracteres — pequeno demais para ser o CSS do app. Recorte errado.`);
+const tag = document.createElement('style');
+tag.textContent = css;
+document.head.appendChild(tag);
+
+// ─────────────────────────────────────────────── pequenos construtores no vocabulário do app
+const el = (tag, cls, txt) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (txt != null) n.textContent = txt;
+  return n;
+};
+const rotulo = (t) => el('h2', 'label', t);
+/** Uma moldura de widget, com o mesmo esqueleto que `kernel/widgets.js` monta. */
+const widget = (titulo, corpo, { palco = false, recolhido = false } = {}) => {
+  const w = el('div', palco ? 'widget widget-stage' : 'widget');
+  if (palco) w.setAttribute('data-panel-surface', '');
+  if (recolhido) w.setAttribute('data-collapsed', 'true');
+  if (titulo) w.append(rotulo(titulo));
+  const b = el('div', 'widget-body');
+  for (const c of [].concat(corpo)) b.append(c);
+  w.append(b);
+  return w;
+};
+const vital = (k, v, u = '') => {
+  const n = el('div', 'vital');
+  n.append(el('span', 'vital-label', k), el('strong', 'vital-value', v), el('span', 'label', u));
+  return n;
+};
+const linhas = (n, texto) => {
+  const f = document.createDocumentFragment();
+  for (let i = 0; i < n; i++) f.append(el('div', 'row', typeof texto === 'function' ? texto(i) : texto));
+  return f;
+};
+const prosa = (txt) => {
+  const n = el('div', 'answer');
+  n.textContent = txt;
+  return n;
+};
+
+// ─────────────────────────────────────────────── os espécimes
+/*
+ * ⚠️ **HOJE é o CONTROLE, e ele não é decoração.** Toda proposta aqui se lê contra o que já está na
+ * tela; sem o controle, "libera uma área enorme" é adjetivo. O controle transcreve a composição do
+ * app na rota de foco: árvore + forma do corpus + timeline à esquerda, contexto à direita, leitura
+ * e resposta no palco.
+ */
+const conteudoDoArquivo = () => {
+  const box = el('div', 'file-view');
+  box.append(el('div', 'file-path', 'espatial-fixtures/nucleo/bloco-04.md'));
+  const corpo = el('pre', 'file-body');
+  corpo.textContent = ['# bloco denso 4', '',
+    'Arquivo de corpus sintético para a cena do espatial-os.',
+    'Caminho: nucleo/bloco-04.md · trecho 1 de 96.', '',
+    'Este parágrafo existe para dar corpo ao arquivo e um pouco de variação de tamanho',
+    'entre os nós do céu. Assunto declarado: bloco denso 4.', '',
+    '# bloco denso 4', '',
+    'Arquivo de corpus sintético para a cena do espatial-os.',
+    'Caminho: nucleo/bloco-04.md · trecho 2 de 96.'].join('\n');
+  corpo.style.cssText = 'margin:0;white-space:pre-wrap;font:inherit;color:var(--ink-dim,#b9c4d4)';
+  box.append(corpo);
+  return box;
+};
+
+const contextoCheio = () => widget('CONTEXTO  SOB ATENÇÃO', [
+  el('div', 'source-label', 'espatial-fixtures/nucleo/bloco-04.md'),
+  el('div', 'label', 'PLANETA · TRAVADO · doc'),
+  vital('MASSA', '96', 'chunks'),
+  vital('ÚLTIMO COMMIT', '03 AGO 2026', 'há 6 dias'),
+  vital('REESCRITAS', '3×', 'em 30d'),
+  vital('DISCO', 'ALTERADO'),
+  vital('INDEXADO', '2026-08-09T04:01'),
+  vital('ALCANCE', '0%', 'fora do sistema'),
+  rotulo('FAVORITO'), el('div', 'row', '☆ MARCAR'),
+  rotulo('VÍNCULOS · 1'), el('div', 'row', '▸ nucleo'),
+  rotulo('SEÇÕES · 12'), linhas(5, (i) => `§ ${i ? 'parte ' + (i + 1) : 'bloco denso 4'}`),
+  rotulo('LOCALIZAR  SEMÂNTICO'),
+]);
+
+const COMPOSICOES = [
+  {
+    id: 'hoje',
+    titulo: 'HOJE (controle)',
+    porque: 'a composição que está no app na rota de foco. Sem ela, toda proposta é adjetivo.',
+    watch: [
+      'quatro centros de atenção ao mesmo tempo: astro, documento, resposta e os dois trilhos',
+      'o documento em foco NÃO é o maior elemento da tela',
+      'a resposta do agente é uma segunda caixa grande empilhada sobre o conteúdo',
+    ],
+    montar: ({ left, stage, right, strip, header }) => {
+      header.append(el('div', 'headstat', 'CUSTO $0.2012  CHUNKS 2.514  JANELA 1h43  ÍNDICE HOJE'),
+        el('div', 'label', '● OCIOSO  ● ● ● ● ●  HÁ 28S  TRAVADO nucleo/bloco-04.md'));
+      left.append(
+        widget('ÁRVORE', linhas(2, '▸ espatial-fixtures')),
+        widget('FORMA DO CORPUS por tipo', linhas(12, (i) => `tipo ${i + 1}   ▮▮▮▯▯`)),
+        widget('TIMELINE  PERFIL REAL', linhas(4, '·')),
+        widget('JANELA DO TEMPO  ÚLTIMO COMMIT', linhas(1, '·')));
+      stage.append(
+        widget(null, conteudoDoArquivo(), { palco: true }),
+        widget(null, prosa('Nada de conteúdo real — são arquivos de fixture. Cada nucleo/bloco-NN.md repete o mesmo parágrafo autodescritivo, com um cabeçalho e um marcador.'), { palco: true }),
+        widget(null, linhas(4, (i) => `[${i + 1}] espatial-fixtures/nucleo/bloco-0${i + 1}.md`), { palco: true }));
+      right.append(contextoCheio());
+      strip.append(widget(null, el('div', 'row', '› faça uma pergunta ao núcleo'), { palco: true }));
+    },
+  },
+  {
+    id: 'explore',
+    titulo: 'EXPLORE',
+    porque: 'navegar. O universo domina; a instrumentação recolhe para alças.',
+    watch: [
+      'sobra céu suficiente para o gesto de órbita ter para onde ir?',
+      'a alça de reabrir continua ACHÁVEL, ou o painel some sem deixar rastro?',
+      '⚠️ recolher NÃO é o mesmo que desmontar — `spatia.hud()` separa `recolhidos` de `naoMontados`',
+    ],
+    montar: ({ stage, strip, header, left, right }) => {
+      header.append(el('div', 'label', '● OCIOSO'), el('div', 'label', 'AGENTE · UNIVERSO   09:26'));
+      left.append(widget(null, el('div', 'row', '◀'), {}));
+      right.append(widget(null, el('div', 'row', '▶'), {}));
+      strip.append(widget(null, el('div', 'row', '› perguntar ao núcleo'), { palco: true }));
+      stage.append(widget(null, el('div', 'label', ''), { palco: true }));
+    },
+  },
+  {
+    id: 'focus',
+    titulo: 'FOCUS',
+    porque: 'ler. O conteúdo é protagonista e a resposta do agente vira faixa transitória.',
+    watch: [
+      'o conteúdo cresceu de fato, ou só perdeu vizinhos?',
+      'a faixa de atividade do agente cabe em UMA linha sem virar a segunda caixa grande',
+      '☠️ o documento tem âncora visual com o astro, ou continua flutuando sem dono?',
+    ],
+    montar: ({ stage, strip, header, right }) => {
+      header.append(el('div', 'label', '● BLOCO DENSO 4'), el('div', 'label', 'OCUPADO · AGENTE   09:26'));
+      const grande = widget(null, conteudoDoArquivo(), { palco: true });
+      grande.querySelector('.widget-body').style.cssText = 'width:min(1100px,72vw);max-height:60vh';
+      stage.append(grande);
+      const faixa = widget(null, el('div', 'row', '● 3 relações encontradas'), { palco: true });
+      faixa.querySelector('.widget-body').style.cssText = 'width:min(1100px,72vw)';
+      stage.append(faixa);
+      right.append(widget('CONTEXTO', [
+        el('div', 'source-label', 'bloco-04.md'),
+        el('div', 'label', 'PLANETA · DOCUMENTO'),
+        vital('MASSA', '96', 'chunks'),
+        vital('DISCO', 'ALTERADO'),
+      ], { recolhido: false }));
+      strip.append(widget(null, el('div', 'row', '› perguntar ao núcleo'), { palco: true }));
+    },
+  },
+  {
+    id: 'inspect',
+    titulo: 'INSPECT',
+    porque: 'inspecionar. Os dois trilhos voltam, e o inspector ganha hierarquia em vez de lista plana.',
+    watch: [
+      'o inspector tem TRÊS pesos visuais (nome · estado · relações) ou tudo pesa igual de novo?',
+      'com os dois trilhos abertos, sobra céu? (é a composição de HOJE com outro nome se não sobrar)',
+      'a árvore aberta empurra o conteúdo para menos do que ele tinha em FOCUS?',
+    ],
+    montar: ({ left, stage, right, strip, header }) => {
+      header.append(el('div', 'label', '● BLOCO DENSO 4'), el('div', 'label', 'INSPECT   09:26'));
+      left.append(widget('ÁRVORE', linhas(10, (i) => `▸ pasta ${i + 1}`)));
+      const grande = widget(null, conteudoDoArquivo(), { palco: true });
+      grande.querySelector('.widget-body').style.cssText = 'width:100%;max-height:56vh';
+      stage.append(grande);
+      right.append(widget('BLOCO DENSO 4', [
+        el('div', 'label', 'planeta · documento'),
+        vital('', '96 chunks'),
+        rotulo('ESTADO'), el('div', 'row', 'alterado'), el('div', 'row', 'indexado'),
+        rotulo('RELAÇÕES'), el('div', 'row', 'núcleo    1659'),
+        rotulo('SEÇÕES'), linhas(3, (i) => `§ parte ${i + 1}`),
+        rotulo('AÇÕES'), el('div', 'row', 'abrir · relacionar'),
+      ]));
+      strip.append(widget(null, el('div', 'row', '› perguntar ao núcleo'), { palco: true }));
+    },
+  },
+];
+
+// ─────────────────────────────────────────────── a medida: TRÊS grandezas, e a diferença importa
+/*
+ * ☠️ **A PRIMEIRA VERSÃO DESTA MEDIDA MEDIU A COISA ERRADA, e a bancada acusou na primeira execução:**
+ * `pintado 96,2%` nas quatro composições e `left 0,0% · right 0,0%`. Não era bug de amostragem — era
+ * um FATO do app que eu não sabia: **os painéis dos trilhos não pintam nada.** Eles são texto com
+ * `text-shadow` sobre o céu, e fundo opaco está refutado por escrito em `hud/yield.js`. Então
+ * "área pintada" responde ~zero justamente sobre o que a revisão chama de "HUD ocupando 25%".
+ *
+ * A lição é a de sempre nesta base: a grandeza tem de casar com a pergunta. São TRÊS, e elas não
+ * se substituem:
+ *
+ * | grandeza | a pergunta | quem já responde |
+ * |---|---|---|
+ * | **ponteiro** | o gesto de órbita morre aqui? | `spatia.hud()`, no app |
+ * | **tinta** | há uma superfície COBRINDO o céu? | esta bancada |
+ * | **texto** | há glifo disputando o olho aqui? | esta bancada — e é a que a composição pede |
+ *
+ * ⚠️ **`texto` continua não sendo ATENÇÃO.** Contraste, movimento e tipografia decidem para onde o
+ * olho vai, e amostrar glifo não os captura. É o piso da conversa, não a resposta — mas é um piso
+ * MEDIDO, que é mais do que "aproximadamente 25%" tem.
+ */
+const PASSO = 12;
+
+/*
+ * ☠️ **`elementFromPoint` NÃO ENXERGA ESTE HUD, e a bancada descobriu isso medindo.**
+ *
+ * A segunda versão desta medida devolvia `textoLeft 0,0%` com quatro painéis desenhados à esquerda.
+ * Não era a amostragem: `#hud` declara `pointer-events: none`, e hit-test por definição PULA quem
+ * não recebe ponteiro — `elementFromPoint` devolvia o céu atrás. A ferramenta de INTERAÇÃO não
+ * responde perguntas de COMPOSIÇÃO, e usá-la assim é a troca de grandeza contra a qual o cabeçalho
+ * deste arquivo avisa, cometida dentro do próprio arquivo.
+ *
+ * A saída é não perguntar "quem está sob este ponto?" e sim COLHER as caixas primeiro: percorrer o
+ * DOM do `#hud`, juntar as caixas de linha de cada nó de texto e as caixas de cada nó que pinta, e
+ * então testar a grade contra essas listas. Sem hit-test, `pointer-events` deixa de interferir.
+ */
+
+/** Colhe as caixas de LINHA de todo texto sob `raiz`, com a fenda a que cada uma pertence. */
+function caixasDeTexto(raiz) {
+  const saida = [];
+  const passeio = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+  for (let no = passeio.nextNode(); no; no = passeio.nextNode()) {
+    if (!no.textContent.trim()) continue;
+    const pai = no.parentElement;
+    if (!pai) continue;
+    const s = getComputedStyle(pai);
+    // Invisível não disputa o olho — e `opacity: 0` é como o modo cinematográfico apaga a HUD.
+    if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) === 0) continue;
+    const fenda = pai.closest('[data-slot]')?.dataset.slot
+      ?? (pai.closest('#hud header') ? 'header' : 'fora');
+    const r = document.createRange();
+    r.selectNodeContents(no);
+    for (const c of r.getClientRects()) if (c.width > 0 && c.height > 0) saida.push({ c, fenda });
+  }
+  return saida;
+}
+
+/** Colhe as caixas dos nós que PINTAM (fundo, borda ou imagem) sob `raiz`. */
+function caixasDeTinta(raiz) {
+  const saida = [];
+  for (const n of raiz.querySelectorAll('*')) {
+    const s = getComputedStyle(n);
+    if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) === 0) continue;
+    const bg = s.backgroundColor;
+    const opaco = bg && bg !== 'transparent' && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(bg);
+    const borda = parseFloat(s.borderTopWidth) > 0 || parseFloat(s.borderLeftWidth) > 0;
+    if (!opaco && !borda && s.backgroundImage === 'none') continue;
+    const c = n.getBoundingClientRect();
+    if (c.width > 0 && c.height > 0) saida.push({ c });
+  }
+  return saida;
+}
+
+const dentro = (c, x, y) => x >= c.left && x < c.right && y >= c.top && y < c.bottom;
+
+function medir(mostrarGrade) {
+  const cv = document.getElementById('grade-canvas');
+  const dpr = devicePixelRatio || 1;
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+  cv.style.width = `${innerWidth}px`; cv.style.height = `${innerHeight}px`;
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, innerWidth, innerHeight);
+  const hud = document.getElementById('hud');
+  const textos = caixasDeTexto(hud);
+  const tintas = caixasDeTinta(hud);
+  const corpo = document.getElementById('corpo').getBoundingClientRect();
+  const W = innerWidth;
+  const H = innerHeight - 46;   // a barra da bancada não é o app
+  const porFenda = new Map();
+  let pontos = 0, comTinta = 0, comTexto = 0, limpo = 0, noCorpo = 0;
+  for (let y = PASSO / 2; y < H; y += PASSO) {
+    for (let x = PASSO / 2; x < W; x += PASSO) {
+      pontos++;
+      let fenda = null;
+      for (const t of textos) if (dentro(t.c, x, y)) { fenda = t.fenda; break; }
+      const temTexto = fenda !== null;
+      let temTinta = false;
+      if (!temTexto) for (const t of tintas) if (dentro(t.c, x, y)) { temTinta = true; break; }
+      if (temTexto) { comTexto++; porFenda.set(fenda, (porFenda.get(fenda) || 0) + 1); }
+      if (temTinta || temTexto) comTinta += temTinta ? 1 : 0;
+      // O corpo é o PALCO, não a HUD: ele conta à parte, para "sobrou céu" não o engolir.
+      const emCorpo = dentro(corpo, x, y) && Math.hypot(x - (corpo.left + corpo.width / 2), y - (corpo.top + corpo.height / 2)) <= corpo.width / 2;
+      if (emCorpo) noCorpo++;
+      if (!temTexto && !temTinta && !emCorpo) limpo++;
+      if (mostrarGrade) {
+        g.fillStyle = temTexto ? '#e0a35a' : temTinta ? '#7aa2d0' : emCorpo ? '#6ee7a0' : 'rgba(120,140,180,.18)';
+        g.fillRect(x - 1, y - 1, 2, 2);
+      }
+    }
+  }
+  const frac = (n) => `${((n / pontos) * 100).toFixed(1)}%`;
+  return {
+    pontos,
+    texto: frac(comTexto),
+    tinta: frac(comTinta),
+    corpo: frac(noCorpo),
+    ceuLimpo: frac(limpo),
+    textoLeft: frac(porFenda.get('left') || 0),
+    textoRight: frac(porFenda.get('right') || 0),
+    textoStage: frac(porFenda.get('stage') || 0),
+    textoStrip: frac(porFenda.get('strip') || 0),
+    textoHeader: frac(porFenda.get('header') || 0),
+  };
+}
+
+// ─────────────────────────────────────────────── montagem e troca
+const fendas = () => ({
+  header: document.querySelector('#hud header'),
+  left: document.querySelector('[data-slot="left"]'),
+  right: document.querySelector('[data-slot="right"]'),
+  stage: document.querySelector('[data-slot="stage"]'),
+  strip: document.querySelector('[data-slot="strip"]'),
+});
+
+let atual = COMPOSICOES[0];
+let grade = false;
+
+function montar(comp) {
+  atual = comp;
+  const f = fendas();
+  for (const n of Object.values(f)) n.replaceChildren();
+  comp.montar(f);
+  document.getElementById('vigia').replaceChildren(
+    Object.assign(el('u'), { textContent: `${comp.titulo} — ${comp.porque}` }),
+    ...comp.watch.map((w) => el('div', null, `· ${w}`)));
+  for (const b of document.querySelectorAll('#botoes button')) {
+    b.setAttribute('aria-pressed', String(b.dataset.id === comp.id));
+  }
+  // Dois quadros de folga: medir antes do layout assentar responde sobre uma tela que não existiu.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const m = medir(grade);
+    document.getElementById('leitura').replaceChildren(
+      el('span', null, 'texto '), Object.assign(el('b'), { textContent: m.texto }),
+      el('span', null, '· tinta '), Object.assign(el('b'), { textContent: m.tinta }),
+      el('span', null, '· céu limpo '), Object.assign(el('b'), { textContent: m.ceuLimpo }),
+      el('span', null, `· corpo ${m.corpo}`),
+      el('span', null, `· texto: ⟵ ${m.textoLeft} · palco ${m.textoStage} · ${m.textoRight} ⟶ · topo ${m.textoHeader} · rodapé ${m.textoStrip}`),
+      el('span', null, `· ${m.pontos} pts`));
+  }));
+}
+
+const botoes = document.getElementById('botoes');
+for (const c of COMPOSICOES) {
+  const b = el('button', null, c.titulo);
+  b.dataset.id = c.id;
+  b.onclick = () => montar(c);
+  botoes.append(b);
+}
+document.getElementById('grade').onclick = (e) => {
+  grade = !grade;
+  e.currentTarget.setAttribute('aria-pressed', String(grade));
+  montar(atual);
+};
+addEventListener('resize', () => montar(atual));
+montar(atual);
+
+/** A sonda da bancada, para medir sem clicar. `bancada.medir()` devolve os mesmos números. */
+window.bancada = Object.freeze({
+  composicoes: COMPOSICOES.map((c) => c.id),
+  ir: (id) => montar(COMPOSICOES.find((c) => c.id === id) || atual),
+  medir: () => medir(false),
+  atual: () => atual.id,
+});
+</script>
+</body>
+</html>

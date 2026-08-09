@@ -160,7 +160,15 @@ matemática precisa ser física, com as razões `R_s/R` adimensionais por classe
 **`sistemas.js`** (a CONTENÇÃO servida → quem domina cada sistema → a identidade de cada corpo).
 ⭑ **As duas cenas leem a pele dali, e nenhuma a deriva** — `sistemas.identidadeDe` é a porta.
 
-Bancada: `sandbox.html` — um objeto por vez, sem pós-processamento; todo espécime **importa** o
+Bancadas — **duas, e a divisão é por dimensão**: `sandbox.html` para os objetos 3D e
+`bancada-hud.html` para as SUPERFÍCIES (painel, fenda, moldura, composição). A de superfícies
+**extrai o CSS real de `index.html` em runtime** e recusa desenhar se o recorte falhar; ela mede
+TEXTO e TINTA, que são grandezas diferentes do PONTEIRO de `spatia.hud()`.
+☠️ **`elementFromPoint` não serve para medir composição aqui:** `#hud` é `pointer-events: none`, e
+hit-test pula quem não recebe ponteiro — a medida certa colhe as caixas de linha com
+`Range.getClientRects()`.
+
+`sandbox.html` — um objeto por vez, sem pós-processamento; todo espécime **importa** o
 módulo real, e o campo `watch` nomeia o defeito que ele pega.
 
 Outros docs vivos: `catalogo-celeste.md` · `modelo-de-renderizacao.md` · `OS-SCREENS.md` ·

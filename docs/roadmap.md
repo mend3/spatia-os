@@ -150,6 +150,7 @@ com ou sem produtor.
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
 | **T-39** | As duas cenas olham pela MESMA ontologia — a pele tem um dono só (`space/sistemas.js`) | `done` | — | — | KR2.4 |
+| **T-71** | **Focus Workspace** — a cena adapta a composição ao que o operador está fazendo | `todo` | decisão do usuário | — | KR2.1 |
 | **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) são DOIS nomes do mesmo vocabulário | `todo` | — | — | KR2.4 |
 | **T-70** | `resolveBody()` ainda decide uma PELE que ninguém lê — sobrou o modificador | `todo` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
@@ -181,6 +182,38 @@ com ou sem produtor.
 | **T-66** | O sistema APERTADO — 38 arquivos numa pasta dão planetas de 0,10 unidade | `todo` | — | — | — |
 | **T-67** | Segunda textura de estrela (K/M, fria), escolhida pela TEMPERATURA | `todo` | — | — | — |
 | **T-68** | Passo 2 — feição no SPRITE, e **não** aro no corpo: é lá que os corpos vivem | `todo` | — | — | — |
+
+- **T-71** — proposta externa (revisão da OpenAI sobre uma captura da cena de foco): três estados de
+  composição — EXPLORE, FOCUS, INSPECT — com os trilhos virando *drawers*, o conteúdo crescendo
+  40–60% e a resposta do agente virando faixa transitória em vez de segunda caixa.
+  ⭑ **A estrutura já tem casa nesta base, e isso é o que a torna barata:** `CENAS` (`scene.js`) já é
+  tabela declarativa, `RESIDENTES` (`apps/residentes.js`) já declara o que cada rota monta COM o
+  motivo, e `spatia.hud().widgets` já separa `recolhidos` de `naoMontados` de `ausentes` — o
+  `uiBudget` que a proposta pede é `RESIDENTES` com uma coluna de PERMANÊNCIA a mais.
+  ☠️ **E a parte que a proposta erra é a MEDIDA, que agora existe.** Ela afirma
+  *"objeto 25% · conteúdo 25% · contexto 25% · HUD 25%"* e quer chegar a *"objeto/conteúdo 65%"*.
+  Medido em `bancada-hud.html` (janela de 1276×742, grade de 12 px, 7 076 pontos):
+
+  | composição | TEXTO | TINTA | céu limpo | ⟵ trilho | palco | trilho ⟶ |
+  |---|---|---|---|---|---|---|
+  | **HOJE** (controle) | **13,7%** | 21,0% | 62,3% | 2,9% | 6,4% | 3,1% |
+  | FOCUS | 4,7% | **27,6%** | **61,3%** | 0,0% | 4,0% | 0,1% |
+  | INSPECT | 6,9% | 14,2% | 71,0% | 1,0% | 3,8% | 1,6% |
+  | EXPLORE | 0,6% | 6,5% | **84,0%** | 0 | 0 | 0 |
+
+  ☠️ **FOCUS NÃO LIBERA CÉU — ele troca TEXTO por TINTA.** O céu limpo praticamente não se move
+  (62,3% → 61,3%), porque o conteúdo maior PINTA o que os trilhos só escreviam: a tinta SOBE de
+  21,0% para 27,6%. Quem libera céu de verdade é EXPLORE (84,0%), e é o estado que a proposta
+  descreve em uma linha. **A intuição "aumentar o conteúdo libera a tela" está refutada por medida:**
+  ela libera o OLHO (texto cai 13,7% → 4,7%) e ocupa a TELA.
+  ⚠️ **Os dois trilhos juntos são ~6% da tela em glifo**, não 50% — a impressão de que dominam vem
+  de densidade e contraste, que nenhuma destas três grandezas mede. Atacar "os painéis são grandes"
+  é atacar o número errado; o que os faz pesar é outra coisa.
+  ⚠️ **Estes números são dos ESPÉCIMES da bancada, não do app.** O controle é uma reconstrução da
+  composição de foco, e a régua real sai de rodar a mesma medida dentro do `index.html`. Enquanto
+  isso não existir, comparar bancada com app é comparar duas telas.
+  ⚠️ **É `blocked` por DECISÃO do usuário**, e não por engenharia: trocar o que fica na tela em cada
+  estado é produto. A bancada existe para essa decisão ser tomada olhando número e pixel juntos.
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
 
