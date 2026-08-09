@@ -1690,7 +1690,24 @@ export function createUniverse() {
        * de sair `NaN`.
        */
       if (camera && viewportHeight && sujosAtivos.length) {
-        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, cedidos.size === 1 ? [...cedidos][0] : -1);
+        /*
+         * ⚠️ **`[...cedidos][0]` devolvia um ARRAY, e o anel de mundo morreu calado.**
+         *
+         * `cedidos` era um Set de índices, e espalhar um Set dá o índice. Ele virou `Map`
+         * (índice → `BODY_SPAN × FATOR_NUCLEO`) quando a esfera passou a ceder pelo PORTE da
+         * pele, e espalhar um Map dá `[chave, valor]`. `ring.index === focusedIndex` comparava
+         * número com array e nunca era verdade: **todo anel desta cena caiu no billboard.**
+         *
+         * O billboard copia o quaternion da câmera, então o anel passou a ter a MESMA pose de
+         * qualquer ângulo — orbitar o corpo deixou de revelar a forma do disco, que é o que a
+         * REGRA DA INSPEÇÃO pede. Relatado da tela: *"independente da posição/ângulo da câmera
+         * elas sempre estão na mesma posição"*.
+         *
+         * ⚠️ Nada acusou. O anel continuou desenhando, com estrutura e cor certas — só parou de
+         * ser um objeto no mundo. É a armadilha nº 2 numa forma nova: a troca de Set para Map
+         * compila, roda e some com a feição.
+         */
+        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, cedidos.size === 1 ? [...cedidos.keys()][0] : -1);
       }
     },
 
