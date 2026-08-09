@@ -2529,6 +2529,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        */
       if (!universo) universe.selecionar(null, null);
       paintLinks();
+      /*
+       * ⚠️ **A CENA ANUNCIA A TROCA — quem a pediu não é responsável por contar aos outros.**
+       *
+       * O switcher só se repintava dentro do PRÓPRIO handler de clique/tecla. Toda outra porta que
+       * chega aqui — `spatia.cena('universo')`, a rota, qualquer caminho futuro — trocava a cena e
+       * deixava o HUD marcando a anterior. Medido: a sonda trocava para UNIVERSO e o botão seguia
+       * aceso em AGENTE, em quatro capturas seguidas.
+       *
+       * Devolver `modo` e mandar cada chamador repintar seria a mesma dívida com outro nome: a
+       * primeira porta que esquecesse voltaria a mentir, e um switcher mentindo é exatamente o que
+       * faz alguém duvidar da sonda certa. `estado observável > estado implícito` do `CLAUDE.md`.
+       *
+       * Sem laço: quem escuta pinta, e pintar não chama `setMode`.
+       */
+      ui('scene-mode', { modo });
       return modo;
     },
     mode: () => modo,

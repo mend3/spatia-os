@@ -11,6 +11,8 @@
  * ⚠️ O buraco negro não desaparece do produto; ele **muda de cena**. Era esse o ponto do §9.1 do
  * replanejamento — ele deixa de ser cinco coisas ao mesmo tempo.
  */
+import { on } from '../core/bus.js';
+
 const TECLA = 'KeyU';
 
 export function createCenaSwitch(root, { scene, onChange } = {}) {
@@ -42,6 +44,17 @@ export function createCenaSwitch(root, { scene, onChange } = {}) {
     if (alvo instanceof HTMLElement && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName))) return;
     ir(scene?.mode?.() === 'universo' ? 'agente' : 'universo');
   });
+
+  /*
+   * ⚠️ **O botão segue a CENA, não o clique.** Antes ele só se repintava dentro do `ir()` acima,
+   * ou seja, só quando a troca nascia AQUI. `spatia.cena('universo')` trocava a cena de verdade e
+   * deixava o botão aceso em AGENTE — a tela afirmando uma coisa e o mundo sendo outra, que é o
+   * tipo de discordância que faz duvidar da sonda certa antes de duvidar do HUD.
+   *
+   * Agora `setMode` anuncia (`ui.scene-mode`) e quem desenha escuta. Vale para toda porta, também
+   * as que ainda não existem — inclusive o próprio clique, que passa por aqui pelo mesmo caminho.
+   */
+  on('ui.scene-mode', ({ modo }) => pintar(modo));
 
   pintar(scene?.mode?.() ?? 'agente');
   return { set: ir };
