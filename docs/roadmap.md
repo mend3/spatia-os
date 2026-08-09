@@ -57,7 +57,7 @@ operador a não ler a tela (`ambient.py` recusa por escrito). O que a Regra dos 
 | KR2.1 | **estado de tela** tem dono único | ⭑ `core/tela.js` — camada · cena · rota num objeto só, `spatia.tela()`. ⚠️ `session.route` sobrevive **sem leitor** (T-64) |
 | KR2.2 | **pose da câmera** tem nome próprio | ⭑ `escalaLocal()` · `porteLocal()` · `orbit.distance`, provado na tela |
 | KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
-| KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 11 call sites · 1.080 perturbações) |
+| KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 7 call sites · 1.080 perturbações), e a §5 varre o FONTE: uma decisão de pele só, sem ramo por cena |
 
 ### O3 — Nenhuma afirmação sem substrato
 
@@ -149,7 +149,9 @@ com ou sem produtor.
 | **T-35** | **FAVORITOS** — fase 1 (modelo + persistência) `done`; a INTERFACE é a fase 2 | `doing` | — | T-34 | KR2.1 |
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
-| **T-39** | As duas cenas discordam sobre **32 de 72 corpos** — a lei agora MEDE e recusa crescimento | `doing` | — | — | KR2.4 |
+| **T-39** | As duas cenas olham pela MESMA ontologia — a pele tem um dono só (`space/sistemas.js`) | `done` | — | — | KR2.4 |
+| **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) são DOIS nomes do mesmo vocabulário | `todo` | — | — | KR2.4 |
+| **T-70** | `resolveBody()` ainda decide uma PELE que ninguém lê — sobrou o modificador | `todo` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos | `todo` | — | — | KR3.1 |
 | **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |
@@ -419,26 +421,49 @@ mesmo fato).
   do store local e apagado como "vencido" **no mesmo tique em que foi escrito**. É o defeito que a
   entrega diz ter fechado, sobrevivendo em dois dos cinco.
 
-- **T-38 / T-39** — relatado com foto: o painel diz `ESTAÇÃO · agent` e o favorito oferece TERRA,
-  MARTE, JÚPITER… Medido em `atlas/.claude/agents/revisor.md`:
-
-  | caminho | resultado |
-  |---|---|
-  | `kind: agent` → `solver.js` (cena **AGENTE**) | desenha **ESTAÇÃO** |
-  | `superficieDe` (cena **UNIVERSO**) | pele **`planet`** |
-  | `contextoDe` → opções do favorito | `planetario` |
-
-  ☠️ **São DUAS TAXONOMIAS vivas, e o favorito escolheu uma sem saber que havia outra.** O painel
-  lê o que a cena DESENHA; o favorito lê a ontologia. Oferecer mapa equiretangular a um objeto
-  desenhado como malha construída é oferecer o que não se aplica.
-  ⭑ **T-38** é o conserto imediato: o contexto sai da pele que a CENA CORRENTE desenha, não de uma
-  das duas fixa. ⚠️ Consequência que precisa ser dita na tela: o mesmo corpo oferece opções
-  diferentes em cada cena — porque ele É desenhado diferente em cada uma.
-  ☠️ **T-39 é o buraco no oráculo, e é o mais grave.** `lei-cena.mjs` prova que a cena não
-  contamina `classificar`/`superficieDe` — e **não alcança a cena AGENTE**, que não os chama: ela
-  usa `resolveBody` (`solver.js`), a taxonomia por `kind` que a Fase B refutou (228 de 228
-  agregados virando galáxia). A lei passa enquanto as duas cenas discordam sobre o mesmo corpo.
-  **Provar "a cena é uma lente" exige provar que as duas OLHAM PELA MESMA ontologia.**
+- **T-39 FECHADO** — a pele do corpo em foco sai de `superficieDe` nas DUAS cenas, e o contexto que
+  ela exige (quem DOMINA o sistema) tem um dono só: `src/space/sistemas.js`, puro e sem cena.
+  ☠️ **A causa não era a taxonomia velha ser preferida em algum lugar — era a dominância morar
+  DENTRO de uma cena.** `universe.load()` a publicava, e a cena AGENTE não tinha como lê-la sem
+  inverter a dependência; sem ela, o único caminho até uma pele era `resolveBody`, o `kind` que a
+  Fase B refutou. Havia TRÊS derivações da mesma regra (a cena, a transcrição declarada em
+  `hud/favoritos-ui.js`, e a reconstrução por `dir` do oráculo) — medidas como idênticas antes de
+  fundir: **21 sistemas · 21 dominantes · 72/72 cobertos, 0 exclusivos de cada lado**.
+  ⭑ **O que a convergência custou, medido no fixture de 09/08:** `station` **7 → 0** e `nebula`
+  **5 → 0** na cena AGENTE — as duas peles saem do céu vivo e seguem na bancada. **As duas ausências
+  já estavam declaradas com motivo** em `AUSENTES_NA_TABELA` (`superficies.js`): a estação
+  representa um AGENTE, que não é corpo do corpus e não tem produtor que o ponha na topologia; o
+  berço da nebulosa exige uma contenção que o corpus não tem. Não mudou a decisão — mudou uma cena
+  parar de contradizê-la. Distribuição final (72 corpos): planeta 48 · fotosfera 20 · cometa 2 ·
+  pulsar 1 · sem pele 1.
+  ⚠️ **A LUA da cena AGENTE fica fora do índice, e isso é dito em vez de assumido:** ela é seção
+  sintetizada em `graph.load`, não vem do payload, e `identidadeDe` devolve `null` com a recusa
+  escrita. Medido: **0 luas em 72 arquivos** — o caminho existe no código e hoje não tem população.
+  ⭑ **Ganho de quadro que veio junto:** o pool de peles sem foco refazia física, classe, fenômenos e
+  pele **por candidato e por quadro**; hoje é consulta a um índice derivado na carga.
+  ☠️ **O PAINEL ERA O QUARTO LEITOR DA TAXONOMIA REFUTADA — reportado da tela, com foto.**
+  `scene.bodyTypeOf` devolvia `null` fora do UNIVERSO, e `null` ali significa *"pergunte ao catálogo
+  antigo"*: `apps/context.js` caía em `morphologyOf(node.kind).body`. **Medido: 35 dos 72 rótulos
+  divergiam do que a tela desenhava.** Os dois casos fotografados — `nucleo/bloco-13.md` desenhado
+  como FOTOSFERA com o painel dizendo PLANETA (é a estrela DOMINANTE do sistema, 177 chunks), e
+  `atlas/scripts/build.sh` desenhado como PLANETA com o painel dizendo COMETA (é `lua`, 7 chunks,
+  atividade **zero** — o rótulo vinha de `script → cometa`, que é composição, não estado).
+  ⚠️ **É a QUARTA ocorrência desta forma** (o comentário de `superficies.js` registra as três
+  anteriores): o painel nomeia por uma derivação e a tela desenha por outra. Hoje `bodyTypeOf`
+  responde nas duas cenas, do mesmo índice — **para ARQUIVO**. O AGREGADO segue divergindo de
+  propósito: ele é DESENHADO diferente em cada cena (galáxia no AGENTE, sistema no UNIVERSO), e
+  igualar o rótulo faria ele mentir sobre o que está na tela.
+  ☠️ **FICA POR PROVAR NA TELA** (a medida acima é do índice, não do pixel): que os 7 corpos que
+  desenhavam ESTAÇÃO no AGENTE agora desenham o que a ontologia diz, e que a troca de cena não
+  pisca pele. As sondas que respondem são `spatia.cena()` e `spatia.universo.peles()`.
+- **T-69 / T-70** — ☠️ **Duas pontas soltas da convergência, e as duas são "declarado sem leitor".**
+  `SURFACE` (`solver.js`) e `SUPERFICIE` (`superficies.js`) são o MESMO vocabulário com dois nomes —
+  o segundo já diz por escrito *"os valores têm de bater com `SURFACE`"*, que é uma cópia com
+  portão em vez de uma fonte. São **48 sítios** de `SURFACE.` em `src/`, e as chaves divergem
+  (`SURFACE` tem `GALAXY`, que a tabela nova não roteia), então não é alias: é decisão de qual
+  vocabulário sobrevive. Feito isso, `resolveBody()` para de calcular uma `surface` que **nenhum
+  leitor em `src/` consome** — o que sobra dele, e é legítimo, é ANEL · DISCO DE DETRITOS ·
+  ENVOLTÓRIO, que a ontologia não produz. ⚠️ A ordem importa: T-69 antes de T-70.
 
 - **T-13** — ☠️ **Splash como CAMADA PRÓPRIA está refutada por uso**: ela virou uma SEGUNDA parede
   entre o diagnóstico e o céu, e chegou a desenhar a marca **por cima do céu vivo**. E o que ela

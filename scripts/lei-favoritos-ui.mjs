@@ -154,47 +154,80 @@ const marcaCrua = (aparencias) => ({
   em: '2026-08-09T12:00:00.000Z', por: F.AUTORIA.OPERADOR, corpus: CORPUS, aparencias,
 });
 
-// ───────────────────────────────────────────────────────── §1 · a TRANSCRIÇÃO tem portão
+// ───────────────────────────────────────────────────── §1 · a derivação tem UM dono, e a HUD LÊ
 
 /*
- * A HUD não alcança `universe.ehDominante`, e o rótulo `universe.tipoDe` é texto de TELA — lê-lo
- * como dado é o defeito que já derrubou 22 fotosferas para 21. Então a derivação é CÓPIA, e cópia
- * sem portão envelhece calada. Cada par abaixo é uma linha que, mudando de um lado só, faz a HUD
- * classificar um corpo diferente do que a cena desenha.
+ * ☠️ **ISTO JÁ FOI UM PORTÃO DE CÓPIA, e a cópia é que era o defeito.**
+ *
+ * A HUD não alcançava a dominância (ela era publicada dentro da cena UNIVERSO) e o rótulo
+ * `universe.tipoDe` é texto de TELA — lê-lo como dado é o que já derrubou 22 fotosferas para 21.
+ * A saída da época foi TRANSCREVER o agrupamento e guardar a transcrição com um portão que conferia
+ * linha a linha contra o texto da fonte. Funcionava, e custava: sete pares de strings para manter
+ * em dia, e a fonte morando dentro de uma das duas cenas — de onde a cena AGENTE não podia lê-la.
+ *
+ * ⭑ Hoje o dono é `src/space/sistemas.js`, puro e sem cena, e as três derivações viraram uma. O que
+ * esta seção guarda mudou de natureza: não é mais *"a cópia continua igual"*, é **"não voltou a
+ * existir cópia"**. As duas perguntas que a substituem são de PROPRIEDADE, não de texto.
  */
-const universo = src('src/space/universe.js');
 const uiSrc = src('src/hud/favoritos-ui.js');
-const PARES = [
-  ['agrupamento por agregado', 'const aggs = nodes.filter((n) => n.type !== \'file\');', 'nodes.filter((n) => n.type !== \'file\')'],
-  ['filhos que são corpo', '(filhos.get(agg.id) || []).filter((c) => c?.type === \'file\')', '(filhos.get(agg.id) || []).filter((c) => c?.type === \'file\')'],
-  ['quem é o dominante', 'const dono = dominanteDe(meus);', 'dominanteDe(meus)'],
-  ['a física, com o contexto', 'entityPhysics(f, { dominante: f.id === dono.id, sistema: agg.id })', 'entityPhysics(node, { dominante, sistema })'],
-  ['a classe', 'classificar(fis, f)', 'classificar(fis, node)'],
-  // ⚠️ Na UI a pele NÃO sai mais no carregamento: ela depende da CENA e se resolve na leitura
-  // (`peleDaCenaCorrente`). O que a lei continua exigindo é que a derivação seja a REAL, com os
-  // fenômenos — e que a matéria-prima (`ativos`) venha da mesma função, não de uma cópia.
-  ['a pele, com os fenômenos', 'superficieDe(classe, fis, fenomenos(fis, f).map((x) => x.tipo))', 'superficieDe(classe, fisica, ativos)'],
-  ['os fenômenos como matéria-prima', 'fenomenos(fis, f).map((x) => x.tipo)', 'fenomenos(fis, node).map((x) => x.tipo)'],
-];
-/*
- * ☠️ **A pele tem de seguir a CENA CORRENTE, e isto é o que impede a marca de oferecer o que a
- * cena não sabe aplicar.** As duas cenas discordam sobre 32 dos 72 corpos do fixture (44%,
- * medido em 09/08): o UNIVERSO decide por `superficieDe`, o AGENTE por `resolveBody`. A aparência
- * nomeada substitui o albedo do PLANETA — num corpo desenhado como estação ela não tem onde ser
- * aplicada, e oferecê-la faria o operador escolher TERRA para nada acontecer.
- */
-conferir('§1 a pele segue a CENA corrente, não uma taxonomia fixa',
-  uiSrc.includes("resolveBody(node, {}).surface") && uiSrc.includes("cena === 'agente'"),
-  'a UI voltou a decidir a pele por uma taxonomia só — o favorito passa a oferecer o que a cena não aplica');
 
-for (const [nome, naFonte, naCopia] of PARES) {
-  conferir(`§1 fonte · ${nome}`, universo.includes(naFonte),
-    `\`${naFonte}\` sumiu de src/space/universe.js — a cópia da HUD deixou de ser cópia`);
-  conferir(`§1 cópia · ${nome}`, uiSrc.includes(naCopia),
-    `\`${naCopia}\` sumiu de src/hud/favoritos-ui.js`);
+/**
+ * O fonte sem comentário nem string — quem varre por NOME precisa disto.
+ *
+ * ⚠️ A versão anterior desta seção procurava `favoritos-ui` no texto cru de `src/space/*.js`, e a
+ * primeira linha de prosa que citasse o arquivo derrubava a lei. Varrer a STRING em vez do
+ * COMPORTAMENTO é armadilha conhecida desta base — a galáxia era billboard no vértice sem ter um
+ * `quaternion.copy` para achar.
+ */
+function semProsa(texto) {
+  return texto
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/^\s*\/\/.*$/gm, ' ')
+    .replace(/'[^'\n]*'|"[^"\n]*"/g, "''");
 }
+
+/*
+ * A REGRA DO DONO ÚNICO, e ela é varrida no comportamento: `dominanteDe` é a eleição que decide se
+ * um corpo é ESTRELA ou tem teto em planeta. Um segundo chamador dela é uma segunda regra livre
+ * para divergir no EMPATE — que é exatamente como quatro cópias desta base derivaram antes.
+ */
+const CHAMADORES = fs
+  .readdirSync(`${RAIZ}/src/space`)
+  .filter((f) => f.endsWith('.js'))
+  // ⚠️ `function dominanteDe(` é a DECLARAÇÃO, não um chamado — `entity-physics.js` é a casa dela.
+  .filter((f) => /(?<!function\s{1,4})\bdominanteDe\s*\(/.test(semProsa(src(`src/space/${f}`))));
+conferir('§1 só `sistemas.js` elege o dominante',
+  CHAMADORES.length === 1 && CHAMADORES[0] === 'sistemas.js',
+  `chamam \`dominanteDe()\`: ${CHAMADORES.join(', ') || 'ninguém'} — a eleição voltou a ter duas fontes`);
+
+/*
+ * A HUD LÊ, e não deriva. Cada uma destas chamadas de volta ao `favoritos-ui.js` reabre a cópia —
+ * e a cópia envelhece calada, porque nada na tela acusa uma classe derivada com contexto errado.
+ */
+for (const derivacao of ['entityPhysics', 'classificar', 'fenomenos', 'superficieDe', 'resolveBody', 'dominanteDe']) {
+  conferir(`§1 a HUD não deriva — \`${derivacao}()\``,
+    !new RegExp(`\\b${derivacao}\\s*\\(`).test(semProsa(uiSrc)),
+    `src/hud/favoritos-ui.js voltou a derivar a ontologia por conta própria`);
+}
+conferir('§1 a HUD lê o índice dos sistemas',
+  /identidadeDe\s*\(/.test(semProsa(uiSrc)),
+  'a HUD parou de ler `sistemas.identidadeDe` — de onde ela tira a classe agora?');
+
+/*
+ * ☠️ **A PELE NÃO DEPENDE MAIS DA CENA, e isto é o que T-39 comprou.**
+ *
+ * Enquanto as duas cenas discordavam sobre 32 dos 72 corpos (44%, medido em 09/08), a marca tinha
+ * de seguir a cena na tela: a aparência nomeada substitui o albedo do PLANETA, e num corpo
+ * desenhado como ESTAÇÃO ela não tem onde ser aplicada. Convergidas as cenas, ler a cena aqui
+ * voltaria a fabricar a diferença que deixou de existir.
+ */
+conferir('§1 a pele oferecida não consulta a cena',
+  !/telaEstado|\bcena\s*===/.test(semProsa(uiSrc)),
+  'a UI voltou a escolher a pele pela cena corrente — as duas cenas desenham a mesma, e ler a cena aqui inventa divergência');
+
 conferir('§1 a seta é de mão única — nada em space/ importa a interface',
-  !fs.readdirSync(`${RAIZ}/src/space`).some((f) => f.endsWith('.js') && src(`src/space/${f}`).includes('favoritos-ui')),
+  !fs.readdirSync(`${RAIZ}/src/space`).some(
+    (f) => f.endsWith('.js') && /^\s*import[\s\S]*?from\s*['"][^'"]*hud\//m.test(src(`src/space/${f}`))),
   'um módulo de space/ passou a importar a HUD: a marca voltaria a poder decidir o que um corpo é');
 
 // ───────────────────────────────────────────────────────── §2 · cobertura, sem contexto assumido

@@ -1,4 +1,4 @@
-# Handoff — SpatIA · branch `cena-universo`
+# Handoff — SpatIA · `main`
 
 > **O que é preciso saber para dar o próximo passo, e nada além disso.** Este arquivo é o PRESENTE:
 > em que ambiente se mede, o que está em voo agora, e por onde continuar. **A história vive no
@@ -101,21 +101,22 @@ falso nesta base.
 
 ## 2. O estado agora
 
-**Branch `cena-universo`** — empurrada, com o [PR #1](https://github.com/mend3/spatia-os/pull/1)
-aberto contra `main`, não mesclada.
-
-**Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
+**Branch `main`.** O trabalho da `cena-universo` foi mesclado pelo [PR #1](https://github.com/mend3/spatia-os/pull/1).
 
 ☠️ **O que está aberto vive no [`roadmap.md`](./roadmap.md), como tarefa com status** — não aqui.
 Tabela de item em voo envelhece a cada commit e vira a primeira linha errada que alguém lê; foi assim
 que este arquivo carregou por sessões dois itens (`0b`, `0f`) **já fechados no código**, contradizendo
 o roadmap ao lado.
 
-**Por onde continuar, hoje:** a dívida de modelo aberta mais cara é **T-39** — as duas cenas
-discordam sobre 32 de 72 corpos, porque o UNIVERSO usa a ontologia e o AGENTE usa a taxonomia por
-`kind` do `solver.js` que a Fase B refutou. `lei-cena.mjs` §5 já MEDE o número e recusa que ele
-cresça, então a lei segura a borda enquanto a dívida existe. Depois dela, **T-40** (a marca de
-favorito não tem consumidor) e **T-58** (o `prefs` vence o endereço pedido no deeplink de foco).
+**Por onde continuar, hoje:** **T-69** e **T-70**, nessa ordem — as duas pontas que a convergência
+das cenas (T-39) deixou, e as duas são da família *"declarado sem leitor"*: um vocabulário de pele
+com dois nomes, e uma `surface` que o solver calcula e ninguém em `src/` consome. Depois delas,
+**T-40** (a marca de favorito não tem consumidor) e **T-58** (o `prefs` vence o endereço pedido no
+deeplink de foco).
+
+⚠️ **Duas entregas recentes estão sem FOTO**, e a lista de quem precisa dela está no roadmap: T-39
+(o que os 7 corpos que desenhavam ESTAÇÃO no AGENTE passaram a desenhar), além de T-35, T-16, T-47,
+T-51 e T-52.
 
 ⚠️ **As decisões que são do usuário não são `blocked` por engenharia e nenhum agente as resolve
 sozinho** — estão nomeadas no fim do `roadmap.md`.
@@ -136,10 +137,12 @@ sozinho** — estão nomeadas no fim do `roadmap.md`.
 | **por que um módulo é assim** | o comentário do próprio módulo |
 | **a história** | o `git log`, e o corpo do commit é longo aqui de propósito |
 
-Os módulos que carregam o modelo: **`src/space/entity-physics.js`** (puro, sem `three` —
-estrutura/corpo/fenômeno), **`src/space/astrofisica.js`** (o único lugar onde a matemática precisa
-ser física, com as razões `R_s/R` adimensionais por classe) e **`src/space/superficies.js`** (a
-tabela `classificar() → superfície`; **pele nova é roteada por aqui, NUNCA pelo `kind`**).
+Os módulos que carregam o modelo, e os quatro são PUROS (sem `three`, sem DOM, sem cena):
+**`entity-physics.js`** (estrutura/corpo/fenômeno), **`astrofisica.js`** (o único lugar onde a
+matemática precisa ser física, com as razões `R_s/R` adimensionais por classe), **`superficies.js`**
+(a tabela `classificar() → superfície`; **pele nova é roteada por aqui, NUNCA pelo `kind`**) e
+**`sistemas.js`** (a CONTENÇÃO servida → quem domina cada sistema → a identidade de cada corpo).
+⭑ **As duas cenas leem a pele dali, e nenhuma a deriva** — `sistemas.identidadeDe` é a porta.
 
 Bancada: `sandbox.html` — um objeto por vez, sem pós-processamento; todo espécime **importa** o
 módulo real, e o campo `watch` nomeia o defeito que ele pega.

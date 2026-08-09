@@ -21,9 +21,8 @@ import * as tuning from '../core/tuning.js';
 import * as prefs from '../core/prefs.js';
 import { createBlackHole } from './blackhole.js';
 import { createUniverse } from './universe.js';
-// A ontologia nova, e a tabela que a traduz em pele. Ver `decisaoDoUniverso`.
-import { entityPhysics, classificar, fenomenos } from './entity-physics.js';
-import { superficieDe } from './superficies.js';
+// A ontologia nova, e a tabela que a traduz em pele. Ver `decisaoOntologica`.
+import { NOME_DA_SUPERFICIE } from './superficies.js';
 import { createLensingPass } from './lensing.js';
 import { createStars } from './stars.js';
 import { createGraph, hash01, starSeed } from './graph.js';
@@ -40,6 +39,7 @@ import { createQuasars, quasarParams } from './quasar.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
+import * as sistemas from './sistemas.js';
 import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown, BODY_SPAN } from './lod.js';
 import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } from './photosphere.js';
 import { createRemnant } from './remnant.js';
@@ -1564,23 +1564,65 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   }
 
   /**
-   * A pele do corpo em foco na cena UNIVERSO, pela ontologia NOVA. Ver `space/superficies.js`.
+   * A pele do corpo em foco — **pela ontologia, nas DUAS cenas**. Ver `space/superficies.js`.
    *
-   * A forma do retorno é a de `resolveBody` no que o quadro consome — `surface` e `recusados` —,
-   * porque o bloco que desenha é o MESMO. O que muda é quem decide, não quem desenha.
+   * ☠️ **Aqui moravam duas taxonomias, e elas discordavam sobre 32 dos 72 corpos do fixture
+   * (44%).** O UNIVERSO já decidia por `superficieDe`; o AGENTE decidia por `resolveBody`, a
+   * taxonomia por `kind` que a Fase B refutou — a mesma em que um `config` de 2 chunks desenha uma
+   * ESTRELA ao lado de um `doc` de 200 desenhado como PLANETA. O mesmo `revisor.md` era ESTAÇÃO
+   * numa cena e PLANETA na outra, e nenhuma das duas telas tinha como saber da outra.
+   *
+   * **A cena é uma LENTE: ela decide o que ACENDE e de onde se OLHA, nunca o que um corpo É.**
+   * Enquanto as duas olhassem por ontologias diferentes, essa frase era declarada e falsa — e
+   * `scripts/lei-cena.mjs` §5 provava as §1–§4 sobre uma cena só, porque a outra não chamava
+   * nenhuma das funções auditadas.
+   *
+   * ⭑ **O que a convergência custou, medido no `espatial_fixture` de 2026-08-09** (72 corpos):
+   * `station` 7 → 0 e `nebula` 5 → 0 na cena AGENTE. As duas peles saem do céu vivo e seguem na
+   * bancada, e as duas ausências já estavam declaradas COM MOTIVO em `AUSENTES_NA_TABELA`
+   * (`superficies.js`): a estação representa um AGENTE, que não é corpo do corpus e não tem
+   * produtor que o ponha na topologia; o berço da nebulosa exige contenção que o corpus não tem.
+   * O que mudou não foi a decisão — foi uma cena parar de contradizê-la.
+   *
+   * ⚠️ **A PELE vem da ontologia; os MODIFICADORES continuam do `solver.js`.** Anel, disco de
+   * detritos e envoltório são a parte que a ontologia não produz, e quem os aplica no céu é
+   * `graph.js` — nas duas cenas, pela mesma varredura de sujos. Ler daqui o que o solver decide é
+   * o que mantém o traço fiel ao que está desenhado.
    */
-  function decisaoDoUniverso(node) {
+  function decisaoOntologica(node) {
     /*
      * ☠️ Aqui era `universe.tipoDe(node.source) === 'ESTRELA'` — **um rótulo de TELA lido como
      * dado.** Ele acertava enquanto `tipos` guardava a classe em maiúsculas, e quebrou no instante
      * em que o rótulo passou a nomear a PELE: estrela com atividade de cometa rotula COMETA, perdia
-     * a dominância e caía para planeta (medido: 22 fotosferas → 21, 3 cometas → 2). Dominância é
-     * FATO e agora vem publicada como fato.
+     * a dominância e caía para planeta (medido: 22 fotosferas → 21, 3 cometas → 2).
+     *
+     * ⭑ E hoje nem a cena responde: quem sabe quem domina é `space/sistemas.js`, o dono único da
+     * CONTENÇÃO. A cena AGENTE não tinha como perguntar à cena UNIVERSO sem inverter a dependência
+     * — foi essa impossibilidade que manteve as duas taxonomias vivas.
      */
-    const fisica = entityPhysics(node, { dominante: universe.ehDominante(node.source) });
-    const classe = classificar(fisica, node);
-    const ativos = fenomenos(fisica, node).map((f) => f.tipo);
-    const surface = superficieDe(classe, fisica, ativos);
+    const identidade = sistemas.indice().identidadeDe(node);
+    /*
+     * ⚠️ **`null` é "o agrupamento não alcança este nó", e ele é DITO em vez de assumido.** O caso
+     * vivo é a LUA da cena AGENTE — seção sintetizada em `graph.load`, que não vem do payload e
+     * portanto não tem identidade de corpus. Derivar uma para ela afirmaria sobre um corpo que o
+     * corpus não contém. Medido no fixture de 09/08: **0 luas em 72 arquivos**.
+     */
+    const modificadores = node?.source
+      ? resolveBody(node, { dirty: graph.dirtyOf(node.source) })
+      : { modifiers: [], rejected: [] };
+    if (!identidade) {
+      return {
+        surface: SURFACE.NONE,
+        modifiers: modificadores.modifiers,
+        rejected: [
+          ...modificadores.rejected,
+          { feature: 'surface', motivo: 'a topologia servida não agrupou este corpo — ele não vem do payload' },
+        ],
+        classe: null,
+        fenomenos: [],
+      };
+    }
+    const { classe, pele, ativos } = identidade;
     /*
      * ⚠️ **A FORMA é a de `resolveBody`, com os nomes dele — `modifiers` e `rejected`.** A primeira
      * versão devolveu `recusados`, e o laço de quadro morreu na linha que escreve o traço
@@ -1588,12 +1630,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * Quem desenha é o MESMO bloco: quem muda é quem decide, e o contrato de saída é dele.
      */
     return {
-      surface,
-      modifiers: [],
-      rejected: surface === SURFACE.NONE
-        ? [{ feature: 'surface', motivo: `classe ${classe.tipo} não roteia pele` }]
-        : [],
-      // O que a ontologia NOVA concluiu, para a sonda poder dizer por que esta pele e não outra.
+      surface: pele,
+      modifiers: modificadores.modifiers,
+      rejected: pele === SURFACE.NONE
+        ? [...modificadores.rejected, { feature: 'surface', motivo: `classe ${classe.tipo} não roteia pele` }]
+        : modificadores.rejected,
+      // O que a ontologia concluiu, para a sonda poder dizer por que esta pele e não outra.
       classe,
       fenomenos: ativos,
     };
@@ -2180,22 +2222,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     else moonOrbits.hide();
 
     /*
-     * ⚠️ **QUEM ESCOLHE A PELE É A ONTOLOGIA DA CENA EM VIGOR.**
+     * ⚠️ **QUEM ESCOLHE A PELE É A ONTOLOGIA — e ela é a MESMA nas duas cenas.**
      *
-     * `resolveBody` decide a partir do `kind` — a taxonomia que a Fase B refutou, em que um `config`
-     * de 2 chunks desenha uma ESTRELA ao lado de um `doc` de 200 desenhado como planeta. Usá-la na
-     * cena nova seria o modelo velho falando por cima do novo, exatamente o defeito que `ce8ad95`
-     * consertou na HUD.
-     *
-     * No UNIVERSO quem responde é `superficieDe(classe, física, fenômenos)` — a tabela da Fase D,
-     * medida antes de escrita (`scripts/censo-superficies.mjs`): fotosfera 17 · planeta 152 ·
-     * cometa 8 · sem pele 11, e nenhuma pele roteada nasce vazia.
+     * Esta linha já teve um `modo === 'universo' ? … : resolveBody(…)`, e era ali que as duas
+     * taxonomias se separavam. Ver o cabeçalho de `decisaoOntologica`.
      */
-    const decisao = pouso
-      ? (modo === 'universo'
-          ? decisaoDoUniverso(pouso.node)
-          : resolveBody(pouso.node, { dirty: graph.dirtyOf(pouso.node.source) }))
-      : null;
+    const decisao = pouso ? decisaoOntologica(pouso.node) : null;
     if (pouso) {
       const distancia = camera.position.distanceTo(pouso.position);
       focusGeometry = { radius: pouso.radius, k: (pouso.px * distancia) / pouso.radius };
@@ -2452,7 +2484,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     let cortadas = 0;
     if (modo === 'universo') {
       for (const c of universe.candidatosAPele(PELES_VIZINHAS_MAX * 3, focusedNode)) {
-        const sup = decisaoDoUniverso(c.node)?.surface;
+        /*
+         * ⭑ A pele sai do índice DIRETO, e não da decisão inteira: aqui não há foco, então não há
+         * modificador a resolver. Antes esta linha refazia física, classe, fenômenos e pele **por
+         * candidato e por quadro**; hoje é uma consulta ao que foi derivado na carga.
+         */
+        const sup = sistemas.indice().identidadeDe(c.node)?.pele;
         const rota = ROTAS_DO_POOL[sup];
         if (!rota) continue;
         if (c.px < rota.far) continue;
@@ -2877,10 +2914,40 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       adotarSistema(i, true);
       return this.universeAnchor();
     },
-    /** O tipo de um corpo na cena em vigor: novo no UNIVERSO, `null` no AGENTE. */
-    bodyTypeOf: (source) => (modo === 'universo' ? universe.tipoDe(source) : null),
+    /**
+     * O tipo de um corpo — **o mesmo nas duas cenas, porque a PELE agora é a mesma.**
+     *
+     * ☠️ **Isto devolvia `null` fora do UNIVERSO, e `null` aqui significa "pergunte ao catálogo
+     * antigo".** O painel então rotulava pelo `kind` (`morphologyOf(node.kind).body`, em
+     * `apps/context.js`) — a taxonomia que a Fase B refutou. Reportado da tela, com foto, duas
+     * vezes no mesmo minuto: `nucleo/bloco-13.md` desenhado como FOTOSFERA com o painel dizendo
+     * PLANETA (ele é a estrela DOMINANTE do sistema, 177 chunks), e `atlas/scripts/build.sh`
+     * desenhado como PLANETA com o painel dizendo COMETA (ele é uma `lua` de 7 chunks e atividade
+     * ZERO — o rótulo vinha de `script → cometa`, que é composição, não estado).
+     *
+     * ⚠️ **É a QUARTA vez que esta forma aparece** — o comentário de `superficies.js` registra as
+     * três anteriores. O padrão é sempre o mesmo: o painel nomeia por uma derivação e a tela
+     * desenha por outra. Derivar do mesmo lugar é o que impede a quinta.
+     *
+     * ⚠️ **Só o ARQUIVO responde daqui.** O AGREGADO ainda é desenhado diferente em cada cena
+     * (galáxia no AGENTE, sistema no UNIVERSO), e essa divergência é de DESENHO, não de
+     * identidade — forçá-la aqui faria o rótulo mentir sobre o que está na tela.
+     */
+    bodyTypeOf: (source) => {
+      const identidade = sistemas.indice().identidadeDaFonte(source);
+      if (identidade) {
+        return NOME_DA_SUPERFICIE[identidade.pele] ?? identidade.classe.tipo.toUpperCase();
+      }
+      return modo === 'universo' ? universe.tipoDe(source) : null;
+    },
 
     loadGraph: (payload) => {
+      /*
+       * ⚠️ **A IDENTIDADE PRIMEIRO, e as duas cenas depois.** `sistemas.carregar` deriva a contenção,
+       * a dominância e a pele de cada corpo uma vez só; as duas cenas leem dali. Invertendo a ordem,
+       * o primeiro quadro depois de uma topologia nova pediria identidade a um índice velho.
+       */
+      sistemas.carregar(payload);
       const count = graph.load(payload);
       // A cena UNIVERSO lê o MESMO payload: um corpus, duas leituras dele. Montar as duas no
       // carregamento evita o engasgo de construir 1 636 corpos no clique do switcher.

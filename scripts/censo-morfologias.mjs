@@ -34,6 +34,7 @@
  */
 import { classify, MORPHOLOGY_BY_KIND, RING_BY_STATE } from '../src/space/catalog.js';
 import { resolveBody, SURFACE, MODIFIER } from '../src/space/solver.js';
+import { indexar } from '../src/space/sistemas.js';
 
 const BASE = 'http://127.0.0.1:8787';
 const graph = await (await fetch(`${BASE}/api/graph`)).json();
@@ -60,26 +61,34 @@ const aneisPorFamilia = new Map();
 const recusas = new Map();
 let comCoroaPossivel = 0;
 
+/*
+ * ⚠️ **A PELE sai da ONTOLOGIA; o MODIFICADOR sai do solver.** São duas perguntas com dois donos, e
+ * elas moravam na mesma chamada. Convergidas as cenas (T-39), `resolveBody().surface` não tem
+ * leitor no `src/`: contá-la aqui descreveria um céu que ninguém desenha.
+ */
+const indice = indexar(graph);
+
 for (const node of graph.nodes) {
   const estado = estadoDe(node.source);
   const klass = classify(node, { dirty: estado });
   const decisao = resolveBody(node, { dirty: estado });
+  const pele = indice.identidadeDe(node)?.pele ?? SURFACE.NONE;
   conta(classes, klass?.id ?? '(nenhuma)');
-  conta(peles, decisao?.surface ?? SURFACE.NONE);
+  conta(peles, pele);
   if (node.type === 'file') conta(kinds, `${node.kind ?? 'other'} → ${MORPHOLOGY_BY_KIND[node.kind]?.body ?? 'estrela'}`);
   for (const m of decisao?.modifiers ?? []) {
     conta(modificadores, m);
     if (m === MODIFIER.RING) conta(aneisPorFamilia, `${estado} → ${RING_BY_STATE[estado]?.family ?? '?'}`);
   }
   for (const r of decisao?.rejected ?? []) conta(recusas, `${r.feature}`);
-  if (decisao?.surface && decisao.surface !== SURFACE.NONE) comCoroaPossivel += 1;
+  if (pele !== SURFACE.NONE) comCoroaPossivel += 1;
 }
 
 const total = graph.nodes.length;
 console.log(`corpus: ${total} nós · ${graph.stats?.files ?? '?'} arquivos · ${graph.stats?.chunks ?? '?'} chunks`);
 console.log(`sujos no git (raiz ${dirty.root}): ${sujos.size}`);
 tabela('CLASSE — o que o corpo É (catalog.classify)', classes, total);
-tabela('PELE — o que ele desenha de perto (solver.resolveBody)', peles, total);
+tabela('PELE — o que ele desenha de perto (sistemas.identidadeDe)', peles, total);
 tabela('MORFOLOGIA POR KIND — a declaração por tipo de arquivo', kinds, total);
 tabela('MODIFICADORES — anexáveis a qualquer corpo', modificadores, total);
 if (aneisPorFamilia.size) tabela('ANEL por estado do git → família', aneisPorFamilia, total);

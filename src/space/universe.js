@@ -23,8 +23,9 @@
  * logo nenhum planeta pode ser maior que a sua estrela.
  */
 import * as THREE from 'three';
-import { entityPhysics, classificar, fenomenos, raioPorMassa, dominanteDe } from './entity-physics.js';
-import { superficieDe, NOME_DA_SUPERFICIE } from './superficies.js';
+import { entityPhysics, classificar, raioPorMassa } from './entity-physics.js';
+import { NOME_DA_SUPERFICIE } from './superficies.js';
+import { indice as indiceDeSistemas } from './sistemas.js';
 import { KIND_COLORS, createPointMaterial, starSeed, POINT_SCALE } from './graph.js';
 import { createLinks } from './links.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
@@ -373,8 +374,6 @@ export function createUniverse() {
   /* source → tipo, na ontologia NOVA. É o que impede a HUD de anunciar a taxonomia velha
      por cima da cena nova — o mesmo defeito que a camada de galáxia tinha. */
   const tipos = new Map();
-  /** Quem é o DOMINANTE do próprio sistema — FATO, com um dono só. Preenchido no laço de `load`. */
-  const dominantes = new Set();
 
   /*
    * ─────────────────────────── a REDE, e por que ela mora aqui
@@ -770,8 +769,11 @@ export function createUniverse() {
     object: group,
     /** O tipo de um corpo NESTA cena, ou `null` fora dela. A HUD pergunta; ela não deduz. */
     tipoDe: (source) => tipos.get(source) ?? null,
-    /** Dominância como FATO. Existe para `scene.js` parar de deduzi-la do RÓTULO da tela. */
-    ehDominante: (source) => dominantes.has(source),
+    /*
+     * Dominância como FATO — e o dono dela é `space/sistemas.js`, fora de qualquer cena. Isto aqui
+     * é um ATALHO para quem já tem o objeto da cena na mão; a fonte é uma só.
+     */
+    ehDominante: (source) => indiceDeSistemas().ehDominante(source),
 
     /**
      * Os sistemas desta cena — id, centro, envelope. É o que permite à câmera orbitar ALGO.
@@ -1280,32 +1282,34 @@ export function createUniverse() {
     load(payload) {
       limpar();
       tipos.clear();
-      dominantes.clear();
       /*
        * O veredito de evidência viaja com a topologia (`stats.uso.evidencia`), escrito por quem
        * mediu. Lê-lo aqui em vez de recalcular é a mesma regra da legenda dos arcos: o que se vê
        * sai do mesmo lugar que o que se mediu.
        */
       const usoVale = payload?.stats?.uso?.evidencia?.suficiente === true;
-      const nodes = payload?.nodes || [];
-      const byId = new Map(nodes.map((n) => [n.id, n]));
-      const filhos = new Map();
-      for (const [filho, pai] of payload?.edges || []) {
-        if (!filhos.has(pai)) filhos.set(pai, []);
-        filhos.get(pai).push(byId.get(filho));
-      }
 
-      const aggs = nodes.filter((n) => n.type !== 'file');
+      /*
+       * ⭑ **O AGRUPAMENTO E A DOMINÂNCIA VÊM DE FORA — e é isso que deixou a outra cena enxergá-los.**
+       *
+       * Este laço era a FONTE do contexto: ele agrupava pelas arestas, elegia o dono e publicava
+       * `dominantes`. Duas outras derivações da mesma regra viviam a jusante (`hud/favoritos-ui.js`
+       * dizia-se *"uma TRANSCRIÇÃO do agrupamento de `universe.load()`"*, e `scripts/lei-cena.mjs`
+       * reconstruía por `dir`), e a cena AGENTE não tinha como ler nenhuma delas sem depender do
+       * UNIVERSO — foi essa impossibilidade que manteve as duas taxonomias de pele vivas (T-39).
+       *
+       * Hoje o dono é `space/sistemas.js`, puro e sem cena. Aqui ficou o que é da CENA: o nome de
+       * tela de cada corpo e o arranjo dos sistemas no espaço.
+       */
+      const indexado = indiceDeSistemas();
       const sistemas = [];
-      for (const agg of aggs) {
-        const meus = (filhos.get(agg.id) || []).filter((c) => c?.type === 'file');
-        if (!meus.length) continue;
-        const dono = dominanteDe(meus);
-        sistemas.push({ agg, estrela: dono, planetas: meus.filter((f) => f.id !== dono.id) });
+      for (const s of indexado.sistemas) {
+        const { agg, estrela: dono } = s;
+        sistemas.push(s);
         tipos.set(agg.id, agg.type === 'repo' ? 'GALÁXIA' : 'SISTEMA');
-        for (const f of meus) {
-          const fis = entityPhysics(f, { dominante: f.id === dono.id, sistema: agg.id });
-          const classe = classificar(fis, f);
+        for (const f of [dono, ...s.planetas]) {
+          const identidade = indexado.identidadeDe(f);
+          const classe = identidade.classe;
           /*
            * ⚠️ **O PAINEL NOMEIA O QUE A TELA DESENHA — e por isso o rótulo sai da PELE.**
            *
@@ -1324,22 +1328,7 @@ export function createUniverse() {
            * `NENHUMA` cai na CLASSE, e ali ela é a resposta certa: sem corpo desenhado não há o que
            * nomear pela pele (o asteroide sem pele é o caso vivo).
            */
-          const pele = superficieDe(classe, fis, fenomenos(fis, f).map((x) => x.tipo));
-          tipos.set(f.source, NOME_DA_SUPERFICIE[pele] ?? classe.tipo.toUpperCase());
-          /*
-           * ☠️ **DOMINÂNCIA É FATO, e ela era recuperada LENDO O RÓTULO.**
-           *
-           * `scene.js` montava a física do corpo em foco com
-           * `dominante: universe.tipoDe(source) === 'ESTRELA'` — um texto de TELA usado como dado.
-           * Funcionava por coincidência enquanto `tipos` guardava a classe em maiúsculas; no
-           * instante em que o rótulo passou a nomear a PELE, uma estrela com atividade de cometa
-           * passou a rotular COMETA, perdeu a dominância e caiu de estrela para planeta.
-           * **Medido: 22 fotosferas viraram 21 e 3 cometas viraram 2**, contra o censo.
-           *
-           * Quem sabe quem é o dominante é este laço — ele acabou de escolher o `dono`. Publicar o
-           * fato custa um Set e fecha o canal por onde apresentação virava física.
-           */
-          if (f.id === dono.id) dominantes.add(f.source);
+          tipos.set(f.source, NOME_DA_SUPERFICIE[identidade.pele] ?? classe.tipo.toUpperCase());
         }
       }
 

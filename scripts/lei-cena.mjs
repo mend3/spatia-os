@@ -423,45 +423,75 @@ for (const arquivo of PUROS) {
 /*
  * ☠️ **A LEI PASSAVA ENQUANTO AS DUAS CENAS DISCORDAVAM SOBRE O MESMO CORPO.**
  *
- * As §1–§4 provam que a cena não CONTAMINA a ontologia — e não alcançam a cena AGENTE, porque ela
- * não a chama: quem decide a pele lá é `resolveBody` (`solver.js`), a taxonomia por `kind` que a
- * Fase B refutou (228 de 228 agregados virando galáxia). Provar *"a cena é uma lente"* exige
- * provar que as duas OLHAM PELA MESMA lente, e hoje isso é falso.
+ * As §1–§4 provam que a cena não CONTAMINA a ontologia — e não alcançavam a cena AGENTE, porque ela
+ * não a chamava: quem decidia a pele lá era `resolveBody` (`solver.js`), a taxonomia por `kind` que
+ * a Fase B refutou. Provar *"a cena é uma lente"* exige provar que as duas OLHAM PELA MESMA lente.
  *
- * ⚠️ Esta seção **não pode reprovar pela divergência existir** — ela é o estado de hoje, e
- * derrubar o oráculo por ela deixaria a base sem guarda nenhum até a convergência. O que ela faz é
- * **declarar o número e recusar que ele CRESÇA**: divergência silenciosa é como 44% do céu chegou
- * aqui sem ninguém medir.
+ * ⭑ **Elas convergiram (T-39), e por isso esta seção mudou de natureza.** Enquanto a divergência
+ * existia, o que se podia fazer era DECLARAR o número e recusar que ele crescesse. Hoje a pergunta
+ * é de PROPRIEDADE do código: existe uma decisão de pele só, e ela não olha para a cena.
+ *
+ * ⚠️ **A conferência é no FONTE, e tem de ser.** Comparar `superficieDe` com `superficieDe` seria
+ * verdade por construção — um teste que não pode falhar. O que pode falhar é alguém reintroduzir o
+ * ramo por cena, e é isso que se varre.
  */
-const DIVERGENCIA_DECLARADA = 32;
 
+/** O fonte só com CÓDIGO — a prosa desta base explica os defeitos que a lei proíbe. */
+function soCodigo(texto) {
+  const mascara = mascaraDeCodigo(texto);
+  return [...texto].map((c, i) => (mascara[i] ? ' ' : c)).join('');
+}
+const sceneSemProsa = soCodigo(fonteDaCena);
+
+/*
+ * A pele do corpo em foco sai de UM lugar, e `resolveBody` não é ele. O solver continua vivo e
+ * legítimo — ele resolve ANEL, DISCO DE DETRITOS e ENVOLTÓRIO, que a ontologia não produz —, mas a
+ * SUPERFÍCIE deixou de sair dele em `src/`.
+ */
+const usaPeleDoSolver = todosOsFontes(path.join(RAIZ, 'src'))
+  .filter((f) => /resolveBody\s*\([\s\S]{0,200}?\)\s*\.\s*surface/.test(soCodigo(fs.readFileSync(f, 'utf8'))))
+  .map((f) => path.relative(RAIZ, f));
+if (usaPeleDoSolver.length) {
+  nota('§5', `${usaPeleDoSolver.join(', ')} lê \`resolveBody().surface\` — a taxonomia por \`kind\` `
+    + 'que a Fase B refutou voltou a decidir pele. A pele sai de `superficies.js`, via `sistemas.js`');
+}
+
+/* A decisão de pele não pode ser escolhida pela cena — nem por `modo`, nem por `cena`, nem por id. */
+/* ⚠️ Recorte EQUILIBRADO, e não uma janela de N caracteres: o corpo desta função cresce, e uma
+ * janela curta faria a lei parar de ver o fim dela sem nunca acusar. */
+const emDecisao = sceneSemProsa.indexOf('function decisaoOntologica');
+const params = emDecisao >= 0 ? recorteEquilibrado(sceneSemProsa, emDecisao) : null;
+const corpoDaDecisao = params ? recorteEquilibrado(sceneSemProsa, params.fim + 1) : null;
+if (!corpoDaDecisao) {
+  nota('§5', 'não achei `decisaoOntologica` em scene.js — quem decide a pele do corpo em foco agora?');
+} else if (/\bmodo\s*===|\bcena\s*===|universo\s*\?/.test(corpoDaDecisao.texto)) {
+  nota('§5', 'a decisão de pele voltou a olhar para a CENA — foi assim que as duas taxonomias '
+    + 'conviveram por 32 de 72 corpos');
+}
+
+/*
+ * E a MEDIDA que não pode se perder: quanto o céu MUDARIA se alguém religasse a taxonomia velha.
+ * Ela não descreve a tela de hoje — descreve o preço de desfazer a convergência.
+ */
 const divergentes = [];
 for (const node of corpos) {
   const fis = entityPhysics(node, { dominante: dominantes.has(node.id), sistema: node.dir });
   const cls = classificar(fis, node);
-  const noUniverso = superficieDe(cls, fis, fenomenos(fis, node).map((x) => x.tipo));
-  const noAgente = resolveBody(node, {}).surface;
-  if (noUniverso !== noAgente) divergentes.push({ source: node.source, noAgente, noUniverso });
+  const naOntologia = superficieDe(cls, fis, fenomenos(fis, node).map((x) => x.tipo));
+  const naTaxonomiaVelha = resolveBody(node, {}).surface;
+  if (naOntologia !== naTaxonomiaVelha) divergentes.push({ naTaxonomiaVelha, naOntologia });
 }
 
 console.log(`\n\x1b[1m§5 AS DUAS CENAS\x1b[0m  a mesma lente para o mesmo corpo?`);
-console.log(`  \x1b[2m${corpos.length - divergentes.length} de ${corpos.length} corpos recebem a MESMA pele nas duas cenas\x1b[0m`);
+console.log(`  \x1b[32m✓\x1b[0m a pele do corpo em foco sai de \`sistemas.identidadeDe\` nas DUAS cenas`);
+console.log(`  \x1b[2mo que voltaria a divergir religando o \`kind\`: ${divergentes.length} de ${corpos.length} corpos\x1b[0m`);
 const paresDiv = new Map();
 for (const d of divergentes) {
-  const k = `${d.noAgente} → ${d.noUniverso}`;
+  const k = `${d.naTaxonomiaVelha} → ${d.naOntologia}`;
   paresDiv.set(k, (paresDiv.get(k) || 0) + 1);
 }
 for (const [par, n] of [...paresDiv].sort((a, b) => b[1] - a[1])) {
-  console.log(`  \x1b[33m✗\x1b[0m ${par.padEnd(30)} ${n}`);
-}
-if (divergentes.length > DIVERGENCIA_DECLARADA) {
-  nota('§5', `${divergentes.length} corpos recebem pele diferente nas duas cenas, contra `
-    + `${DIVERGENCIA_DECLARADA} declarados — a AGENTE e a UNIVERSO afastaram-se mais. `
-    + 'Convirja (T-39) ou redeclare o número COM MEDIDA');
-}
-if (divergentes.length < DIVERGENCIA_DECLARADA - 4) {
-  nota('§5', `${divergentes.length} corpos divergem, contra ${DIVERGENCIA_DECLARADA} declarados — `
-    + 'a divergência CAIU. Aperte o número, senão ele para de acusar crescimento');
+  console.log(`  \x1b[2m·\x1b[0m ${par.padEnd(30)} ${n}`);
 }
 
 // ───────────────────── §4 a perturbação: se a cena chegar, ela não muda o que o corpo É

@@ -97,7 +97,8 @@ globalThis.document ??= { documentElement: { dataset: {} } };
 // `import()` e não `import` estático: os esboços acima têm de existir ANTES do módulo carregar, e
 // o `import` estático é içado para o topo do arquivo.
 const { planetParams } = await import(new URL('../src/space/planet.js', import.meta.url));
-const { resolveBody, SURFACE } = await import(new URL('../src/space/solver.js', import.meta.url));
+const { SURFACE } = await import(new URL('../src/space/solver.js', import.meta.url));
+const { indexar } = await import(new URL('../src/space/sistemas.js', import.meta.url));
 const { WET_EDGE } = await import(new URL('../src/space/planet-palette.js', import.meta.url));
 
 // ─────────────────────────────────────────────────────────────────────── o corpus, do servidor
@@ -123,20 +124,26 @@ const grafo = await buscaGrafo();
 const arquivos = grafo.nodes.filter((n) => n.type === 'file');
 
 /*
- * A pele resolvida, pelo solver de verdade.
+ * A pele resolvida, pela ONTOLOGIA — que é quem as duas cenas consultam.
  *
- * `facts.dirty` fica de fora de propósito: hoje nenhuma classe do catálogo testa `facts`, então o
- * git sujo só ACRESCENTA modificadores (anel/detritos) e não troca a superfície. Se algum dia uma
- * classe voltar a olhar o estado do git, esta linha passa a mentir — e é por isso que ela está
- * escrita aqui em vez de escondida numa chamada.
+ * ⚠️ Isto lia `resolveBody().surface`, a taxonomia por `kind` que a Fase B refutou. Enquanto a cena
+ * AGENTE a usava, o censo descrevia um céu que existia; convergidas as duas (T-39), ela deixou de
+ * ter leitor no `src/` e este censo passaria a medir um caminho que ninguém desenha — o defeito que
+ * esta base persegue nos oráculos, aplicado ao censo.
+ *
+ * ⚠️ **`indexar` e não uma varredura própria:** a dominância decide se um corpo é ESTRELA, e uma
+ * segunda eleição divergiria no empate. `facts.dirty` continua fora de propósito — o git sujo só
+ * ACRESCENTA modificadores, e nenhuma classe troca de superfície por causa dele.
  */
+const indice = indexar(grafo);
+const peleDe = (n) => indice.identidadeDe(n)?.pele ?? SURFACE.NONE;
 const peles = new Map();
 for (const n of arquivos) {
-  const pele = resolveBody(n).surface;
+  const pele = peleDe(n);
   peles.set(pele, (peles.get(pele) || 0) + 1);
 }
 const planetas = arquivos
-  .filter((n) => resolveBody(n).surface === SURFACE.PLANET)
+  .filter((n) => peleDe(n) === SURFACE.PLANET)
   .map((n) => ({ node: n, p: planetParams(n) }));
 
 if (!planetas.length) {

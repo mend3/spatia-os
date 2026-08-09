@@ -16,13 +16,12 @@
  * nenhum) ou PLANETA (contexto planetário). Errá-lo oferece "TERRA" para uma fotosfera.
  *
  * ☠️ **O rótulo da cena NÃO serve de fonte.** `universe.tipoDe()` devolve o nome de TELA da pele, e
- * ler rótulo como dado é o defeito que já derrubou 22 fotosferas para 21 nesta base. A dominância é
- * publicada como fato dentro da cena (`universe.ehDominante`) e não atravessa até a HUD.
+ * ler rótulo como dado é o defeito que já derrubou 22 fotosferas para 21 nesta base.
  *
- * ⚠️ Então isto é uma **TRANSCRIÇÃO** do agrupamento de `universe.load()` — a mesma relação que os
- * oráculos de shader têm com o GLSL: a fonte é `space/universe.js`, isto é cópia, e cópia sem portão
- * envelhece calada. O portão é `scripts/lei-favoritos-ui.mjs` §1, que confere as chamadas contra o
- * TEXTO de `universe.js` e reprova nomeando a linha que mudou.
+ * ⭑ **Isto já foi uma TRANSCRIÇÃO do agrupamento de `universe.load()`, e não é mais.** A fonte
+ * morava dentro de uma CENA, então a HUD copiava a regra e um oráculo conferia a cópia contra o
+ * TEXTO da fonte. Hoje o dono é `space/sistemas.js` — puro, sem cena — e aqui só se LÊ. Cópia com
+ * portão envelhece devagar; nenhuma cópia não envelhece.
  *
  * ⚠️ Nó que o agrupamento não alcança fica FORA da tabela e o painel diz isso, em vez de assumir
  * `dominante: false` — assumir daria contexto `planetario` a uma estrela, com toda a cara de medida.
@@ -39,24 +38,12 @@ import { button } from './button.js';
 import {
   criarFavoritos, contextoDe, casoSemAparencia, APARENCIAS, ESTADO, CHAVE_PREFS,
 } from '../space/favoritos.js';
-import { entityPhysics, classificar, fenomenos, dominanteDe } from '../space/entity-physics.js';
-import { superficieDe } from '../space/superficies.js';
-import { resolveBody } from '../space/solver.js';
-import { estado as telaEstado } from '../core/tela.js';
+import { indice as indiceDeSistemas, carregar as indexarSistemas } from '../space/sistemas.js';
 
 let store = null;
 let corpusAtual = null;
 /** ⚠️ `null` = ninguém mediu o disco. `new Set()` diria "medi e não há", e são fatos diferentes. */
 let emDisco = null;
-/**
- * `id` do nó → `{classe, pele, contexto, caso}`, derivado da topologia servida.
- *
- * ⚠️ `classe` e `pele` ficam guardados, e não só o contexto que sai deles: a `sonda()` do modelo
- * pede o par para derivar contexto E motivo por conta própria. Reconstruir um par plausível a partir
- * do contexto devolveria `casoSemAparencia` errado — uma fotosfera sairia com o motivo da estrutura,
- * com toda a cara de medida.
- */
-const ontologias = new Map();
 const ouvintes = new Set();
 
 const ehTexto = (v) => typeof v === 'string' && v.length > 0;
@@ -83,85 +70,29 @@ export function aoMudar(fn) {
 }
 
 /**
- * A ontologia de um corpo, com os MESMOS argumentos de `universe.load()`.
- *
- * ⚠️ `sistema` não é lido por `classificar()` nem por `superficieDe()` — vai junto porque é o que a
- * cena passa, e uma transcrição que simplifica deixa de ser comparável com a fonte.
- */
-/**
- * A pele que a CENA CORRENTE desenha — e são DUAS, não uma.
- *
- * ☠️ **As duas cenas discordam sobre 32 dos 72 corpos do fixture (44%)**, medido em 2026-08-09: o
- * UNIVERSO decide por `superficieDe` (a ontologia da Fase D) e o AGENTE por `resolveBody`
- * (`solver.js`, a taxonomia por `kind`). O mesmo `revisor.md` é ESTAÇÃO num e planeta no outro.
- *
- * ⚠️ **Por que isso decide o que a marca pode oferecer:** a aparência nomeada é um mapa
- * equiretangular que substitui o ALBEDO do planeta (`planet.js`, `uMapa`). Num corpo desenhado como
- * estação, cometa ou pulsar ela **não tem onde ser aplicada** — oferecê-la é oferecer o que não
- * funciona, e o operador escolheria TERRA para nada acontecer.
- *
- * Enquanto as duas taxonomias não convergirem (T-39), o honesto é a marca seguir a cena que está
- * na tela. ⚠️ Consequência que a tela precisa dizer: o mesmo corpo oferece opções diferentes em
- * cada cena, **porque ele é desenhado diferente em cada uma**.
- */
-function peleDaCenaCorrente(node, classe, fisica, ativos) {
-  const cena = telaEstado()?.cena;
-  // `null` é "ninguém anunciou a cena ainda" — e aí vale a ontologia, que é a fonte normativa.
-  if (cena === 'agente') return resolveBody(node, {}).surface;
-  return superficieDe(classe, fisica, ativos);
-}
-
-function ontologiaDe(node, dominante, sistema) {
-  const fis = entityPhysics(node, { dominante, sistema });
-  const classe = classificar(fis, node);
-  const ativos = fenomenos(fis, node).map((x) => x.tipo);
-  /*
-   * ⚠️ **A pele NÃO é cacheada aqui, e isso é o conserto.** Ela depende da CENA, a cena troca
-   * depois do carregamento, e guardá-la congelaria a decisão no modo em que o operador entrou —
-   * o corpo ofereceria opções da cena anterior. O que se guarda é a MATÉRIA-PRIMA (a física, a
-   * classe, os fenômenos); a pele e o que sai dela se resolvem na LEITURA.
-   */
-  return Object.freeze({ node, classe, fisica: fis, ativos });
-}
-
-/**
  * Deriva o contexto de aparência de toda a topologia, uma vez por carga.
  *
  * @param {object} payload  o corpo de `/api/graph`, o MESMO que `scene.loadGraph` recebe
  * @returns {object} o que foi coberto — a sonda precisa disso para "não classificado" não virar zero
  */
 export function carregarTopologia(payload) {
-  ontologias.clear();
   /*
    * ⚠️ **O corpus vem do SERVIDOR**, que é quem lê o `.env`. Um default aqui carimbaria a marca com
    * um céu que ninguém está vendo, e `marcar()` recusa marca sem carimbo justamente por isso.
    */
   corpusAtual = payload?.corpus?.collection ?? null;
-  const nodes = payload?.nodes || [];
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const filhos = new Map();
-  for (const [filho, pai] of payload?.edges || []) {
-    if (!filhos.has(pai)) filhos.set(pai, []);
-    filhos.get(pai).push(byId.get(filho));
-  }
   /*
-   * O agregado não depende de agrupamento: `classificar()` o resolve como ESTRUTURA por `type`, e é
-   * dele que sai o motivo *"agregado não tem corpo"*. Marcar uma pasta continua valendo.
+   * ⚠️ **Indexar aqui é IDEMPOTENTE, e não uma segunda fonte.** A HUD pode carregar antes ou depois
+   * da cena; as duas chamadas passam o MESMO payload pela MESMA função pura, e a última a rodar
+   * escreve o mesmo índice. O que não pode existir é uma segunda REGRA, e essa mora num lugar só.
    */
-  const aggs = nodes.filter((n) => n.type !== 'file');
-  for (const agg of aggs) ontologias.set(agg.id, ontologiaDe(agg, false, null));
-  for (const agg of aggs) {
-    const meus = (filhos.get(agg.id) || []).filter((c) => c?.type === 'file');
-    if (!meus.length) continue;
-    const dono = dominanteDe(meus);
-    for (const f of meus) ontologias.set(f.id, ontologiaDe(f, f.id === dono.id, agg.id));
-  }
+  const indexado = indexarSistemas(payload);
   return Object.freeze({
     corpus: corpusAtual,
-    nos: nodes.length,
-    cobertos: ontologias.size,
+    nos: indexado.nos,
+    cobertos: indexado.cobertos,
     // `nos - cobertos`: corpo que o agrupamento não alcança não recebe contexto assumido.
-    semContexto: nodes.length - ontologias.size,
+    semContexto: indexado.semContexto,
   });
 }
 
@@ -183,15 +114,20 @@ export function leitura(node) {
   if (!ehTexto(id)) {
     return { impedimento: 'este corpo não tem identidade estável — só o que o corpus indexa é marcável' };
   }
-  const onto = ontologias.get(id);
+  const onto = indiceDeSistemas().identidadeDe({ id });
   if (!onto) {
     return {
       impedimento: 'a topologia servida não classificou este corpo, e assumir um contexto daria '
         + 'aparência de planeta a uma estrela',
     };
   }
-  // A pele da cena que está na tela AGORA — ver `peleDaCenaCorrente`.
-  const pele = peleDaCenaCorrente(onto.node, onto.classe, onto.fisica, onto.ativos);
+  /*
+   * ⭑ **UMA pele, não duas.** Isto já leu `telaEstado().cena` para escolher entre a ontologia e o
+   * `resolveBody` do AGENTE, porque as duas cenas discordavam sobre 32 dos 72 corpos e a marca
+   * seguia a que estava na tela. As cenas convergiram (T-39): a pele é a mesma nas duas, e a
+   * aparência que a marca oferece deixou de depender de onde o operador está olhando.
+   */
+  const pele = onto.pele;
   const contexto = contextoDe(onto.classe, pele);
   const caso = casoSemAparencia(onto.classe, pele);
   const base = store.ler({ id, contexto, caso, emDisco });
@@ -245,8 +181,15 @@ export function sonda() {
    * O par entregue é o MESMO que produziu o contexto do painel — a derivação acontece uma vez, e
    * quem lê a sonda e quem lê a tela não têm por onde discordar.
    */
-  const corpos = new Map([...ontologias].map(([id, o]) => [id, { classe: o.classe, pele: o.pele }]));
-  return { ligado: true, cobertos: ontologias.size, ...store.sonda({ corpus: corpusAtual, emDisco, corpos }) };
+  /*
+   * ⚠️ `classe` E `pele` viajam juntas, e não só o contexto que sai delas: reconstruir um par
+   * plausível a partir do contexto devolveria `casoSemAparencia` errado — uma fotosfera sairia com
+   * o motivo da estrutura, com toda a cara de medida.
+   */
+  const corpos = new Map(
+    [...indiceDeSistemas().todas()].map(([id, o]) => [id, { classe: o.classe, pele: o.pele }])
+  );
+  return { ligado: true, cobertos: indiceDeSistemas().cobertos, ...store.sonda({ corpus: corpusAtual, emDisco, corpos }) };
 }
 
 // ─────────────────────────────────────────────────────────── o pixel
