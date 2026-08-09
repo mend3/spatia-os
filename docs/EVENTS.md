@@ -5,10 +5,19 @@ mesmo stream — nenhum deles sabe o que é Qdrant ou Ollama, todos sabem desenh
 `tool`, `memory`, `token`.
 
 **A consequência que importa:** trocar o retriever, o modelo ou o provedor de busca não
-muda uma linha de shader. E instrumentar um comportamento novo é emitir um evento novo — o
-`recorder.py` é o único lugar que precisa saber contá-lo.
+muda uma linha de shader. E instrumentar um comportamento novo é emitir um evento novo.
 
-Transporte: SSE em `GET /api/ask?q=<pergunta>&web=0|1`, um JSON por linha `data:`.
+Transporte: SSE, um JSON por linha `data:`, em **dois streams**.
+
+| stream | vida | quem escreve |
+|---|---|---|
+| `GET /api/ask?q=<pergunta>&web=0\|1` | um ciclo, fecha no `done` | o agente |
+| `GET /api/system-events` | enquanto a página viver | os webhooks e o vigia do `server/ambient.py` |
+
+⚠️ **Quem conta cada stream é diferente, e confundir os dois deixa métrica em zero.** O
+`recorder.py` envolve só o `/api/ask`; quem publica no stream do sistema contabiliza a si
+mesmo (`webhooks.deliver`, `ambient._registrar`). Evento novo no stream do sistema que espere
+o recorder nasce sem contador.
 
 ## Eventos
 
@@ -28,12 +37,50 @@ Transporte: SSE em `GET /api/ask?q=<pergunta>&web=0|1`, um JSON por linha `data:
 | `limit` | janela de uso | `status`, `window`, `resets_at` | medidor de janela |
 | `answer` | resposta completa | `text`, `ms`, `api_ms`, `turns`, `cost_usd`, `tokens{}`, `sources[]` | fecha a resposta, relaxa o som |
 | `error` | falha de serviço | `service`, `message` | glitch/interferência |
+| `notice` | o sistema mudou sem ninguém perguntar | `severity`, `topic`, `label`, `detail`, `at`, `action` (só em `warn`/`alert`) | ☠️ **ninguém — não há `bus.on('notice')` em `src/`** |
 | `done` | fim do stream | — | volta a ocioso |
 
 `state` ∈ `thinking · retrieving · searching · answering · idle · error`.
 
 `tool.kind` ∈ `filesystem · shell · browser · database · github · mcp · agent · planner ·
 other` — é a cor, não o nome da ferramenta. O nome muda por instalação; a família não.
+
+## `notice` — o vocabulário do que acontece sozinho
+
+`notice.severity` ∈ `info · warn · alert`, e o nível sai do que o operador PODE FAZER:
+
+| nível | o que ele diz | `action` |
+|---|---|---|
+| `info` | mudou, e não há o que fazer — a tela estava afirmando outra coisa | **nunca** |
+| `warn` | há o que fazer e **pode esperar**: nada na tela está errado agora, uma capacidade degradou | **sempre** |
+| `alert` | há o que fazer **agora**: uma capacidade de que o operador depende parou de responder | **sempre** |
+
+`notice.topic` ∈ `corpus · topology · index · graphdb · credential`. É a família do fato, como
+`tool.kind` é a família da ferramenta — o que muda por instalação é o número no `detail`.
+
+⚠️ **`notice` não aceita:** nível fora dos três; `warn`/`alert` sem `action`; `info` com
+`action`. As três levantam em `ambient.notice`, antes de o evento existir — um aviso que não
+nomeia o que fazer é a definição de ruído, e ruído ensina o operador a não ler a tela.
+
+☠️ **Falha de serviço não é `notice`, é `error`.** `error` já tem leitor (o glitch) e já tem
+métrica (`espatial_upstream_errors_total`). Publicar a mesma queda nos dois vocabulários faria
+a tela contar duas vezes o que aconteceu uma.
+
+**Um tópico tem no máximo UM aviso de pé.** `warn`/`alert` põe o tópico de pé; `info` no mesmo
+tópico o apaga. Quem assina o `/api/system-events` recebe de saída os que estão de pé, com o
+`at` original — abrir a página depois do boot não pode mostrar tela limpa sobre um índice
+vencido, e o `at` é o que impede um aviso de ontem de parecer recém-nascido.
+
+**Dispara por TRANSIÇÃO, nunca por relógio.** Cinco minutos parados só produzem `notice` se um
+fato mudou; repetir o mesmo aviso a cada volta é o que a regra acima existe para impedir.
+Fato que o sistema não sabe (Neo4j nunca configurado, ponto sem carimbo de data) **não vira
+evento** — anunciá-lo seria afirmar sobre o que ninguém mediu.
+
+☠️ **O `notice` chega ao barramento do cliente e MORRE lá: não existe `bus.on('notice')` em
+`src/`.** O produtor está provado ponta a ponta (`/api/system-events` entrega, `/metrics`
+conta), e nenhum pixel muda. O assinante é uma linha, e o que ele precisa desenhar já está
+decidido aqui: `severity` escolhe a cor, `action` é o texto que dá para seguir, `at` é a idade
+do aviso, e `info` no mesmo `topic` apaga o que estava de pé.
 
 ## Regras que o protocolo impõe
 

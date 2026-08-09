@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch, graphdb
+from . import agent, ambient, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch, graphdb
 
 logger = logging.getLogger("espatial.app")
 
@@ -146,11 +146,14 @@ class Handler(BaseHTTPRequestHandler):
         self._json(result, status=status)
 
     def _system_events(self) -> None:
-        """SSE de eventos que não vêm de uma pergunta — webhooks, hoje.
+        """SSE de eventos que não vêm de uma pergunta: os webhooks e o vigia do `ambient`.
 
         Stream separado do `/api/ask` de propósito: aquele é o ciclo de UMA pergunta e fecha
-        no `done`. Este vive enquanto a página viver, porque o mundo externo não espera o
-        operador perguntar nada.
+        no `done`. Este vive enquanto a página viver, porque nem o mundo externo nem o próprio
+        sistema esperam o operador perguntar nada.
+
+        Quem assina recebe de saída os `notice` que estão DE PÉ (`ambient.subscribe`): abrir a
+        página depois do boot não pode mostrar tela limpa sobre um índice vencido.
         """
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -158,7 +161,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
 
-        queue = webhooks.subscribe()
+        queue = ambient.subscribe()
         try:
             while True:
                 if queue:
@@ -172,7 +175,7 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
         finally:
-            webhooks.unsubscribe(queue)
+            ambient.unsubscribe(queue)
             self.close_connection = True
 
     def _attach(self) -> None:
@@ -641,6 +644,7 @@ def serve() -> None:
     metrics.bootstrap(VERSION, config.get("BRAIN"), config.get("AGENT_MODEL"))
     embed.warm()
     graph.warm()
+    ambient.watch()
 
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.daemon_threads = True

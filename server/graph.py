@@ -311,6 +311,32 @@ def _tree_path(source: str) -> str:
     return f"{repo_of(source)}/{name}"
 
 
+def served() -> dict | None:
+    """A topologia que está sendo servida AGORA, sem tocar upstream nem reconstruir nada.
+
+    Quem observa o corpus de fora (`ambient`) precisa comparar o que o céu carrega entre duas
+    voltas. Chamar `load()` para isso faria uma segunda cópia do laço de atualização e uma
+    consulta a mais ao Qdrant por volta, para ler um valor que já está em memória.
+    """
+    return _cached
+
+
+def _indexed_date(stamp: str) -> date | None:
+    """Data de indexação a partir do carimbo do ponto, nas duas formas em que ele existe.
+
+    ⚠️ O indexador carimba ISO-8601 COMPLETO (`2026-08-09T04:01:47.388964+00:00`) e a forma
+    só-data também aparece no corpus. Recusar uma delas devolve `None`, e `None` aqui apaga o
+    gauge `espatial_index_age_seconds` e o campo que o cabeçalho mostra em toda tela — a idade
+    do índice é justamente o número que decai sem ninguém perceber.
+    """
+    if not stamp:
+        return None
+    try:
+        return datetime.fromisoformat(stamp.replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
 def age_days() -> int | None:
     """Idade do índice em dias, do cache — sem tocar upstream.
 
@@ -322,9 +348,8 @@ def age_days() -> int | None:
     if not payload:
         return None
     newest = max((node.get("indexed_at") or "" for node in payload.get("nodes") or []), default="")
-    try:
-        indexed = datetime.strptime(newest, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
+    indexed = _indexed_date(newest)
+    if indexed is None:
         return None
     return max(0, (date.today() - indexed).days)
 
@@ -372,9 +397,8 @@ def publish_gauges(payload: dict) -> None:
 
 
 def _age_seconds(stamp: str) -> float | None:
-    try:
-        indexed = datetime.strptime(stamp, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
+    indexed = _indexed_date(stamp)
+    if indexed is None:
         return None
     return max(0.0, (date.today() - indexed).days * 86400.0)
 
