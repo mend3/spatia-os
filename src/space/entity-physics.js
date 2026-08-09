@@ -320,9 +320,37 @@ export const FAMILIA = Object.freeze({
  *
  * Fenômeno não é classificado aqui: ele ACONTECE a um corpo, e quem o lista é `fenomenos()`.
  */
+/**
+ * Os tipos de nó que a ontologia ACEITA, por família — nomeados, nunca excluídos.
+ *
+ * ☠️ **Isto era `if (node.type !== 'file')`, e classificar por EXCLUSÃO é o defeito que a REGRA DO
+ * CATÁLOGO proíbe.** A LUA caía no ramo do contêiner e saía como ESTRUTURA — família sem corpo,
+ * logo sem pele nenhuma. É o mesmo erro, no mesmo tipo de nó, que o `solver.js` já tinha pago:
+ * lá `type !== 'file'` fazia *uma lua em foco resolver como GALÁXIA*.
+ *
+ * A lua é uma SEÇÃO nomeada de um documento: uma FOLHA com massa, não um contêiner. Ela é
+ * sintetizada em `graph.load` (`orbital-zones.moonsOf`) e por isso não vem do payload — medido na
+ * tela do fixture em 2026-08-09: **368 em órbita, 277 seções sem espaço**.
+ *
+ * ⚠️ Tipo desconhecido cai em ESTRUTURA **e diz que não foi reconhecido**, em vez de herdar um
+ * corpo por acidente. Nomear o que se aceita faz a próxima categoria de nó nascer FORA por padrão,
+ * que é o comportamento certo; por exclusão, ela nasceria dentro em silêncio.
+ */
+export const TIPOS_DE_NO = Object.freeze({
+  CONTEINER: Object.freeze(['repo', 'dir']),
+  FOLHA: Object.freeze(['file', 'moon']),
+});
+
 export function classificar(fisica, node) {
-  if (node.type !== 'file') {
+  if (TIPOS_DE_NO.CONTEINER.includes(node.type)) {
     return { familia: FAMILIA.ESTRUTURA, tipo: 'sistema', motivo: 'contêiner: tem filhos, não tem corpo' };
+  }
+  if (!TIPOS_DE_NO.FOLHA.includes(node.type)) {
+    return {
+      familia: FAMILIA.ESTRUTURA,
+      tipo: 'sistema',
+      motivo: `tipo de nó não reconhecido (\`${node.type}\`): a ontologia não afirma corpo sobre o que não sabe nomear`,
+    };
   }
 
   /*

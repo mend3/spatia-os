@@ -1602,27 +1602,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     const identidade = sistemas.indice().identidadeDe(node);
     /*
-     * ⚠️ **`null` é "o agrupamento não alcança este nó", e ele é DITO em vez de assumido.** O caso
-     * vivo é a LUA da cena AGENTE — seção sintetizada em `graph.load`, que não vem do payload e
-     * portanto não tem identidade de corpus. Derivar uma para ela afirmaria sobre um corpo que o
-     * corpus não contém. Medido no fixture de 09/08: **0 luas em 72 arquivos**.
+     * ☠️ **A LUA não está no índice, e ela NÃO é rara — 368 em órbita no fixture (medido na tela,
+     * 09/08).** Ela é seção sintetizada em `graph.load`, com `id` derivado do pai e sem `source`,
+     * então a carga não tem como indexá-la. A primeira versão disto devolvia "sem pele" para ela, o
+     * que apagava o corpo de 368 objetos que o AGENTE desenhava — e a medida offline que autorizou
+     * aquela linha dizia **0 luas**, porque replicava `moonsOf` com a massa central errada em vez
+     * de perguntar à cena. **O boot publica o número; ele nunca precisou ser reconstruído.**
+     *
+     * `identidadeAvulsa` deriva pela MESMA função do índice, com `dominante: false` — uma seção
+     * nunca é a estrela do sistema.
      */
     const modificadores = node?.source
       ? resolveBody(node, { dirty: graph.dirtyOf(node.source) })
       : { modifiers: [], rejected: [] };
-    if (!identidade) {
-      return {
-        surface: SURFACE.NONE,
-        modifiers: modificadores.modifiers,
-        rejected: [
-          ...modificadores.rejected,
-          { feature: 'surface', motivo: 'a topologia servida não agrupou este corpo — ele não vem do payload' },
-        ],
-        classe: null,
-        fenomenos: [],
-      };
-    }
-    const { classe, pele, ativos } = identidade;
+    const { classe, pele, ativos } = identidade ?? sistemas.identidadeAvulsa(node);
     /*
      * ⚠️ **A FORMA é a de `resolveBody`, com os nomes dele — `modifiers` e `rejected`.** A primeira
      * versão devolveu `recusados`, e o laço de quadro morreu na linha que escreve o traço

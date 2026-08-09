@@ -38,6 +38,19 @@
 import { entityPhysics, classificar, fenomenos, dominanteDe } from './entity-physics.js';
 import { superficieDe } from './superficies.js';
 
+/**
+ * A derivação, com um dono só: física → classe → fenômenos → pele.
+ *
+ * ⚠️ Ela está no escopo do MÓDULO, e não dentro de `indexar`, porque o nó avulso (a lua) precisa da
+ * MESMA — uma cópia para ele divergiria na primeira mudança de ordem.
+ */
+function derivarIdentidade(node, dominante, sistema) {
+  const fisica = entityPhysics(node, { dominante, sistema });
+  const classe = classificar(fisica, node);
+  const ativos = fenomenos(fisica, node).map((f) => f.tipo);
+  return Object.freeze({ node, fisica, classe, ativos, pele: superficieDe(classe, fisica, ativos) });
+}
+
 /** O índice vazio — o que se responde antes de qualquer topologia chegar. */
 function vazio() {
   return Object.freeze({
@@ -81,26 +94,13 @@ export function indexar(payload) {
     filhos.get(pai).push(byId.get(filho));
   }
 
-  const derivar = (node, dominante, sistema) => {
-    const fisica = entityPhysics(node, { dominante, sistema });
-    const classe = classificar(fisica, node);
-    const ativos = fenomenos(fisica, node).map((f) => f.tipo);
-    return Object.freeze({
-      node,
-      fisica,
-      classe,
-      ativos,
-      pele: superficieDe(classe, fisica, ativos),
-    });
-  };
-
   /*
    * O AGREGADO não depende de agrupamento: `classificar()` o resolve como ESTRUTURA pelo tipo, e é
    * dele que sai o motivo *"agregado não tem corpo"*. Ele entra no índice para que quem perguntar
    * por uma pasta receba a resposta certa em vez de um buraco que o chamador tenha de interpretar.
    */
   const aggs = nodes.filter((n) => n.type !== 'file');
-  for (const agg of aggs) identidades.set(agg.id, derivar(agg, false, null));
+  for (const agg of aggs) identidades.set(agg.id, derivarIdentidade(agg, false, null));
 
   for (const agg of aggs) {
     const meus = (filhos.get(agg.id) || []).filter((c) => c?.type === 'file');
@@ -110,7 +110,7 @@ export function indexar(payload) {
     for (const f of meus) {
       if (f.id === dono.id) dominantes.add(f.source);
       sistemaDeFonte.set(f.source, agg.id);
-      const identidade = derivar(f, f.id === dono.id, agg.id);
+      const identidade = derivarIdentidade(f, f.id === dono.id, agg.id);
       identidades.set(f.id, identidade);
       porFonte.set(f.source, identidade);
     }
@@ -153,6 +153,22 @@ export function indexar(payload) {
      */
     todas: () => new Map(identidades),
   });
+}
+
+/**
+ * A identidade de um nó que o payload NÃO contém — derivada pela mesma função, e por isso não é uma
+ * segunda derivação.
+ *
+ * ☠️ **O caso é a LUA da cena AGENTE, e ela não é rara: 368 em órbita no fixture de 09/08.** Ela é
+ * uma SEÇÃO sintetizada em `graph.load`, com `id` derivado do pai (`pai#0`) e **sem `source`** —
+ * então não há como indexá-la na carga, e `identidadeDe` devolve `null` para ela por construção.
+ * Sem esta porta, o corpo em foco ficava sem pele nenhuma: 368 objetos que desenhavam antes.
+ *
+ * ⚠️ `dominante` é FALSO e não é opcional: uma seção nunca é a estrela do sistema. Deixar o
+ * chamador escolher abriria o canal por onde uma parte de documento viraria estrela.
+ */
+export function identidadeAvulsa(node) {
+  return derivarIdentidade(node, false, null);
 }
 
 /*

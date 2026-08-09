@@ -436,9 +436,19 @@ mesmo fato).
   berço da nebulosa exige uma contenção que o corpus não tem. Não mudou a decisão — mudou uma cena
   parar de contradizê-la. Distribuição final (72 corpos): planeta 48 · fotosfera 20 · cometa 2 ·
   pulsar 1 · sem pele 1.
-  ⚠️ **A LUA da cena AGENTE fica fora do índice, e isso é dito em vez de assumido:** ela é seção
-  sintetizada em `graph.load`, não vem do payload, e `identidadeDe` devolve `null` com a recusa
-  escrita. Medido: **0 luas em 72 arquivos** — o caminho existe no código e hoje não tem população.
+  ☠️ **A LUA quase virou uma regressão de 368 objetos, e o que a pegou foi a TELA.** Ela é seção
+  sintetizada em `graph.load`, com `id` derivado do pai (`pai#0`) e **sem `source`** — então não há
+  como indexá-la na carga, e `identidadeDe` devolve `null` para ela por construção. A primeira
+  versão desta entrega devolvia *"sem pele"* nesse caso.
+  ⚠️ **A medida offline que autorizou aquela linha dizia `0 luas`, e era FALSA** — ela replicava
+  `moonsOf` com a massa central errada em vez de perguntar à cena. **O boot PUBLICA o número, e ele
+  nunca precisou ser reconstruído: `368 em órbita · 277 seções sem espaço`** (`spatia.moons()`).
+  ⭑ **A causa raiz era `classificar` classificando por EXCLUSÃO** (`node.type !== 'file'` → estrutura)
+  — o defeito que a REGRA DO CATÁLOGO proíbe, e o MESMO tipo de nó que já o pagou no `solver.js`
+  (*"uma lua em foco resolvia como GALÁXIA"*). Hoje `TIPOS_DE_NO` nomeia o que a ontologia aceita:
+  contêiner (`repo`, `dir`) → ESTRUTURA, folha (`file`, `moon`) → CORPO, e tipo desconhecido cai em
+  ESTRUTURA **dizendo que não foi reconhecido**. Provado na página viva: a lua classifica
+  `body/lua` e resolve pele `planet` — a mesma que desenhava antes.
   ⭑ **Ganho de quadro que veio junto:** o pool de peles sem foco refazia física, classe, fenômenos e
   pele **por candidato e por quadro**; hoje é consulta a um índice derivado na carga.
   ☠️ **O PAINEL ERA O QUARTO LEITOR DA TAXONOMIA REFUTADA — reportado da tela, com foto.**
@@ -453,9 +463,12 @@ mesmo fato).
   responde nas duas cenas, do mesmo índice — **para ARQUIVO**. O AGREGADO segue divergindo de
   propósito: ele é DESENHADO diferente em cada cena (galáxia no AGENTE, sistema no UNIVERSO), e
   igualar o rótulo faria ele mentir sobre o que está na tela.
-  ☠️ **FICA POR PROVAR NA TELA** (a medida acima é do índice, não do pixel): que os 7 corpos que
-  desenhavam ESTAÇÃO no AGENTE agora desenham o que a ontologia diz, e que a troca de cena não
-  pisca pele. As sondas que respondem são `spatia.cena()` e `spatia.universo.peles()`.
+  ⭑ **PROVADO NA PÁGINA VIVA** (cena AGENTE, fixture, 09/08), e são os dois corpos reportados com
+  foto: `nucleo/bloco-13.md` → painel **ESTRELA** · desenho `photosphere`; `atlas/scripts/build.sh`
+  → painel **PLANETA** · desenho `planet`. Os dois batem, contra PLANETA/COMETA antes.
+  ☠️ **Fica por ver com o OLHO** (a medida acima é do índice, não do pixel): que os 7 corpos que
+  desenhavam ESTAÇÃO no AGENTE desenham bem o que a ontologia diz, e que a troca de cena não pisca
+  pele. As sondas que enquadram são `spatia.cena()` e `spatia.universo.peles()`.
 - **T-69 / T-70** — ☠️ **Duas pontas soltas da convergência, e as duas são "declarado sem leitor".**
   `SURFACE` (`solver.js`) e `SUPERFICIE` (`superficies.js`) são o MESMO vocabulário com dois nomes —
   o segundo já diz por escrito *"os valores têm de bater com `SURFACE`"*, que é uma cópia com
