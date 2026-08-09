@@ -156,12 +156,12 @@ com ou sem produtor.
 | **T-43** | A repintura da marca (`context.js`) é invariante DECLARADA sem oráculo | `todo` | — | — | KR2.4 |
 | **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
 | **T-45** | `.row.warn` não existe no CSS — quatro emissores de um tom sem leitor | `todo` | — | — | — |
-| **T-46** | **A sonda da HUD** (`spatia.hud()`) — quanto da janela a interface reivindica ao PONTEIRO, por rota, e o que está recolhido | `done` | — | T-51, T-52 | KR2.1 |
+| **T-46** | `spatia.hud()` — ⭑ **rodada nas 10 rotas**; as estimativas do briefing viraram medida | `done` | — | — | KR2.1 |
 | **T-47** | A lista de fontes tem TETO de vista, rolagem, scrim e o **total publicado** — as 24 continuam no DOM | `done` | — | — | KR2.1 |
 | **T-48** | O conjunto residente é DECLARADO **e imposto** — `RESIDENTES` + `declararApp`, e `#/security` monta `timeline` | `done` | — | T-52 | KR2.1 |
 | **T-49** | `registerWidget` aceita chave fora do vocabulário — a REGRA DO CATÁLOGO sem portão | `doing` | — | T-50 | — |
 | **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `todo` | T-49 | — | — |
-| **T-51** | O painel de palco cria ZONA MORTA sobre o corpo em foco — **quem PINTA reivindica, quem só POSICIONA cede** | `done` | T-46 | — | KR2.1 |
+| **T-51** | Zona morta do palco — ⭑ **provado na tela: ZERO ao ponteiro nas 8 rotas que o montam** | `done` | — | — | — |
 | **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
 | **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
 | **T-54** | ☠️ **A cena AGENTE volta PRETA ao voltar do UNIVERSO** — o suspeito é a PARIDADE DE SWAPS | `todo` | — | — | KR2.3 |
