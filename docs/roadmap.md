@@ -8,10 +8,6 @@
 > tarefa aqui. Divergiram, os dois estão errados — e o sintoma é sempre o mesmo: alguém lê um e
 > decide contra o que o outro já mediu.
 >
-> ⭑ **Os dois são versionados desde 2026-08-09.** O handoff morava em `.cache/` e não sobrevivia a um
-> clone — cada máquina nova recomeçava contra armadilhas já pagas. Isso acabou, e **não afrouxa a
-> regra dele**: narrativa continua fora dos dois, porque o `git log` já a guarda.
-
 ## O vocabulário
 
 | status | significa |
@@ -113,12 +109,11 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-24** | Passo 3 — distância × pixel contra o corpus real | `todo` | — | — | — |
 | **T-25** | Licença de `assets/textures/sun.jpg` | `todo` | — | publicação | — |
 
-### Por que os `postponed` e `archived` estão escritos, e não apagados
+### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
 
-- **T-19** — medido em 09/08: `a_corte` 23,9 (fixture) e 26,3 (real) contra o raio orbital máximo
-  62, **zero janelas fechadas**. É risco de expiração, não defeito, e volta a morder só quando
-  `M_total` crescer ~13×. ☠️ **E a saída que estava escrita era falsa** — `rocheLimit(mass)` já É
-  `2,44·R`. Sem esta linha, a próxima sessão reabre e reimplementa o erro.
+- **T-19** — `a_corte` 23,9 (fixture) e 26,3 (real) contra o raio orbital máximo 62, **zero janelas
+  fechadas**: expiração, não defeito, e só morde se `M_total` crescer ~13×. ☠️ **A saída óbvia é
+  falsa** — `rocheLimit(mass)` já É `2,44·R`, e a constante mora em `physicalRadius`.
 
 ### As três decisões que são do usuário
 

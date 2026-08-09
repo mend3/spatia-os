@@ -1,11 +1,5 @@
 # Handoff — SpatIA · branch `cena-universo`
 
-⭑ **Versionado desde 2026-08-09**, ao lado do [`roadmap.md`](./roadmap.md). Ele morou em `.cache/`
-(gitignored) por várias sessões, e isso tinha um custo silencioso: **fato medido não sobrevivia a um
-clone**, então cada máquina nova recomeçava do zero contra armadilhas que já custaram caro. Agora o
-histórico dele é o `git log` como o de todo o resto — o que reforça a regra abaixo em vez de
-enfraquecê-la: **narrativa não pertence a este arquivo porque o git já a guarda.**
-
 > **Este arquivo é o PRESENTE. A história vive no `git log`** — os corpos de commit desta base são
 > longos de propósito, com a medida que decidiu cada número. Antes de escrever um relato aqui,
 > pergunte se ele não pertence à mensagem do commit. **Se o texto começa com "consertei" ou nomeia um
@@ -20,11 +14,9 @@ enfraquecê-la: **narrativa não pertence a este arquivo porque o git já a guar
 > a abrir aqui. Divergiram, os dois estão errados — e o sintoma é alguém decidir contra o que o outro
 > já mediu.
 >
-> ⚠️ **A regra acima já foi ignorada uma vez, inclusive por quem a escreveu.** O sintoma é sempre o
-> mesmo: item fechado que fica *"pelo valor do sintoma"*, e uma §7 de 462 linhas em que quase tudo
-> era narrativa de coisa pronta. **Fechar um item é MOVER o resíduo** — a armadilha vai para o §5, o
-> número para o §6, o resto para o corpo do commit — **e apagar o relato.** Se este arquivo passar de
-> ~800 linhas, alguma coisa está sendo contada duas vezes.
+> **Fechar um item é MOVER o resíduo** — a armadilha para o §5, o número para o §6, o resto para o
+> corpo do commit — **e apagar o relato.** Item fechado que fica *"pelo valor do sintoma"* é o modo
+> de falha característico daqui. Acima de ~800 linhas, algo está sendo contado duas vezes.
 
 ---
 
@@ -589,12 +581,6 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 ---
 
 ## 7. O estado agora, e o que está aberto
-
-⚠️ **ESTE DOCUMENTO É O PRESENTE, E SÓ ELE.** Item fechado **sai daqui**; o que ele ensinou vai para
-o §5 (armadilha), para o §6 (número) ou para o comentário do módulo, que é onde a próxima pessoa
-tropeça nele. **Histórico é o `git log`** — esta base já exige corpo de commit longo com a medida que
-decidiu cada número, então a narrativa está gravada onde se procura por ela. Um handoff que cresce
-com o que deu certo para de caber numa leitura, que é a única coisa que ele precisa fazer.
 
 **Branch `cena-universo`** — sem push, não mesclada.
 ⚠️ **NÃO COMMITE SEM O USUÁRIO PEDIR.** Deixe no working tree e relate.

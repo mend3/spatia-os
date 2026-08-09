@@ -321,6 +321,86 @@ Cada nova funcionalidade deve tornar o sistema mais inteligente, não apenas mai
 
 ---
 
+# Manter a documentação — o que ela é, e o que ela não é
+
+Um doc desta base responde **duas** perguntas: *"o que é verdade AGORA"* e *"como não cair na
+armadilha"*. Ele **não** conta o que aconteceu. Isso não é gosto de estilo: contexto é finito, e
+cada linha de história desloca uma linha que teria evitado um erro.
+
+## O teste da narrativa
+
+> **Apague a frase. Se ninguém perde a capacidade de AGIR, era narrativa.**
+
+Marcadores quase infalíveis — passado sobre o **próprio código ou o próprio doc**:
+
+| ☠️ narrativa | ⭑ o que fica |
+|---|---|
+| *"era `massRank` e passou a ler `chunks`"* | *"lê `chunks` contra o limiar de colapso"* |
+| *"este documento afirmou o errado por várias sessões"* | *"o objeto é `spatia`; quando doc e código discordarem, o código está certo"* |
+| *"consertei o X no commit abc123"* | (nada — vai para o corpo do commit) |
+| *"o handoff morava em `.cache/` e agora está em `docs/`"* | (nada — o arquivo está onde está) |
+| *"a regra já foi ignorada uma vez"* | a regra, no imperativo |
+
+⚠️ **Uma exceção, e é só uma: a REFUTAÇÃO MEDIDA fica.** *"`rocheLimit(raio)` não dispensa
+`DENSITY_K` — a constante mora em `physicalRadius`"* está no passado e **não é história**: é o que
+impede a próxima sessão de reimplementar o erro. A diferença é o tempo verbal do EFEITO — história
+descreve o que mudou, refutação descreve o que continua verdade sobre o futuro. Se apagar a linha
+faz alguém refazer um trabalho já pago, ela fica.
+
+## Onde cada coisa mora
+
+| conteúdo | lugar | por quê |
+|---|---|---|
+| o que o usuário GANHA | `README.md` | é a única superfície que alguém de fora lê |
+| como se mede, e o que morde | este arquivo | carregado em toda sessão |
+| **por que é assim** | comentário do MÓDULO | é onde a próxima pessoa tropeça |
+| o que está aberto AGORA | `docs/HANDOFF.md` | |
+| ordem, e o que cada peça destrava | `docs/roadmap.md` | |
+| **a história** | corpo do commit | e ele é longo aqui **de propósito** |
+
+⭑ **`HANDOFF.md` e `roadmap.md` mudam JUNTOS** — são a mesma verdade por dois lados. Fechar tarefa
+num obriga a fechar o item no outro. Divergiram, os dois estão errados.
+
+## Fechar um item é MOVER, nunca anexar
+
+Ao dar por concluído qualquer item, o relato **sai** e o resíduo se distribui: a armadilha vai para
+a lista de armadilhas, o número para a lista de números, o resto para o corpo do commit. **Anexar
+"o texto original fica pelo valor do sintoma" é como estes arquivos incham** — foi assim que uma
+seção de handoff chegou a 462 linhas com quase nada acionável dentro.
+
+⚠️ **Orçamento de tamanho, e ele é uma medida, não uma meta:** se `HANDOFF.md` passar de ~800 linhas,
+alguma coisa está sendo contada duas vezes. Procure o duplicado antes de cortar o que parece velho.
+
+## Todo número num doc é uma mentira em potencial
+
+Número sem procedência **não envelhece — apodrece**, porque nada acusa quando ele deixa de valer.
+Todo número escrito carrega **de que corpus** e **quando**, ou vira "medida" com cara de fato:
+
+- *"o fixture tem 14 arquivos"* sobreviveu até virar 71. Ninguém percebeu porque não havia data.
+- *"74 arquivos · 2.606 pontos"* passou a ser 72 · 2.514 e continuou sendo citado.
+
+⭑ **A saída é dizer de onde o número sai**, para quem ler poder refazê-lo: *"a contagem do dia vem
+do `/api/graph`, nunca deste parágrafo"*.
+
+## Briefing é ANDAIME
+
+Um `docs/briefings/*.md` existe para ser **dissolvido**. Ao destravar um item dele: marque no
+briefing **e anuncie no `README.md`** como feature/capability — item entregue que ninguém sabe que
+existe é o mesmo que não entregue. Quando o conteúdo estiver todo diluído nos docs permanentes,
+**apague o arquivo**: o git guarda o texto, e o que não pode existir são duas fontes divergentes
+sobre a mesma coisa.
+
+⚠️ **A triagem que vale para todos:** os briefings **acertam a ESTRUTURA e erram as FOLHAS**. Onde
+nomeiam uma RELAÇÃO, acertam — e às vezes descrevem algo que já existe com outro nome. Onde nomeiam
+um FATO DE MUNDO, descrevem um corpus que não existe. Leia cada linha perguntando qual das duas é.
+
+## Antes de corrigir um nome em massa
+
+☠️ **Nunca `sed` num nome sem separar os homônimos.** As sondas se chamam `spatia.*`, mas
+`espatial.trace`, `espatial.*.v1` e as métricas `espatial_*` mantêm o nome antigo **de propósito**:
+renomear a chave não migra o que está gravado, e a afinação feita à mão evapora em silêncio. A
+tabela de `docs/README.md` existe para impedir exatamente esse `sed`. **Leia cada ocorrência.**
+
 # As ferramentas de `scripts/`
 
 Elas existem porque este projeto tem um modo de falha característico: **a feição some, o shader
@@ -495,8 +575,7 @@ estrangulada pelo motor, e qualquer comando de shell rouba o foco de volta. E `q
 ANDAR entre duas leituras. ⚠️ `quadros` andando prova que a cena não congelou; **não** prova que ela
 parou de se mover — grandeza que ainda se acomoda não é regime.
 
-⚠️ **O objeto é `spatia`; `espatial.*` foi o nome antigo** e sobreviveu em três docs até 09/08.
-Quando um doc e o código discordarem, **o código está certo**. ⚠️ Não confunda com as CHAVES do
+⚠️ **O objeto é `spatia`.** Quando um doc e o código discordarem, **o código está certo**. ⚠️ Não confunda com as CHAVES do
 `localStorage` (`espatial.trace`, `espatial.*.v1`) e as métricas `espatial_*`: essas mantêm o nome
 antigo **de propósito** — renomear a chave não migra o que está gravado, e a afinação feita à mão
 evapora em silêncio (a tabela de `docs/README.md` existe para proteger exatamente isso).
