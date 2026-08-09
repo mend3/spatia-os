@@ -114,7 +114,8 @@ ELE MESMO já sai < 1 e `2·acos` devolve **0,025 rad para rotação nenhuma**. 
 com esse piso parecendo medida. **A guarda é comparar a primeira leitura consigo: se não der 0
 exato, o resto não vale.**
 
-**Sondas:** `spatia.cena()` · `.planet()` · `.galaxy()` · `.moons()` · `.lod()` · `.renderCost(n)` ·
+**Sondas:** `spatia.cena()` · `.tela()` · `.planet()` · `.galaxy()` · `.moons()` · `.lod()` ·
+`.renderCost(n)` ·
 `.bloom()` · `.core()` · `.session()` · `.state()` · `.universo.{sobreposicoes,entre,pixels}()` ·
 `.pele(ajuste)` · `.peleAB(condicoes, ler)` · `.aroAB(condicoes, ler)` (as três últimas são a
 bancada dos termos de borda — ver o §4, o A/B no mesmo quadro).
@@ -654,6 +655,8 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 | `src/sandbox/pulsar-rig.js` | o slider inverte pela MESMA lei |
 | `src/space/scene.js` | `CENAS` + `aplicarCena` extraídos de `setMode`; `escalaLocal()`/`porteLocal()` (T-08) |
 | `scripts/lei-cena.mjs` | o oráculo da lei da cena (T-05) |
+| `src/core/tela.js` | o dono único do estado de tela (T-06) |
+| `src/hud/boot.js` · `src/main.js` | a camada `boot` se declara; `tela.install` e a sonda `spatia.tela()` |
 
 **Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
 
@@ -724,6 +727,16 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
    exige quebrar a dependência de `M_total`, e isso é pergunta de MODELO.
    ⭑ `hillRadius` está ABSOLVIDO: `∛(m/3M)` é razão de massas, adimensional — o mesmo argumento que
    salva o `R_s/R`.
+
+0e. ⚠️ **DUAS VERDADES SOBRE A MESMA ROTA, e a segunda não tem leitor.** `core/tela.js` guarda a
+   rota que o kernel resolveu (`ui.route`, um decodificador só); `core/session.js` continua lendo o
+   hash CRU (`(location.hash||'').replace(/^#\/?/,'')`). **Divergem em 7 de 12 endereços**, medido
+   recortando os dois decodificadores do próprio código: sub-rota (`#/journal/<run-id>` → `journal`
+   contra `journal/run-…`), app inexistente (`#/bogus` → `core` contra `bogus`), caixa (`#/FILES`) e
+   escape (`%20` decodificado contra cru). ⚠️ **Unificar MUDA valor observável** — `route` da
+   `session` sai `''` na raiz e `core` pela `tela`, e é o que `spatia.session()` mostra. Hoje o
+   campo **não tem nenhum leitor** além dessa sonda (`grep` em `src/`): a decisão é apagá-lo da
+   `session` ou dar-lhe um leitor, e ela é de quem opera, não de quem mede.
 1. **DECISÃO DO USUÁRIO — de onde vem a luz de um corpo em FOCO.** O "planeta transparente" da cena
    AGENTE está **medido, e não é defeito de código**: o corpo em foco está iluminado por trás, e o
    que se vê é um **CRESCENTE**. Medido em 08/08 (A/B no mesmo quadro, controle em **0 pixels**):

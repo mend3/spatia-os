@@ -52,7 +52,36 @@ const SAIDA = '.cache/vizinhanca.json';
 const TETO = 28;
 
 /**
- * Os tipos que ligam CORPO a CORPO, com a unidade de força de cada um.
+ * As duas escalas que levam um valor bruto à `forca` em (0,1], e elas são da UNIDADE — nunca da
+ * amostra. Tipo novo escolhe uma; não existe terceira sem uma unidade nova.
+ *
+ * ☠️ **Normalizar pelos extremos observados (`(v − min)/(max − min)`) mente de duas formas caladas,
+ * e as duas estão medidas:**
+ * 1. **O mais fraco vira `0`, e aqui `0` é "medi e não há".** Um vínculo com 1 commit é um fato
+ *    POSITIVO. No fixture isso é 92,8% dos vínculos; nos `IMPORTS` do corpus vivo é **312 de 313
+ *    (99,7%)** afirmando ausência sobre vínculo que existe.
+ * 2. **`min`/`max` são estatística de AMOSTRA.** O mesmo par com os mesmos 3 commits sai `0,667`
+ *    num céu cujo máximo é 4 e `0,100` num de 21 — a força de um vínculo passando a depender de
+ *    quem mais está no céu. É a família ANTI-ESCALA do rig do pulsar (posto descrevendo objeto).
+ *
+ * ⭑ A saída é a que a REGRA DA FRONTEIRA já abençoa: **razão ancorada em algo FIXO**.
+ * - **contagem** (commits, citações, imports): o único fixo que a unidade oferece é o próprio
+ *   quantum — UM evento. `v/(v+1)` é o evento observado contra um de dúvida: `1 → 0,5`,
+ *   `4 → 0,800`, `21 → 0,955`. Monótona, jamais `0` (não afirma ausência) e jamais `1` (contagem
+ *   não tem teto). **Nada nela vem do corpus, então ela não expira.**
+ * - **cosseno**: já é adimensional em [0,1] por construção, e a normalização é a identidade. Um
+ *   `0` ali seria "medi e não há semelhança" — que é o que `0` deve significar.
+ *
+ * ⚠️ As duas escalas continuam **incomparáveis entre si**: 0,5 de commit não é 0,5 de cosseno.
+ * Quem compara tipos volta ao "tamanho com ofuscação" que o cabeçalho recusa.
+ */
+const ESCALAS = {
+  contagem: { lei: 'v/(v+1) — razão ao quantum da unidade (um evento)', forca: (v) => v / (v + 1) },
+  cosseno: { lei: 'identidade — o cosseno já é adimensional em [0,1]', forca: (v) => v },
+};
+
+/**
+ * Os tipos que ligam CORPO a CORPO, com a unidade de força de cada um e a escala que a normaliza.
  *
  * `simetrica` não é detalhe de modelagem: o `CO_EDITED` é gravado numa direção só porque o par foi
  * ordenado alfabeticamente (`vinculos.mjs`), então a seta dele não significa nada. Já a do
@@ -60,10 +89,10 @@ const TETO = 28;
  * um desenho que apagasse essa distinção afirmaria reciprocidade onde não há.
  */
 const TIPOS = {
-  SIMILAR_TO: { propriedade: 'score', unidade: 'score', simetrica: false },
-  CO_EDITED: { propriedade: 'peso', unidade: 'commits', simetrica: true },
-  REFERENCES: { propriedade: 'peso', unidade: 'citações', simetrica: false },
-  IMPORTS: { propriedade: 'peso', unidade: 'imports', simetrica: false },
+  SIMILAR_TO: { propriedade: 'score', unidade: 'score', simetrica: false, escala: 'cosseno' },
+  CO_EDITED: { propriedade: 'peso', unidade: 'commits', simetrica: true, escala: 'contagem' },
+  REFERENCES: { propriedade: 'peso', unidade: 'citações', simetrica: false, escala: 'contagem' },
+  IMPORTS: { propriedade: 'peso', unidade: 'imports', simetrica: false, escala: 'contagem' },
 };
 
 if (!USER || !PASS) {
@@ -157,12 +186,12 @@ function cortar(porTipo) {
 }
 
 /*
- * A força normalizada em [0,1] DENTRO do tipo, pelos extremos daquele tipo no grafo inteiro.
+ * A faixa OBSERVADA de cada tipo. Ela descreve ESTE céu (e é publicada com `corpus` e `as_of` ao
+ * lado, no snapshot) — serve à legenda e ao relatório abaixo.
  *
- * ⚠️ O renderer precisa de um número comparável para modular opacidade, e ele não pode conhecer a
- * faixa de cada tipo — isso seria a faixa escrita em dois lugares, livre para divergir. Então quem
- * normaliza é quem mediu. O valor BRUTO viaja junto (`valor`), porque a legenda tem de dizer
- * "3 commits" e não "0,10".
+ * ☠️ **Ela não entra na `forca`.** Ver `ESCALAS`: a força de um vínculo é propriedade dele e da
+ * unidade dele, nunca da população em volta. Quem voltar a dividir por `max − min` reintroduz as
+ * duas mentiras medidas lá em cima.
  */
 const faixa = new Map();
 for (const [, porTipo] of porCorpo) {
@@ -186,17 +215,14 @@ for (const [fonte, porTipo] of porCorpo) {
   graus.push(grau);
   if (grau > TETO) truncados++;
   vizinhanca[fonte] = {
-    v: cortar(porTipo).map((x) => {
-      const f = faixa.get(x.tipo);
-      const largura = f.max - f.min;
-      return {
-        para: x.para,
-        tipo: x.tipo,
-        valor: Number(x.valor.toFixed(4)),
-        forca: Number((largura > 0 ? (x.valor - f.min) / largura : 1).toFixed(3)),
-        sentido: x.sentido,
-      };
-    }),
+    // O valor BRUTO viaja junto de propósito: a legenda tem de dizer "3 commits", não "0,750".
+    v: cortar(porTipo).map((x) => ({
+      para: x.para,
+      tipo: x.tipo,
+      valor: Number(x.valor.toFixed(4)),
+      forca: Number(ESCALAS[TIPOS[x.tipo].escala].forca(x.valor).toFixed(3)),
+      sentido: x.sentido,
+    })),
     total,
   };
 }
@@ -215,6 +241,20 @@ for (const [tipo, f] of [...faixa].sort()) {
 const desenhados = Object.values(vizinhanca).reduce((a, x) => a + x.v.length, 0);
 console.log(`\n  desenháveis: ${desenhados} vínculos em ${Object.keys(vizinhanca).length} corpos · MED ${q(Object.values(vizinhanca).map((x) => x.v.length), 0.5)} por corpo`);
 
+/*
+ * ⚠️ A FORÇA, medida na saída. Serve a uma pergunta só, e ela é a que já deu defeito: quantos
+ * vínculos DESENHÁVEIS saem afirmando ausência? `em zero` tem de ser 0 — um vínculo que existe
+ * nunca vale "não há". A linha fica porque o defeito voltaria calado: o desenho não acusa.
+ */
+console.log(`\n\x1b[1mFORÇA (por tipo, na escala da unidade — tipos não se comparam)\x1b[0m`);
+for (const [tipo] of [...faixa].sort()) {
+  const fs_ = Object.values(vizinhanca).flatMap((x) => x.v.filter((v) => v.tipo === tipo).map((v) => v.forca));
+  const zeros = fs_.filter((f) => f === 0).length;
+  const cor = zeros ? '\x1b[31m' : '\x1b[32m';
+  console.log(`  \x1b[1m${tipo.padEnd(11)}\x1b[0m ${String(fs_.length).padStart(4)} vínculos · ${ESCALAS[TIPOS[tipo].escala].lei}`);
+  console.log(`              mín ${q(fs_, 0).toFixed(3)} · MED ${q(fs_, 0.5).toFixed(3)} · P90 ${q(fs_, 0.9).toFixed(3)} · máx ${Math.max(...fs_).toFixed(3)} · distintos ${new Set(fs_).size} · ${cor}em zero ${zeros}\x1b[0m`);
+}
+
 if (SO_MEDIR) process.exit(0);
 
 // ─────────────────────────────────────────────────────── 6. o snapshot
@@ -230,8 +270,22 @@ const snapshot = {
   vinculos: desenhados,
   // A legenda do §3.2.2 viaja com o dado: quem desenha não tem de saber que `CO_EDITED` se lê como
   // "afinidade de trabalho". Tipo novo (o P6) chega com a própria legenda, sem tocar no renderer.
+  // ⚠️ `min`/`max` são a faixa OBSERVADA neste céu — descrição, não régua. A régua é `lei`, e ela
+  // não conhece população nenhuma. Campo a campo, para que ninguém acrescente um por espalhamento
+  // e descubra depois que o JSON o comeu calado.
   tipos: Object.fromEntries(
-    [...faixa].map(([tipo, f]) => [tipo, { ...TIPOS[tipo], min: f.min, max: f.max }])
+    [...faixa].map(([tipo, f]) => {
+      const t = TIPOS[tipo];
+      return [tipo, {
+        propriedade: t.propriedade,
+        unidade: t.unidade,
+        simetrica: t.simetrica,
+        escala: t.escala,
+        lei: ESCALAS[t.escala].lei,
+        min: f.min,
+        max: f.max,
+      }];
+    })
   ),
   // Por que `TOUCHED` não está aqui. Sem esta linha, a ausência dele lê como esquecimento.
   fora: { TOUCHED: 'liga Run→Astro: as duas pontas não são corpos, e desenhá-la entre astros afirmaria um fato não medido' },

@@ -46,7 +46,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 
 | KR | medida | hoje |
 |---|---|---|
-| KR2.1 | **estado de tela** tem dono único | ✗ **quatro** donos que não se conhecem (`#boot`, `modo`, `router.current`, `session.js`) |
+| KR2.1 | **estado de tela** tem dono único | ⭑ `core/tela.js` — camada · cena · rota num objeto só, `spatia.tela()`. ⚠️ `session.route` sobrevive **sem leitor** (handoff 0e) |
 | KR2.2 | **pose da câmera** tem nome próprio | ⚠️ `escalaLocal()`/`porteLocal()` separados em `scene.js` — **sem prova de tela** |
 | KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
 | KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 11 call sites · 1.080 perturbações) |
@@ -90,16 +90,17 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-03** | Foto do pulsar na bancada | `done` | — | — | KR3.2 |
 | **T-04** | `SceneDefinition` extraída de `setMode`, **sem mudar um número** | `done` | — | T-05, T-06, T-08 | KR2.3 |
 | **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `done` | — | — | KR2.4 |
-| **T-06** | `src/core/tela.js` — dono único do estado de tela | `todo` | — | T-13, T-14 | KR2.1 |
+| **T-06** | `src/core/tela.js` — dono único do estado de tela | `done` | — | T-13, T-14 | KR2.1 |
 | **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) | `done` | — | — | KR4.1 |
-| **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `doing` | — | T-15 | KR2.2 |
+| **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `done` | — | T-15 | KR2.2 |
 | **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `todo` | — | T-16 | KR1.1, KR1.2 |
 | **T-10** | `--resume` no `brain.py` | `todo` | — | — | KR4.2 |
 | **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
 | **T-12** | Força do vínculo no arco | `blocked` | substrato | — | — |
 | **T-30** | `forca` sai da UNIDADE do tipo, não dos extremos da amostra | `done` | — | T-12 | KR3.1 |
-| **T-13** | Splash | `blocked` | T-06 | — | KR2.1 |
-| **T-14** | Launcher / menu iniciar | `blocked` | T-06 | — | KR2.1 |
+| **T-31** | `scripts/lei-tela.mjs` — pôr o oráculo da tela ao lado dos outros | `todo` | — | — | KR2.1 |
+| **T-13** | Splash | `todo` | — | — | KR2.1 |
+| **T-14** | Launcher / menu iniciar | `todo` | — | — | KR2.1 |
 | **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
 | **T-16** | Modo Assistir | `blocked` | T-09 | — | KR1.3 |
 | **T-17** | `keyup` + `blur` no teclado — `keys.isHeld` e a lei da tecla que não fica presa | `done` | — | T-15 | — |
@@ -127,6 +128,12 @@ acontece nada?"*, que é o Princípio Final ao contrário.
   vínculos do fixture** e **312 de 313 `IMPORTS` do vivo (99,7%)** sairiam afirmando ausência sobre
   vínculo que existe. E `min`/`max` são amostra: os mesmos 3 commits davam **0,667** num céu de máx
   4 e **0,100** num de máx 21 — a força de um par dependendo de quem mais está no céu.
+
+- **T-31** — as 22 leis da tela (pureza, vocabulário da camada, a pilha que nunca esvazia, o
+  assinante reentrante que estabiliza em 2 emissões, e a rota batendo com o decodificador do
+  kernel em 12 de 12 endereços) já rodam em `node` sem navegador. **O que falta é o arquivo morar
+  em `scripts/`** — invariante provada uma vez e sem portão é invariante declarada na sessão
+  seguinte.
 
 - **T-29** — a bancada mostra que varrer a massa de 0 a 1 muda `core` de **0,100 para 0,160** e
   as duas ampliações do miolo saem **idênticas**: o brilho e os feixes dominam o disco. Quem carrega

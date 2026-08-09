@@ -571,6 +571,56 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * é levantada nos gestos reais (arrasto, roda) e no foco de um app.
    */
   let orbitMoved = false;
+
+  /**
+   * AS GRANDEZAS DA POSE, SEPARADAS — porque `orbit.distance` respondia a QUATRO perguntas.
+   *
+   * ⚠️ `orbit.distance` **não é uma distância às coisas**: é o raio de uma órbita em torno de uma
+   * ÂNCORA. Enquanto a âncora está em cima do que se olha os dois números coincidem; quando ela
+   * fica para trás eles divergem em silêncio, e o sintoma é *"cheguei perto e a pele não acendeu"* —
+   * que não aponta para a câmera em lugar nenhum. É a armadilha nº 5 (medir a grandeza errada
+   * parece medir) com um nome só servindo a perguntas diferentes.
+   *
+   * As quatro perguntas, e quem responde cada uma:
+   *
+   * | pergunta | grandeza | unidade | quem lê |
+   * |---|---|---|---|
+   * | qual o raio da minha órbita? | `orbit.distance` / `.targetDistance` | comprimento | posição da câmera, roda, amortecimento, `prefs`, a sonda |
+   * | quão longe está o que eu olho? | `escalaLocal()` | comprimento | escala do pan, amplitude da paralaxe |
+   * | que TAMANHO tem o que está aqui? | `porteLocal()` | raio de mundo | piso do zoom |
+   * | a que distância isto enche N px? | `chegada` (cada call site) | comprimento | `CENAS.chegada`, `adotarSistema`, o encaixe do foco, `universeAttach` |
+   *
+   * ⭑ **A terceira NÃO é distância** — confundi-la com as outras é o que faz um piso pensado para
+   * não atravessar um corpo virar um chão sem dono.
+   * ⭑ **A quarta é derivada de um ALVO NOMEADO** (o envelope daquele sistema, o raio daquele corpo),
+   * nunca de "onde eu estou" — por isso ela não passa por `escalaLocal`.
+   */
+
+  /**
+   * *"Quão longe está o que eu olho, daqui?"* — em unidades de mundo.
+   *
+   * Numa câmera que ORBITA, a resposta é o raio da órbita, e é por isso que ela devolve
+   * `orbit.distance` sem transformar nada. Uma câmera sem âncora (voo em primeira pessoa) não tem
+   * raio de órbita e continua tendo esta pergunta: é aqui, e só aqui, que a resposta muda.
+   */
+  function escalaLocal() {
+    return orbit.distance;
+  }
+
+  /**
+   * *"Que tamanho tem o que está aqui?"* — o raio de mundo do corpo que a câmera pode atravessar.
+   * `null` quando não há corpo de referência a consultar.
+   *
+   * Separada de `escalaLocal` porque **a unidade é outra**: um piso derivado de raio protege de
+   * atravessar um corpo; um piso derivado de distância é um chão sem dono. O corpo em FOCO vem
+   * antes do mais próximo porque é ele que a câmera está tentando alcançar.
+   */
+  function porteLocal() {
+    if (focusGeometry) return focusGeometry.radius;
+    if (modo === 'universo') return universe.corpoMaisProximo(anchor)?.radius ?? 0;
+    return null;
+  }
+
   /** O foco só se restaura UMA vez: recarga de topologia não deve arrastar a câmera de volta. */
   let focoRestaurado = false;
   /** O astro salvo esperando posição resolver. Ver `aplicarFocoPendente`. */
@@ -790,12 +840,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   /**
    * Translada a âncora livre no plano da tela. É o gesto que faltava para a câmera ir a algum lugar.
    *
-   * ⚠️ A escala sai da DISTÂNCIA e do fov, não de uma constante: um pixel de arraste tem de valer o
-   * mesmo tanto de tela perto e longe, senão o gesto vira teleporte num extremo e melado no outro.
+   * ⚠️ A escala sai da `escalaLocal` e do fov, não de uma constante: um pixel de arraste tem de
+   * valer o mesmo tanto de tela perto e longe, senão o gesto vira teleporte num extremo e melado no
+   * outro. A pergunta aqui é *"quão longe está o plano que estou arrastando"* — não o raio da
+   * órbita, que só por ora é o mesmo número.
    */
   function transladarLivre(dxPx, dyPx) {
     const alturaCss = Math.max(canvas.clientHeight, 1);
-    const k = (2 * Math.tan((camera.fov * Math.PI) / 360) * orbit.distance) / alturaCss;
+    const k = (2 * Math.tan((camera.fov * Math.PI) / 360) * escalaLocal()) / alturaCss;
     camera.getWorldDirection(PAN_FWD);
     PAN_RIGHT.crossVectors(PAN_FWD, camera.up).normalize();
     PAN_UP.crossVectors(PAN_RIGHT, PAN_FWD).normalize();
@@ -1441,8 +1493,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * — and they disagreed: the floor was farther out than the place focus flew to. Two rules over
    * one number is how the wheel ended up undoing the gesture that preceded it.
    *
-   * `focusGeometry` is written by the frame loop from the SAME anchor that sizes and places the
-   * body, so the floor cannot drift from the geometry it is protecting.
+   * `porteLocal()` lê o `focusGeometry` que o frame loop escreve pela MESMA âncora que dimensiona e
+   * posiciona o corpo, então o piso não pode divergir da geometria que ele protege.
    */
   function clampDistance(value) {
     /*
@@ -1456,17 +1508,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * alcançar 90 px. Nenhum planeta era alcançável, e a causa não era a pele.
      *
      * É a mesma forma do defeito da âncora: uma constante da outra cena viajando junto com o modelo
-     * de câmera. O piso é para não ATRAVESSAR um corpo, então ele tem de vir do corpo mais próximo —
-     * a mesma regra que o foco já usa (`FOCUS_FLOOR_RADII`), aplicada a quem está por perto em vez
-     * de a quem está travado.
+     * de câmera. O piso é para não ATRAVESSAR um corpo, então ele tem de vir do RAIO de um corpo —
+     * `porteLocal()` —, nunca de uma distância. `ZOOM_RANGE.min` fica sendo a última degradação:
+     * a cena AGENTE sem foco, onde a âncora é o núcleo do buraco negro e não há corpo a consultar.
      */
-    let floor = ZOOM_RANGE.min;
-    if (focusGeometry) {
-      floor = Math.max(focusGeometry.radius * FOCUS_FLOOR_RADII, CAMERA.near * 4);
-    } else if (modo === 'universo') {
-      const perto = universe.corpoMaisProximo(anchor);
-      floor = Math.max((perto?.radius ?? 0) * FOCUS_FLOOR_RADII, CAMERA.near * 4);
-    }
+    const raio = porteLocal();
+    const floor = raio === null
+      ? ZOOM_RANGE.min
+      : Math.max(raio * FOCUS_FLOOR_RADII, CAMERA.near * 4);
     return THREE.MathUtils.clamp(value, floor, ZOOM_RANGE.max);
   }
 
@@ -1877,10 +1926,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       camera.getWorldDirection(PARALLAX_FWD);
       PARALLAX_RIGHT.crossVectors(PARALLAX_FWD, camera.up).normalize();
       PARALLAX_UP.crossVectors(PARALLAX_RIGHT, PARALLAX_FWD).normalize();
-      // A amplitude acompanha a distancia: a 88 unidades sao ~1,3 de mundo, e ao travar num
-      // astro (distancia 7) cai para ~0,1 — sem isso, o mesmo deslocamento que e sutil de longe
-      // sacudiria o planeta na tela.
-      const amplitude = orbit.distance * PARALLAX_SCALE;
+      // A amplitude acompanha a `escalaLocal`: a 88 unidades sao ~1,3 de mundo, e ao travar num
+      // astro (escala 7) cai para ~0,1 — sem isso, o mesmo deslocamento que e sutil de longe
+      // sacudiria o planeta na tela. A pergunta e "quao longe esta o que eu olho", nao o raio da
+      // orbita: numa camera sem ancora a paralaxe continua tendo de encolher perto das coisas.
+      const amplitude = escalaLocal() * PARALLAX_SCALE;
       PARALLAX_SHIFT.set(0, 0, 0)
         .addScaledVector(PARALLAX_RIGHT, PARALLAX_AIM.x * amplitude)
         .addScaledVector(PARALLAX_UP, PARALLAX_AIM.y * amplitude);
