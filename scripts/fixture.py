@@ -74,6 +74,28 @@ def f(caminho: str, estado: str, chunks: int, assunto: str, commits: int = 0) ->
 # A coluna `chunks` é a massa: ela decide o tamanho do corpo e, somada por diretório, a
 # concentração que escolhe a classe da galáxia.
 ARQUIVOS = [
+    # ── REMANESCENTE ESTELAR → PULSAR (§2.7.1 do replanejamento: a MASSA decide qual cadáver).
+    #
+    # Três condições, e as três são estruturais — não dá para obter nenhuma por acidente:
+    #
+    #   GIGANTE   `porteEstelar(chunks) === 'gigante'`, isto é >= ESCADA.ESTRELA*4 = 80 chunks.
+    #   FRIO      `commits=0` → `churn` 0. A atividade tem de ter ACABADO.
+    #   VELHO     `recency <= 0,25`. Aqui idade é POSIÇÃO: o lote histórico commita na ordem de
+    #             `ARQUIVOS`, em sete levas de 210 a 30 dias atrás. Por isso o espécime nasce no
+    #             TOPO da lista — no fim dela ele sairia recente e a condição falharia em silêncio.
+    #
+    # ⚠️ E os dois companheiros não são enfeite: `classificar()` limita não-dominante a planeta
+    # ("degrau de massa, COM TETO EM PLANETA"), então só o DOMINANTE de um sistema alcança o ramo
+    # `case 'estrela'` onde o pulsar mora. Um arquivo grande solto num diretório de outro dono
+    # nunca chegaria lá. Com eles, `colapso/` é um sistema cuja estrela está morta — que é o caso
+    # real (PSR B1257+12 tem planetas em volta de um pulsar).
+    #
+    # ⚠️ `varredura/pulsar/` continua existindo e serve ao modelo ANTERIOR (roteamento por
+    # regularidade de cadência), que o §2.7.1 substituiu. Ele não foi removido aqui para não
+    # misturar duas mudanças; quem fechar aquela pendência decide o destino dele.
+    f("colapso/remanescente.md", LIMPO, 120, "estrela morta: massa alta, atividade encerrada"),
+    f("colapso/orbita-a.md", LIMPO, 5, "companheiro do remanescente"),
+    f("colapso/orbita-b.md", LIMPO, 4, "companheiro do remanescente"),
     # doc → PLANETA
     f("atlas/README.md", LIMPO, 12, "visão geral do atlas"),
     f("atlas/docs/guia.md", MODIFICADO, 22, "guia de operação"),

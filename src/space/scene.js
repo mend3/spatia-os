@@ -46,7 +46,7 @@ import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
 import { createStation, stationParams } from './station.js';
 import { createComet, cometParams, LOD_FAR_PX as COMETA_FAR } from './comet.js';
-import { createPulsar, pulsarParams } from './pulsar.js';
+import { createPulsar, pulsarParams, LOD_FAR_PX as PULSAR_FAR } from './pulsar.js';
 import { createNebula, nebulaParams } from './nebula.js';
 
 /*
@@ -273,6 +273,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const poolPlaneta = [];
   const poolFotosfera = [];
   const poolCometa = [];
+  const poolPulsar = [];
   /** `planetParams`/`photosphereParams` são PUROS e caros: derivá-los por quadro seria desperdício. */
   const paramsPorFonte = new Map();
   let pelesVizinhas = { desenhadas: 0, teto: PELES_VIZINHAS_MAX, cortadas: 0, corpos: [] };
@@ -318,6 +319,22 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       },
       // O cometa segue o idioma do caminho de foco: as morfológicas somem por `visible`, porque a
       // coma e as caudas não têm rampa de nível própria para descer.
+      esconder: (pele) => { pele.object.visible = false; },
+    },
+    /*
+     * O PULSAR entrou no pool em 2026-08-08, quando deixou de ter população zero — o §2.7.1 do
+     * `replanejamento-celeste.md` roteou o cadáver de um GIGANTE para cá. Antes disso ele estava
+     * fora por um motivo que não existe mais: pool para população inexistente é código sem quem o
+     * exerça, e a bancada não teria como provar que ele desenha.
+     *
+     * ⚠️ Ele NÃO alimenta a lente. Quem dobra a luz é o `corpoDaLente`, e ele só olha o corpo em
+     * FOCO — uma lente por pulsar visível estouraria o quadro (o pós já é 89–97% dele). O oráculo
+     * `lente-estelar.mjs` audita aquele caminho, não este.
+     */
+    [SURFACE.PULSAR]: {
+      pool: poolPulsar, criar: createPulsar, far: PULSAR_FAR,
+      params: (node) => pulsarParams(node, graph.kindColor(node.kind)),
+      desenhar: (pele, base, c, elapsed) => pele.update(base, c.px, elapsed, motion.isReduced(), camera),
       esconder: (pele) => { pele.object.visible = false; },
     },
   };
@@ -2170,7 +2187,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * a mostrar, e é a mesma grandeza que o `LOD_FAR_PX` de cada pele já usa para decidir se vale
      * desenhar. Duas réguas para "quem ganha pele" divergiriam na primeira mudança de fov.
      */
-    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa]) p.usado = false;
+    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa, ...poolPulsar]) p.usado = false;
     const vizinhas = [];
     let cortadas = 0;
     if (modo === 'universo') {
@@ -2194,7 +2211,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // Slot que ninguém pediu neste quadro tem de PARAR DE DESENHAR. `px = 0` derruba o nível de
     // detalhe a zero e o próprio módulo esconde o grupo — o mesmo caminho que o corpo em foco usa
     // ao soltar, e não um `visible = false` por fora que a pele não saberia explicar.
-    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa]) {
+    for (const p of [...poolPlaneta, ...poolFotosfera, ...poolCometa, ...poolPulsar]) {
       if (p.usado || !p.fonte) continue;
       ROTAS_DO_POOL[p.rota]?.esconder(p.pele, paramsPorFonte.get(p.fonte), elapsed);
       p.fonte = null;

@@ -107,6 +107,13 @@ export function superficieDe(classe, fisica, fenomenosAtivos = []) {
      * eixos que a inversão nº 1: um estado desenhado como se fosse outra natureza.
      */
     case 'estrela':
+      /*
+       * ⚠️ **UMA ESTRELA MORTA NÃO TEM FOTOSFERA.** O §2.7.1 fecha a pendência que o §2.7 abriu: a
+       * dependência do pulsar era MASSA, não tempo. Quem responde é `remanescente()`, e ele já
+       * distinguiu — `colapso` é o cadáver de um GIGANTE, `ana-branca` é o de todos os outros.
+       * Os dois nunca convivem, por construção: um corpo tem UM cadáver.
+       */
+      if (fenomenosAtivos.includes('colapso')) return SUPERFICIE.PULSAR;
       return SUPERFICIE.FOTOSFERA;
     /*
      * PLANETA e LUA compartilham a pele: os dois são corpos SÓLIDOS que refletem, e a diferença
@@ -136,14 +143,16 @@ export function superficieDe(classe, fisica, fenomenosAtivos = []) {
  *
  * Declarar só o que se aceita não basta: quem ler a tabela e não achar `estacao` precisa saber se
  * foi decisão ou esquecimento. E as duas ausências aqui têm motivos de naturezas diferentes.
+ *
+ * ⭑ **`pulsar` SAIU desta lista em 2026-08-08.** Ele estava aqui porque *"pulsar é o que sobra de
+ * uma supernova, e essa dependência não existe em código"*. O §2.7.1 do `replanejamento-celeste.md`
+ * a resolveu: a dependência era MASSA, não tempo — supernova e estrela de nêutrons são duas
+ * consequências da mesma causa. Hoje ele é roteado pelo fenômeno `colapso`, e tem população.
  */
 export const AUSENTES_NA_TABELA = Object.freeze({
   station: 'a estação é objeto CONSTRUÍDO e representa um AGENTE (§8 do replanejamento: não tem '
     + 'análogo natural). A cena UNIVERSO desenha conhecimento, não agentes — ela volta quando o '
     + 'rótulo `Agent` do Neo4j tiver população, que hoje é 0',
-  pulsar: 'pulsar é o que SOBRA de uma supernova (§2.7), e essa dependência não existe em código: '
-    + 'hoje as duas feições saem de fatos independentes. Roteá-lo por regularidade repetiria o '
-    + 'defeito de população zero que o `censo-corpus` já acusou',
   nebula: 'nebulosa é berço ou cadáver (§3.2), e nenhum dos dois é propriedade de UM corpo: berço é '
     + 'região de arquivos novos, cadáver é a casca que a supernova já desenha. Ela é feição de '
     + 'REGIÃO, e a cena ainda não tem esse nível',

@@ -19,6 +19,7 @@
  * reimplementar picking à mão.
  */
 import * as THREE from 'three';
+import { entityPhysics, remanescente } from './entity-physics.js';
 import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
@@ -842,7 +843,17 @@ export function createGraph() {
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
       supernovae[i] = node.type === 'file' ? node.supernova || 0 : 0;
-      dwarfs[i] = node.type === 'file' ? node.dwarf || 0 : 0;
+      /*
+       * ⚠️ **`node.dwarf` é FATO, não classe.** Ele diz "a atividade acabou e sobrou massa" — e o
+       * cadáver que isso produz depende da MASSA: gigante colapsa em estrela de nêutrons, o resto
+       * vira anã branca (§2.7.1 do `replanejamento-celeste.md`). Lendo o campo cru, o aro fino
+       * azul-branco caía também sobre um PULSAR, e um corpo não tem dois cadáveres.
+       *
+       * Quem responde é `remanescente()`, o mesmo chamado que `fenomenos()` faz. Uma lei, dois
+       * chamadores — escrita nos dois lugares ela divergiria, e a divergência seria invisível até
+       * alguém fotografar um pulsar com aro de anã branca.
+       */
+      dwarfs[i] = node.type === 'file' && remanescente(entityPhysics(node), node) === 'ana-branca' ? 1 : 0;
       seeds[i] = starSeed(node);
       color.setHex(KIND_COLORS[node.kind] ?? KIND_COLORS.other);
       colors.set([color.r, color.g, color.b], i * 3);

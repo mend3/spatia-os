@@ -319,6 +319,43 @@ export function porteEstelar(chunks) {
 }
 
 /**
+ * QUAL CADÁVER este corpo é — ou `null`, se ainda não é um. Ver §2.7.1 do `replanejamento-celeste`.
+ *
+ * ## A lei tem DOIS chamadores, e por isso mora aqui
+ *
+ * `fenomenos()` decide o modificador (o aro da anã branca, a pele do pulsar) e `graph.js` decide o
+ * atributo `aDwarf` do sprite. Escrita nos dois lugares ela divergiria — e a divergência seria um
+ * corpo com aro de anã branca E pele de pulsar ao mesmo tempo. **Um corpo tem UM cadáver.**
+ *
+ * ## Por que a MASSA, e não a supernova
+ *
+ * A tentação é exigir que o corpo TENHA TIDO supernova. Isso pede história, e o modelo não tem:
+ * `node.supernova` é estado presente. Medido no fixture — supernova são corpos com `churn 27` e
+ * `recency ~0,8` (explodindo AGORA); remanescentes têm `churn 0` e `recency ~0,1` (já frios). A
+ * interseção é ZERO e sempre será: a janela nunca vê os dois no mesmo corpo.
+ *
+ * ⚠️ **A física não liga o cadáver ao evento — liga os dois à MASSA DO PROGENITOR.** Abaixo de
+ * ~8 M☉ a estrela termina como anã branca sem explodir; acima, o núcleo colapsa. Supernova e
+ * estrela de nêutrons são duas consequências da MESMA causa, não uma consequência da outra.
+ * Modelar como sequência seria copiar a narrativa; modelar pela massa é copiar a causa.
+ *
+ * O corte é `porteEstelar === 'gigante'` (`ESCADA.ESTRELA × 4` = 80), que já existia. Nenhuma
+ * constante nova, e nenhum limiar escolhido para caber numa população.
+ *
+ * ⚠️ **`node.dwarf` do servidor é FATO, não classe.** Ele diz *"a atividade acabou e sobrou massa"*;
+ * qual cadáver isso produz é decisão de ontologia, e é aqui. Ler `node.dwarf` como se fosse a classe
+ * é a inversão que a REGRA DO CATÁLOGO proíbe.
+ *
+ * @returns {'pulsar'|'ana-branca'|null}
+ */
+export function remanescente(fisica, node) {
+  const acabou = node.dwarf === 1
+    || (fisica.chunks >= CHUNKS_REMANESCENTE && fisica.activity === 0 && fisica.dormant === 0 && fisica.age <= 0.25);
+  if (!acabou) return null;
+  return porteEstelar(fisica.chunks) === 'gigante' ? 'pulsar' : 'ana-branca';
+}
+
+/**
  * Os fenômenos ATIVOS num corpo. Vários podem ser verdade ao mesmo tempo.
  *
  * ⚠️ Nenhum deles troca a classe do corpo — é a lição da supernova, que reprovou como classe
@@ -354,7 +391,15 @@ export function fenomenos(fisica, node) {
   if (fisica.activity > 0.08) {
     lista.push({ tipo: 'atividade-de-cometa', motivo: 'trabalho recente: coma e cauda' });
   }
-  if (node.dwarf === 1 || (fisica.chunks >= CHUNKS_REMANESCENTE && fisica.activity === 0 && fisica.dormant === 0 && fisica.age <= 0.25)) {
+  const cadaver = remanescente(fisica, node);
+  if (cadaver === 'pulsar') {
+    /*
+     * O cadáver de um GIGANTE. Fenômeno e não classe, pela mesma lição da supernova: nenhum deles
+     * troca a classe do corpo — quem o lê e escolhe a pele é `superficieDe`.
+     */
+    lista.push({ tipo: 'colapso', motivo: 'massa que colapsou: gigante cuja atividade acabou' });
+  }
+  if (cadaver === 'ana-branca') {
     lista.push({ tipo: 'ana-branca', motivo: 'massa que sobrou depois que a atividade acabou' });
   }
   if (fisica.dormant >= 2 && fisica.activity === 0) {
