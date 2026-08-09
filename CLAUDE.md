@@ -383,6 +383,16 @@ mutar é resultado a INVESTIGAR, nunca a comemorar.
 ⚠️ **Commite por ARQUIVO, nunca por diretório**, quando houver outra sessão escrevendo — `git add
 docs/` já varreu trabalho alheio para dentro de um commit uma vez.
 
+⭑ **Estas regras deixaram de depender de memória.** `.claude/hooks/` tem os guardas do AGENTE,
+versionados e legíveis, ligados em `.claude/settings.json`: `guarda-bash.sh` RECUSA estagiar por
+diretório (a checagem é `[ -d ]`, não nome); `par-de-docs.sh` MEDE se `HANDOFF.md` e `roadmap.md`
+divergiram e só fala quando divergiram; `estado-da-sessao.sh` injeta o estado VIVO da árvore —
+branch, sujos, portão armado ou não — e **nada de doutrina**, que já mora aqui.
+⚠️ **O escopo do `guarda-bash` é estreito de propósito:** as duas formas de burlar o portão já são
+recusadas por um hook no nível do USUÁRIO — medido, visto bloqueando. Reimplementá-las aqui seria a
+segunda fonte para a mesma recusa.
+⚠️ **E hook nenhum prova por MUTAÇÃO** — isso continua sendo trabalho de quem revisa.
+
 ⭑ **O corpo do commit é LONGO aqui de propósito**, com a medida que decidiu cada número: ele é o
 lugar da história, e é o que permite aos docs não a contarem.
 
