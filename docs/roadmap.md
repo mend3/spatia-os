@@ -28,16 +28,24 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 
 ### O1 — O universo está VIVO sem o operador perguntar
 
-> Princípio 6 e a Regra dos Cinco Minutos. **Não está bloqueado por render: está bloqueado por não
-> haver quem emita.** `/api/system-events` é SSE vivo, o cliente despeja no barramento, a cena já
-> desenha — e do outro lado da fila há **um único produtor** (`webhooks.subscribe()`). O tubo está
-> montado e vazio.
+> Princípio 6 e a Regra dos Cinco Minutos. ☠️ **A fila tem produtor e continua em silêncio, e isso
+> é o desenho certo:** o vigia de `ambient.py` dispara por TRANSIÇÃO, e num sistema parado não há
+> transição. Medido: **0 eventos em 301 s** (handoff §6). **"Vivo" não pode significar "tem
+> novidade"** — quem depende de novidade para parecer vivo acaba inventando repetição. Significa
+> que o que a tela afirma é do presente, ou diz de quando é.
 
 | KR | medida | hoje |
 |---|---|---|
-| KR1.1 | existe produtor ambiental emitindo **sem pergunta do operador** | ✗ 1 produtor, reativo |
+| KR1.1 | existe produtor ambiental emitindo **sem pergunta do operador** | ⭑ `server/ambient.py` — vigia de 5 observadores por TRANSIÇÃO, a cada `SCAN_SECONDS` |
 | KR1.2 | `notice` carrega `severity` e a tela distingue ruído de aviso | ⭑ cabeça da timeline (`hud/streams.js`): `warn`/`alert` de pé com `action`, `info` apaga |
-| KR1.3 | cinco minutos parado produzem evento legítimo (não sintético) | ✗ |
+| KR1.3 | cinco minutos parado produzem evento legítimo (não sintético) | ☠️ **0 eventos em 301 s**, medido na assinatura real — e está CERTO: 3 dos 5 observadores não têm como disparar hoje, 2 são eco de comando humano (handoff §6) |
+| KR1.4 | cinco minutos parado, o que a tela afirma no presente **foi medido no presente** | ⭑ `watchHealth` + a idade da aferição; leitura vencida para de afirmar sem apagar o medido |
+
+☠️ **KR1.3 mede a coisa errada, e a medida é que mostrou.** Contar EVENTOS faz "vivo" depender de o
+sistema ter novidade — e o produtor certo, que dispara por transição, fica em silêncio justamente
+quando nada mudou. Encher a fila para o KR fechar é inventar heartbeat, que é o que ensina o
+operador a não ler a tela (`ambient.py` recusa por escrito). O que a Regra dos Cinco Minutos cobra é
+**KR1.4**: ao fim dos cinco minutos, o que está na tela tem de ser do presente, ou dizer que não é.
 
 ### O2 — Todo estado tem UM dono
 
@@ -97,8 +105,10 @@ por vez, e isso se baixa do item. Os links por modelo estão em
 ## As tarefas
 
 ⚠️ **A ordem não é valor puro: é destravar o maior número de briefings por peça**, e não construir
-tela que assista ao vazio — Modo Assistir antes do produtor **cria** a pergunta *"por que não
-acontece nada?"*, que é o Princípio Final ao contrário.
+tela que assista ao vazio. ☠️ **E o produtor não bastou:** com ele de pé a fila entrega **0 eventos
+em 301 s**, porque ele dispara por transição. Superfície nova pede a medida do que ela vai mostrar
+ANTES de existir — *"por que não acontece nada?"* é o Princípio Final ao contrário, e nasce igual
+com ou sem produtor.
 
 | id | tarefa | status | blocked_by | blocks | OKR |
 |---|---|---|---|---|---|
@@ -110,7 +120,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-06** | `src/core/tela.js` — dono único do estado de tela | `done` | — | T-13, T-14 | KR2.1 |
 | **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) | `done` | — | — | KR4.1 |
 | **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `done` | — | T-15 | KR2.2 |
-| **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `todo` | — | T-16 | KR1.1, KR1.2 |
+| **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `done` | — | T-16 | KR1.1, KR1.2 |
 | **T-10** | `--resume` no `brain.py` | `done` | — | T-37 | KR4.2 |
 | **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
 | **T-12** | Força do vínculo no arco | `blocked` | substrato | — | — |
@@ -118,7 +128,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-13** | **Reescrever a TELA DE ENTRADA** — o `#boot` vira a abertura, com o diagnóstico dentro | `todo` | — | — | KR2.1 |
 | **T-14** | Launcher / menu iniciar | `todo` | — | — | KR2.1 |
 | **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
-| **T-16** | Modo Assistir | `blocked` | T-09 | — | KR1.3 |
+| **T-16** | Modo Assistir — **não é um modo**: é a AFERIÇÃO do que a tela já afirma | `done` | — | — | KR1.3 |
 | **T-17** | `keyup` + `blur` no teclado — `keys.isHeld` e a lei da tecla que não fica presa | `done` | — | T-15 | — |
 | **T-18** | Um diretório sem agregado é um sistema? (handoff 0b) | `done` | — | — | — |
 | **T-36** | `conectividade.mjs` agrupa como a cena agrupa — e o ρ com o tamanho do sistema NÃO era o filho único | `done` | — | — | KR3.1 |
@@ -138,8 +148,31 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | — | — |
 | **T-35** | **FAVORITOS** — fase 1 (modelo + persistência) `done`; a INTERFACE é a fase 2 | `doing` | — | T-34 | KR2.1 |
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
+| **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `todo` | — | T-35 | KR2.4 |
+| **T-39** | A cena AGENTE não usa a ontologia — `lei-cena.mjs` não alcança esse caminho | `todo` | — | — | KR2.4 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-38 / T-39** — relatado com foto: o painel diz `ESTAÇÃO · agent` e o favorito oferece TERRA,
+  MARTE, JÚPITER… Medido em `atlas/.claude/agents/revisor.md`:
+
+  | caminho | resultado |
+  |---|---|
+  | `kind: agent` → `solver.js` (cena **AGENTE**) | desenha **ESTAÇÃO** |
+  | `superficieDe` (cena **UNIVERSO**) | pele **`planet`** |
+  | `contextoDe` → opções do favorito | `planetario` |
+
+  ☠️ **São DUAS TAXONOMIAS vivas, e o favorito escolheu uma sem saber que havia outra.** O painel
+  lê o que a cena DESENHA; o favorito lê a ontologia. Oferecer mapa equiretangular a um objeto
+  desenhado como malha construída é oferecer o que não se aplica.
+  ⭑ **T-38** é o conserto imediato: o contexto sai da pele que a CENA CORRENTE desenha, não de uma
+  das duas fixa. ⚠️ Consequência que precisa ser dita na tela: o mesmo corpo oferece opções
+  diferentes em cada cena — porque ele É desenhado diferente em cada uma.
+  ☠️ **T-39 é o buraco no oráculo, e é o mais grave.** `lei-cena.mjs` prova que a cena não
+  contamina `classificar`/`superficieDe` — e **não alcança a cena AGENTE**, que não os chama: ela
+  usa `resolveBody` (`solver.js`), a taxonomia por `kind` que a Fase B refutou (228 de 228
+  agregados virando galáxia). A lei passa enquanto as duas cenas discordam sobre o mesmo corpo.
+  **Provar "a cena é uma lente" exige provar que as duas OLHAM PELA MESMA ontologia.**
 
 - **T-13** — ☠️ **Splash como CAMADA PRÓPRIA está refutada por uso**: ela virou uma SEGUNDA parede
   entre o diagnóstico e o céu, e chegou a desenhar a marca **por cima do céu vivo**. E o que ela
@@ -163,6 +196,31 @@ acontece nada?"*, que é o Princípio Final ao contrário.
   ⭑ Ela **muda o que vale baixar**: com favoritos, planeta nomeado passa a ter uso, e a lista do
   Solar System Scope (Terra, Marte, Júpiter, Saturno, Vênus, Mercúrio, Netuno, Urano) deixa de ser
   inútil aqui. **T-35 vem antes de T-34.**
+  ⭑ **As três condições estão fechadas.** A terceira mora em `hud/favoritos-ui.js`, desenhada na
+  seção FAVORITO do painel de CONTEXTO (`apps/context.js`), com gesto em `F` e sonda em
+  `spatia.favoritos()`. 99 leis sem navegador em `scripts/lei-favoritos-ui.mjs`, 12 mutações vistas
+  reprovando. **O que falta é FOTO**, e são três coisas que só ela julga: a faixa de `degradada`
+  em `--busy` se lendo como ANÚNCIO sobre o fundo do painel, os 8 chips de aparência cabendo na
+  régua de 250 px do trilho sem virar rolagem, e `F` chegando ao alvo que o painel nomeia.
+  ⚠️ **Nada da marca alcança o pixel do CÉU** — a escolha é registrada e `emDisco` é `null` porque
+  ninguém mediu o disco. Quem transformar `null` em medida é o carregador de textura de T-34, por
+  `declararEmDisco()`.
+- **T-16** — ☠️ **MODO ASSISTIR COMO MODO ESTÁ REFUTADO POR MEDIDA.** A fila que ele assistiria
+  entregou **0 eventos em 301 s** de assinatura real ao `/api/system-events` (handoff §6, com a
+  tabela dos cinco observadores). Uma superfície que assiste ao vazio CRIA a pergunta *"por que não
+  acontece nada?"* — o Princípio Final ao contrário — e um terceiro eixo de estado ao lado de
+  `view.cinematic` seria o segundo lugar pintando estado, já medido como defeito.
+  ⭑ **O que a medida achou no lugar:** a tela afirmava o presente com uma leitura do BOOT. Entregue
+  como comportamento de quem já tem dono (`hud/frame.js` + `watchHealth` em `main.js`), sem camada,
+  sem cena, sem rota — **`core/tela.js` não é tocado, e `PERMITIDOS` não muda**. 44 leis sem
+  navegador em `scripts/lei-afericao.mjs`, 16 mutações vistas reprovando.
+  ⚠️ **O que falta é FOTO**, e são duas coisas que só ela julga: a idade a 8 px cabendo ao lado dos
+  cinco pontos sem empurrar o CONTEXTO da faixa central, e o ponto sem `box-shadow` a 45% se lendo
+  como *"isto não é o presente"* em vez de como mais um ponto apagado.
+  ⚠️ **Recusado por escrito:** repetir o aviso, emitir no barramento a cada volta e escrever linha
+  de timeline por aferição — os três são a repetição que `ambient.py` e `streams.js` proíbem. E
+  realimentar `installProviders`/`showProviders`/`voice.applyHealth` no laço: eles MONTAM coisa, e
+  remontar não é aferir.
 - **T-34** — os links por modelo estão em [`../assets/CREDITS.md`](../assets/CREDITS.md).
   ⚠️ Malha resolve FORMA, não CLASSE: usar um asteroide para todos repete o erro que a textura de
   planeta cometeria. Sortear por semente do caminho, como o terreno do planeta já faz. E o custo de
@@ -252,7 +310,7 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `multi-scene.md` | T-04 | idem — é o mesmo assunto por outro nome |
 | `splash-screen.md` | T-13 | `tela.js` existir e a splash montar nele |
 | `menu-iniciar.md` | T-14 | idem |
-| `entrevista-usuario.md` | T-09, T-16, T-07 | o produtor ambiental emitir e o Modo Assistir ler |
+| `entrevista-usuario.md` | T-09, T-16, T-07 | ⚠️ as três estão `done` e ele **não morre**: 923 linhas, 15 expectativas, e só três tinham tarefa. Reler para extrair as próximas — **e sem confundir emitir com afirmar** (handoff §7-B) |
 | `black-hole-router.md` | — | ⚠️ o item favorito do autor (`cogload` → `setLoad`) **já existe ponta a ponta** |
 | `gravidade-entrelacamento.md` | T-12, T-22 | T-12 entregue e T-22 decidida |
 | `orbita-eliptica.md` | T-11 | ⚠️ a órbita elíptica **já está feita e medida** (área varrida máx/mín 1,0008) — resta o TRAÇO |
