@@ -366,6 +366,19 @@ async function main() {
        * a sonda devolve um quadro velho com toda a cara de presente.
        */
       pixels: () => scene.universePixels(),
+      /**
+       * Onde a câmera desta cena está ancorada, e por quê: `spatia.universo.ancora()`.
+       *
+       * A origem deixou de ser o padrão — ela é a última degradação. Ver `scene.universeAnchor`.
+       */
+      ancora: () => scene.universeAnchor(),
+      /** Adota um sistema e chega nele: `spatia.universo.irPara(3)`. */
+      irPara: (i) => scene.universeGoTo(i),
+      /**
+       * Anexa um corpo como alvo padrão da câmera: `spatia.universo.anexar('<source>')`.
+       * Sem argumento (ou `null`) desanexa e devolve ao VOO LIVRE, que é o padrão desta cena.
+       */
+      anexar: (source = null) => scene.universeAttach(source),
     },
   });
 

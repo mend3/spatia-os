@@ -718,6 +718,66 @@ export function createUniverse() {
     tipoDe: (source) => tipos.get(source) ?? null,
 
     /**
+     * Os sistemas desta cena — id, centro, envelope. É o que permite à câmera orbitar ALGO.
+     *
+     * ## Por que ela existe
+     *
+     * A cena UNIVERSO nasceu com a câmera da cena AGENTE, e lá a origem é o buraco negro: um objeto
+     * real, que se orbita porque ele está lá. Aqui a origem é **vazio**, e orbitá-la afirma um
+     * centro que esta cena existe para negar — o mesmo argumento que o `CORPO_VS` já aplica à luz
+     * (*"luz global afirmaria de novo um centro único"*). A luz obedecia; a câmera não.
+     *
+     * ⚠️ Devolve CÓPIAS das posições. As de dentro são reescritas por quadro pela órbita, e quem
+     * guardar a referência passa a seguir um alvo que se mexe sozinho — que é o defeito que o
+     * `anchorTarget` da cena já pagou uma vez.
+     */
+    sistemas: () =>
+      centros.map((c, i) => ({ i, id: c.sistema, pos: c.pos.clone(), envelope: c.envelope, raioEstrela: c.raio })),
+
+    /**
+     * A que sistema um corpo pertence. `null` se ele não está nesta cena.
+     *
+     * Os índices são `[...estrelas, ...planetas]`: abaixo de `centros.length` o corpo É a estrela
+     * do sistema; acima, ele orbita `orbitas[k].centro`. Uma única fonte para os dois casos —
+     * derivar isto no chamador seria a segunda cópia de um layout que só este módulo conhece.
+     */
+    sistemaDe(source) {
+      const i = indiceDe.get(source);
+      if (i === undefined) return null;
+      return i < centros.length ? i : (orbitas[i - centros.length]?.centro ?? null);
+    },
+
+    /**
+     * O sistema mais próximo de um ponto, e a distância até ele.
+     *
+     * ⚠️ Sem histerese aqui de propósito: quem decide TROCAR é a cena, que sabe se o operador está
+     * no meio de um gesto. Uma histerese enterrada aqui piscaria a âncora em dois lugares e o
+     * diagnóstico seria "a câmera treme", que não aponta para lugar nenhum.
+     */
+    sistemaMaisProximo(ponto) {
+      let melhor = null;
+      for (let i = 0; i < centros.length; i++) {
+        const d = centros[i].pos.distanceTo(ponto);
+        if (!melhor || d < melhor.dist) melhor = { i, dist: d, id: centros[i].sistema };
+      }
+      return melhor;
+    },
+
+    /**
+     * O centroide dos sistemas — o pivô do estado LARGO, e ele é uma PENDÊNCIA declarada.
+     *
+     * ⚠️ Ele não é a origem, mas ainda é um centro: computado, não privilegiado. Para ver o
+     * universo inteiro é preciso orbitar alguma coisa, e enquanto não houver voo livre (opção 1 do
+     * plano de 08/08) esta é a escolha menos ruim. **Decisão do usuário, não fechada.**
+     */
+    centroideDosSistemas() {
+      const c = new THREE.Vector3();
+      if (!centros.length) return c;
+      for (const s of centros) c.add(s.pos);
+      return c.multiplyScalar(1 / centros.length);
+    },
+
+    /**
      * O ganho do ARO da estrela. Lê sem argumento; força com argumento. Mesma forma do
      * `planet.termos`, e pelo mesmo motivo.
      *
@@ -1320,7 +1380,9 @@ export function createUniverse() {
           orbitas.push({ centro: i, a, e, rp, fase: hash01(f.id, 53) * Math.PI * 2, inc, giro,
             n: MOVIMENTO_MEDIO * Math.pow(raio / a, 1.5), brilho: brilhoDe(f, usoVale) });
         });
-        return { pos, raio, sistema: s.agg.id };
+        // `envelope` viaja junto porque a CÂMERA precisa dele: é o volume que o
+        // empacotamento reservou a este sistema, e é ele que decide a que distância se CHEGA nele.
+        return { pos, raio, sistema: s.agg.id, envelope };
       });
 
       corpos = [...estrelasPorFonte, ...planetasPorFonte];

@@ -516,6 +516,90 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   // ao fundo. `anchor` interpola entre a origem (sistema) e a posição do corpo.
   const anchor = new THREE.Vector3();
   const anchorTarget = new THREE.Vector3();
+
+  /*
+   * O SISTEMA CORRENTE — o que a câmera do UNIVERSO orbita quando nada está em foco.
+   *
+   * ## Por que ele existe
+   *
+   * `anchorTarget.copy(bodyAt || ZERO)` punha a câmera a orbitar a ORIGEM. Na cena AGENTE isso é
+   * certo — a origem é o buraco negro, um objeto que está lá. Na UNIVERSO **não há nada ali**, e
+   * orbitar o vazio afirma um centro que esta cena existe para negar. Escrito pelo usuário em
+   * 08/08: *"não existe centro no universo real"*.
+   *
+   * ⚠️ **E o defeito não era a âncora, era a falta de deslocamento.** Medido no mesmo dia: o
+   * arraste move só `azimuth`/`polar`, a roda move só `distance`, e a posição é derivada inteira
+   * (`anchor + direção × distância`). A câmera não sabe transladar — o único jeito de a âncora
+   * mudar era travar num corpo. Trocar `ZERO` por um sistema sem dar como TROCAR de sistema teria
+   * mudado qual vazio se orbita, e nada mais.
+   *
+   * Por isso a adoção viaja junto com o foco: travar num corpo adota o sistema DELE, e soltar o
+   * foco deixa a câmera lá — que é o "sair de um é adotar outro" sem inventar gesto novo.
+   */
+  let sistemaCorrente = null;
+  const ANCORA_LARGA = new THREE.Vector3();
+
+  /*
+   * VOO LIVRE — o padrão desta cena desde 08/08, por decisão do usuário.
+   *
+   * `ancoraLivre` é onde a câmera olha quando nada está em foco e nada está anexado. Ela não é um
+   * lugar privilegiado: começa no centroide só para o primeiro quadro ter um alvo, e a partir daí
+   * quem a move é o operador (arraste com SHIFT ou botão do meio) ou uma chegada a sistema.
+   *
+   * ⚠️ **Ela é o que faltava para "não existe centro".** Trocar a origem por um sistema mudava qual
+   * ponto se orbita; só a translação livre remove a pergunta "orbitando o quê". Medido antes: o
+   * arraste movia só ângulo e a roda só raio — a câmera não sabia transladar, e por isso a âncora
+   * era destino, não posição.
+   *
+   * `objetoAnexado` é o degrau intermediário pedido junto: um corpo que a câmera adota como alvo
+   * padrão, viajando com ele. Hoje é um corpo qualquer do céu, como prova de conceito; o destino é
+   * uma sonda 3D representando o operador, e aí ela passa a ser quem "detém o centroide".
+   */
+  const ancoraLivre = new THREE.Vector3();
+  let ancoraLivreIniciada = false;
+  let objetoAnexado = null;
+  const PAN_FWD = new THREE.Vector3();
+  const PAN_RIGHT = new THREE.Vector3();
+  const PAN_UP = new THREE.Vector3();
+
+  /**
+   * Translada a âncora livre no plano da tela. É o gesto que faltava para a câmera ir a algum lugar.
+   *
+   * ⚠️ A escala sai da DISTÂNCIA e do fov, não de uma constante: um pixel de arraste tem de valer o
+   * mesmo tanto de tela perto e longe, senão o gesto vira teleporte num extremo e melado no outro.
+   */
+  function transladarLivre(dxPx, dyPx) {
+    const alturaCss = Math.max(canvas.clientHeight, 1);
+    const k = (2 * Math.tan((camera.fov * Math.PI) / 360) * orbit.distance) / alturaCss;
+    camera.getWorldDirection(PAN_FWD);
+    PAN_RIGHT.crossVectors(PAN_FWD, camera.up).normalize();
+    PAN_UP.crossVectors(PAN_RIGHT, PAN_FWD).normalize();
+    ancoraLivre.addScaledVector(PAN_RIGHT, -dxPx * k).addScaledVector(PAN_UP, dyPx * k);
+  }
+
+  /**
+   * Adota um sistema como âncora, e opcionalmente CHEGA nele.
+   *
+   * ⚠️ A distância de chegada sai do ENVELOPE do sistema, não de uma constante. `HOME_UNIVERSO` são
+   * 150 unidades derivadas do universo inteiro; um envelope mede ~14 no fixture. Chegar a 150 de um
+   * sistema de 14 é continuar olhando o aglomerado de fora — que é exatamente o relato que abriu
+   * esta linha de trabalho. O fator 2,6 põe o envelope inteiro no quadro com folga.
+   *
+   * @param {number|null} i  índice do sistema, ou `null` para soltar
+   * @param {boolean} chegar `true` = reenquadra a distância pelo envelope
+   */
+  function adotarSistema(i, chegar = false) {
+    if (i === null || i === undefined) { sistemaCorrente = null; return; }
+    sistemaCorrente = i;
+    const s = universe.sistemas()[i];
+    if (!s) return;
+    // A viagem é a âncora LIVRE indo até lá — não um degrau à parte. Um só lugar decide onde a
+    // câmera está, e "cheguei num sistema" vira um caso de voo livre em vez de um modo novo.
+    ancoraLivre.copy(s.pos);
+    ancoraLivreIniciada = true;
+    if (!chegar) return;
+    orbit.targetDistance = clampDistance(Math.max(s.envelope * 2.6, ZOOM_RANGE.min));
+  }
   /**
    * Onde o corpo em foco estava no quadro ANTERIOR, e de quem era.
    *
@@ -862,6 +946,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     );
     if (!dragging) return;
     pressTravel += Math.hypot(event.movementX, event.movementY);
+    /*
+     * TRANSLADAR × GIRAR — e o UNIVERSO é a única cena que translada.
+     *
+     * SHIFT ou botão do meio movem a âncora livre; o arraste simples continua girando, que é o
+     * gesto que já estava no dedo de quem usa. Na cena AGENTE não há para onde transladar: a
+     * âncora de lá é o núcleo, um objeto real, e pan sobre ele seria sair de órbita do que se veio
+     * ver. `buttons & 4` é o do meio — `event.button` não vale em `pointermove`, ele só é o botão
+     * que INICIOU o gesto.
+     */
+    if (modo === 'universo' && !focusedNode && (event.shiftKey || (event.buttons & 4))) {
+      userControlled = true;
+      orbitMoved = true;
+      transladarLivre(event.movementX, event.movementY);
+      return;
+    }
     // O mouse move o ALVO, não a câmera. Delta de ponteiro é ruidoso e não vem alinhado com
     // o quadro; aplicá-lo direto na câmera transporta esse ruído para a imagem.
     orbitMoved = true;
@@ -1018,8 +1117,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     if (modo !== 'universo') {
       orbit.targetDistance = source ? NODE_FOCUS_DISTANCE : HOME.distance;
       orbit.targetPolar = source ? NODE_FOCUS_POLAR : HOME.polar;
-    } else if (!source) {
-      orbit.targetDistance = HOME_UNIVERSO;
+    } else if (source) {
+      /*
+       * TRAVAR NUM CORPO ADOTA O SISTEMA DELE — e é este o gesto de viagem, sem inventar entrada
+       * nova. A distância não sai daqui (ver a nota acima); quem enquadra é o `fitPending`.
+       */
+      adotarSistema(universe.sistemaDe(source));
+    } else {
+      /*
+       * SOLTAR O FOCO deixa a câmera NO SISTEMA, e não de volta ao vazio da origem. Sem sistema
+       * adotado ainda, `HOME_UNIVERSO` continua sendo o enquadramento largo.
+       */
+      if (sistemaCorrente === null) orbit.targetDistance = HOME_UNIVERSO;
+      else adotarSistema(sistemaCorrente, true);
     }
     fitPending = Boolean(source);
     if (!source) focusGeometry = null;
@@ -1374,7 +1484,27 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * passa a amortecer só o que sobra, que é a diferença entre onde a câmera estava olhando e o
      * corpo novo. O voo continua macio; a perseguição deixa de existir.
      */
-    anchorTarget.copy(bodyAt || ZERO);
+    /*
+     * A ÂNCORA DO UNIVERSO NÃO É A ORIGEM. Ver `sistemaCorrente`.
+     *
+     * Ordem de queda, e cada degrau é um fato menor que o anterior: o corpo em foco → o sistema
+     * corrente → o centroide dos sistemas (pendência declarada, ver `universe.centroideDosSistemas`)
+     * → a origem, que só sobra quando não há sistema nenhum carregado. `ZERO` deixou de ser o
+     * padrão e virou a degradação.
+     */
+    let alvoDaCena = bodyAt;
+    if (!alvoDaCena && modo === 'universo') {
+      if (!ancoraLivreIniciada) {
+        // O primeiro quadro precisa de UM alvo. O centroide é o menos arbitrário que existe antes
+        // de o operador ter voado para algum lugar — e deixa de valer no instante em que ele voa.
+        ancoraLivre.copy(universe.centroideDosSistemas());
+        ancoraLivreIniciada = true;
+      }
+      const anexado = objetoAnexado ? universe.posicaoDe(objetoAnexado) : null;
+      if (anexado) ancoraLivre.copy(anexado);
+      alvoDaCena = ancoraLivre;
+    }
+    anchorTarget.copy(alvoDaCena || ZERO);
     if (alvoAnterior && alvoAnteriorDe === focusedNode && bodyAt) {
       anchor.add(ANCHOR_DELTA.copy(anchorTarget).sub(alvoAnterior));
     }
@@ -2185,6 +2315,51 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * opacos de longe" são dois relatos diferentes sobre a mesma foto, e só o histograma os separa.
      */
     universePixels: () => universe.pixels(),
+
+    /**
+     * Onde a câmera do UNIVERSO está ancorada, e por quê. `spatia.universo.ancora()`.
+     *
+     * ⚠️ Ela existe porque "a âncora mudou" não tem imagem: a origem e um sistema a 40 unidades
+     * dela produzem a MESMA foto se o enquadramento for largo. `porque` nomeia o degrau em vigor —
+     * sem isso, "continua orbitando o vazio" e "adotou um sistema que por acaso está perto do
+     * centro" seriam indistinguíveis, que é a confusão que abriu esta linha de trabalho.
+     */
+    universeAnchor() {
+      const lista = universe.sistemas();
+      const sis = sistemaCorrente === null ? null : lista[sistemaCorrente];
+      const porque = focusedNode ? 'corpo em foco' : objetoAnexado ? 'objeto anexado' : 'voo livre';
+      return {
+        modo, porque, focado: focusedNode, anexado: objetoAnexado,
+        ancoraLivre: [+ancoraLivre.x.toFixed(2), +ancoraLivre.y.toFixed(2), +ancoraLivre.z.toFixed(2)],
+        sistema: sis ? { i: sistemaCorrente, id: sis.id, envelope: +sis.envelope.toFixed(3),
+          distanciaDaOrigem: +sis.pos.length().toFixed(2) } : null,
+        sistemas: lista.length,
+        centroideDaOrigem: +universe.centroideDosSistemas().length().toFixed(2),
+        ancoraAtual: [+anchor.x.toFixed(2), +anchor.y.toFixed(2), +anchor.z.toFixed(2)],
+        ancoraDaOrigem: +anchor.length().toFixed(2),
+        distancia: +orbit.distance.toFixed(2), alvoDeDistancia: +orbit.targetDistance.toFixed(2),
+      };
+    },
+
+    /**
+     * Anexa um corpo: a câmera passa a ter ELE como alvo padrão e viaja junto.
+     *
+     * ⚠️ Prova de conceito com um corpo do céu. O destino declarado é uma sonda 3D representando o
+     * operador — e aí "quem detém o centroide" deixa de ser um cálculo e vira um objeto que está lá,
+     * que é a diferença entre um centro computado e um corpo de referência.
+     *
+     * @param {string|null} source  `null` desanexa e devolve a câmera ao voo livre
+     */
+    universeAttach(source) {
+      objetoAnexado = source && universe.sistemaDe(source) !== null ? source : null;
+      return this.universeAnchor();
+    },
+
+    /** Adota um sistema pelo índice e CHEGA nele. `spatia.universo.irPara(3)`. */
+    universeGoTo(i) {
+      adotarSistema(i, true);
+      return this.universeAnchor();
+    },
     /** O tipo de um corpo na cena em vigor: novo no UNIVERSO, `null` no AGENTE. */
     bodyTypeOf: (source) => (modo === 'universo' ? universe.tipoDe(source) : null),
 
@@ -2193,6 +2368,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // A cena UNIVERSO lê o MESMO payload: um corpus, duas leituras dele. Montar as duas no
       // carregamento evita o engasgo de construir 1 636 corpos no clique do switcher.
       universe.load(payload);
+      // Topologia nova reconstrói os sistemas: o índice guardado passa a apontar para outro lugar.
+      // `SCHEMA_VERSION` protege dado em disco; isto protege um índice em memória, pelo mesmo motivo.
+      sistemaCorrente = null;
       hubs = buildHubs(payload);
       // Só agora o céu sabe responder se conhece o astro salvo. Ver `aplicarFocoPendente`.
       agendarFoco();

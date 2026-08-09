@@ -276,6 +276,13 @@ que não seja o brilho chapado do §2.3.
 **Custo: +0,00 a +0,02 ms.** Mesma chamada de desenho, mesmo número de fragmentos, e a carga de
 fragmento inteira da cena é **0,086% da tela**. É, de longe, a mais barata.
 
+> ⚠️ **MEDIDO DEPOIS (08/08) — esta saída é mais potente e menos útil do que este parágrafo supunha.
+> Ver o §7.** Em resumo: `CORPO_FS` não tem aro nenhum para afinar (é meia-lambert puro), então (c)
+> **cria** um termo; e o único aro que a cena tem hoje — o `borda` do `ESTRELA_FS` — move **+25,9%
+> da luz** e **+85% dos pixels acesos** quando ligado. Potente. Só que, com a geometria em **P50
+> 1,55 px**, essa luz é **espalhada pelo bloom** em vez de desenhada como borda: vira brilho, não
+> vira forma. E a faixa que (c) conserta (8–90 px) tinha **0 corpos** no enquadramento medido.
+
 **O que ela custa:** ela **não resolve o relato**. Limbo, aro e terminador são gradientes **de
 borda**, e 70% do céu não tem borda — tem 2 px. Ela conserta com precisão a faixa dos **8 aos 90
 px** (3,5 de 71 corpos em casa, 22 de 71 na metade do caminho) e conserta o "opaco mesmo grande",
@@ -330,6 +337,10 @@ diz nada sobre o seguinte, e cada item aqui é do olho do usuário:
   medida dá o teto (acima de ~8 px o sprite começa a cobrir a esfera e a mentir sobre o tamanho) e
   dá o chão (abaixo de 4 px não adianta). Entre os dois, é gosto — e é gosto que só se resolve na
   tela, com a mesma pose duas vezes.
+  > ⭑ **A "mesma pose duas vezes" agora existe como instrumento:** `spatia.aroAB([{piso:4},{piso:6},
+  > {piso:8}], ler)` desenha os pisos **no mesmo quadro** (ver §7). Conferido em 08/08: a geometria
+  > fica intocada nos três (P50 1,50 · máx 11,54) e só o sprite anda (mín/P50 4 · 6 · 8), que é a
+  > lei `px_sprite = max(px_geometria, PISO)` se comportando como escrita.
 - **Se o sprite deve continuar aceso quando o corpo já é grande.** No AGENTE ele cede por
   `uHaloYield`; aqui a esfera assume por conta própria. Onde exatamente o cruzamento fica confortável
   é decisão de olho.
@@ -417,3 +428,94 @@ ARMADILHAS DE BANCADA
   · depois de todo reload, clicar em IGNORAR.
   · FPS não se mede por automação. Se precisar, é medida do humano (scripts/baseline.js).
 ```
+
+---
+
+## 7. O que foi medido depois — e o que caiu
+
+> Adendo de **2026-08-08**, mesmo corpus (`espatial_fixture`) e mesma máquina. O §1–§5 continua
+> valendo; o que muda aqui é a *régua de duas saídas* e o *diagnóstico do relato paralelo*.
+
+### 7.1 O instrumento: A/B no MESMO quadro
+
+Medir uma condição por quadro **não funciona nesta base**. Entre duas amostras a câmera acomoda, o
+corpo gira e a paralaxe anda: seis réplicas da **mesma** condição base espalharam o limbo entre
+**13,6 e 27,0** — mais do que qualquer diferença entre tratamentos. Intercalar não salvou.
+
+A saída é desenhar as condições entre dois `composer.render()`, sem soltar o quadro
+(`scene.mesmoQuadro`, exposto como `spatia.peleAB` e `spatia.aroAB`). **Controle: 0 pixels de
+diferença** entre a primeira e a última amostra da mesma condição. É esse zero que autoriza tudo
+abaixo. Como não usa `rAF`, é a única medida desta base que não depende da aba estar visível.
+
+⚠️ **Um uniform que não muda nada pode ser um uniform que não chegou** — o `check-shaders` não
+compila GLSL. Antes de concluir "o termo não contribui", force um valor absurdo (`borda = 40`
+acendeu 636.210 pixels; `−40` derrubou para 6.405). E cuidado com a **cena fria**: a primeira
+leitura do A/B do UNIVERSO saiu com os três desenhos idênticos byte a byte porque a malha das
+estrelas ainda não estava montada, 9 s depois de trocar de cena.
+
+### 7.2 O relato paralelo ("o planeta em foco lê como transparente") — não é defeito de código
+
+Estava registrado como suspeita do sprite esvaziando o miolo com `uHaloYield = 0`. **Refutado:** no
+raio onde o núcleo do sprite teria PICO (`d ≈ 0,35`) o perfil tem um **mínimo local**, e luz aditiva
+não produz mínimo. A corona sai junto — ela é multiplicada por `vIgnition`, zero fora de uma busca.
+
+Os dois termos de borda da pele, isolados no mesmo quadro:
+
+| condição | miolo (<0,30 R) | meio (0,30–0,70) | limbo (0,85–0,98) | fora (≥1,05) |
+|---|---|---|---|---|
+| base | 8,75 | 14,96 | **52,03** | 9,71 |
+| sem limbo (fresnel²) | 8,94 | 15,12 | 49,80 | 10,38 |
+| sem casca (aditiva) | 8,75 | 14,96 | 52,03 | **3,91** |
+| **ambos 0** | 8,94 | 15,12 | **49,80** | 4,56 |
+
+Com os dois em zero o limbo cai **4,3%**: nenhum dos dois é o autor. A **casca** age quase toda
+fora da silhueta (−60% no `fora`, zero dentro) — a afirmação que já estava escrita no
+`SHELL_FRAGMENT` agora está medida.
+
+O autor é a **fase**: decompondo o limbo em 12 setores, ele varia **23,96×** entre o lado aceso e o
+apagado, e **24,53× com os dois termos desligados**. O corpo em foco está iluminado por trás e o que
+se vê é um **crescente** — disco escuro com uma borda acesa, que é exatamente a leitura "transparente".
+Vale o corolário da REGRA DA FÍSICA: a física produziu o fenômeno esperado, então o que sobra é
+**linguagem visual**, e mudar de onde vem a luz é decisão de composição do usuário.
+
+⚠️ **Armadilha que me pegou:** média radial sobre um crescente **parece um aro**. Decompor em
+setores separa os dois na hora (≈24× é fase; ≈1× seria aro). É a armadilha nº 5 do handoff em forma
+nova — medir a grandeza errada parece medir.
+
+### 7.4 ⚠️ A REFUTAÇÃO DE (b) CADUCOU — e por mudança de câmera, não por erro de medida
+
+O §4b concluiu, com números secos, que *"a pele não é alcançável por zoom, só por foco"*. Aquilo era
+**verdade sob a câmera daquele dia**: ela orbitava a ORIGEM a 150 unidades e o único jeito de se
+aproximar de um corpo era travar nele. Em 08/08 a câmera do UNIVERSO passou a **chegar dentro de um
+sistema** (âncora = voo livre, distância = envelope × 2,6 ≈ 19 a 25 unidades), e a premissa caiu.
+
+Medido depois da mudança, **sem foco nenhum**, com a câmera dentro de um sistema:
+
+| | valor |
+|---|---|
+| raio aparente P50 | **5,52 px** |
+| P75 · P95 | 14,50 · 21,09 px |
+| **máximo** | **91,34 px** |
+| corpos ≥ 22 px (menor piso de pele) | **3 de 71** |
+| corpos ≥ 90 px (piso de planeta/fotosfera) | **1 de 71** |
+
+Contra o `0 de 71` em ambas as colunas que o §2.1 mediu. **A pele passou a ser alcançável sem foco.**
+
+⚠️ **Mas o que bloqueia hoje não é mais pixel, é ARQUITETURA:** `photosphere`, `planet` e as outras
+são objetos ÚNICOS, alimentados por `ancoraDoUniverso(focusedNode)`. A cena sabe desenhar **uma** pele,
+a do corpo travado. "Ver a forma sem foco" é passar de uma pele para N — e a medida acima diz que N é
+**pequeno e limitado** (3 corpos nesta pose, 1 deles com pele cheia), o que era exatamente a dúvida
+que tornava a proposta cara. Não é mais a mesma proposta que o §4b recusou.
+
+### 7.3 A régua da saída (c) mudou
+
+`CORPO_FS` é meia-lambert puro (`0,10 + 0,90·d²`): **não há aro para afinar, (c) cria um.** Medindo
+o único aro existente na cena (o `borda` do `ESTRELA_FS`): **+25,9% de luz total, +85% de pixels
+acesos, 128.279 pixels alterados.** Potente — e ainda assim não responde o relato, porque na mesma
+leitura a geometria tem **P50 1,55 px e máx 11,49 px**, e a conta fecha em ~639 pixels acesos por
+corpo: **a diferença é bloom, não borda.** Vira brilho, não vira forma.
+
+**Consequência para a ordem de trabalho:** a metade de (c) que ainda age onde os corpos vivem é a
+**feição no SPRITE** (4 px, que é o piso), não o aro no corpo — e o §2.5 já mediu que 6 das 8 feições
+do sprite rodam sobre fatos que esta cena carrega. População no fixture: supernova 3 de 71, anã
+branca 7 de 71. **Não medido:** quanto disso sobrevive ao bloom num disco de 4 px.
