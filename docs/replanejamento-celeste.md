@@ -197,6 +197,71 @@ Duas consequências, e a primeira é uma **relação que o modelo não tem**:
   faixa real de quase quatro ordens de grandeza — o milissegundo, que é o caso espetacular, não
   existe aqui.
 
+#### 2.7.1 A dependência, resolvida — **a MASSA decide qual cadáver**
+
+> Escrito em 2026-08-08, fechando a pendência que o §2.7 abriu e que `AUSENTES_NA_TABELA` registrava
+> como *"essa dependência não existe em código"*.
+
+**O erro era procurar a dependência no tempo.** "Um corpo que TEVE supernova" pede história, e o
+modelo não tem: `node.supernova` é estado presente (surto de churn, medido na janela recente). Medido
+no fixture: supernova são 3 corpos com `churn 27` e `recency 0,76–0,81` — **explodindo agora**;
+anã branca são 7 com `churn 0` e `recency 0,01–0,19` — **já frios**. Interseção: **zero**.
+
+⚠️ **Mas a física não liga o cadáver ao evento: liga os dois à MASSA DO PROGENITOR.** Abaixo de
+~8 M☉ a estrela termina como anã branca sem explodir; acima, o núcleo colapsa — a supernova e a
+estrela de nêutrons são **duas consequências da mesma causa**, não uma consequência da outra. Modelar
+`supernova → pulsar` como sequência temporal seria copiar a narrativa; modelar pela massa é copiar a
+causa. É a mesma disciplina do buraco negro: *criar a causa e deixar as consequências emergirem*.
+
+**A regra, e ela não introduz constante nenhuma:**
+
+```
+remanescente  =  chunks ≥ CHUNKS_REMANESCENTE  ∧  activity = 0  ∧  dormant = 0  ∧  age ≤ 0,25
+                 (a condição que a anã branca JÁ usa)
+
+    porteEstelar(chunks) = 'gigante'   →  PULSAR        (o colapso)
+    caso contrário                     →  anã branca    (o que já acontece)
+```
+
+`gigante` é `ESCADA.ESTRELA × 4` = **80 chunks**, e já existe em `porteEstelar()`. Nenhum número
+novo, nenhum limiar calibrado para caber.
+
+**E a assimetria entre os dois é a que o código já tem:** anã branca é FENÔMENO (modificador — um aro
+fino no sprite, e não troca a classe); pulsar é SUPERFÍCIE, porque tem morfologia inteira
+(`pulsar.js`, exercitada na bancada). Um cadáver que só apaga é modificador; um que vira farol é
+corpo.
+
+⚠️ **POPULAÇÃO — e o número é desconfortável de propósito:**
+
+| corte | pulsar | anã branca |
+|---|---|---|
+| **`gigante` (80) — o ancorado** | **0** | 7 |
+| `× 2` (40) | 1 | 6 |
+| `ESTRELA` (20) | 5 | 2 |
+
+Os remanescentes do fixture têm 14, 16, 22, 24, 27, 31 e 40 chunks: **nenhum chega a 80**. O corte de
+20 inverteria a proporção real (anã branca é ~97% dos cadáveres estelares); o de 40 daria população
+**escolhendo um número para obtê-la**, que é o defeito que o §2.7 mandou evitar.
+
+> **Zero aqui não é o mesmo zero que o §2.7 recusou.** Lá a classe nasceria vazia porque o SINAL era
+> arbitrário (regularidade de edição). Aqui ela nasce vazia porque **este corpus não tem um arquivo
+> grande, frio e velho** — um fato do corpus, não do critério. E o fixture existe justamente para
+> exercitar o que o corpus real não produz.
+
+**O que a implementação exige, nesta ordem:**
+
+1. **Um espécime no fixture:** um arquivo com **≥ 80 chunks, `churn` 0 e `recency` ≤ 0,25**. Sem ele
+   a classe nasce vazia e o `censo-corpus` acusa em vermelho — corretamente.
+2. O ramo em `superficieDe()`, dentro de `case 'estrela'`: remanescente + `gigante` → `PULSAR`, em
+   vez de `FOTOSFERA`. Uma estrela morta não tem fotosfera.
+3. Os censos nos **dois** corpora antes de acreditar na distribuição — o fixture é jovem e esconde
+   toda regra que depende de janela antiga.
+4. `AUSENTES_NA_TABELA.pulsar` sai: a ausência deixa de ter motivo.
+
+⚠️ Isto **não** resolve estação nem nebulosa, e as razões continuam de naturezas diferentes: estação
+espera população no rótulo `Agent` do Neo4j; nebulosa é feição de REGIÃO, e a cena ainda não tem esse
+nível.
+
 ### 2.8 O universo é vazio, e isso é layout
 
 A estrutura em grande escala tem nós densos ligados por **filamentos**, envolvendo **vazios** — e
