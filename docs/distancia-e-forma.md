@@ -333,11 +333,13 @@ de geometria do AGENTE, que já roda a 120 fps nesta máquina.
 A medida diz que 50 corpos estão abaixo de 4 px e que a pele é inalcançável fora do foco. Ela **não**
 diz nada sobre o seguinte, e cada item aqui é do olho do usuário:
 
-- **Quanto maior que a geometria o sprite deve ser.** O piso pode ser 3 px, 6 px ou 10 px de raio. A
-  medida dá o teto (acima de ~8 px o sprite começa a cobrir a esfera e a mentir sobre o tamanho) e
-  dá o chão (abaixo de 4 px não adianta). Entre os dois, é gosto — e é gosto que só se resolve na
-  tela, com a mesma pose duas vezes.
-  > ⭑ **A "mesma pose duas vezes" agora existe como instrumento:** `spatia.aroAB([{piso:4},{piso:6},
+- ~~**Quanto maior que a geometria o sprite deve ser.**~~ **CADUCOU — o §7.5 decide quase tudo.**
+  Estava escrito aqui que o piso *"pode ser 3 px, 6 px ou 10 px"* e que entre o chão e o teto era
+  gosto. A varredura de 2 a 10 px no mesmo quadro, em quatro poses, diz que não é uma faixa de gosto:
+  é um **planalto** (2,5–4,0 px, custo ZERO) e um **despenhadeiro** (de 4,5 em diante o céu colapsa
+  num tamanho só, 91% já em 5 px). **`PISO_SPRITE_PX = 4` é o teto do planalto.** O que sobrou para o
+  olho é 3 contra 4, que a medida empata e a foto desempata. Ver §7.5.
+  > ⭑ **A "mesma pose duas vezes" existe como instrumento:** `spatia.aroAB([{piso:4},{piso:6},
   > {piso:8}], ler)` desenha os pisos **no mesmo quadro** (ver §7). Conferido em 08/08: a geometria
   > fica intocada nos três (P50 1,50 · máx 11,54) e só o sprite anda (mín/P50 4 · 6 · 8), que é a
   > lei `px_sprite = max(px_geometria, PISO)` se comportando como escrita.
@@ -381,6 +383,8 @@ o raio de mundo (raioPorMassa); derivar o sprite dele de novo criaria DUAS leis 
 MESMO fato — a lei nº 3 do replanejamento, e as duas divergiriam (log2 contra piso de banda).
 Comece com PISO = 4 px de raio de framebuffer e leve à tela; o intervalo defensável é 3–8 px
 (§5 diz por que a medida não escolhe dentro dele).
+  ⚠️ ESTE PARÁGRAFO É HISTÓRIA — o passo 1 já foi executado, e a varredura posterior (§7.5)
+  derrubou o "3–8": o intervalo é 2,5–4,0 e o 4 é o teto dele, não um ponto de gosto.
 
 ARQUIVOS A TOCAR
   src/space/universe.js   a camada nova, os buffers por quadro, a sonda
@@ -519,3 +523,50 @@ corpo: **a diferença é bloom, não borda.** Vira brilho, não vira forma.
 **feição no SPRITE** (4 px, que é o piso), não o aro no corpo — e o §2.5 já mediu que 6 das 8 feições
 do sprite rodam sobre fatos que esta cena carrega. População no fixture: supernova 3 de 71, anã
 branca 7 de 71. **Não medido:** quanto disso sobrevive ao bloom num disco de 4 px.
+
+### 7.5 O PISO NÃO É UM GRADIENTE — é um planalto e um despenhadeiro
+
+O §5 entregava o piso ao olho dentro de **3–8 px**. Varrido de 2 a 10 px em passos de 0,5 no mesmo
+quadro, em quatro poses (fixture, 74 corpos, `spatia.aroAB` lendo `universo.pixels()` por condição),
+o intervalo não se comporta como uma escala contínua de gosto:
+
+| pose | distância | geo P50 | 2,5 px | 3 | 3,5 | 4 | 4,5 | 5 | 5,5 | 6 | 7,5 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| longe | 260 | 0,86 px | 52 | 54 | 68 | 73 | 73 | 73 | 74 | 74 | 74 |
+| **casa** | **150** | **1,19 px** | **52** | **52** | **52** | **52** | **61** | **69** | **73** | **73** | **74** |
+| casa | 116 | 1,36 px | 52 | 52 | 52 | 52 | 55 | 61 | 68 | 73 | 73 |
+| perto | 58 | 1,60 px | 49 | 52 | 52 | 52 | 52 | 55 | 59 | 66 | 73 |
+
+*(corpos travados NO piso, de 74 — isto é, que perderam o tamanho próprio e desenham o do vizinho)*
+
+Dois fatos, e o segundo é a decisão:
+
+**52 de 74 estão abaixo de 2,5 px em TODA pose, e o número não se move.** É estrutural: são
+exatamente a população que a camada de sprite existe para resgatar, e nenhuma escolha de piso os
+devolve à hierarquia de tamanho. Quem lê "70% do céu travado" como custo do piso está lendo o custo
+da DISTÂNCIA.
+
+**Os 22 restantes são o que a escolha destrói.** De 2,5 a 4,0 px o custo é **zero** — os mesmos 52,
+em três das quatro poses. De 4,5 em diante o céu colapsa num tamanho só: no enquadramento de casa,
+4,5 leva 9 dos 22, 5,0 leva 17, 5,5 leva 21, e 7,5 leva todos.
+
+> ⭑ **`PISO_SPRITE_PX = 4` é o TETO DO PLANALTO, não um valor de gosto dentro de uma faixa larga.**
+> Ele é o maior piso que não custa um corpo sequer no enquadramento de casa e mais perto, e o
+> intervalo defensável é **2,5–4,0**, não 3–8. Entre 3 e 4 a medida empata (52 nos dois) e a foto
+> desempata: em 3 px os corpos pequenos ficam mais apagados sem comprar hierarquia nenhuma.
+
+⚠️ **A ponta de cima do intervalo antigo está REFUTADA POR MEDIDA, não por olho.** O §5 supunha que
+o teto (~8 px) fosse onde *"o sprite começa a cobrir a esfera"*; a varredura mostra que muito antes
+disso — em 5 px — 91% do céu já desenha o mesmo diâmetro. **A mentira sobre tamanho não começa quando
+o sprite fica grande; começa quando ele fica IGUAL.**
+
+⚠️ **A borda do planalto anda com a pose, o planalto não.** A 260 unidades o último piso grátis é 3;
+a 150 e 116 é 4; a 58 é 4,5. A FORMA (planalto + despenhadeiro) sobrevive às quatro; a posição da
+borda é da pose, e por isso o passo 3 — **refazer contra o corpus real** — continua obrigatório: mais
+sistemas no mesmo `OCUPACAO` dão envelopes menores, o que empurra a borda para a esquerda.
+
+⚠️ **A câmera do UNIVERSO está em DERIVA e ela envelhece coordenada.** Duas varreduras separadas por
+uma chamada de JS leram os corpos em lugares diferentes (P50 andou 1,68 → 1,52 → 1,45 sem ninguém
+tocar em nada), e um recorte escolhido na primeira caiu no vazio na segunda. Congelar é um `wheel` de
+`deltaY: 0` no canvas — `Math.sign(0) === 0` deixa `targetDistance` intacto e liga `userControlled`,
+que é o que desarma a deriva. **Varredura e recorte têm de sair da MESMA chamada.**

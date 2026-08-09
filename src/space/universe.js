@@ -152,9 +152,12 @@ const RAIO_MINIMO = 0.7;
  * limbo — uma esfera sombreada de 2 px devolve UM valor de cor, que é literalmente o relato da tela
  * (*"cores diferentes, mas ainda assim esferas opacas"*).
  *
- * ⚠️ **A medida dá o intervalo, não o ponto.** O §5 do mesmo documento registra que o teto é ~8 px
- * (acima disso o sprite cobre a esfera e passa a MENTIR sobre o tamanho do corpo) e o chão é 4 px.
- * Entre os dois é decisão de olho, e é para mexer aqui: `spatia.universo.pixels()` mede o efeito.
+ * ⭑ **E o ponto também sai de medida — este valor é o TETO DO PLANALTO.** Este comentário já disse
+ * que a medida dava só o intervalo (4 a ~8 px) e entregava o ponto ao olho. A varredura de 2 a 10 px
+ * no mesmo quadro (§7.5) fechou a questão: **de 2,5 a 4,0 px o piso não custa um corpo sequer, e de
+ * 4,5 em diante o céu colapsa num tamanho só.** 4 é o maior valor que ainda é de graça.
+ * Mexer aqui é medir de novo — `spatia.universo.pixels()` conta os travados, e `spatia.aroAB` varre
+ * os candidatos sem soltar o quadro.
  */
 const PISO_SPRITE_PX = 4;
 /**
@@ -545,10 +548,15 @@ export function createUniverse() {
   /*
    * O PISO VIVO. Nasce em `PISO_SPRITE_PX` e só a bancada o move (`spatia.universo.piso`).
    *
-   * ⚠️ Ele é decisão de OLHO dentro de um intervalo que a medida já cercou: 3 px é o chão (abaixo
-   * disso não adianta) e ~8 px é o teto (acima, o sprite cobre a esfera e passa a mentir sobre o
-   * tamanho do corpo). Ver `docs/distancia-e-forma.md` §5 — a medida dá o intervalo e recusa
-   * escolher dentro dele.
+   * ⚠️ **Não é um valor de gosto dentro de uma faixa larga — é o TETO DE UM PLANALTO.** Varrido de
+   * 2 a 10 px no mesmo quadro, em quatro poses (`docs/distancia-e-forma.md` §7.5): de 2,5 a 4,0 px
+   * o piso não custa um corpo sequer, e de 4,5 em diante o céu colapsa num tamanho só — 91% dos 74
+   * já travados em 5 px, 100% em 7,5. **A mentira sobre tamanho não começa quando o sprite fica
+   * grande; começa quando ele fica IGUAL**, e isso é bem antes dos ~8 px que este comentário
+   * afirmava. Subir daqui é apagar hierarquia, não ganhar presença.
+   *
+   * ⚠️ A borda do planalto anda com a POSE (3 px a 260 unidades, 4,5 a 58); a forma, não. Quem
+   * reindexar um corpus maior refaz a varredura: envelopes menores empurram a borda para baixo.
    */
   let pisoSprite = PISO_SPRITE_PX;
 
