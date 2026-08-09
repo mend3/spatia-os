@@ -30,6 +30,45 @@ Reconferir é uma linha: `shasum -a 256 assets/textures/sun.jpg`.
 declara licença nenhuma**. Intermediário não licencia o que não é dele — quem licencia é o autor, e
 é a ele que o crédito vai.
 
+### `textures/*.jpg` — as nove aparências nomeadas (T-35)
+
+| | |
+|---|---|
+| obra | as texturas *2k* de planetas e de Ceres, **2048×1024** cada |
+| autor | **Solar System Scope** — <https://www.solarsystemscope.com/textures/> |
+| licença | **CC BY 4.0** — <https://creativecommons.org/licenses/by/4.0/> |
+| modificações | **nenhuma.** Os JPEG em disco são os originais |
+
+**Atribuição exigida na publicação:** *Texturas planetárias por Solar System Scope
+(solarsystemscope.com), CC BY 4.0.*
+
+| arquivo | corpo | bytes | `sha256` (16) | |
+|---|---|---|---|---|
+| `earth_daymap.jpg` | Terra (mapa diurno) | 463 087 | `767ee1dc6eb38026…` | [origem](https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg) |
+| `mars.jpg` | Marte | 750 547 | `2d187f3e77a98eaa…` | [origem](https://www.solarsystemscope.com/textures/download/2k_mars.jpg) |
+| `jupiter.jpg` | Júpiter | 498 976 | `b0f04d0053502526…` | [origem](https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg) |
+| `saturn.jpg` | Saturno | 199 916 | `54a900ca9bf7ab62…` | [origem](https://www.solarsystemscope.com/textures/download/2k_saturn.jpg) |
+| `venus_surface.jpg` | Vênus (superfície) | 885 075 | `dbe5db1c794a8ab4…` | [origem](https://www.solarsystemscope.com/textures/download/2k_venus_surface.jpg) |
+| `mercury.jpg` | Mercúrio | 872 555 | `5a5c80607f643496…` | [origem](https://www.solarsystemscope.com/textures/download/2k_mercury.jpg) |
+| `neptune.jpg` | Netuno | 241 580 | `cb42ea82709741d2…` | [origem](https://www.solarsystemscope.com/textures/download/2k_neptune.jpg) |
+| `uranus.jpg` | Urano | 77 751 | `d15239d46f82d3ea…` | [origem](https://www.solarsystemscope.com/textures/download/2k_uranus.jpg) |
+| `ceres.jpg` | Ceres | 1 127 678 | `ee59b2c7aa399dfd…` | [origem](https://www.solarsystemscope.com/textures/download/2k_ceres_fictional.jpg) |
+
+⚠️ **Elas só desenham em corpo que o OPERADOR marcou** (`src/space/favoritos.js`) — nunca por
+derivação do dado. Um arquivo parecer Marte é escolha de gente, e a tela diz isso. Sem a marca, a
+pele procedural continua sendo quem desenha.
+
+⚠️ **Ceres vem da série `_fictional` do Solar System Scope** — o mapa é artístico, não fotográfico.
+Ele entra porque o ASTEROIDE é a única classe sem pele nenhuma, e mesmo assim é o único item deste
+catálogo cuja superfície não é medida. Quem trocá-lo por dado real (`Bennu`, `Eros`, `Itokawa` da
+NASA — ver T-34) troca uma ilustração por uma malha.
+
+⭑ **Reconferir as dez de uma vez:**
+
+```bash
+shasum -a 256 assets/textures/*.jpg
+```
+
 ---
 
 ## ☠️ Pendências

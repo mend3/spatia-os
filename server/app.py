@@ -391,10 +391,40 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    @staticmethod
+    def _texturas() -> list[str]:
+        """As texturas que ESTÃO em disco, para o cliente não adivinhar.
+
+        ⚠️ **O navegador não lista sistema de arquivos**, e a alternativa seria uma sondagem por
+        arquivo — nove requisições para responder uma pergunta que o servidor responde lendo um
+        diretório. Pior: um 404 de rede é indistinguível de um arquivo ausente, e o modelo de
+        favoritos distingue **três** estados (`disponivel` é `true | false | null`, com `null` =
+        *"ninguém me disse o que existe"*). Adivinhação devolveria `false` onde o fato é `null`.
+
+        ⚠️ Devolve **caminho relativo à raiz**, no mesmo formato que `APARENCIAS[*].arquivo` usa
+        (`assets/textures/<nome>.jpg`) — comparar formatos diferentes é a armadilha de espaço de
+        chave que já mordeu três vezes nesta base.
+
+        Diretório ausente devolve lista vazia, e lista vazia é um FATO ("medi e não há"): quem não
+        quiser afirmar nada não chama, e aí o cliente fica com `null`.
+        """
+        raiz = config.ROOT / "assets" / "textures"
+        try:
+            return sorted(
+                f"assets/textures/{p.name}" for p in raiz.iterdir()
+                if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
+            )
+        except OSError:
+            return []
+
     def _health(self) -> dict:
         """O que a HUD acende no canto: cada serviço com seu estado real."""
         health: dict = {
             "brain": config.get("BRAIN"),
+            # O que o carregador de textura PODE carregar. Viaja no health porque a pergunta é a
+            # mesma que as outras daqui — "isto está disponível agora?" — e porque a tela já
+            # espera o health antes do primeiro quadro.
+            "texturas": self._texturas(),
             "embed_ready": embed.is_ready(),
             "providers": websearch.availability(),
             "claude_cli": bool(brain.available()),
