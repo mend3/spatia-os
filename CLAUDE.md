@@ -595,9 +595,18 @@ compila mas perde a feição.
 Prova, num DOM de mentira com geometria conhecida, que `spatia.hud()` mede **área que aceita
 ponteiro** e não área desenhada (na cena de prova a HUD pinta 100% da janela e reivindica 33,8%),
 que forma sem identidade **acusa** em vez de sumir, que nenhum ponto se perde na atribuição, que
-recolhido · não montado · declarado-e-ausente saem em caixas diferentes, e que a sonda não escreve
-no que mede. Ele recorta o bloco `⟦sonda-hud⟧` do próprio `src/main.js` e o executa — **marcador
-apagado REPROVA**, porque desligar uma lei em silêncio é como esta base perde guarda.
+recolhido · não montado · declarado-e-ausente · **espremido** saem em caixas diferentes, e que a
+sonda não escreve no que mede. Ele recorta o bloco `⟦sonda-hud⟧` do próprio `src/main.js` e o
+executa — **marcador apagado REPROVA**, porque desligar uma lei em silêncio é como esta base perde
+guarda.
+☠️ **A QUARTA caixa é `espremidos`: montado, ABERTO, e desenhando menos que uma linha.** Item de
+flex encolhe, e o que perde a disputa não fica menor — fica com ZERO, com `montado` e `aberto`
+ainda VERDADEIROS e o operador sem ver nada. A régua é DERIVADA (`line-height` do próprio corpo,
+`font-size × 1,2` quando sai `normal`): número fixo valeria numa fenda e mentiria na outra.
+⚠️ **`orcamento.cabe: false` é DEFEITO; `orcamento.pressao > 1` NÃO É** — o segundo é rolagem ou
+poda, o comportamento normal de conteúdo longo. Confundir os dois faz a régua acusar o céu inteiro.
+⚠️ **Ramo sem cena não é ramo guardado:** o reserva `font-size × 1,2` passou verde sob mutação
+enquanto as cenas de prova declaravam `line-height` em px. Ele tem cena própria agora.
 
 ## Ao mexer na lista de fontes, ou no CSS do palco
 

@@ -248,14 +248,20 @@ A HUD flutua sobre o céu, e a pergunta que ninguém conseguia responder era *qu
 do mouse*. `spatia.hud()`, no console, responde com número em vez de impressão:
 
     spatia.hud().ponteiro     // reivindicado × chegando ao canvas, atribuído por dono e por fenda
-    spatia.hud().widgets      // recolhido pelo operador · fora do manifesto · declarado e AUSENTE
+    spatia.hud().widgets      // recolhido · fora do manifesto · declarado e AUSENTE · ESPREMIDO
+    spatia.hud().fendas       // o orçamento de altura de cada fenda: piso, pedido e pressão
 
 ☠️ **A grandeza é área que ACEITA PONTEIRO, não área desenhada.** Os gestos da cena estão presos
 ao `canvas`: um painel por cima não disputa o clique, ele **cancela** órbita e zoom naquele
 retângulo. A sonda varre a janela em grade com `document.elementFromPoint` e devolve o passo e a
-contagem de pontos junto — qualquer fração dela se refaz à mão. Ela também separa as três causas
-de *"esse painel sumiu"*: **o operador recolheu**, **esta rota não pede o painel**, ou **a rota
-pediu e ele não montou** — que é a única das três que é defeito.
+contagem de pontos junto — qualquer fração dela se refaz à mão. Ela também separa as **quatro**
+causas de *"esse painel sumiu"*: **o operador recolheu**, **esta rota não pede o painel**, **a rota
+pediu e ele não montou**, ou **ele foi ESPREMIDO** — aberto, no DOM, e desenhando menos que uma
+linha do próprio texto. As duas últimas são defeito; as duas primeiras são decisão.
+
+⭑ **Cada fenda publica o próprio orçamento de altura**, e é ele que responde *"quantos cabem
+aqui"* — uma pergunta que o layout resolvia sozinho, sem nunca enunciar. `cabe: false` avisa
+**antes** de alguém sumir; `pressao > 1` é só conteúdo longo rolando, e não é defeito.
 
 ⚠️ Ela lê a rota que está na tela e **carimba qual é**. Para comparar as dez, navegue e colecione.
 

@@ -596,6 +596,133 @@ conferir(
   escritas.slice(0, 6).join(' · ')
 );
 
+// ─────────────────── §12 · O ORÇAMENTO DE ALTURA — a quarta causa de «o painel sumiu»
+
+/*
+ * ☠️ **Item de flex ENCOLHE, e o que perde a disputa não fica menor: fica com ZERO.** Um widget
+ * espremido continua `montado` e `aberto` — as duas afirmações são verdadeiras — e o operador não
+ * vê nada. Nenhuma das três categorias anteriores o alcança: ele não foi recolhido, não deixou de
+ * ser declarado, e está no DOM.
+ *
+ * A régua é DERIVADA: uma linha do próprio texto dele (`line-height` computado, ou
+ * `font-size × 1,2` quando ele sai `normal`). Um número fixo valeria para uma fenda e mentiria na
+ * outra — a legenda de 9 px e o gráfico de 14 px não têm o mesmo mínimo legível.
+ */
+function cenaDeAltura({ alturaDoEspremido = 4, alturaDaFenda = 640 } = {}) {
+  const mundo = criarMundo({ largura: LARGURA, altura: ALTURA, armazenado: null });
+  const { criar, body } = mundo;
+  criar('canvas', { id: 'space', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA } });
+  const hud = criar('div', {
+    id: 'hud', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+    estilo: { pointerEvents: 'none' }, z: 1,
+  });
+  const trilho = criar('aside', {
+    classe: 'slot', dados: { slot: 'left' }, pai: hud,
+    caixa: { x: 0, y: 0, w: 192, h: alturaDaFenda },
+  });
+  const secao = (id, alturaCorpo, y, recolhido = 'false') => {
+    const w = criar('section', {
+      classe: 'widget', dados: { widget: id, collapsed: recolhido }, pai: trilho,
+      caixa: { x: 0, y, w: 192, h: alturaCorpo + 20 },
+    });
+    criar('button', { classe: 'label', pai: w, caixa: { x: 0, y, w: 192, h: 20 } });
+    criar('div', {
+      classe: 'widget-body', pai: w,
+      caixa: { x: 0, y: y + 20, w: 192, h: alturaCorpo },
+      estilo: { fontSize: '10px', lineHeight: '14px' },
+    });
+    return w;
+  };
+  secao('legenda', 200, 0);
+  secao('grafico', alturaDoEspremido, 220);
+  secao('fechado', 0, 240, 'true');
+  return { ...mundo, canvas: body.filhos[0], hud };
+}
+
+{
+  const mundo = cenaDeAltura();
+  const med = medirHud(ambiente(mundo, { montados: ['legenda', 'grafico', 'fechado'], registrados: ['legenda', 'grafico', 'fechado'], declarados: ['legenda', 'grafico', 'fechado'] }));
+  const trilho = med.fendas.find((f) => f.fenda === 'left');
+  conferir(
+    '§12 widget ABERTO abaixo de uma linha sai em `espremidos` — e continua em `montados` e `abertos`',
+    med.widgets.espremidos.join(',') === 'grafico' &&
+      med.widgets.montados.includes('grafico') && med.widgets.abertos.includes('grafico')
+  );
+  conferir(
+    '§12 a régua é a LINHA DELE: 4 px de corpo contra `line-height: 14px`',
+    trilho.orcamento.espremidos.join(',') === 'grafico'
+  );
+  conferir(
+    '§12 recolhido NÃO é espremido — o operador fechou, e isso é decisão',
+    !med.widgets.espremidos.includes('fechado')
+  );
+  conferir(
+    '§12 a fenda publica o ORÇAMENTO: altura, abertos e o piso que eles exigem',
+    trilho.orcamento.alturaPx === 640 && trilho.orcamento.abertos === 2 &&
+      trilho.orcamento.pisoPx === 68 && trilho.orcamento.cabe === true
+  );
+}
+
+{
+  /* Fenda curta demais para os abertos: `cabe` vira falso ANTES de alguém sumir. */
+  const curta = cenaDeAltura({ alturaDaFenda: 40, alturaDoEspremido: 200 });
+  const medCurta = medirHud(ambiente(curta, { montados: [], registrados: [], declarados: [] }));
+  const fCurta = medCurta.fendas.find((f) => f.fenda === 'left');
+  conferir(
+    '§12 fenda que não comporta os abertos declara `cabe: false` — o orçamento acusa antes do pixel',
+    fCurta.orcamento.cabe === false && fCurta.orcamento.espremidos.length === 0
+  );
+}
+
+{
+  /*
+   * ⚠️ **O ramo `line-height: normal` precisa de cena PRÓPRIA.** As cenas acima declaram o
+   * `line-height` em px, então o reserva (`font-size × 1,2`) nunca era exercido — visto por
+   * mutação: trocar o reserva por `1` passava verde. Um ramo sem cobertura é uma régua que
+   * ninguém conferiu.
+   */
+  const mundo = criarMundo({ largura: LARGURA, altura: ALTURA, armazenado: null });
+  const { criar, body } = mundo;
+  criar('canvas', { id: 'space', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA } });
+  const hud = criar('div', {
+    id: 'hud', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+    estilo: { pointerEvents: 'none' }, z: 1,
+  });
+  const trilho = criar('aside', {
+    classe: 'slot', dados: { slot: 'left' }, pai: hud, caixa: { x: 0, y: 0, w: 192, h: 640 },
+  });
+  /* `font-size: 10px` sem `line-height` → piso 12 px. 8 px espreme; 20 px não. */
+  const secaoNormal = (id, alturaCorpo, y) => {
+    const w = criar('section', {
+      classe: 'widget', dados: { widget: id, collapsed: 'false' }, pai: trilho,
+      caixa: { x: 0, y, w: 192, h: alturaCorpo },
+    });
+    criar('div', {
+      classe: 'widget-body', pai: w, caixa: { x: 0, y, w: 192, h: alturaCorpo },
+      estilo: { fontSize: '10px' },
+    });
+  };
+  secaoNormal('curto', 8, 0);
+  secaoNormal('alto', 20, 40);
+  const med = medirHud(ambiente({ ...mundo, canvas: body.filhos[0], hud },
+    { montados: [], registrados: [], declarados: [] }));
+  conferir(
+    '§12 com `line-height: normal` o piso é `font-size × 1,2` — 8 px espreme, 20 px não',
+    med.widgets.espremidos.join(',') === 'curto'
+  );
+}
+
+{
+  /* Corpo folgado: nada espremido, e `cabe` verdadeiro. Um aviso que sai sempre não distingue. */
+  const folgada = cenaDeAltura({ alturaDoEspremido: 120 });
+  const medFolga = medirHud(ambiente(folgada, { montados: [], registrados: [], declarados: [] }));
+  conferir(
+    '§12 sem ninguém abaixo da linha, `espremidos` é vazio',
+    medFolga.widgets.espremidos.length === 0 &&
+      medFolga.fendas.find((f) => f.fenda === 'left').orcamento.cabe === true
+  );
+}
+
 // ─────────────────────────────────────────────────────── o carimbo e a saída
 conferir(
   '§0 o resultado carimba rota, janela e o instante',

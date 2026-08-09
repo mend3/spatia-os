@@ -287,15 +287,86 @@ export function medirHud(env, opcoes = {}) {
     },
   };
 
+  /**
+   * A ALTURA EM QUE UM WIDGET DEIXA DE AFIRMAR — uma linha do próprio texto dele.
+   *
+   * ☠️ **Um item de flex ENCOLHE, e o que perde a disputa não fica menor: fica com ZERO.** Um
+   * gráfico espremido some inteiro enquanto o rótulo dele continua na tela, sem erro nenhum — a
+   * sonda diz `montado`, o operador não vê nada, e as duas afirmações são verdadeiras.
+   *
+   * ⚠️ **O piso é DERIVADO, nunca escolhido:** é `line-height` computado do próprio corpo, e
+   * `fontSize × 1,2` quando ele sai `normal`. Um número fixo aqui valeria para uma fenda e mentiria
+   * na outra — a legenda de 9 px e o gráfico de 14 px não têm o mesmo mínimo legível.
+   */
+  const umaLinhaPx = (no) => {
+    const est = estilo(no);
+    if (!est) return null;
+    const lh = Number.parseFloat(est.lineHeight);
+    if (Number.isFinite(lh)) return lh;
+    const fs = Number.parseFloat(est.fontSize);
+    return Number.isFinite(fs) ? fs * 1.2 : null;
+  };
+
+  /** Um widget montado, ABERTO, e desenhando menos que uma linha. */
+  const espremido = (no) => {
+    if (no.dataset.collapsed === 'true') return false;
+    const corpo = no.querySelector('.widget-body');
+    if (!corpo) return false;
+    const alturaCorpo = corpo.getBoundingClientRect().height;
+    const piso = umaLinhaPx(corpo);
+    return Number.isFinite(alturaCorpo) && Number.isFinite(piso) && piso > 0 && alturaCorpo < piso;
+  };
+
   // ───────────────────────────────────────────────────── a geometria das fendas
   const fendas = [...doc.querySelectorAll('[data-slot]')].map((no) => {
     const est = estilo(no);
+    const nosDaFenda = [...no.querySelectorAll('[data-widget]')];
+    const abertos = nosDaFenda.filter((w) => w.dataset.collapsed !== 'true');
+    const alturaPx = no.getBoundingClientRect().height;
+    /*
+     * O ORÇAMENTO DE ALTURA — o termo que a semântica das fendas não tinha.
+     *
+     * Ela diz o que cada fenda SIGNIFICA e não dizia quantos widgets cabem nela. `pisoPx` é o que
+     * os abertos exigem para todos continuarem afirmando (uma linha cada, mais o rótulo que já
+     * ocupa espaço); `cabe` responde a pergunta que o acordeão resolvia em runtime sem nunca
+     * enunciar.
+     */
+    let pisoPx = 0;
+    let pedidoPx = 0;
+    for (const w of abertos) {
+      const corpo = w.querySelector('.widget-body');
+      const rotulo = w.querySelector('.label');
+      const linha = corpo ? umaLinhaPx(corpo) : null;
+      const alturaRotulo = rotulo ? rotulo.getBoundingClientRect().height : 0;
+      const cabecalho = Number.isFinite(alturaRotulo) ? alturaRotulo : 0;
+      pisoPx += (Number.isFinite(linha) ? linha : 0) + cabecalho;
+      /*
+       * `scrollHeight` é o que o conteúdo PEDE, e o `getBoundingClientRect` é o que ele RECEBEU.
+       * ⚠️ Reserva para a altura recebida: o DOM de mentira dos oráculos não tem `scrollHeight`, e
+       * sem a reserva a demanda sairia zero num ambiente que mede tudo o mais corretamente.
+       */
+      const pedido = corpo ? (corpo.scrollHeight ?? corpo.getBoundingClientRect().height) : 0;
+      pedidoPx += (Number.isFinite(pedido) ? pedido : 0) + cabecalho;
+    }
     return {
       fenda: no.dataset.slot,
       ...sondaCaixa(no, janela),
       display: est ? est.display : null,
-      montados: [...no.querySelectorAll('[data-widget]')].map((w) => w.dataset.widget),
+      montados: nosDaFenda.map((w) => w.dataset.widget),
       aoPonteiro: fendasAoPonteiro[no.dataset.slot] ?? { pontos: 0, fracaoJanela: 0 },
+      orcamento: {
+        alturaPx: sondaPx(alturaPx),
+        abertos: abertos.length,
+        /** O que os abertos exigem para todos continuarem AFIRMANDO: uma linha e o rótulo, cada. */
+        pisoPx: sondaPx(pisoPx),
+        /** O que o conteúdo deles PEDE. Acima da altura, alguém rola ou é podado — não é defeito. */
+        pedidoPx: sondaPx(pedidoPx),
+        /** ☠️ `false` = há aberto demais, e alguém VAI parar de afirmar. Isso é defeito. */
+        cabe: Number.isFinite(alturaPx) && alturaPx > 0 ? pisoPx <= alturaPx : null,
+        /** Quanto do que o conteúdo pede a fenda entrega. Acima de 1, há rolagem ou poda. */
+        pressao: Number.isFinite(alturaPx) && alturaPx > 0 ? sondaFrac(pedidoPx / alturaPx) : null,
+        espremidos: abertos.filter(espremido).map((w) => w.dataset.widget),
+      },
     };
   });
 
@@ -336,6 +407,15 @@ export function medirHud(env, opcoes = {}) {
     semControle: nos.filter((n) => n.dataset.collapsed === undefined).map((n) => n.dataset.widget),
     /** ☠️ Declarado pela rota e AUSENTE do DOM. Não é o operador: é defeito. */
     ausentes: decl.filter((id) => !conjMontados.has(id)),
+    /**
+     * ☠️ **A QUARTA CAUSA: montado, ABERTO, e desenhando menos que uma linha.**
+     *
+     * `montado` e `aberto` continuam verdadeiros e o operador não vê nada — nenhuma das outras
+     * três categorias o alcança, porque ele não foi recolhido, não deixou de ser declarado e está
+     * no DOM. É o mesmo formato de «declarado sem leitor» um nível acima: declarado, montado, e
+     * sem pixel.
+     */
+    espremidos: nos.filter(espremido).map((n) => n.dataset.widget),
     /** Montado sem a rota ter declarado — a outra ponta do mesmo portão que falta. */
     intrusos: montadosNoDom.filter((id) => !decl.includes(id)),
     naoMontados: [...(registrados ?? [])].filter((id) => !conjMontados.has(id)),

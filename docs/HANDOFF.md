@@ -94,8 +94,10 @@ falso nesta base.
 **Branch `main`.** Status de tarefa vive no [`roadmap.md`](./roadmap.md); esta seção é só a ORDEM, e
 ela é por dívida de MODELO, não por tamanho.
 
-1. **T-40** — a marca de favorito não tem consumidor.
-2. **T-71 → T-72** — a REGRA DO FOCO no pixel, e ela é inaplicável sem a régua de altura por fenda.
+1. **T-71** — a REGRA DO FOCO no pixel. A régua de altura já existe (T-72), e a ordem por ganho tem
+   dois apoios que concordam: `journal` é a rota mais pesada em GLIFO **e** a fenda mais pressionada
+   em ALTURA.
+2. **T-40** — a marca de favorito não tem consumidor.
 3. **T-74 · T-75** — duas MEDIDAS que decidem outras tarefas sem construir nada (o vidro 3D decide
    T-14; o atlas de glifo decide a §5.1 de `hud-e-canvas.md`).
 

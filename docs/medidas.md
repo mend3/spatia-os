@@ -334,6 +334,39 @@ mede MAIS, e a bancada ainda não a dirige — mas o APP já foi dirigido até l
 
 ---
 
+## O ORÇAMENTO DE ALTURA POR FENDA — as 10 rotas, carga fria (fixture, 1426×742)
+
+`spatia.hud().fendas[].orcamento`. Três grandezas, e elas respondem coisas diferentes:
+
+| grandeza | pergunta | o que ela acusa |
+|---|---|---|
+| `pisoPx` | o que os abertos exigem para todos continuarem AFIRMANDO — uma linha e o rótulo, cada | `cabe: false` → alguém VAI parar de afirmar. **Defeito** |
+| `pedidoPx` | o que o conteúdo deles PEDE (`scrollHeight`) | `pressao > 1` → há rolagem ou poda. **Não é defeito** |
+| `espremidos` | quem já está desenhando menos que uma linha | montado, aberto, e sem pixel. **Defeito** |
+
+⭑ **31 fendas com aberto nas 10 rotas: `espremidos` 0 e `cabe: false` 0.** O acordeão está
+segurando — a régua não achou defeito vivo, e agora isso é uma medida em vez de uma suposição.
+
+⚠️ **DUAS fendas pedem mais do que recebem**, e as duas são o palco:
+
+| rota · fenda | abertos | altura | pedido | pressão |
+|---|---|---|---|---|
+| **`journal` · stage** | 2 | 441,5 px | 682 px | **1,54** |
+| `storage` · stage | 2 | 441,5 px | 528 px | 1,20 |
+| `storage` · right | 2 | 441,5 px | 398 px | 0,90 |
+| `security` · strip | 1 | **42,2 px** | 33,5 px | 0,79 |
+
+☠️ **`journal` é a rota mais pressionada, e é a MESMA que o inventário da HUD já apontava como a
+mais pesada** (24,7% de glifo · 60,2% de céu). Duas grandezas independentes — fração de glifo e
+pressão de altura — nomeando a mesma tela. É a ordem por ganho que T-71 precisa, agora com dois
+apoios em vez de um.
+
+⚠️ **`security` · `strip` é a fenda mais APERTADA em termos absolutos:** 42,2 px de altura contra
+um piso de 31,7 px para UM widget. Ela comporta um aberto e nada mais — um segundo residente ali
+derruba `cabe` na hora.
+
+---
+
 ## O DOCUMENTO ANCORADO NO CORPO — a composição que faltava, medida no APP (09/08)
 
 ☠️ **A linha acima dizia que esta composição não tinha número.** Ela tem: o app foi levado à mão

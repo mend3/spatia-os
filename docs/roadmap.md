@@ -160,7 +160,7 @@ com ou sem produtor.
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
 | **T-39** | As duas cenas olham pela MESMA ontologia — a pele tem um dono só (`space/sistemas.js`) | `done` | — | — | KR2.4 |
 | **T-71** | **A REGRA DO FOCO no pixel — nas DEZ rotas**, não só na cena principal | `todo` | — | — | KR2.1 |
-| **T-72** | Orçamento de ALTURA por fenda — a REGRA DO FOCO não é aplicável sem esta régua | `todo` | — | T-71 | KR2.1 |
+| **T-72** | Orçamento de ALTURA por fenda — piso, pedido e a QUARTA causa de «o painel sumiu» | `done` | — | T-71 | KR2.1 |
 | **T-73** | `sec-effective` mora em `strip`, a fenda dos RESIDENTES — mover ou redeclarar | `todo` | decisão do usuário | — | KR2.1 |
 | **T-74** | MEDIR o custo de um painel de VIDRO 3D — o número que decide o launcher | `todo` | — | T-14 | — |
 | **T-75** | MEDIR o custo de um atlas de glifo por token — decide se a §5.1 tem saída barata | `todo` | — | T-53 | — |
@@ -339,14 +339,21 @@ com ou sem produtor.
   MEDIR primeiro — um painel de vidro com refração na bancada, contra o quadro — e só depois
   decidir. ⚠️ Glass real por FBO/transmissão é um segundo passe de composição, que é exatamente o
   bolso já cheio.
-- **T-72** — ⭑ **É a regra que tem um TERMO FALTANDO, e o próprio código já confessa.** A semântica
-  das fendas diz o que cada uma significa e **não diz quantos cabem**. O acordeão
-  (`kernel/widgets.js:63-71`) é o remendo de runtime disso, e o comentário dele é a prova:
-  *"com todas abertas elas disputam a altura, e o que perde não fica menor, fica com ZERO. Um
-  gráfico de 14px sumia inteiro enquanto a legenda dele continuava na tela, sem erro nenhum"*.
-  ⚠️ **Uma regra que precisa de remendo de runtime para ser habitável é uma regra incompleta** — e o
-  termo é orçamento de altura por fenda. Ele conversa com T-71: decidir o que fica na tela sem ter
-  a régua de altura é decidir metade.
+- **T-72 FECHADA — a régua existe, e ela é DERIVADA.** O piso de um widget é uma linha do próprio
+  texto dele (`line-height` computado, ou `font-size × 1,2` quando sai `normal`) mais o rótulo.
+  Número fixo valeria para uma fenda e mentiria na outra. `spatia.hud().fendas[].orcamento` publica
+  `pisoPx` (o que os abertos exigem para todos continuarem AFIRMANDO), `pedidoPx` (o que o conteúdo
+  PEDE) e `pressao`. Portão: `lei-hud.mjs` §12, 43 leis, 5 mutações vistas caindo.
+  ⭑ **A QUARTA causa de «o painel sumiu»: `widgets.espremidos`** — montado, ABERTO, e desenhando
+  menos que uma linha. Nenhuma das outras três o alcançava: não foi recolhido, não deixou de ser
+  declarado, e está no DOM. `montado` e `aberto` continuam VERDADEIROS e o operador não vê nada.
+  ⭑ **Medido nas 10 rotas, 31 fendas com aberto: 0 espremidos e 0 `cabe: false`.** O acordeão está
+  segurando — e agora isso é medida, não suposição.
+  ☠️ **E a pressão nomeia `journal` de novo, por outra grandeza:** 1,54 no palco, a maior das 31,
+  contra os 24,7% de glifo que já faziam dela a rota mais pesada. Duas medidas independentes
+  apontando a mesma tela é a ordem por ganho que T-71 precisa. Ver [`medidas.md`](./medidas.md).
+  ⚠️ **`cabe: false` é DEFEITO; `pressao > 1` NÃO É** — o segundo é rolagem ou poda, que é o
+  comportamento normal de conteúdo longo. Confundir os dois faria a régua acusar o céu inteiro.
 - **T-73** — a fenda `strip` tem semântica declarada de RESIDENTES (*"o que nunca deve sair da
   tela"*) e `sec-effective` mora nela existindo em **1 de 10 rotas** (medido; o censo de
   `lei-residentes.mjs` §5 imprime o caso em amarelo toda vez). A fenda ganhou um segundo significado
