@@ -108,15 +108,31 @@ Tabela de item em voo envelhece a cada commit e vira a primeira linha errada que
 que este arquivo carregou por sessões dois itens (`0b`, `0f`) **já fechados no código**, contradizendo
 o roadmap ao lado.
 
-**Por onde continuar, hoje:** **T-69** e **T-70**, nessa ordem — as duas pontas que a convergência
-das cenas (T-39) deixou, e as duas são da família *"declarado sem leitor"*: um vocabulário de pele
-com dois nomes, e uma `surface` que o solver calcula e ninguém em `src/` consome. Depois delas,
-**T-40** (a marca de favorito não tem consumidor) e **T-58** (o `prefs` vence o endereço pedido no
-deeplink de foco).
+☠️ **A DÍVIDA MAIS BARATA DA BASE É UMA SESSÃO DE NAVEGADOR, e ela não é opcional.** O vocabulário
+diz que `done` é *"entregue **e provado** — número, oráculo ou foto"*, e **sete tarefas esperam a
+prova que só a tela dá**: T-13 · T-16 · T-35 · T-39 · T-47 · T-51 · T-52. Seis delas já estão
+escritas como fechadas. Cada uma nomeia no `roadmap.md` exatamente o que a foto tem de julgar, e
+**nenhuma pede navegação nova** — é o mesmo boot, as mesmas rotas. Enquanto ela não acontece, o
+roadmap afirma seis vezes o que ninguém viu.
+⚠️ Antes de medir qualquer coisa ali, o §1 e [`armadilhas.md`](./armadilhas.md) §A: aba VISÍVEL,
+janela em FOCO, `quadros` andando. Comando de shell rouba o foco de volta.
 
-⚠️ **Duas entregas recentes estão sem FOTO**, e a lista de quem precisa dela está no roadmap: T-39
-(o que os 7 corpos que desenhavam ESTAÇÃO no AGENTE passaram a desenhar), além de T-35, T-16, T-47,
-T-51 e T-52.
+**Por onde continuar depois dela, e a ordem é por dívida de MODELO, não por tamanho:**
+
+1. **T-69 → T-70** — as duas pontas que a convergência das cenas (T-39) deixou, e a ordem entre elas
+   é obrigatória. `SURFACE` e `SUPERFICIE` são dois nomes do mesmo vocabulário (48 sítios, e as
+   chaves DIVERGEM — `SURFACE` tem `GALAXY`, que a tabela nova não roteia, então não é alias); só
+   depois disso `resolveBody` pode parar de calcular a pele que **nenhum leitor em `src/` consome**.
+2. **T-40** — a marca de favorito **não tem consumidor**: ela só aparece no painel do corpo em que o
+   operador JÁ está, então responde uma pergunta que ele não pode ter. É o Princípio Final ao
+   contrário, e as três condições de T-35 fecharam sem tocar na que faz a marca valer: alguém ler.
+3. **T-58** — o `prefs` vence o endereço pedido no deeplink de FOCO. Endereço PEDIDO e último
+   visitado são fatos diferentes, e o pedido tem precedência quando existe.
+
+⭑ **E há um CLUSTER, não cinco tarefas soltas:** T-41 · T-42 · T-43 · T-45 · T-64 (com T-70) são
+todas *"declarado sem leitor"* ou *"dois donos para um estado"* — a família que esta base já pagou
+cinco vezes, e o corolário da REGRA DO CATÁLOGO no `CLAUDE.md` diz como a auditoria se faz (varra
+cada chave declarada e procure um leitor). Fazê-las juntas cobra uma varredura só.
 
 ⚠️ **As decisões que são do usuário não são `blocked` por engenharia e nenhum agente as resolve
 sozinho** — estão nomeadas no fim do `roadmap.md`.
