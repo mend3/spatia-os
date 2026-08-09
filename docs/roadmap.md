@@ -19,6 +19,15 @@
 | `postponed` | possível hoje, e escolhemos não fazer. O motivo fica escrito |
 | `archived` | não vamos fazer. Refutado por medida, ou o problema deixou de existir |
 
+☠️ **`blocks` e `blocked_by` NÃO SÃO INVERSAS, e tratá-las como tal quebra a tabela.** `blocked_by`
+é dependência DURA — a tarefa não anda sem a outra, e o status costuma ser `blocked`. `blocks` é
+*o que esta peça DESTRAVA*, que é mais largo: T-04 destravou T-05, T-06 e T-08, e nenhuma das três
+esteve `blocked` um dia. Varrer a tabela exigindo simetria "conserta" 21 linhas que estão certas.
+⭑ **O que É defeito, e foi varrido em 09/08:** alguém declarar `blocked_by: X` e o `blocks` de X não
+mostrar. Aí a dependência existe num lado só, e quem lê a linha de X não vê o que ela segura — era o
+caso de T-21 (segurava três) e T-53 (segurava uma). A varredura é cinco linhas de script sobre a
+tabela e vale rodar depois de toda leva de tarefas novas.
+
 ⚠️ **`blocked` por decisão do usuário não é `blocked` por engenharia.** As decisões listadas abaixo
 são do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozinho.
 
@@ -134,23 +143,23 @@ com ou sem produtor.
 | **T-36** | `conectividade.mjs` agrupa como a cena agrupa — e o ρ com o tamanho do sistema NÃO era o filho único | `done` | — | — | KR3.1 |
 | **T-19** | Quebrar a dependência de `M_total` nas luas — RISCO DE EXPIRAÇÃO, não defeito vivo | `postponed` | — | — | — |
 | **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
-| **T-21** | Marketplace × a postura de segurança escrita | `blocked` | decisão do usuário | — | — |
+| **T-21** | Marketplace × a postura de segurança escrita | `blocked` | decisão do usuário | T-76, T-77, T-78 | — |
 | **T-22** | Gravidade cognitiva (uso movendo órbita) | `blocked` | decisão do usuário | — | — |
 | **T-23** | Agente como corpo (a ESTAÇÃO) | `blocked` | decisão do usuário | — | — |
 | **T-24** | Passo 3 — distância × pixel contra o corpus real | `todo` | — | — | — |
 | **T-25** | Licença de `assets/textures/sun.jpg` | `done` | — | — | — |
-| **T-26** | Granulação do anel — escolher entre `GRAIN`/`SWARM`/`BOULDER`/`SLAB` | `todo` | — | — | — |
+| **T-26** | Granulação do anel — escolher entre `GRAIN`/`SWARM`/`BOULDER`/`SLAB` | `todo` | — | T-55 | — |
 | **T-27** | i18n | `postponed` | — | — | — |
 | **T-28** | Zonas por razão de massa — declaradas, sem leitor | `archived` | — | — | KR3.3 |
 | **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `done` | — | — | KR3.3 |
 | **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
 | **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `done` | — | T-16 | KR1.2 |
-| **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | — | — |
+| **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | T-61 | — |
 | **T-35** | **FAVORITOS** — fase 1 (modelo + persistência) `done`; a INTERFACE é a fase 2 | `doing` | — | T-34 | KR2.1 |
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
 | **T-39** | As duas cenas olham pela MESMA ontologia — a pele tem um dono só (`space/sistemas.js`) | `done` | — | — | KR2.4 |
-| **T-71** | **A REGRA DO FOCO no pixel — nas DEZ rotas**, não só na cena principal | `todo` | — | T-72 | KR2.1 |
+| **T-71** | **A REGRA DO FOCO no pixel — nas DEZ rotas**, não só na cena principal | `todo` | — | — | KR2.1 |
 | **T-72** | Orçamento de ALTURA por fenda — a REGRA DO FOCO não é aplicável sem esta régua | `todo` | — | T-71 | KR2.1 |
 | **T-73** | `sec-effective` mora em `strip`, a fenda dos RESIDENTES — mover ou redeclarar | `todo` | decisão do usuário | — | KR2.1 |
 | **T-74** | MEDIR o custo de um painel de VIDRO 3D — o número que decide o launcher | `todo` | — | T-14 | — |
@@ -162,7 +171,7 @@ com ou sem produtor.
 | **T-80** | O inspector tem TRÊS estados (recolhido → **resumo** → aberto) e ganha AÇÕES | `todo` | — | T-71 | KR2.1 |
 | **T-81** | Comprimir o cabeçalho — ⚠️ colide com refutação escrita sobre esconder dado atrás de gesto | `todo` | decisão do usuário | — | KR2.1 |
 | **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora e profundidade, não janela | `todo` | T-53 | — | KR2.1 |
-| **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) são DOIS nomes do mesmo vocabulário | `todo` | — | — | KR2.4 |
+| **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) são DOIS nomes do mesmo vocabulário | `todo` | — | T-70 | KR2.4 |
 | **T-70** | `resolveBody()` ainda decide uma PELE que ninguém lê — sobrou o modificador | `todo` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos | `todo` | — | — | KR3.1 |
@@ -177,7 +186,7 @@ com ou sem produtor.
 | **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `done` | — | — | — |
 | **T-51** | Zona morta do palco — ⭑ **medido nas 10 rotas: o corpo reivindica, a moldura cede** | `done` | — | — | — |
 | **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
-| **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
+| **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | T-82 | — |
 | **T-54** | A cena AGENTE voltava PRETA ao voltar do UNIVERSO — era a PARIDADE DE SWAPS, e o par agora é FIXADO | `done` | — | — | KR2.3 |
 | **T-55** | Enxugar a BANCADA — ela é o storybook dos objetos 3D, e tem espécimes depreciados | `blocked` | T-26 | — | — |
 | **T-56** | Satélites estão com LUAS — não existe e não faz sentido | `todo` | — | — | — |
