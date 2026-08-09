@@ -971,3 +971,476 @@ E acho que esse é exatamente o próximo passo lógico do SpatIA: os documentos 
 E faria a primeira versão **sem física gravitacional complexa**. Primeiro acertamos a sensação de voo — aceleração, inércia, steering, estabilização, câmera e boost. Depois conectamos campos gravitacionais, órbitas e influência das entidades.
 
 Isso evita misturar duas variáveis difíceis de calibrar ao mesmo tempo: **“é divertido pilotar?”** e **“a física está correta?”**. Para o SpatIA, a primeira deve dominar.
+
+---
+
+no modo navegacao, quero 2 modos:
+- modo cockpit - interface, paineis, bipbs, indicadores, controladores de aeronave - com interface, permitido texturas para dar impressao de estar dentro de uma nave espacial
+- modo flight - interface da aernova some, ficam alguns indicadores pela tela (velocidade, distancia ao objeto mais perto. Usuario pode usar WASD ou setas para controlar a nave.
+
+Perfeito. Eu separaria o **modo Navegação** em dois estados de apresentação da mesma nave — não em dois sistemas de movimento.
+
+```text
+NAVIGATION
+│
+├── COCKPIT
+│   ├── interior da nave
+│   ├── painéis
+│   ├── instrumentos
+│   ├── indicadores
+│   ├── controles
+│   ├── texturas / materiais
+│   └── HUD complementar
+│
+└── FLIGHT
+    ├── universo completamente visível
+    ├── sem interior da nave
+    ├── HUD mínimo
+    └── WASD / Setas
+```
+
+Isso também mantém a ideia do projeto de que a interface deve comunicar estado e que a nave é uma entidade física dentro do universo, em vez de simplesmente transformar a câmera em um `freeCamera`. 
+
+## 1. Cockpit — "estou dentro da nave"
+
+Aqui a prioridade é **imersão**.
+
+
+
+A câmera fica na posição do piloto:
+
+```text
+┌──────────────────────────────────────┐
+│                                      │
+│          ┌─── SPACE ───┐             │
+│          │   universo  │             │
+│          │             │             │
+│          └─────────────┘             │
+│                                      │
+│  ◉ radar                 ◉ systems   │
+│                                      │
+│      ┌──────────────────────┐        │
+│      │   FLIGHT CONTROL     │        │
+│      └──────────────────────┘        │
+│                                      │
+└──────────────────────────────────────┘
+```
+
+### Elementos
+
+**Interior físico**
+
+- estrutura da cabine;
+- vidro/pára-brisa;
+- bordas da fuselagem;
+- console;
+- assentos/estrutura;
+- painéis laterais;
+- iluminação interna;
+- pequenos LEDs;
+- displays.
+
+**Instrumentação**
+
+- velocidade;
+- aceleração;
+- direção;
+- altitude/distância espacial;
+- alvo;
+- proximidade;
+- energia;
+- propulsão;
+- estabilidade.
+
+**Feedback**
+
+- bips;
+- clicks;
+- alertas;
+- vibração visual;
+- pequenas oscilações da câmera;
+- iluminação dos instrumentos.
+
+As texturas são permitidas e, aqui, eu **usaria texturas propositalmente**. O cockpit não precisa ser construído 100% proceduralmente. A textura pode fornecer desgaste, parafusos, materiais, marcações, telas e microdetalhes que seriam caros de reproduzir geometricamente.
+
+---
+
+# 2. Flight — "estou pilotando pelo espaço"
+
+Ao trocar para Flight, acontece uma transformação radical:
+
+```text
+COCKPIT
+
+████████████████████
+████   CABINE   █████
+████████████████████
+
+          ↓
+
+FLIGHT
+
+────────────────────
+       UNIVERSO
+────────────────────
+```
+
+A nave **continua existindo**, mas o interior deixa de ser renderizado/visível.
+
+Não queremos:
+
+> cockpit transparente.
+
+Queremos:
+
+> **a câmera saiu da cabine e passou para uma visão externa/flight HUD.**
+
+
+
+---
+
+## HUD mínimo
+
+Eu deixaria somente informações que ajudam a pilotar:
+
+```text
+                         742 km/s
+
+
+                 +  TARGET
+                    ●
+
+
+   12.4 km                         3.2 km
+   nearest                         target
+
+
+                  ──────
+                    ▲
+                  heading
+
+
+                           87%
+```
+
+No máximo:
+
+### Velocidade
+
+```text
+742 km/s
+```
+
+### Distância ao objeto mais próximo
+
+```text
+NEAREST
+12.4 km
+```
+
+### Direção
+
+Um pequeno indicador de heading.
+
+### Alvo
+
+Se houver um objeto selecionado:
+
+```text
+TARGET
+3.2 km
+```
+
+### Estado de propulsão
+
+Uma barra pequena, se realmente necessária.
+
+Nada de dezenas de informações.
+
+O **Flight HUD não é um painel de controle**.
+
+É um instrumento de orientação.
+
+---
+
+# 3. Controles
+
+Aqui eu faria exatamente como você propôs.
+
+### WASD
+
+```text
+W = acelerar
+S = desacelerar / reverso
+
+A = esquerda
+D = direita
+```
+
+### Setas
+
+```text
+↑ = acelerar
+↓ = desacelerar
+← = esquerda
+→ = direita
+```
+
+E podemos aceitar ambos simultaneamente.
+
+```text
+W + D
+```
+
+= acelera + curva.
+
+Isso deixa o sistema imediatamente familiar.
+
+---
+
+# 4. Cockpit e Flight usam o MESMO controlador
+
+Isso é importante arquiteturalmente.
+
+Não faria:
+
+```text
+CockpitController
+FlightController
+```
+
+com duas físicas diferentes.
+
+Faria:
+
+```text
+                    Input
+                      │
+                      ▼
+              FlightController
+                      │
+             ┌────────┴────────┐
+             ▼                 ▼
+          Physics           ShipState
+             │                 │
+             └────────┬────────┘
+                      ▼
+                Presentation
+                 /          \
+                /            \
+          COCKPIT           FLIGHT
+```
+
+Ou seja:
+
+**o modo muda a representação, não a nave.**
+
+Se você estiver no cockpit e apertar `W`:
+
+```text
+nave acelera
+```
+
+Troca para Flight:
+
+```text
+a nave continua na mesma velocidade
+```
+
+Volta para Cockpit:
+
+```text
+continua exatamente no mesmo estado.
+```
+
+---
+
+# 5. A transição entre os modos deve ser física
+
+Eu evitaria simplesmente:
+
+```text
+if cockpit
+  show cockpit
+
+if flight
+  hide cockpit
+```
+
+Visualmente seria muito melhor:
+
+```text
+COCKPIT
+   ↓
+glass / HUD
+   ↓
+camera moves
+   ↓
+cabine desaparece
+   ↓
+FLIGHT
+```
+
+Uma transição de ~500–800 ms.
+
+O mesmo para voltar:
+
+```text
+FLIGHT
+   ↓
+camera approaches ship
+   ↓
+cockpit emerges
+   ↓
+COCKPIT
+```
+
+Assim a troca de modo também obedece ao princípio do projeto:
+
+> nada simplesmente aparece ou desaparece; tudo possui continuidade. 
+
+---
+
+# 6. A nave precisa ter uma "identidade física"
+
+Eu definiria uma entidade:
+
+```ts
+Ship {
+    transform
+    velocity
+    acceleration
+    rotation
+    angularVelocity
+
+    propulsion
+    energy
+
+    nearestEntity
+    targetEntity
+
+    flightMode
+}
+```
+
+E:
+
+```ts
+flightMode =
+    "cockpit"
+    | "flight"
+```
+
+A cena simplesmente pergunta:
+
+```ts
+if (flightMode === "cockpit")
+    renderCockpit();
+
+if (flightMode === "flight")
+    renderFlightHUD();
+```
+
+A física permanece completamente independente.
+
+---
+
+# 7. O cockpit pode ser "semi-físico"
+
+Eu não tentaria simular cada botão.
+
+Podemos ter:
+
+```text
+╔══════════════════════════╗
+║  PROPULSION       87%    ║
+║  NAVIGATION       READY  ║
+║  SHIELDS          100%   ║
+║                         ║
+║       [ RADAR ]          ║
+║                         ║
+║  SYS ●  NAV ●  ENG ●    ║
+╚══════════════════════════╝
+```
+
+Alguns controles podem responder:
+
+- botão acende;
+- indicador pulsa;
+- display atualiza;
+- alerta sonoro;
+- painel muda.
+
+Mas eles **não precisam ser todos interativos**.
+
+A cabine deve parecer uma máquina funcional sem transformar a navegação em um simulador complexo.
+
+---
+
+# 8. O detalhe que eu acho mais importante
+
+No **Cockpit**, a nave é o protagonista.
+
+No **Flight**, o universo é o protagonista.
+
+Essa diferença é excelente:
+
+```text
+COCKPIT
+
+     👁
+     ↓
+ [ NAVE ]
+     ↓
+ universo
+```
+
+vs.
+
+```text
+FLIGHT
+
+     👁
+     ↓
+  UNIVERSO
+     ↓
+  entidades
+     ↓
+   relações
+```
+
+Então os dois modos cumprem funções diferentes:
+
+| | Cockpit | Flight |
+|---|---|---|
+| Sensação | Estou dentro | Estou voando |
+| Interface | Rica | Mínima |
+| Nave | Presente | Invisível |
+| Painéis | Sim | Não |
+| HUD | Completo | Essencial |
+| Universo | Parcialmente enquadrado | Dominante |
+| WASD | Sim | Sim |
+| Setas | Sim | Sim |
+| Imersão | Alta | Cinemática |
+| Exploração | Boa | **Principal** |
+
+### Minha recomendação
+
+Eu faria **Flight como o modo padrão de exploração** e **Cockpit como o modo imersivo**.
+
+O usuário poderia alternar com algo simples como:
+
+```text
+C
+```
+
+ou um pequeno controle:
+
+```text
+◉ FLIGHT    ◯ COCKPIT
+```
+
+E, principalmente, **não transformaria o Cockpit em uma tela cheia de HUD**. O cockpit deve parecer um espaço físico da nave; o Flight deve parecer que você libertou a câmera para realmente habitar o universo.
+
+Isso casa muito bem com a direção já estabelecida para o SpatIA: o universo deve ser navegável, vivo e observável, enquanto as entidades, agentes e relações possuem comportamento próprio.
+
