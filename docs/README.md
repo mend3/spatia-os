@@ -35,7 +35,7 @@ documentação* — leia-a antes de acrescentar arquivo ou parágrafo.
 
 | arquivo | responde |
 |---|---|
-| [`medicoes-2026-08-07.md`](medicoes-2026-08-07.md) | a rodada que decidiu a escala e as constantes calibradas. ⚠️ **Não é um plano** |
+| [`medicoes-2026-08-07.md`](medicoes-2026-08-07.md) | **por que** cada constante calibrada é o que é, e o que foi REFUTADO (percentil, score composto, Louvain). ⚠️ O nome tem data mas o conteúdo não é um evento — **oito lugares o citam pelo número da seção** |
 | [`distancia-e-forma.md`](distancia-e-forma.md) | quantos pixels um corpo tem a cada distância, e o que isso proíbe |
 | [`cobertura.md`](cobertura.md) | o que cada corpus PROVA, e o que ele não prova |
 
