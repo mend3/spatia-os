@@ -339,6 +339,16 @@ dois na hora (máx/mín 23,96× é fase; ~1× seria aro). É a armadilha nº 5 d
 
 ---
 
+☠️ **MEDIR SUB-ROTA EXIGE CARGA FRIA.** Trocar só o `location.hash` **não recarrega o documento**, e
+o router trata sub-rota **sem remontar** de propósito — o endereço existe para trazer o estado de
+volta, e remontar destruiria isso. Quem mudar o hash e ler estará medindo o mount ANTERIOR. Force
+documento novo (navegue para outra página e volte). ⚠️ E confira que o id existe como LINHA: o
+diário tem registros que não são execução.
+
+☠️ **WIDGET COLAPSADO PARECE WIDGET VAZIO** — só o cabeçalho, sem nem a mensagem de vazio. O estado
+está em `localStorage` (`espatial.collapsed.v1`, listas `abertas`/`fechadas`) e é PREFERÊNCIA DO
+OPERADOR, não defeito. Confira essa chave antes de acusar a tela de não desenhar.
+
 ☠️ **`cena().quadros` CONTA SÓ O UNIVERSO — no AGENTE ele congela.** Usá-lo como prova de vida ao
 medir a cena AGENTE devolve "não mudou" com a tela parada, que é a armadilha do §4 com o contador
 errado. **A contagem que não pertence a cena nenhuma é o `requestAnimationFrame`**, e é ela que vale
@@ -442,6 +452,11 @@ quando a medida atravessa as duas cenas.
     limiar FIXO (`chunks / GIGANTE`), nunca posto de população. É a forma que a REGRA DA FRONTEIRA
     já abençoa no `R_s/R`. ⚠️ E normalizar *dentro* da classe é a mesma família de erro — com
     população 1 ela é degenerada de saída.
+    ⭑ **`min`/`max` da amostra são a mesma doença com outro nome**, e ela reincidiu na `forca` do
+    vínculo: `(v − min)/(max − min)` manda o mais fraco para `0` — que aqui significa *"medi e não
+    há"* — e faz o mesmo par valer coisas diferentes conforme o céu. **Escala de saída se ancora na
+    UNIDADE** (contagem: `v/(v+1)`, razão ao quantum de um evento; cosseno: identidade, que já é
+    [0,1]), nunca nos extremos observados. Números em §6.
 
 22. ☠️ **CARIMBO AUSENTE NÃO É CARIMBO NEUTRO.** O `annotate_*` servia snapshot de outro corpus
     porque não havia campo dizendo de qual céu ele era — e a tentação, ao acrescentar o campo, é
@@ -481,6 +496,24 @@ remedir. Confesso: ρ −0,623 com o TAMANHO do sistema (é razão, não sabe vo
 
 **Rede da seleção:** 4.226 vínculos · grau MED 26 · P90 56 · máx 182 · **teto 28 arcos** · 42% truncados
 (o corte é publicado). `TOUCHED` fica fora porque liga `Run → Astro` e as duas pontas não são corpos.
+
+**A FORÇA do vínculo é da UNIDADE, e o piso do tipo NUNCA vale zero** (09/08, `vizinhanca.mjs`).
+Contagem sai `v/(v+1)` (1 → **0,500**, 4 → 0,800, 21 → 0,955); cosseno sai identidade. O que a
+normalização por extremos observados produziria, medido nos dois corpora — é por isso que ela está
+refutada (armadilha 21):
+
+| corpus · tipo | n | bruto | `min`–`max` → em zero | unidade → em zero |
+|---|---|---|---|---|
+| fixture · `CO_EDITED` | 416 | 1–4 | **386 (92,8%)** | 0 |
+| vivo · `CO_EDITED` | 1.794 | 1–21 | 1.338 (74,6%) | 0 |
+| vivo · `REFERENCES` | 904 | 1–4 | 840 (92,9%) | 0 |
+| vivo · `IMPORTS` | 626 | 1–2 | ☠️ **624 (99,7%)** | 0 |
+| vivo · `SIMILAR_TO` | 3.008 | 0,508–0,975 | 2 (0,1%) | 0 |
+
+⚠️ **O fixture tem UM tipo só** (`CO_EDITED`, três valores distintos): ele prova o piso e não julga
+codificação visual de quatro tipos. ⭑ **As arestas dos dois corpora convivem no Neo4j com
+`r.corpus`**, então a distribuição do vivo se mede **sem trocar o `.env`** — só o `/api/graph` é
+que precisa da troca.
 
 **Geometria da cena UNIVERSO:** bandas orbitais disjuntas — **0 sobreposições em 17.578 pares**, medido
 12×. Folga mínima entre bandas 0,1999 un (2× o raio do corpo). ⚠️ **Aumentar o corpo ou baixar a
@@ -615,10 +648,11 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 | `server/graphdb.py` | `_recusa_de_corpus` + os cinco leitores de snapshot |
 | `server/graph.py` | `stats.influencia` passa a ser publicado |
 | `scripts/{centralidade,uso,conectividade,vizinhanca,conceitos}.mjs` | carimbam `corpus` no snapshot |
+| `scripts/vizinhanca.mjs` | `ESCALAS` — a `forca` sai da unidade do tipo (T-30); a saída mede quantos vínculos caem em zero |
 | `src/space/entity-physics.js` | `evidenciaDeUso` propaga o motivo da recusa |
 | `src/space/pulsar.js` | `GIGANTE` — a massa do rig vira razão ao limiar |
 | `src/sandbox/pulsar-rig.js` | o slider inverte pela MESMA lei |
-| `src/space/scene.js` | `CENAS` + `aplicarCena` extraídos de `setMode` |
+| `src/space/scene.js` | `CENAS` + `aplicarCena` extraídos de `setMode`; `escalaLocal()`/`porteLocal()` (T-08) |
 | `scripts/lei-cena.mjs` | o oráculo da lei da cena (T-05) |
 
 **Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
@@ -768,25 +802,38 @@ relação ou fato.**
    `embed-warm` e `graph-refresh`, e a segunda recarrega topologia **em silêncio**. Metade da
    `entrevista-usuario.md` (universo vivo, modo assistir, a Regra dos Cinco Minutos) não está
    bloqueada por render: está bloqueada por isso. **O tubo está montado e vazio.**
-2. **Ninguém é dono do estado de TELA.** Há QUATRO donos que não se conhecem: o `#boot` (que não
-   emite evento nenhum), o `modo` da cena, o `current` do router e o `session.js` — **que não tem
-   campo de cena**. Splash seria um quinto, launcher um sexto. Sem dono único, "a splash acabou → o
-   universo começa" não tem onde morar e vira um `if` em cada camada.
-⭑ **A terceira caiu:** a cena é `CENAS` em `scene.js`, e `scripts/lei-cena.mjs` prova que ela não
-decide o que um corpo é. Restam as duas de cima e a de baixo.
+⭑ **A segunda e a terceira caíram.** O estado de TELA tem dono único em `src/core/tela.js` —
+camada (pilha declarada), cena e rota num objeto só, lido por `spatia.tela()`. E a cena é `CENAS`
+em `scene.js`, com `scripts/lei-cena.mjs` provando que ela não decide o que um corpo é. Resta a de
+cima e a de baixo.
 
-3. **Ninguém é dono da POSE da câmera.** `orbit.distance` é usado como proxy de *"quão longe estão
-   as coisas"* por **sete** consumidores independentes (piso do zoom, escala do pan, amplitude da
-   paralaxe, chegada a sistema, chegada por `anexar`, persistência em `prefs`, a sonda `ancora()`).
-   Numa nave não há âncora e `orbit.distance` deixa de significar algo — os sete passam a discordar
-   **em silêncio**. É a armadilha nº 5 multiplicada por sete.
+3. **A POSE da câmera são QUATRO grandezas, e uma delas nem é distância.** Nomeadas em `scene.js`:
+   `escalaLocal()` (*quão longe está o que eu olho* — quem lê são a escala do pan e a amplitude da
+   paralaxe), `porteLocal()` (*que RAIO tem o que está aqui* — quem lê é o piso do zoom), e
+   `orbit.distance`/`.targetDistance`, que volta a significar só o raio da órbita (posição da
+   câmera, roda, amortecimento, `prefs`, a sonda).
+   ⚠️ **A quarta é a distância de CHEGADA e não passa por nenhuma das outras:** ela sai de um alvo
+   NOMEADO (o envelope daquele sistema, o raio daquele corpo, `FOCUS_FIT_PX`/`CHEGADA_PX`), nunca de
+   "onde eu estou" — forçá-la por `escalaLocal` trocaria o número de todas as chegadas.
+   ⚠️ **`prefs` grava `camera.distance` e a chave NÃO é renomeável** — renomear não migra o que já
+   está salvo, e a afinação do operador evapora em silêncio.
+   ⚠️ **Falta a prova de tela** (T-08), e ela é uma RENOMEAÇÃO: as quatro sondas têm de sair
+   idênticas com e sem o diff. **Numa chamada só**, com as duas guardas do §4 abertas e `quadros`
+   andando, e sem tocar na câmera entre as duas leituras (a deriva envelhece COORDENADA):
+   `spatia.cena('universo')` → congele com um `wheel deltaY:0` → leia
+   `{ancora: spatia.universo.ancora(), pixels: spatia.universo.pixels(), sobrep:
+   spatia.universo.sobreposicoes(), cena: spatia.cena()}`. Repita com `git stash`. **Esperado:**
+   `ancora().distancia`/`alvoDeDistancia` e os percentis de `pixels().geometria` ao dígito, e
+   `sobreposicoes()` em **0 pares**. Os três gestos que passam pelas grandezas separadas são a
+   RODA (piso), o **SHIFT + arraste** (escala do pan) e o **movimento do ponteiro parado**
+   (paralaxe) — o piso do zoom só se prova rodando a roda até o fim e lendo `ancora().distancia`.
 
 ### O que já está PRONTO e nenhum briefing sabe
 
 - **O traço de explicabilidade** — que o usuário chamou de *"talvez a feature mais importante"* —
   **está pronto, endereço incluído**: sete eventos do `EVENTS.md` em ledger encadeado por hash, tela
   em `src/apps/journal.js`, e `router.parse()` devolvendo `{app, arg}` com `journal.js:190`
-  resolvendo o alvo. **Falta a FOTO, não o código.**
+  resolvendo o alvo. Provado em carga fria: aba do dia ativa, linha marcada, detalhe preenchido.
 - **`cogload{tokens}` → `blackHole.setLoad`** existe ponta a ponta. O item favorito do autor do
   `black-hole-router` é o mais barato dos dez dele.
 - **A soft collision** do `ship-navigator` já tem o fato **e o padrão implementado**:

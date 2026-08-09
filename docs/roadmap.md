@@ -47,7 +47,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 | KR | medida | hoje |
 |---|---|---|
 | KR2.1 | **estado de tela** tem dono único | ✗ **quatro** donos que não se conhecem (`#boot`, `modo`, `router.current`, `session.js`) |
-| KR2.2 | **pose da câmera** tem nome próprio | ✗ `orbit.distance` serve de proxy a **sete** consumidores |
+| KR2.2 | **pose da câmera** tem nome próprio | ⚠️ `escalaLocal()`/`porteLocal()` separados em `scene.js` — **sem prova de tela** |
 | KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
 | KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 11 call sites · 1.080 perturbações) |
 
@@ -67,16 +67,12 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 > O traço de explicabilidade — que o usuário chamou de *"talvez a feature mais importante"* — **já
 > está gravado inteiro**: sete degraus, sete eventos, ledger encadeado por hash, tela pronta.
 >
-> ☠️ **E o endereço TAMBÉM já está** — `router.parse()` devolve `{app, arg}`, sub-rota não remonta o
-> widget, e `apps/journal.js:190` resolve o alvo (*"com ele, o dia que contém a execução pedida"*).
-> `OS-SCREENS.md` §4 registrava isso como fechado; um relatório de subagente afirmou o contrário e a
-> afirmação entrou no handoff. **Doc velho perde para o código — e relatório de agente perde para os
-> dois.** O que falta é a FOTO: `desenhadas: N` prova que recebeu quadro, não que a imagem
-> está certa, e a mesma régua vale para "a rota resolve".
+> ⭑ **E o endereço também está**, provado em carga fria sobre `#/journal/r-2026-08-07-050`: aba do
+> dia ativa, linha da execução marcada, detalhe com os sete campos.
 
 | KR | medida | hoje |
 |---|---|---|
-| KR4.1 | `#/journal/<run-id>` é endereçável e compartilhável | ⚠️ **no código, sem foto** |
+| KR4.1 | `#/journal/<run-id>` é endereçável e compartilhável | ⭑ **provado na tela** |
 | KR4.2 | a segunda pergunta do operador sabe da primeira, **ou a tela diz que não** | ✗ (viola o princípio 10) |
 
 ---
@@ -95,13 +91,13 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-04** | `SceneDefinition` extraída de `setMode`, **sem mudar um número** | `done` | — | T-05, T-06, T-08 | KR2.3 |
 | **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `done` | — | — | KR2.4 |
 | **T-06** | `src/core/tela.js` — dono único do estado de tela | `todo` | — | T-13, T-14 | KR2.1 |
-| **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) — **conferir na tela** | `todo` | — | — | KR4.1 |
-| **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `todo` | — | T-15 | KR2.2 |
+| **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) | `done` | — | — | KR4.1 |
+| **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `doing` | — | T-15 | KR2.2 |
 | **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `todo` | — | T-16 | KR1.1, KR1.2 |
 | **T-10** | `--resume` no `brain.py` | `todo` | — | — | KR4.2 |
 | **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
-| **T-12** | Força do vínculo no arco | `blocked` | substrato + T-30 | — | — |
-| **T-30** | `forca` mapeia o mínimo para ZERO — afirma ausência sobre vínculo que existe | `todo` | — | T-12 | KR3.1 |
+| **T-12** | Força do vínculo no arco | `blocked` | substrato | — | — |
+| **T-30** | `forca` sai da UNIDADE do tipo, não dos extremos da amostra | `done` | — | T-12 | KR3.1 |
 | **T-13** | Splash | `blocked` | T-06 | — | KR2.1 |
 | **T-14** | Launcher / menu iniciar | `blocked` | T-06 | — | KR2.1 |
 | **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
@@ -122,14 +118,15 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
 
-- **T-12 / T-30** — medido no fixture (416 vínculos): `forca` sai
-  `(valor − min) / (max − min)` **dentro do tipo** (`vizinhanca.mjs:196`), e o mínimo é o caso
-  comum. Distribuição: **0 em 386 de 416 (92,8%)**, 0,667 em 18, 1,0 em 12 — **três valores
-  distintos**, e o mais frequente é o piso.
-  ☠️ **O piso em zero AFIRMA AUSÊNCIA sobre um vínculo que existe** — é `null` ≠ `0` na
-  normalização, não no desenho. Desenhar força hoje pintaria 93% dos arcos como "sem força".
-  ⚠️ E o substrato deste corpus é de UM tipo só (`CO_EDITED`, valor 1 a 4): julgar a codificação
-  aqui é julgar um tipo. **T-30 vem antes do T-12.**
+- **T-12** — a `forca` já é da UNIDADE do tipo (`ESCALAS` em `vizinhanca.mjs`): contagem por
+  `v/(v+1)`, cosseno pela identidade. O que falta é **substrato**: o fixture tem UM tipo só
+  (`CO_EDITED`, 1 a 4 commits, três valores distintos), e julgar a codificação visual de quatro
+  tipos sobre um deles é julgar um tipo. Os quatro só convivem no corpus VIVO.
+  ☠️ **`(valor − min)/(max − min)` está REFUTADO, não substituído por gosto** — normalizar pelos
+  extremos observados manda o mais fraco para `0`, e `0` aqui é *"medi e não há"*: **92,8% dos
+  vínculos do fixture** e **312 de 313 `IMPORTS` do vivo (99,7%)** sairiam afirmando ausência sobre
+  vínculo que existe. E `min`/`max` são amostra: os mesmos 3 commits davam **0,667** num céu de máx
+  4 e **0,100** num de máx 21 — a força de um par dependendo de quem mais está no céu.
 
 - **T-29** — a bancada mostra que varrer a massa de 0 a 1 muda `core` de **0,100 para 0,160** e
   as duas ampliações do miolo saem **idênticas**: o brilho e os feixes dominam o disco. Quem carrega
