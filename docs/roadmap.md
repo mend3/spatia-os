@@ -110,7 +110,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-22** | Gravidade cognitiva (uso movendo órbita) | `blocked` | decisão do usuário | — | — |
 | **T-23** | Agente como corpo (a ESTAÇÃO) | `blocked` | decisão do usuário | — | — |
 | **T-24** | Passo 3 — distância × pixel contra o corpus real | `todo` | — | — | — |
-| **T-25** | Licença de `assets/textures/sun.jpg` | `todo` | — | publicação | — |
+| **T-25** | Licença de `assets/textures/sun.jpg` | `done` | — | — | — |
 | **T-26** | Granulação do anel — escolher entre `GRAIN`/`SWARM`/`BOULDER`/`SLAB` | `todo` | — | — | — |
 | **T-27** | i18n | `postponed` | — | — | — |
 | **T-28** | Zonas por razão de massa — declaradas, sem leitor | `todo` | — | — | KR3.3 |

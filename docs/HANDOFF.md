@@ -781,8 +781,6 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
    resposta para ESCALA, não para distância.
 7. **Uma segunda textura de estrela** (K/M, fria), escolhida pela temperatura. Com uma foto só, o que
    resta de parecido entre as estrelas é inerente — `FORCA_DO_MAPA` e `uCroma` já estão no limite útil.
-8. **Licença de `assets/textures/sun.jpg`** — veio de repositório que não declara licença. Resolver
-   antes de qualquer publicação.
 
 **Parados por decisão, não por falta de trabalho:** `usage` no brilho (é POPULAÇÃO — sobe sozinha
 conforme o `/api/ask` rodar; gerar à mão é o que `--semear` recusa fazer) · `connectivity` no pixel (o

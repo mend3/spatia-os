@@ -46,10 +46,11 @@ const BOIL = MOTION.boil.rates;
 /**
  * A PELE FOTOGRAFADA de uma estrela — uma imagem para todas, colorida por temperatura.
  *
- * ⚠️ **Procedência, e ela precisa ficar escrita.** `assets/textures/sun.jpg` (2048×1024) foi trazida
- * de `github.com/SoumyaEXE/3d-Solar-System-ThreeJS`. Texturas dessa família costumam vir da NASA ou
- * do Solar System Scope (CC BY 4.0); o repositório de origem não declara licença, e isso é uma
- * pendência a resolver antes de qualquer publicação — não um impedimento para usar aqui.
+ * ⭑ **Procedência RESOLVIDA, e por hash — não por semelhança.** `assets/textures/sun.jpg` é a
+ * *2k Sun* do **Solar System Scope**, **CC BY 4.0**: o `sha256` do arquivo aqui e o do
+ * `solarsystemscope.com/textures/download/2k_sun.jpg` são o mesmo. Ela havia chegado por um
+ * intermediário que não declara licença nenhuma — e intermediário não licencia o que não é dele.
+ * A atribuição exigida está em `assets/CREDITS.md`, junto do comando que reconfere.
  *
  * ⚠️ **O carregamento é OPCIONAL e assíncrono, e a falta dela não pode apagar a estrela.** A força
  * só sobe depois que a imagem chega; se ela não existir, `onError` deixa tudo como está e o céu
