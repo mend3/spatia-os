@@ -369,8 +369,11 @@ compila mas perde a feição.
 |---|---|
 | `censo-morfologias.mjs` | o que o céu DESENHA — classe · pele · morfologia por `kind` · modificadores |
 | `censo-corpus.mjs` | o que o corpus É — forma, saúde das constantes calibradas, sinal de cada candidata |
+| `censo-ontologia.mjs` | a ontologia nova — família, tipo, porte, fenômeno |
+| `censo-superficies.mjs` | ⚠️ **obrigatório após tocar em roteamento de pele:** nenhuma pele roteada pode nascer vazia |
+| `lei-neo4j.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `entity-physics.js`.** Perturba `centrality`, `usage` e `connectivity` em todo corpo e exige que **nenhuma** mude família, tipo, porte, fenômeno ou escala — a 1ª lei do Neo4j deixando de ser invariante declarada |
 
-O segundo existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
+O `censo-corpus` existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
 com 71 hubs, aplicada em 228), `DENSITY_K` (corpus 5,6× maior, **297 luas viraram 0**) e o piso do
 pulsar (medido no git, aplicado no índice, **0 corpos**). Ele acusa em vermelho a classe que ficou
 sem população.
@@ -378,6 +381,15 @@ sem população.
 > **Toda constante derivada de `M_total` ou da contagem de hubs expira.** Quem reindexar um corpus
 > muito maior refaz a conta — ela está no comentário de cada uma. O relatório completo, com o que
 > foi refutado e por quê, está em [`docs/medicoes-2026-08-07.md`](./docs/medicoes-2026-08-07.md).
+
+⚠️ **E existe um modo de falha PIOR que a constante expirada: a grandeza que piora sozinha.** Uma
+constante calibrada funcionou um dia e o comentário dela diz quando refazer a conta. Já uma
+grandeza derivada de **posto/percentil** para descrever um corpo de uma CLASSE nunca funcionou e
+**encolhe conforme o corpus cresce** — a classe vive na cauda, e a cauda ocupa uma fatia cada vez
+menor do posto. Medido no rig do pulsar: **16,9% do eixo** num corpus de 72 corpos e **0,36%** num de
+276. A saída é a mesma da FRONTEIRA: **razão adimensional ancorada num limiar FIXO** (`chunks/80`,
+como o `R_s/R`), nunca posto de população — e nunca renormalizar dentro da classe, que é a mesma
+família de erro e é degenerada quando a população é 1.
 
 ⚠️ Os dois medem o **ÍNDICE**, nunca o disco. A diferença decide conclusões: o disco é 58%
 TypeScript e o índice não tem um único `.ts`. Confundir os dois já produziu uma recomendação errada.
@@ -404,13 +416,47 @@ transcrição sair de sincronia.
     uv run --with fastembed python scripts/fixture.py            # cria repo + indexa
     uv run --with fastembed python scripts/fixture.py --limpar   # apaga repo + coleção
 
-Corpus sintético em coleção própria (`espatial_fixture`), com 14 arquivos que levam cada eixo aos
-extremos. É o primeiro degrau da doutrina de [`docs/cobertura.md`](./docs/cobertura.md) — *o código
+Corpus sintético em coleção própria (`espatial_fixture`) cujos arquivos levam cada eixo aos
+extremos — **71 arquivos · 72 corpos · 20 sistemas** em 2026-08-09. ⚠️ Ele CRESCE conforme espécimes
+entram e saem; a contagem do dia vem de `/api/graph`, nunca deste parágrafo. É o primeiro degrau da doutrina de [`docs/cobertura.md`](./docs/cobertura.md) — *o código
 desenha este tipo?* — e o único jeito de exercitar um corpo que o corpus real não produz. `FIXTURE_ROOT`
 sobrepõe o destino.
 
 ⚠️ Cobertura de TIPO não é cobertura de PARÂMETRO: um tipo presente prova que o caminho desenha,
 não que o shader foi exercitado.
+
+## Ao mexer nas dimensões do GRAFO — a cadeia de rematerialização
+
+O Neo4j **nunca está no caminho do quadro**: cada dimensão é materializada por um script para um
+arquivo em `.cache/`, o servidor anexa ao servir a topologia, e o renderer lê pronto. Rematerializar
+é rodar o script — **a ordem importa**, porque a rede lê o snapshot e não o banco:
+
+    vinculos.mjs · similares.mjs · citacoes.mjs   →  vizinhanca.mjs  →  conectividade.mjs
+    centralidade.mjs · uso.mjs · conceitos.mjs    (independentes)
+
+| snapshot | script | o que é |
+|---|---|---|
+| `influencia.json` | `centralidade.mjs` | `centrality` — quantos se parecem comigo |
+| `uso.json` | `uso.mjs` | `usage` — quantas execuções me abriram |
+| `conectividade.json` | `conectividade.mjs` | `connectivity` = **ALCANCE**, não grau (o grau repetia a centralidade, ρ 0,821) |
+| `vizinhanca.json` | `vizinhanca.mjs` | os vínculos laterais que a seleção desenha |
+| `conceitos.json` | `conceitos.mjs` | os assuntos — ⚠️ a única dimensão que **não é fato** |
+
+☠️ **Todo snapshot carrega `corpus`, e o servidor RECUSA o que não é do céu servido.** Isto existe
+por um defeito que custou um dia: os snapshots eram de outro corpus e a API respondia
+`disponivel: true · corpos: 188 · vinculos: 4226` enquanto devolvia `vizinhanca: null` para todo
+mundo — **a cena não desenhava um arco e o painel anunciava 4.226**. `connectivity` chegava a **0 de
+72 corpos** com `stats.conexao` de cabeçalho cheio.
+
+> **O padrão é o pior que existe nesta base: o cabeçalho AFIRMA e a carga está vazia** — pior do que
+> faltar, porque quem lê o cabeçalho para de procurar. É `null` ≠ `0` aplicado ao snapshot INTEIRO.
+> **Sem carimbo também é recusa**, e não tolerância: "não tenho como saber" não autoriza afirmar.
+> Script novo que escreva snapshot **carimba `corpus`**, e o nome sai do `/api/graph` — do servidor,
+> que é quem lê o `.env` — nunca de palpite. Ver `graphdb._recusa_de_corpus`.
+
+⚠️ **`.env` (arquivo) vence o ambiente, e três variáveis estão exportadas no perfil do shell
+apontando para lugares que não existem.** Elas produzem **zero com cara de medida**. Todo script que
+fale com o corpus confere o override, ou herda o defeito.
 
 ## Ao suspeitar de custo
 
@@ -431,10 +477,26 @@ emiti-los.
 
 ## E o que NÃO está aqui
 
-As sondas de runtime vivem na cena, não em `scripts/`: `spatia.galaxy()` · `spatia.moons()` ·
-`spatia.lod()` · `spatia.planet()` · `spatia.bloom({…})` · `spatia.core({…})` ·
-`spatia.renderCost()`. Elas respondem sobre o quadro que está na tela agora, que é uma pergunta
-diferente da que qualquer script offline pode responder.
+As sondas de runtime vivem na cena, não em `scripts/`. Elas respondem sobre **o quadro que está na
+tela agora**, que é uma pergunta diferente da que qualquer script offline pode responder:
 
-⚠️ `docs/catalogo-celeste.md` documenta essas sondas como `espatial.*`. O objeto real é
-**`spatia`** — quando os dois discordarem, o código está certo.
+`spatia.session()` · `.state()` · `.renderCost(n)` · `.planet()` · `.galaxy()` · `.lod()` ·
+`.moons()` · `.bloom({…})` · `.core({…})` · `.pele(ajuste)` · `.peleAB(condições, ler)` ·
+`.aroAB(condições, ler)` · `.cena()` · `.universo.{sobreposicoes,entre,pixels,ancora,peles,anexar}()`
+
+⚠️ **A lista viva está em `src/main.js`, no `window.spatia`** — antes de dizer "não dá para medir",
+leia lá. E `spatia.cena().aneisPose` é o modelo do que uma sonda deve ser: ela devolve o
+`deltaBillboard` **de controle** ao lado do `deltaCamera`, porque contagem não distingue objeto de
+sinal (o modo do anel caiu duas vezes calado com a contagem intacta).
+
+☠️ **Duas armadilhas que invalidam toda medida de tela**, e são dois testes, não um: a aba precisa
+estar VISÍVEL (`document.hidden`) **e** a janela em foco (`document.hasFocus()`) — aba oculta é
+estrangulada pelo motor, e qualquer comando de shell rouba o foco de volta. E `quadros` tem de
+ANDAR entre duas leituras. ⚠️ `quadros` andando prova que a cena não congelou; **não** prova que ela
+parou de se mover — grandeza que ainda se acomoda não é regime.
+
+⚠️ **O objeto é `spatia`; `espatial.*` foi o nome antigo** e sobreviveu em três docs até 09/08.
+Quando um doc e o código discordarem, **o código está certo**. ⚠️ Não confunda com as CHAVES do
+`localStorage` (`espatial.trace`, `espatial.*.v1`) e as métricas `espatial_*`: essas mantêm o nome
+antigo **de propósito** — renomear a chave não migra o que está gravado, e a afinação feita à mão
+evapora em silêncio (a tabela de `docs/README.md` existe para proteger exatamente isso).

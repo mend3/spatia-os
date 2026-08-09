@@ -247,6 +247,14 @@ server/
   qdrant.py              busca híbrida, varredura, vizinhos
   embed.py               fastembed (ONNX na CPU, sem rede)
   graph.py               topologia derivada da coleção
+  graphdb.py             Neo4j — a camada de RELAÇÃO, e a única que pode faltar
+  recency.py             recência · churn · dormência · regularidade, do git
+  services.py            os serviços de um compose: as partes nomeadas de um arquivo
+  catalog.py             o catálogo servido
+  dirty.py               o que o git status vê e o índice não
+  attach.py · speech.py  anexos · voz
+  permissions.py · mcp_scopes.py   o portão, e os escopos que ele conhece
+  net.py                 o único lugar que abre socket para fora
   websearch.py           brave · serpapi · searxng · fallback ddg
   files.py               leitura com barreira de raiz
   promex.py              Counter/Gauge/Histogram + formato 0.0.4
@@ -270,7 +278,13 @@ src/
   kernel/  registry · router · widgets   ← rota, manifesto, montagem
   core/    bus · state · api · tuning · promtext (parser do /metrics)
   apps/    files · system · web · bridge · journal · metrics · security · activity · storage
-  space/   scene · blackhole · lensing · stars · graph · particles · satellites
+  space/   scene · graph · universe · solver          ← as duas cenas e o layout
+           entity-physics · superficies · catalog · astrofisica
+                                                     ← a ONTOLOGIA: quem decide o que um corpo É
+           photosphere · planet · comet · pulsar · nebula · station · quasar
+                                                     ← as PELES (uma por classe, roteadas pela ontologia)
+           blackhole · lensing · stars · particles · satellites · galaxy · backdrop
+           rings · moon-orbits · orbital-zones · links · lod · motion-catalog
   hud/     frame · streams · answer · terminal · controls · boot · dom
   audio/   engine (síntese procedural, zero asset)
 vendor/    three.js + postprocessing
@@ -627,9 +641,13 @@ camada sem controle é camada que ninguém confere.
 instalar um app remapeia os atalhos que o operador decorou. Colisão de tecla ou de gesto
 (`claims`) falha no REGISTRO, não na navegação.
 
-**Ligar o Neo4j** (relações de verdade, em vez da hierarquia de diretórios): um módulo
-`server/neo4j.py` que devolve `{nodes, edges}` no mesmo formato de `graph.load()`. A cena não
-muda.
+⭑ **O Neo4j JÁ ESTÁ LIGADO** — `server/graphdb.py`, e ele não devolve `{nodes, edges}`: essa
+proposta foi abandonada por duas leis que valem a pena saber antes de propor a próxima camada.
+**(1) O grafo muda o BRILHO, nunca a CLASSE** — nenhum fato dele pode decidir o que um corpo É, ou
+um container caindo faria corpos trocarem de identidade (`scripts/lei-neo4j.mjs` prova isso em
+milhares de perturbações). **(2) Ele nunca está no caminho do quadro** — cada dimensão é
+materializada por um script para um arquivo em `.cache/`, e o servidor a anexa ao servir a
+topologia. Cair entre duas materializações não muda nada na tela.
 
 **Portar para Next.js/R3F**, se um dia fizer sentido: os shaders (`blackhole.js`,
 `lensing.js`, `stars.js`, `graph.js`) são independentes de framework — recebem `THREE` e
@@ -652,6 +670,16 @@ como estado de React reintroduziria o acoplamento que ele existe para evitar.
 - **`height` num filho do `.scroll` vai a ZERO** quando outra seção do trilho disputa altura.
   O elemento fica no DOM com a largura certa e nenhuma altura, sem erro no console — um
   gráfico de 14px sumia inteiro com a legenda dele ainda na tela. Use `flex: 0 0 <altura>`.
+- **Cabeçalho que AFIRMA sobre uma carga vazia** é pior do que dado faltando, porque quem lê o
+  cabeçalho para de procurar. `/api/vizinhanca` respondia `disponivel: true · corpos: 188 ·
+  vinculos: 4226` e devolvia `null` para todo corpo — a cena não desenhava **um arco** e o painel
+  anunciava 4.226. Os snapshots eram de outro corpus, e **nenhum deles dizia de qual**. A guarda é
+  carimbar a origem no dado e **recusar** o que não é deste céu, com o motivo junto — inclusive o
+  que vem sem carimbo, porque "não tenho como saber" não autoriza afirmar.
+- **Grandeza derivada de POSTO para descrever um corpo de uma classe piora sozinha.** A classe vive
+  na cauda da distribuição, e a cauda ocupa uma fatia cada vez menor do posto conforme o corpus
+  cresce: o rig do pulsar varria 16,9% do eixo num corpus de 72 corpos e **0,36% num de 276**.
+  Ancore em limiar FIXO, não em população.
 - **Campo declarado no manifesto sem leitor** apodrece por imitação: `orbit` viveu em oito
   apps depois que os corpos saíram do céu, copiado por cada app novo. A auditoria que acha
   isso é barata — varrer cada chave declarada e procurar quem a lê.
