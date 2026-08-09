@@ -163,7 +163,7 @@ com ou sem produtor.
 | **T-48** | O conjunto residente é DECLARADO **e imposto** — `RESIDENTES` + `declararApp`, e `#/security` monta `timeline` | `done` | — | T-52 | KR2.1 |
 | **T-49** | `registerWidget` aceita chave fora do vocabulário — a REGRA DO CATÁLOGO sem portão | `done` | — | T-50 | — |
 | **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `done` | — | — | — |
-| **T-51** | Zona morta do palco — ⭑ **provado na tela: ZERO ao ponteiro nas 8 rotas que o montam** | `done` | — | — | — |
+| **T-51** | Zona morta do palco — ⭑ **medido nas 10 rotas: o corpo reivindica, a moldura cede** | `done` | — | — | — |
 | **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
 | **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
 | **T-54** | A cena AGENTE voltava PRETA ao voltar do UNIVERSO — era a PARIDADE DE SWAPS, e o par agora é FIXADO | `done` | — | — | KR2.3 |
@@ -345,7 +345,31 @@ mesmo fato).
   ⚠️ **O `.scroll` precisava entrar no escape do vazio**, e essa metade faltava desde o conserto
   anterior: `pointer-events` não é herança que descendente respeite — um filho com `auto` volta a
   ser alvo sob ancestral `none`, e `.scroll` declara `auto` por conta própria.
-  ☠️ **FICA POR PROVAR NA TELA** (esta sessão não abriu navegador): quanto de céu voltou, por rota.
+  ⭑ **MEDIDO NAS 10 ROTAS** (fixture, 09/08, aba visível e em foco, `spatia.hud()`):
+
+  | rota | moldura (caixa) | corpo (ao ponteiro) | céu ao canvas |
+  |---|---|---|---|
+  | raiz · web | não monta palco | — | 89,3% · 87,6% |
+  | files · bridge · activity | 9,6% · 10,0% · 7,8% | **0** (painel vazio → escape total) | 85,3% · 76,5% · 85,0% |
+  | system | 13,8% | 7,2% | 68,8% |
+  | metrics | 13,8% | 6,9% | 78,5% |
+  | security | 6,4% | 3,8% | 67,7% |
+  | storage | 10,5% | 9,7% | 66,1% |
+  | journal | 18,7% | 17,6% | 67,1% |
+
+  ☠️ **A LINHA DA TABELA DIZIA *"ZERO ao ponteiro nas 8 rotas que o montam"*, e isso é FALSO — e
+  seria um DEFEITO se fosse verdade.** Zero em toda rota significaria que o `.widget-body`, que
+  PINTA, não reivindica nada — o oposto da regra que T-51 implementou. Zero é o caso do painel
+  VAZIO, e ele acontece em 3 das 8. Nas outras 5 o corpo reivindica **menos que a moldura**, e a
+  diferença é a zona morta devolvida: **6,6 pontos percentuais da janela em `system`**, 6,9 em
+  `metrics`, 2,6 em `security`, 0,8 em `storage` e 1,1 em `journal`.
+  ⚠️ **`journal` é o piso do ganho** (18,7% → 17,6%): lá o painel é quase todo corpo pintado, então
+  quase não havia moldura vazia a devolver. O ganho é grande onde o conteúdo é curto.
+  ⭑ `conservacao.bate` verdadeiro e `desconhecidos: 0` nas 10 rotas — nenhum ponto se perde, e não
+  há superfície sem dono.
+  ⚠️ **Contaminação medida, e ela é do instrumento:** a extensão do navegador que dirigiu a medida
+  injeta `#claude-static-chat-button` e `#claude-static-close-button`, que reivindicam **8 pontos
+  (0,2% da janela)** e entram em `reivindicado`. Descontá-los é subtrair 0,2 pp de cada linha.
   A grandeza é `spatia.hud().painelDePalco.aoPonteiro / ponteiro.pontos` — que deve cair para a
   fração do CORPO — contra `painelDePalco.fracaoJanela`, que é a caixa da MOLDURA e **não muda**;
   a diferença entre as duas é a zona morta devolvida, e ela reaparece em `ponteiro.fracaoAoCanvas`.
@@ -517,9 +541,13 @@ mesmo fato).
   como comportamento de quem já tem dono (`hud/frame.js` + `watchHealth` em `main.js`), sem camada,
   sem cena, sem rota — **`core/tela.js` não é tocado, e `PERMITIDOS` não muda**. 44 leis sem
   navegador em `scripts/lei-afericao.mjs`, 16 mutações vistas reprovando.
-  ⚠️ **O que falta é FOTO**, e são duas coisas que só ela julga: a idade a 8 px cabendo ao lado dos
-  cinco pontos sem empurrar o CONTEXTO da faixa central, e o ponto sem `box-shadow` a 45% se lendo
-  como *"isto não é o presente"* em vez de como mais um ponto apagado.
+  ⭑ **A PRIMEIRA METADE ESTÁ FOTOGRAFADA** (fixture, 09/08): o cabeçalho sai
+  `● OCIOSO ● ● ● ● ● HÁ 29S` — a idade em `.svc-afericao`, **8 px medidos no computado**, à direita
+  dos cinco pontos, **sem empurrar a faixa central**, e legível na ampliação.
+  ☠️ **A segunda metade NÃO TEM OCORRÊNCIA PARA JULGAR, e isso é resultado, não pendência de
+  esforço:** os cinco pontos estavam todos acesos (`opacity 1`, `box-shadow` presente nos cinco),
+  porque nenhuma leitura estava vencida no instante da medida. O ponto a 45% sem sombra só se julga
+  com uma aferição VELHA na tela — e fabricá-la derrubando um subsistema é medir outra coisa.
   ⚠️ **Recusado por escrito:** repetir o aviso, emitir no barramento a cada volta e escrever linha
   de timeline por aferição — os três são a repetição que `ambient.py` e `streams.js` proíbem. E
   realimentar `installProviders`/`showProviders`/`voice.applyHealth` no laço: eles MONTAM coisa, e
