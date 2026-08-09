@@ -544,6 +544,64 @@ próprio a cada feição** — sem precisar de mais um aro.
 
 ---
 
+
+### 11.2 A FRONTEIRA — nenhuma grandeza física sai de uma variável cognitiva
+
+> **Nenhuma grandeza física é derivada de uma variável cognitiva sem uma unidade e uma constante
+> física explicitamente definidas.**
+
+Escrita em 2026-08-08, e ela nasceu de um relato com foto: *"um planeta passa atrás de uma estrela e
+não há a distorção que seria esperada"*. A conclusão natural — dar lente gravitacional à estrela —
+está **refutada por medida**, e o caminho até lá expõe uma confusão que valia mais que o efeito.
+
+**O que `EntityPhysics` tem não são grandezas SI.** `mass` era `node.chunks`: contagem de
+conhecimento. `scale` é degrau de escada. `activity` é toque em 30 dias. São **metáforas físicas de
+propriedades do conhecimento**, e isso é legítimo — é o que faz esta cena significar alguma coisa.
+O que não é legítimo é uma delas atravessar para o lado onde a matemática precisa ser física.
+
+Porque o caminho é curto e silencioso:
+
+    chunks → "massa" → gravidade → órbita → lente
+
+e no fim ninguém sabe onde terminou a metáfora e começou a relatividade.
+
+**Os dois universos, e o que cada um pode afirmar:**
+
+| universo COGNITIVO | universo ASTRONÔMICO |
+|---|---|
+| `chunks` · `scale` · `activity` · `centrality` · `usage` · `connectivity` · `recency` | `R_s/R` · geodésica · deflexão · relatividade |
+| decide classe, morfologia, órbita metafórica, brilho, relação | decide o que a LUZ faz |
+| pode ser ousado | **não pode ser arbitrário** |
+
+⚠️ **E a saída é mais barata do que parece: RAZÃO, não massa.** A deflexão no limbo é
+`alfa = 2·(R_s/R)`, e `R_s/R` é **adimensional** — atravessa qualquer escala sem `G`, sem `c` e sem
+quilograma nenhum. Basta a razão da CLASSE, que é fato astronômico:
+
+| classe | `R_s/R` | deflexão no limbo | pixels (k = 884) |
+|---|---|---|---|
+| buraco negro | 1 | 2 rad | 1.770 |
+| pulsar (estrela de nêutrons) | **0,4** | 0,8 rad | 707 |
+| anã branca | 2,95 × 10⁻⁴ | 122″ | 0,52 |
+| **estrela tipo Sol** | **4,24 × 10⁻⁶** | **1,75″** | **0,0075** |
+| planeta | 1,39 × 10⁻⁹ | 5,7 × 10⁻⁴ ″ | 2,5 × 10⁻⁶ |
+
+O corte desta tela é `R_s/R ≥ 5,65 × 10⁻⁴`. **A estrela fica 133× abaixo — a ausência de distorção na
+foto é o comportamento CERTO.** E o anel de Einstein é pior: ele só sai de dentro do próprio disco a
+1,18 × 10⁵ raios estelares (as 548 UA da lente solar), contra os ~6,5 raios em que a câmera fica.
+É por isso que microlente estelar se detecta como BRILHO e nunca como arco resolvido.
+
+**O buraco negro é legítimo pelo motivo oposto:** `R_s` é a propriedade DEFINIDORA dele, parâmetro de
+cena explícito. Ele nunca precisou de `chunks → kg → R_s`. O pulsar também: o `0,4` dele é o fato
+adimensional de uma estrela de nêutrons, aplicado ao raio desenhado.
+
+**O portão:** `node scripts/lente-estelar.mjs` audita quem alimenta a lente e falha se um corpo
+dobrar a luz sem razão `R_s/R` declarada, ou se um `rs` derivar de grandeza cognitiva.
+
+⚠️ **Não implementar** lente estelar nem magnificação "fraca": sem massa física não se sabe QUANTO
+magnificar, e o número seria a mesma curva artística com outro nome. O custo fecha a porta por um
+terceiro caminho independente — o pós é 89–97% do quadro e a lente sozinha custa 3,8–5,1 ms contra
+0,19–0,35 ms do céu inteiro.
+
 ## 12. As fases, e a métrica que decide se funcionou
 
 **A ordem é inegociável: a próxima rodada não começa pelo visual.**
