@@ -2132,6 +2132,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     universeOverlaps: (limite) => universe.sobreposicoes(limite),
     /** O par nomeado: distância viva, raios e penetração. `spatia.universo.entre(a, b)`. */
     universePair: (a, b) => universe.entre(a, b),
+    /**
+     * O raio APARENTE de cada corpo, em pixels de framebuffer — esfera e sprite lado a lado.
+     *
+     * `spatia.universo.pixels()`. Ela existe porque "os astros somem de longe" e "os astros estão
+     * opacos de longe" são dois relatos diferentes sobre a mesma foto, e só o histograma os separa.
+     */
+    universePixels: () => universe.pixels(),
     /** O tipo de um corpo na cena em vigor: novo no UNIVERSO, `null` no AGENTE. */
     bodyTypeOf: (source) => (modo === 'universo' ? universe.tipoDe(source) : null),
 

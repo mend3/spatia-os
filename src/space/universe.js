@@ -24,7 +24,7 @@
  */
 import * as THREE from 'three';
 import { entityPhysics, classificar, raioPorMassa } from './entity-physics.js';
-import { KIND_COLORS } from './graph.js';
+import { KIND_COLORS, createPointMaterial, starSeed, POINT_SCALE } from './graph.js';
 import { createLinks } from './links.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
 
@@ -137,6 +137,39 @@ const ROCHE = 2.44;
  * LOD que o briefing pede — de longe o sistema é um ponto; ele se resolve quando alguém chega perto.
  */
 const RAIO_MINIMO = 0.7;
+
+/**
+ * PISO DO SPRITE, em raio de pixel do FRAMEBUFFER — a única constante que a camada de sprite tem.
+ *
+ * ⚠️ **Ela não é gosto, e o comentário do `RAIO_MINIMO` logo acima é a metade que faltava.** Lá a
+ * cena aceita, por escrito, que o planeta "some de longe" para as bandas não se cruzarem; isto é o
+ * que impede o "some" de ser literal. O raio de MUNDO continua intocado — a REGRA DA FÍSICA diz que
+ * o que dá para resolver fora da simulação se resolve fora, e a legibilidade a distância é
+ * apresentação, não mecânica.
+ *
+ * O número sai de medida, e ela está em `docs/distancia-e-forma.md` §2.1: **49,7 de 71 corpos ficam
+ * abaixo de 4 px de raio no enquadramento de casa**, e abaixo de 4 px não existe terminador nem
+ * limbo — uma esfera sombreada de 2 px devolve UM valor de cor, que é literalmente o relato da tela
+ * (*"cores diferentes, mas ainda assim esferas opacas"*).
+ *
+ * ⚠️ **A medida dá o intervalo, não o ponto.** O §5 do mesmo documento registra que o teto é ~8 px
+ * (acima disso o sprite cobre a esfera e passa a MENTIR sobre o tamanho do corpo) e o chão é 4 px.
+ * Entre os dois é decisão de olho, e é para mexer aqui: `spatia.universo.pixels()` mede o efeito.
+ */
+const PISO_SPRITE_PX = 4;
+/**
+ * Onde a ESFERA assume por inteiro, em múltiplos do piso — e o sprite se APAGA (ver `uHaloYield`).
+ *
+ * Sem isto o sprite seria aditivo por cima de um corpo que já tem pixels, e o que ele apagaria é
+ * justamente o TERMINADOR — a única coisa que faz a esfera ler como volume, e o motivo declarado de
+ * `CORPO_FS` não ser cor chapada. Consertar o corpo distante estragando o próximo seria trocar de
+ * defeito.
+ *
+ * Em `2` a cessão se completa em 8 px, que é onde a medida do §2.1 põe o corpo com borda legível.
+ * Ela é GRADUAL de propósito: um degrau aqui apareceria como o corpo piscando ao se aproximar, e
+ * esta base já registra que "nada aparece, nada desaparece — tudo evolui".
+ */
+const CESSAO_DO_SPRITE = 2;
 
 /**
  * BRILHO — e é aqui que a influência do §11.1 finalmente tem um leitor.
@@ -425,6 +458,129 @@ export function createUniverse() {
   coroa.visible = false;
   coroa.renderOrder = 2;
   group.add(coroa);
+  /*
+   * ─────────────────────────── O SPRITE — a representação de LONGE, que esta cena nunca teve
+   *
+   * ⚠️ **O diagnóstico é medido e está em `docs/distancia-e-forma.md`:** a cena UNIVERSO tem
+   * *esfera lisa* e *pele completa*, e NADA no meio. No enquadramento de casa, 49,7 de 71 corpos
+   * ficam abaixo de 4 px de raio e **zero** alcança 22 px, que é o menor `LOD_FAR_PX` desta base —
+   * ou seja, a pele não é alcançável por zoom, só por foco. O degrau do meio, que é justamente o
+   * que a cena AGENTE tem, nunca foi construído.
+   *
+   * ⚠️ **E o defeito é PIXEL, não sombreamento.** Abaixo de ~4 px não há terminador (precisa de
+   * gradiente), não há limbo (precisa de borda) e não há relevo (precisa de área): sobra UM valor
+   * de cor por corpo. Nenhum modelo de iluminação conserta isso, porque não há onde escrever. O que
+   * se lê em 2 px é EMISSÃO com pegada maior que a geometria — que é literalmente o que o AGENTE
+   * faz, e é o que o relato da tela chamou de "mais bonita".
+   *
+   * ⚠️ **Não é morfologia nova, e por isso não colide com a trava do replanejamento** (*"nenhuma
+   * morfologia até a classificação que decide quando ela existe estar correta"*). É a MESMA feição
+   * já classificada, desenhada por quem esta cena tem — o terceiro caso do mesmo precedente, depois
+   * da coroa da estrela e do anel do git, os dois trazidos para cá pelo mesmo argumento: o objeto
+   * vive dentro de `graph.js` e o UNIVERSO esconde aquele grupo inteiro.
+   *
+   * O material vem de `createPointMaterial()`, não de uma cópia: um shader reimplementado aqui
+   * passaria a mentir na primeira divergência, que é exatamente o instante em que ele importaria.
+   * Cada chamada devolve material NOVO, então o `uSize` desta cena não mexe no da outra.
+   */
+  const matSprite = createPointMaterial();
+  /*
+   * ⚠️ **`uSize` vira 1 e o TAMANHO passa a viajar inteiro no `aSize`, por quadro.**
+   *
+   * A lei que o desenho tem de obedecer é `px_sprite = max(px_geometria, PISO)`, e ela NÃO cabe num
+   * atributo estático: o `max` quebra a proporcionalidade com `1/z` que o vertex shader assume
+   * (`uSize · aSize · 300/−z`). Perto, o sprite acompanha a esfera; longe, ele trava no piso — duas
+   * leis diferentes de distância, e só a CPU sabe em qual dos dois regimes cada corpo está.
+   *
+   * ⚠️ E a escolha de calcular em JS não é preguiça de shader: é o que faz `pixels()` medir o
+   * NÚMERO QUE A GPU DESENHA, em vez de uma segunda derivação da mesma conta livre para divergir da
+   * primeira. Uma régua, um lugar. Esta base já pagou por sondas que mediam a grandeza errada com a
+   * marcha perfeita.
+   */
+  matSprite.uniforms.uSize.value = 1;
+  /*
+   * ⚠️ **`uHaloYield = 1` fixo, e é ele que faz a cessão ser um DESAPARECIMENTO e não um BURACO.**
+   *
+   * O fragmento resolve `core *= mix(1.0, aberto, vHalo)` com `aberto = mix(smoothstep(0,0.62,d), 0,
+   * uHaloYield)`. Em 0 — o modo da cena AGENTE — o miolo do sprite é ESVAZIADO e sobra o aro: lá
+   * isso é certo, porque a pele em foco É o corpo e o que tem de restar é a coroa em volta dela. Em
+   * 1 a conta vira `core *= 1 − vHalo`, uma atenuação limpa e proporcional.
+   *
+   * ⚠️ **Aqui o modo do AGENTE seria um defeito, e ele tem nome:** o corpo cedendo ganharia um anel
+   * de luz com o meio vazado por cima de uma esfera que ESTÁ desenhada — e um miolo escuro dentro de
+   * um halo lê exatamente como *"o planeta está transparente e deixando o núcleo à mostra"*. Foi o
+   * relato da tela nesta rodada. A diferença entre as duas cenas é qual desenho assume o corpo: lá é
+   * a pele (e a coroa é atmosfera de verdade), aqui é a ESFERA, que não precisa de aro nenhum.
+   *
+   * Isto NÃO mexe na cena AGENTE: `createPointMaterial()` devolve material novo a cada chamada, e
+   * este uniform é deste material. Ver a nota do `createPointMaterial`.
+   */
+  matSprite.uniforms.uHaloYield.value = 1;
+  let sprites = null;
+  /** `aSize` e `aHalo` vivos — reescritos por quadro. Ver `update`. */
+  let spriteTam = null;
+  let spriteHalo = null;
+  /** Posição do sprite: NÃO é `posicoes`. Ver a nota da profundidade em `update`. */
+  let spritePos = null;
+  /** Raio aparente medido no último quadro, por índice — a matéria-prima de `pixels()`. */
+  let pxGeometria = null;
+  let pxSprite = null;
+  /*
+   * A PROFUNDIDADE DE VISTA por corpo, guardada — e ela existe para a bancada do PISO.
+   *
+   * `aplicarPiso()` precisa de `z` para inverter `uSize·aSize·(300/−z)`, e ela roda FORA do laço
+   * do quadro (quando `termos({piso})` troca o piso entre dois `composer.render()`). Recalcular o
+   * `z` ali seria uma segunda cópia da conversão — e o comentário dela já avisa que usar `dist` no
+   * lugar de `z` infla o sprite na borda da tela, onde ninguém procuraria a causa.
+   */
+  let zPorIndice = null;
+  /*
+   * O PISO VIVO. Nasce em `PISO_SPRITE_PX` e só a bancada o move (`spatia.universo.piso`).
+   *
+   * ⚠️ Ele é decisão de OLHO dentro de um intervalo que a medida já cercou: 3 px é o chão (abaixo
+   * disso não adianta) e ~8 px é o teto (acima, o sprite cobre a esfera e passa a mentir sobre o
+   * tamanho do corpo). Ver `docs/distancia-e-forma.md` §5 — a medida dá o intervalo e recusa
+   * escolher dentro dele.
+   */
+  let pisoSprite = PISO_SPRITE_PX;
+
+  /**
+   * A LEI DO SPRITE, e ela cabe numa linha: `px_sprite = max(px_geometria, PISO)`.
+   *
+   * Extraída do laço do quadro porque tem **dois chamadores**: o `update`, uma vez por quadro, e
+   * `termos({ piso })`, que precisa reaplicá-la **entre dois `composer.render()`** — sem isso o A/B
+   * do piso mediria o piso velho com o rótulo do novo, que é o modo de falha que esta base mais
+   * registra. Deixá-la em dois lugares seria duas leis de tamanho para o mesmo fato.
+   *
+   * Ela NÃO recalcula posição nem `pxGeometria`: nenhum dos dois depende do piso. O que ela precisa
+   * do quadro — `pxGeometria` e `zPorIndice` — já está guardado.
+   */
+  function aplicarPiso() {
+    if (!sprites || !pxGeometria || !zPorIndice || !corpos.length) return;
+    const largura = pisoSprite * CESSAO_DO_SPRITE;
+    for (let i = 0; i < corpos.length; i++) {
+      const pxG = pxGeometria[i];
+      const pxS = Math.max(pxG, pisoSprite);
+      pxSprite[i] = pxS;
+      // `gl_PointSize` é DIÂMETRO; `pxS` é raio. A inversão exata de `uSize·aSize·(300/−z)`.
+      spriteTam[i] = (2 * pxS * zPorIndice[i]) / POINT_SCALE;
+      /*
+       * A CESSÃO. Corpo em foco cede INTEIRO (1): ali quem desenha é a pele, e o núcleo do sprite
+       * por cima dela apagaria o relevo que a pele existe para mostrar — a mesma razão pela qual
+       * `haloOf` já cede no AGENTE. Fora do foco, cede conforme a esfera ganha borda.
+       */
+      spriteHalo[i] = i === cedidoIdx ? 1 : suave(pisoSprite, largura, pxG);
+    }
+    sprites.geometry.getAttribute('aSize').needsUpdate = true;
+    sprites.geometry.getAttribute('aHalo').needsUpdate = true;
+  }
+
+  /** `smoothstep` do GLSL em JS — a cessão do sprite tem de ser a mesma curva dos dois lados. */
+  const suave = (a, b, x) => {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+
   /** Posição VIVA de todo corpo, na ordem `estrelas` e depois `planetas`. É o buffer do arco. */
   let posicoes = null;
   /** `source` → índice em `posicoes`. É o que traduz um vínculo do snapshot em dois índices. */
@@ -462,6 +618,11 @@ export function createUniverse() {
   // Próprio, e não o `V3` acima: este é lido DENTRO do `follow`, que roda depois dos laços de
   // órbita — compartilhar o temporário faria a distância do anel depender da ordem das chamadas.
   const ALVO = new THREE.Vector3();
+  /* Próprios, pelo mesmo motivo do `ALVO`: o laço do sprite roda DEPOIS dos laços de órbita e
+     ANTES do `follow` do anel. Compartilhar o temporário faria o tamanho do sprite depender da
+     ordem das chamadas — a espécie de acoplamento que não dá erro, só número errado. */
+  const SP = new THREE.Vector3();
+  const SV = new THREE.Vector3();
 
   /**
    * O raio do corpo `i` nas DUAS réguas que `rings.follow` consome: mundo e pixel.
@@ -492,6 +653,10 @@ export function createUniverse() {
   function limpar() {
     for (const m of [estrelas, planetas]) if (m) { group.remove(m); m.dispose?.(); }
     estrelas = planetas = null;
+    // O material é do módulo e sobrevive à troca de corpus; a GEOMETRIA é do céu que saiu.
+    if (sprites) { group.remove(sprites); sprites.geometry.dispose(); }
+    sprites = null;
+    spritePos = spriteTam = spriteHalo = pxGeometria = pxSprite = zPorIndice = null;
     orbitas = [];
     centros = [];
     posicoes = null;
@@ -664,6 +829,57 @@ export function createUniverse() {
           +Math.hypot(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]).toFixed(3),
           +Math.hypot(posicoes[j * 3], posicoes[j * 3 + 1], posicoes[j * 3 + 2]).toFixed(3),
         ],
+      };
+    },
+
+    /**
+     * QUANTOS PIXELS CADA CORPO TEM, agora — a sonda que impede "ficou melhor" de voltar a ser foto.
+     *
+     * ⚠️ Ela mede o quadro que ACABOU de ser desenhado: `pxGeometria` e `pxSprite` são escritos pelo
+     * laço do `update`, com a mesma câmera e a mesma régua de framebuffer que a GPU usou. Não é uma
+     * reconstrução da conta — é o número que foi para o `aSize`. Esta base já registra o custo da
+     * alternativa: *"medir a grandeza errada parece medir"*, com a marcha perfeita.
+     *
+     * ⚠️ **`quadros` vem junto de propósito, e é a primeira coisa a olhar.** Sonda congelada MENTE, e
+     * mente de forma PLAUSÍVEL — aba oculta estrangula o `rAF` e a leitura devolve um quadro velho
+     * com toda a cara de presente. Se `quadros` não anda entre duas leituras, nenhum número daqui é
+     * do presente.
+     *
+     * A referência medida ANTES do sprite, no fixture (71 corpos, enquadramento de casa, buffer
+     * 3024×1484, fov 80) está em `docs/distancia-e-forma.md` §2.1: **49,7 de 71 abaixo de 4 px ·
+     * 0 de 71 acima de 22 px · máximo 17,1 px**.
+     */
+    pixels() {
+      if (!pxSprite || !corpos.length) return { quadros, n: 0, piso: pisoSprite };
+      const perfil = (fonte) => {
+        const v = Array.from(fonte.slice(0, corpos.length)).sort((a, b) => a - b);
+        const q = (p) => +v[Math.min(v.length - 1, Math.floor(p * v.length))].toFixed(2);
+        return { min: +v[0].toFixed(2), p25: q(0.25), p50: q(0.5), p75: q(0.75), p95: q(0.95),
+          max: +v[v.length - 1].toFixed(2) };
+      };
+      const conta = (fonte, teste) => {
+        let c = 0;
+        for (let i = 0; i < corpos.length; i++) if (teste(fonte[i])) c++;
+        return c;
+      };
+      let cedendo = 0;
+      for (let i = 0; i < corpos.length; i++) if (spriteHalo[i] > 0.5) cedendo++;
+      return {
+        quadros,
+        n: corpos.length,
+        piso: pisoSprite,
+        /* O raio da ESFERA — a coluna que não muda, porque o sprite não toca na simulação. É a
+           testemunha de que o raio de mundo continua onde estava. */
+        geometria: {
+          ...perfil(pxGeometria),
+          abaixoDoPiso: conta(pxGeometria, (x) => x < pisoSprite),
+          // 22 px é o menor `LOD_FAR_PX` desta base (nebulosa) — o limiar do §2.1.
+          acimaDe22: conta(pxGeometria, (x) => x >= 22),
+        },
+        /* O que a tela realmente desenha. `abaixoDoPiso` tem de ser ZERO — é a lei, medida. */
+        sprite: { ...perfil(pxSprite), abaixoDoPiso: conta(pxSprite, (x) => x < pisoSprite) },
+        /* Quantos já cederam o miolo para a esfera: o outro lado da mesma lei. */
+        cedendo,
       };
     },
 
@@ -1095,6 +1311,63 @@ export function createUniverse() {
       planetas.frustumCulled = false;
       group.add(estrelas, planetas);
 
+      /*
+       * ─── A CAMADA DE SPRITE, na MESMA ordem de `corpos` — estrelas e depois planetas.
+       *
+       * A ordem não é detalhe: `posicoes`, `raiosPorIndice`, `indiceDe` e o anel já falam por
+       * índice, e um segundo mapeamento aqui seria a quarta tradução do mesmo corpo. O sprite lê o
+       * mesmo índice que todo o resto desta cena lê.
+       */
+      const n = corpos.length;
+      spritePos = new Float32Array(Math.max(n, 1) * 3);
+      spriteTam = new Float32Array(Math.max(n, 1));
+      spriteHalo = new Float32Array(Math.max(n, 1));
+      pxGeometria = new Float32Array(Math.max(n, 1));
+      pxSprite = new Float32Array(Math.max(n, 1));
+      zPorIndice = new Float32Array(Math.max(n, 1));
+      const geoSprite = new THREE.BufferGeometry();
+      geoSprite.setAttribute('position', new THREE.BufferAttribute(spritePos, 3));
+      geoSprite.setAttribute('aSize', new THREE.BufferAttribute(spriteTam, 1));
+      geoSprite.setAttribute('aHalo', new THREE.BufferAttribute(spriteHalo, 1));
+      /*
+       * ⚠️ **A COR é a mesma do corpo, e vem do mesmo array — não de uma segunda tabela.**
+       * O sprite e a esfera afirmam o MESMO tipo; duas fontes para a cor de um corpo é como a HUD
+       * passou a anunciar a taxonomia velha por cima da nova (`ce8ad95`).
+       */
+      geoSprite.setAttribute('aColor', new THREE.BufferAttribute(
+        Float32Array.from([...corEstrela, ...corPlaneta]), 3));
+      /*
+       * ⚠️ **Os cinco atributos abaixo existem para não ficarem IMPLÍCITOS.** Atributo não ligado lê
+       * como `(0,0,0,1)` na GPU — funciona, e é a espécie de acerto silencioso que esta base já
+       * pagou cinco vezes (campo declarado sem leitor, invariante sem implementação). Zero aqui é
+       * uma AFIRMAÇÃO: o passo 1 desenha existência, tipo e tamanho, e nada mais.
+       *
+       * `aRecency = 0` com o `uReveal = 1` do material dá `within = 1` — sem playhead, a janela
+       * temporal fica inteiramente aberta e o `shrink` do vertex vale 1. Sem isso o sprite nasceria
+       * 0,62× menor que a lei manda, e a diferença apareceria como o piso não pegando.
+       *
+       * `aSupernova` e `aDwarf` ficam em zero mesmo com o fato disponível nos nós (§2.5 do relatório
+       * conta 3 e 7 de 71): eles são o passo 2, e acender agora seria decidir no escuro quanto de
+       * cada feição cabe num corpo de 4 px.
+       */
+      for (const [nome, largura] of [['aIgnition', 1], ['aRecency', 1], ['aSupernova', 1], ['aDwarf', 1], ['aHidden', 1]]) {
+        geoSprite.setAttribute(nome, new THREE.BufferAttribute(new Float32Array(Math.max(n, 1) * largura), largura));
+      }
+      /* A semente da silhueta sai do CAMINHO, como em toda feição por nó — nunca do índice, que
+         muda quando o corpus ganha ou perde um arquivo. Ver `starSeed`. */
+      geoSprite.setAttribute('aSeed', new THREE.BufferAttribute(
+        Float32Array.from(corpos.map((c) => (c ? starSeed(c) : 0))), 1));
+      sprites = new THREE.Points(geoSprite, matSprite);
+      sprites.frustumCulled = false;
+      /*
+       * ⚠️ **Depois das esferas, e o motivo é a mistura.** O sprite é ADITIVO e não escreve
+       * profundidade (`createPointMaterial`); ele precisa somar sobre o que a esfera já pintou. Na
+       * ordem inversa ele somaria sobre o fundo e a esfera opaca o apagaria em seguida — sprite
+       * montado e invisível, que é o pior estado possível, porque a sonda conta e a tela não mostra.
+       */
+      sprites.renderOrder = 1;
+      group.add(sprites);
+
       stats = { sistemas: centros.length, corpos: centros.length + orbitas.length, colisoes };
       return stats;
     },
@@ -1139,6 +1412,64 @@ export function createUniverse() {
       }
       estrelas.instanceMatrix.needsUpdate = true;
       planetas.instanceMatrix.needsUpdate = true;
+
+      /*
+       * ─── O SPRITE, e a lei inteira dele cabe numa linha: `px_sprite = max(px_geometria, PISO)`.
+       *
+       * ⚠️ **Ele deriva do RAIO JÁ DESENHADO, nunca de `chunks` outra vez.** No AGENTE o `aSize` sai
+       * de `log2(1+chunks)`; aqui `chunks` já decidiu o raio de mundo em `raioPorMassa`, e derivá-lo
+       * de novo criaria DUAS leis de tamanho para o MESMO fato — a lei nº 3 do replanejamento, e as
+       * duas divergiriam de verdade (log2 contra o piso da banda orbital). Saindo de
+       * `raiosPorIndice`, o sprite não tem como contradizer a esfera: ele só a impede de sumir.
+       *
+       * Sem corpo em foco isto é a única coisa que roda por quadro além das matrizes, e são três
+       * escritas num buffer de `n` floats — a mesma ordem de grandeza do que o anel já faz.
+       */
+      if (camera && viewportHeight && sprites) {
+        /* `H/(2·tan(fov/2))`: a MESMA constante de projeção de `raioAparente` e de
+           `graph.apparentPx`. Recalculada por quadro porque o fov é um slider de afinação, e uma
+           cópia congelada aqui viraria a divergência que o comentário de `ancoraDoUniverso` manda
+           vigiar. */
+        const k = viewportHeight / (2 * Math.max(Math.tan((camera.fov * Math.PI) / 360), 1e-6));
+        for (let i = 0; i < corpos.length; i++) {
+          const raio = raiosPorIndice[i];
+          SP.set(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]);
+          const dist = Math.max(camera.position.distanceTo(SP), 1e-4);
+          const pxG = (raio * k) / dist;
+          pxGeometria[i] = pxG;
+          /*
+           * ⚠️ **A conversão usa a PROFUNDIDADE DE VISTA, e o raio aparente usa a DISTÂNCIA.**
+           *
+           * Não é descuido: são as duas réguas certas para as duas perguntas. O vertex shader
+           * divide por `−viewPosition.z`, então é `z` que tem de entrar aqui para o `px` pedido
+           * sair intacto do outro lado — fora do eixo óptico `dist > z`, e usar `dist` nos dois
+           * lugares inflaria o sprite na borda da tela, onde ninguém procuraria a causa.
+           */
+          zPorIndice[i] = Math.max(-SV.copy(SP).applyMatrix4(camera.matrixWorldInverse).z, 1e-4);
+          /*
+           * ⚠️ **A POSIÇÃO DO SPRITE NÃO É `posicoes`, e sem isto ele nasceria invisível.**
+           *
+           * Um `THREE.Points` é um ponto no CENTRO do corpo, e a esfera é opaca e ESCREVE
+           * profundidade: o teste de profundidade descartaria o sprite contra a própria esfera dele
+           * — não contra as outras, contra a dele. O sintoma seria um buraco escuro no lugar do
+           * brilho, e o `depthWrite: false` do material não salva, porque quem reprova é o TESTE.
+           *
+           * Ele vai para a superfície FRONTAL: o centro deslocado para a câmera pelo raio do corpo.
+           * Isso é o que a coisa é fisicamente — o brilho de uma atmosfera está na frente da rocha,
+           * não no miolo dela — e preserva a oclusão VERDADEIRA: um corpo atrás de outro continua
+           * atrás. Desligar o teste de profundidade daria o mesmo pixel de perto e mentiria de
+           * longe, que é a troca que esta cena recusa desde a sonda `sobreposicoes()`.
+           */
+          SV.subVectors(camera.position, SP).normalize().multiplyScalar(raio);
+          spritePos[i * 3] = SP.x + SV.x;
+          spritePos[i * 3 + 1] = SP.y + SV.y;
+          spritePos[i * 3 + 2] = SP.z + SV.z;
+        }
+        sprites.geometry.getAttribute('position').needsUpdate = true;
+        // A LEI DO PISO mora em `aplicarPiso`, e ela tem DOIS chamadores: este, por quadro, e a
+        // bancada, entre dois desenhos do mesmo quadro. Uma lei, duas portas.
+        aplicarPiso();
+      }
       // DEPOIS das posições, nunca antes: o arco lê o buffer que este quadro acabou de escrever.
       // Um quadro de atraso aqui aparece como o vínculo arrastando atrás do corpo.
       rede.update(posicoes, delta, elapsed);
@@ -1154,6 +1485,6 @@ export function createUniverse() {
     },
 
     setVisible(v) { group.visible = v; },
-    dispose() { limpar(); rede.dispose(); coroa.geometry.dispose(); matCoroa.dispose(); geo.dispose(); matEstrela.dispose(); matPlaneta.dispose(); },
+    dispose() { limpar(); rede.dispose(); coroa.geometry.dispose(); matCoroa.dispose(); geo.dispose(); matEstrela.dispose(); matPlaneta.dispose(); matSprite.dispose(); },
   };
 }

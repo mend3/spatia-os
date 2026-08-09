@@ -85,8 +85,15 @@ const REVEAL_DIM = 0.09;
 // parecer direto, baixa o suficiente para a frente ser legível como movimento.
 const REVEAL_RATE = 16;
 
-// O `300.0 / -viewPosition.z` do vertex shader. Vive aqui porque duas contas dependem dele.
-const POINT_SCALE = 300;
+/*
+ * O `300.0 / -viewPosition.z` do vertex shader. Vive aqui porque duas contas dependem dele.
+ *
+ * ⚠️ **Exportado, e o motivo é o de sempre nesta base:** a cena UNIVERSO dimensiona o sprite dela
+ * INVERTENDO esta expressão (ver `universe.js`, a camada de sprite), e a alternativa era um `300`
+ * literal do outro lado — uma segunda cópia da mesma constante, que é o defeito que
+ * `starRadius`/`VERTEX` já pagaram e que o comentário do `starRadius` manda vigiar.
+ */
+export const POINT_SCALE = 300;
 const VERTEX = /* glsl */ `
   uniform float uSize, uTime, uReveal, uRevealBand, uRevealDim, uPulse;
   attribute float aSize;

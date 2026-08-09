@@ -338,6 +338,13 @@ async function main() {
     universo: {
       sobreposicoes: (limite) => scene.universeOverlaps(limite),
       entre: (a, b) => scene.universePair(a, b),
+      /**
+       * O histograma do raio DESENHADO, esfera contra sprite. Ver `universe.pixels`.
+       *
+       * ⚠️ Leia `quadros` ANTES de acreditar em qualquer número daqui: aba oculta congela o `rAF` e
+       * a sonda devolve um quadro velho com toda a cara de presente.
+       */
+      pixels: () => scene.universePixels(),
     },
   });
 
