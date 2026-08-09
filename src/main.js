@@ -321,6 +321,27 @@ async function main() {
     /** Bancada da camada 4: `spatia.core({ regime: 'thinking', tokens: 120000 })`. */
     core: (opcoes) => scene.blackHoleProbe(opcoes),
     /**
+     * A/B dos dois termos que acendem a BORDA do planeta: `spatia.pele({ limbo: 0 })`.
+     *
+     * Sem argumento só lê. `limbo` é a cor do ar na própria superfície (fresnel²), `casca` é a
+     * atmosfera aditiva em BackSide. Os dois em 1 é a composição de hoje. Ver `space/planet.js`.
+     */
+    pele: (ajuste) => scene.skinTerms(ajuste),
+    /**
+     * O A/B dos termos da pele no MESMO quadro: `spatia.peleAB([{limbo:1},{limbo:0}], ler)`.
+     *
+     * `ler` roda com o desenho ainda no buffer — é onde vai o `gl.readPixels`, e ela tem de ser
+     * síncrona. Ver `scene.skinAB` para o porquê de a pose ter de ser a mesma.
+     */
+    peleAB: (condicoes, ler) => scene.skinAB(condicoes, ler),
+    /**
+     * O mesmo A/B na cena UNIVERSO: `spatia.aroAB([{borda:1},{borda:0}], ler)`.
+     *
+     * ⚠️ Ele mede o aro da ESTRELA. `CORPO_FS` é meia-lambert puro e não tem aro — o passo 2 do
+     * `distancia-e-forma.md` cria um, não ajusta um. Ver `space/universe.js`, `termos`.
+     */
+    aroAB: (condicoes, ler) => scene.universeAB(condicoes, ler),
+    /**
      * A cena em vigor, e a troca por código: `spatia.cena('universo')`.
      *
      * Existe pelo mesmo motivo das outras sondas — sem ela, "cliquei e não mudou" não distingue

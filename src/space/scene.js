@@ -223,6 +223,52 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   let hubs = [];
   const planet = createPlanet();
+
+  /**
+   * O laço do A/B DENTRO DO MESMO QUADRO. Uma lei só, duas cenas.
+   *
+   * ## Por que ele existe
+   *
+   * A primeira tentativa mediu uma condição por quadro e não concluiu nada: entre duas amostras a
+   * câmera acomoda, o corpo gira e a paralaxe anda, e a dispersão da PRÓPRIA condição base ficou
+   * maior que a diferença entre os tratamentos (limbo 13,6 a 27,0 em seis réplicas, 2026-08-08).
+   * Um controle que não distingue a si mesmo não distingue mais nada.
+   *
+   * Aqui as condições são desenhadas em sequência sem soltar o quadro: nada avança entre elas —
+   * nem relógio, nem câmera, nem rotação. **A única coisa que difere entre duas amostras é o
+   * uniform.** Medido depois de pronto: a primeira e a última amostra da mesma condição saem com
+   * ZERO pixels de diferença, e é esse zero que torna a diferença atribuível.
+   *
+   * ⚠️ **Não usa `requestAnimationFrame`, de propósito.** Redesenhar é ordem ao driver, não quadro
+   * de animação — o mesmo argumento já escrito no `sampleRenderCost`. Consequência: é a única
+   * medida desta base que NÃO depende da aba estar visível.
+   *
+   * ⚠️ **`ler` roda com o desenho ainda no buffer** — é onde entra o `gl.readPixels`, e ela é
+   * chamada SÍNCRONA. Qualquer `await` ali dentro devolve o quadro ao compositor e a amostra passa
+   * a ser de outra coisa.
+   *
+   * `restaurar` roda no `finally` e redesenha: sair daqui com a tela num tratamento seria a
+   * bancada mudando a composição pelas costas de quem mediu.
+   *
+   * @param {object[]} condicoes  na ordem de desenho
+   * @param {(c: object) => void} aplicar
+   * @param {() => void} restaurar
+   * @param {(c: object, i: number) => any} [ler]  síncrona, com o desenho ainda no buffer
+   */
+  function mesmoQuadro(condicoes, aplicar, restaurar, ler) {
+    const amostras = [];
+    try {
+      for (let i = 0; i < condicoes.length; i++) {
+        aplicar(condicoes[i]);
+        composer.render();
+        amostras.push(ler ? ler(condicoes[i], i) : null);
+      }
+    } finally {
+      restaurar();
+      composer.render();
+    }
+    return amostras;
+  }
   const photosphere = createPhotosphere();
   const remnant = createRemnant();
   const moonOrbits = createMoonOrbits();
@@ -2391,6 +2437,40 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         radius: bloom.radius,
         doStore: tune?.bloomStrength,
       };
+    },
+
+    /**
+     * O A/B dos dois termos de borda da pele do planeta. Ver `planet.termos`.
+     *
+     * Ela responde a pergunta que a medida de 2026-08-08 deixou aberta: o disco em foco é aceso na
+     * BORDA e escuro no meio (centro 5,9 contra limbo 80,7 em `nucleo/bloco-10`), e os dois
+     * candidatos a autor — o fresnel na superfície e a casca aditiva — são cortados pelo MESMO
+     * `params.atmosphere`. Sem separá-los, "é a atmosfera" é tudo o que se consegue dizer.
+     */
+    skinTerms: (ajuste) => planet.termos(ajuste),
+
+    /**
+     * O A/B dos dois termos de borda da pele do planeta, no mesmo quadro. Ver `mesmoQuadro`.
+     *
+     * @param {Array<{limbo?: number, casca?: number}>} condicoes  na ordem de desenho
+     * @param {(cond: object, i: number) => any} [ler]  síncrona, com o desenho ainda no buffer
+     * @returns {{amostras: any[], estado: object}}
+     */
+    skinAB(condicoes = [], ler) {
+      const amostras = mesmoQuadro(condicoes, (c) => planet.termos(c), () => planet.termos({ limbo: 1, casca: 1 }), ler);
+      return { amostras, estado: planet.termos() };
+    },
+
+    /**
+     * O mesmo A/B, na cena UNIVERSO: o ganho do ARO da estrela. Ver `universe.termos`.
+     *
+     * ⚠️ Ela mede a ESTRELA porque `CORPO_FS` não tem aro — o passo 2 do `distancia-e-forma.md`
+     * cria um em vez de ajustar um. O que esta sonda responde é quanto um aro compra no tamanho
+     * que um corpo REALMENTE tem nesta cena, que é a pergunta que decide se vale criá-lo.
+     */
+    universeAB(condicoes = [], ler) {
+      const amostras = mesmoQuadro(condicoes, (c) => universe.termos(c), () => universe.termos({ borda: 1 }), ler);
+      return { amostras, estado: universe.termos() };
     },
 
     /** Devolve o controle da câmera à deriva automática. */

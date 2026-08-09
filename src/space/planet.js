@@ -194,6 +194,9 @@ const SURFACE_FRAGMENT = /* glsl */ `
   uniform float uPeriod, uPersistence, uLacunarity, uDetail, uRidged;
   uniform float uScale, uBump, uBumpStrength, uWet, uFade;
   uniform float uAmount, uCloudPeriod;
+  // Ganho do LIMBO, e so da bancada: 1 e a composicao de hoje. Ver o bloco dos dois termos
+  // em createPlanet. Separado de uAmount porque uAmount alimenta a casca tambem.
+  uniform float uLimbo;
   uniform vec2 uSpin;
   uniform vec3 uLight, uCam, uSky, uTwilight;
   // O MESMO deslocamento do vertice — ver a nota la. Divergir aqui separa relevo de sombra.
@@ -271,7 +274,7 @@ const SURFACE_FRAGMENT = /* glsl */ `
     float sunOrient = dot(Ng, L);
     float fres = 1.0 - abs(dot(V, Ng));
     vec3 air = mix(uTwilight, uSky, smoothstep(-0.25, 0.75, sunOrient));
-    float airMix = clamp(smoothstep(-0.5, 1.0, sunOrient) * fres * fres, 0.0, 1.0) * uAmount;
+    float airMix = clamp(smoothstep(-0.5, 1.0, sunOrient) * fres * fres, 0.0, 1.0) * uAmount * uLimbo;
     color = mix(color, air, airMix);
 
     gl_FragColor = vec4(color * uFade, uFade);
@@ -313,6 +316,8 @@ const SHELL_FRAGMENT = /* glsl */ `
 
   uniform vec3 uLight, uCam, uSky, uTwilight;
   uniform float uAmount, uRimEdge, uFade;
+  // Ganho da CASCA, e so da bancada: 1 e a composicao de hoje. Par do uLimbo da superficie.
+  uniform float uCasca;
 
   varying vec3 vDir;
   varying vec3 vPos;
@@ -326,7 +331,7 @@ const SHELL_FRAGMENT = /* glsl */ `
     // 1 no limbo do planeta, 0 na borda externa da casca. Ao cubo: a coroa cai rapido, que e
     // como uma coluna de ar se comporta com a altitude.
     float rim = clamp(1.0 - (fres - uRimEdge) / max(1.0 - uRimEdge, 0.001), 0.0, 1.0);
-    float alpha = pow(rim, 3.0) * smoothstep(-0.5, 1.0, sunOrient) * uAmount * uFade;
+    float alpha = pow(rim, 3.0) * smoothstep(-0.5, 1.0, sunOrient) * uAmount * uFade * uCasca;
     if (alpha < 0.004) discard;
 
     vec3 air = mix(uTwilight, uSky, smoothstep(-0.25, 0.75, sunOrient));
@@ -455,6 +460,36 @@ export function createPlanet() {
   // textura por quadro — e o nó focado troca com o clique, não com o quadro.
   let rampKey = null;
 
+  /*
+   * OS DOIS TERMOS DE BORDA, SEPARADOS — e eles existem para MEDIR, não para compor.
+   *
+   * Medido em 2026-08-08 na cena AGENTE, com a aba visível e a sonda lida antes E depois do
+   * `readPixels`: o disco do planeta em foco é aceso na BORDA e escuro no meio — `nucleo/bloco-10`
+   * dá centro 5,9 contra limbo 80,7 (13,7x), `nucleo/bloco-12` dá 21,0 contra 79,3 (3,8x). Na
+   * média radial uma esfera sólida iluminada faz o contrário, e uma casca acesa só na borda é
+   * literalmente a leitura que o usuário relatou: "o planeta está transparente".
+   *
+   * A medida derrubou a suspeita que estava registrada (o sprite de `graph.js` esvaziando o miolo
+   * com `uHaloYield = 0`): no raio onde o núcleo do sprite teria PICO — `d ~ 0,35` — o perfil tem
+   * um MÍNIMO local, e luz aditiva não produz mínimo. O que sobe até a silhueta são estes dois, e
+   * eles são de quem acende borda:
+   *
+   *   LIMBO  a cor do ar entrando na PRÓPRIA superfície por fresnel ao quadrado (ver o `airMix`)
+   *   CASCA  a atmosfera em BackSide, com blending ADITIVO, que é a coroa fora da silhueta
+   *
+   * ⚠️ **Zerar `uAmount` não separa nada**: `params.atmosphere` alimenta os DOIS, então ele apaga
+   * a atmosfera inteira e responde uma pergunta que ninguém fez. Daí dois ganhos independentes.
+   *
+   * ⚠️ **Eles são reaplicados no `update`, todo quadro, de propósito.** `shell.visible` já é
+   * reescrito por quadro ali; um gate que vivesse fora do `update` seria apagado no quadro
+   * seguinte e a bancada leria "não mudou nada" sobre um controle que nunca chegou à GPU.
+   *
+   * Os dois nascem em 1 e 1 = a composição de hoje, byte por byte. Enquanto ninguém chamar
+   * `termos()`, este bloco não muda um pixel.
+   */
+  let ganhoLimbo = 1;
+  let ganhoCasca = 1;
+
   function build() {
     geometry = new THREE.SphereGeometry(1, SEGMENTS, SEGMENTS);
     // Obrigatório: o fragmento reconstrói a normal do relevo ao longo da tangente, e sem este
@@ -481,6 +516,7 @@ export function createPlanet() {
           uBumpStrength: { value: BUMP_STRENGTH },
           uWet: { value: WET_EDGE },
           uAmount: { value: 0 },
+          uLimbo: { value: 1 },
           uCloudPeriod: { value: 0.3 },
           uSpin: { value: new THREE.Vector2(1, 0) },
           uFade: { value: 0 },
@@ -509,6 +545,7 @@ export function createPlanet() {
           uSky: { value: new THREE.Color(0x4db2ff) },
           uTwilight: { value: new THREE.Color(TWILIGHT) },
           uAmount: { value: 0 },
+          uCasca: { value: 1 },
           uRimEdge: { value: 0.73 },
           uShell: { value: 1.05 },
           uFade: { value: 0 },
@@ -604,6 +641,7 @@ export function createPlanet() {
        */
       u.uDetail.value = 3 + near * 5;
       u.uAmount.value = params.atmosphere;
+      u.uLimbo.value = ganhoLimbo;
       u.uSpin.value.set(Math.cos(cloudAngle), Math.sin(cloudAngle));
       u.uFade.value = near;
       u.uLight.value.copy(OBJ_LIGHT);
@@ -613,6 +651,7 @@ export function createPlanet() {
 
       const s = shell.material.uniforms;
       s.uAmount.value = params.atmosphere;
+      s.uCasca.value = ganhoCasca;
       s.uFade.value = near;
       s.uShell.value = shellRadius;
       /*
@@ -632,6 +671,55 @@ export function createPlanet() {
       shell.visible = params.atmosphere > 0.004;
 
       return near;
+    },
+
+    /**
+     * O A/B dos dois termos de borda. Lê sem argumento; força com argumento.
+     *
+     * `termos({ limbo: 0 })` desliga a cor do ar na superfície e deixa a casca; `termos({ casca: 0 })`
+     * faz o inverso; `termos({ limbo: 1, casca: 1 })` devolve a composição de hoje. É a mesma forma
+     * do `spatia.bloom(ajuste)`, e pelo mesmo motivo: um controle que só lê não decide nada, e um
+     * que só escreve não deixa provar o que escreveu.
+     *
+     * ⚠️ `montado` é metade da resposta. A pele nasce no primeiro quadro em que o astro cruza
+     * `LOD_FAR_PX` — com ela `null` os ganhos ficam guardados e não desenham nada, e a bancada
+     * leria "mudei e não mudou". Aqui isso tem nome em vez de virar hipótese sobre o shader.
+     *
+     * @param {{limbo?: number, casca?: number}} [ajuste]
+     */
+    termos(ajuste) {
+      if (ajuste) {
+        if (ajuste.limbo !== undefined) ganhoLimbo = ajuste.limbo;
+        if (ajuste.casca !== undefined) ganhoCasca = ajuste.casca;
+        /*
+         * ESCRITA DIRETA, ALÉM da que o `update` faz por quadro — e é ela que torna possível o
+         * A/B no MESMO quadro.
+         *
+         * O `update` só roda uma vez por quadro. Um A/B que dependesse dele teria de esperar o
+         * quadro seguinte entre as duas amostras — e aí a pose, o giro do planeta e a acomodação
+         * da câmera andam junto. Foi exatamente isso que derrubou a primeira tentativa de medida
+         * em 2026-08-08: as SEIS réplicas da condição base espalharam o limbo entre 13,6 e 27,0,
+         * mais do que qualquer diferença entre os tratamentos. Escrevendo aqui, `skinAB` desenha
+         * as duas condições entre dois `composer.render()` sem soltar o quadro, e a única coisa
+         * que difere entre as amostras é o uniform.
+         *
+         * A escrita do `update` continua: ela é quem mantém o valor depois que o quadro vira.
+         */
+        if (surface) {
+          surface.material.uniforms.uLimbo.value = ganhoLimbo;
+          shell.material.uniforms.uCasca.value = ganhoCasca;
+        }
+      }
+      return {
+        limbo: ganhoLimbo,
+        casca: ganhoCasca,
+        montado: Boolean(surface),
+        // O que a GPU tem AGORA. Com a escrita direta acima os dois casam no mesmo instante;
+        // divergir aqui significa pele ainda não construída, e é isso que `montado` nomeia.
+        naGpu: surface
+          ? { limbo: surface.material.uniforms.uLimbo.value, casca: shell.material.uniforms.uCasca.value }
+          : null,
+      };
     },
 
     dispose() {

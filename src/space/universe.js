@@ -339,6 +339,10 @@ export function createUniverse() {
     varying vec3 vLuz;
     varying vec3 vCor;
     varying float vBrilho;
+    // Ganho do ARO, e so da bancada: 1 e a composicao de hoje, 0 deixa o disco chapado. Ele existe
+    // para responder o passo 2 do distancia-e-forma por MEDIDA — quanto um aro compra no tamanho
+    // real que um corpo tem nesta cena — sem inventar um aro no CORPO_FS para poder medi-lo.
+    uniform float uBorda;
     void main(){
       // Estrela EMITE: sem terminador, e mais clara na BORDA — o limbo de um corpo emissivo nao
       // escurece, ao contrario do planeta. O ganho acima de 1 e o que da ao bloom o que amplificar.
@@ -346,11 +350,15 @@ export function createUniverse() {
       // dezenas caem no mesmo punhado de pixels e o brilho SOMA. Em 1,6 o miolo da teia virava uma
       // mancha branca e engolia os planetas — o bloom amplificava um estouro em vez de um astro.
       float borda = 1.0 - abs(normalize(vNormal).z);
-      gl_FragColor = vec4(vCor * (1.05 + borda * 0.45) * 1.15 * vBrilho, 1.0);
+      gl_FragColor = vec4(vCor * (1.05 + borda * 0.45 * uBorda) * 1.15 * vBrilho, 1.0);
     }
   `;
   const matPlaneta = new THREE.ShaderMaterial({ vertexShader: CORPO_VS, fragmentShader: CORPO_FS });
-  const matEstrela = new THREE.ShaderMaterial({ vertexShader: CORPO_VS, fragmentShader: ESTRELA_FS });
+  const matEstrela = new THREE.ShaderMaterial({
+    vertexShader: CORPO_VS,
+    fragmentShader: ESTRELA_FS,
+    uniforms: { uBorda: { value: 1 } },
+  });
   let estrelas = null;
   let planetas = null;
   /** Estado por planeta: a que sistema pertence, semi-eixo, excentricidade, fase. */
@@ -708,6 +716,40 @@ export function createUniverse() {
     object: group,
     /** O tipo de um corpo NESTA cena, ou `null` fora dela. A HUD pergunta; ela não deduz. */
     tipoDe: (source) => tipos.get(source) ?? null,
+
+    /**
+     * O ganho do ARO da estrela. Lê sem argumento; força com argumento. Mesma forma do
+     * `planet.termos`, e pelo mesmo motivo.
+     *
+     * ⚠️ **`CORPO_FS` não aparece aqui, e a ausência é a resposta:** ele é meia-lambert puro
+     * (`0,10 + 0,90·d²`) e não tem aro nenhum para ganhar ou perder. O passo 2 do
+     * `distancia-e-forma.md` não é afinar um termo do planeta — é criar um. Quem tem aro nesta
+     * cena é a ESTRELA, e é por isso que a medida do que um aro compra se faz nela.
+     *
+     * Escrita direta, sem esperar quadro: é o que deixa `universeAB` desenhar duas condições
+     * entre dois `composer.render()`. Nada aqui é reaplicado por quadro porque nada mais
+     * escreve este uniform — ao contrário do planeta, cujo `update` reescreve tudo.
+     *
+     * @param {{borda?: number}} [ajuste]
+     */
+    termos(ajuste) {
+      if (ajuste?.borda !== undefined) matEstrela.uniforms.uBorda.value = ajuste.borda;
+      /*
+       * ⚠️ O piso reaplica a lei NA HORA, sem esperar quadro — é o que permite o A/B do piso entre
+       * dois `composer.render()`. Sem esta chamada o `aSize` só mudaria no quadro seguinte, e a
+       * amostra sairia com o piso velho e o rótulo do novo.
+       */
+      if (ajuste?.piso !== undefined) {
+        pisoSprite = ajuste.piso;
+        aplicarPiso();
+      }
+      return {
+        borda: matEstrela.uniforms.uBorda.value,
+        piso: pisoSprite,
+        pisoPadrao: PISO_SPRITE_PX,
+        temAroNoPlaneta: false,
+      };
+    },
 
     /**
      * Põe anel nos corpos cujo arquivo está alterado no disco.
