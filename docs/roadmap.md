@@ -202,6 +202,7 @@ com ou sem produtor.
 | **T-66** | O sistema APERTADO — 38 arquivos numa pasta dão planetas de 0,10 unidade | `todo` | — | — | — |
 | **T-67** | Segunda textura de estrela (K/M, fria), escolhida pela TEMPERATURA | `todo` | — | — | — |
 | **T-68** | Passo 2 — feição no SPRITE, e **não** aro no corpo: é lá que os corpos vivem | `todo` | — | — | — |
+| **T-83** | `lei-residentes.mjs` guarda a ROTA e não a TABELA — tirar um residente de `RESIDENTES` sai 0 | `todo` | — | — | KR2.4 |
 
 - **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
   foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
@@ -564,6 +565,24 @@ mesmo fato).
   declarada é RESIDENTES (`FENDAS.strip`) — e existe em 1 das 10 rotas. Virar lei obrigaria a
   movê-lo, e a régua da faixa (largura inteira, `index.html:707-710`) não é a do trilho de 230 px:
   a decisão muda a tela e tem de ser vista. O censo da lei imprime o caso em amarelo toda vez.
+
+- **T-83** — ☠️ **A lei guarda a ROTA e não a TABELA, e duas mutações no mesmo oráculo separam as
+  duas.** Tirar `sky-time` da lista de widgets de `#/storage` (`src/apps/storage.js:79`) derruba
+  `lei-residentes.mjs`: sai **1** e acusa pelo NOME, com a frase do motivo junto — *"§3 a rota
+  `storage` não monta sky-time"*. Tirar o mesmo `sky-time` da PRÓPRIA tabela `RESIDENTES`
+  (`src/apps/residentes.js:30`) sai **0**, e o rodapé apenas passa a dizer *"3 residentes"* onde
+  dizia 4. O conjunto guardado ENCOLHE em silêncio.
+  ⭑ **É a família do CATÁLOGO um nível acima, e a diferença importa:** aqui o leitor existe e é
+  imposto — ele só lê uma lista que a mutação já encurtou. Não é *"declarar não implementa"*; é a
+  invariante implementada cuja POPULAÇÃO não tem guarda.
+  ⚠️ **Há sinal, e sinal que não reprova não é guarda:** o censo imprime em amarelo que `sky-time`
+  monta em 10/10 rotas e mora na fenda `strip` sem estar declarado — o MESMO amarelo que já carrega
+  o caso de `sec-effective` (T-73). Um aviso que sai igual para o defeito e para a decisão pendente
+  não distingue os dois.
+  ⚠️ **A saída não é óbvia, e é por isso que isto é tarefa e não conserto de passagem:** congelar a
+  lista esperada dentro do oráculo cria a SEGUNDA fonte que o T-48 existiu para matar. O candidato
+  é ancorar no COMPORTAMENTO — residente é quem monta em 10/10 rotas, que é número que o censo já
+  calcula — e aí a tabela vira quem DECLARA e o censo vira quem CONFERE.
 
 - **T-51 FECHADO** — a regra é **quem PINTA reivindica; quem só POSICIONA cede**, e ela vale para
   qualquer superfície nova sobre o céu. A moldura do painel de palco é `flex: 1` (`.widget-stage`):

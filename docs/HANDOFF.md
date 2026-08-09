@@ -134,6 +134,13 @@ todas *"declarado sem leitor"* ou *"dois donos para um estado"* — a família q
 cinco vezes, e o corolário da REGRA DO CATÁLOGO no `CLAUDE.md` diz como a auditoria se faz (varra
 cada chave declarada e procure um leitor). Fazê-las juntas cobra uma varredura só.
 
+⚠️ **T-83 é vizinho do cluster e NÃO é dele — é o guarda que não guarda o próprio alcance.**
+`lei-residentes.mjs` derruba quem tira um residente de uma ROTA (visto saindo **1**, acusando pelo
+nome) e passa quem tira o mesmo residente da TABELA: o conjunto guardado encolhe e o rodapé só troca
+*"4 residentes"* por *"3"*. ⭑ **O achado veio de provar o portão por MUTAÇÃO antes de um commit** —
+é exatamente para isso que a mutação existe, e é o motivo de verde não ser review. A medida e as
+duas mutações estão na linha de T-83 no [`roadmap.md`](./roadmap.md).
+
 ☠️ **A FRENTE DE UI/HUD tem QUATRO briefings, e três estavam mal cobertos pelo roadmap** (mapeado em
 09/08, com as decisões do operador já tomadas):
 
