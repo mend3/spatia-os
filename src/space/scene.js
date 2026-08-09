@@ -33,6 +33,7 @@ import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js'
 import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams, LOD_FAR_PX as PLANETA_FAR } from './planet.js';
+import { RS_POR_RAIO } from './astrofisica.js';
 import { createLinks } from './links.js';
 import { createGalaxy, galaxyParams, diskPx, LOD_ARM_PX, LOD_FULL_PX } from './galaxy.js';
 import { createQuasars, quasarParams } from './quasar.js';
@@ -2315,7 +2316,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * bloco em `lensing.js`, e a escolha foi do usuário.
      */
     const corpoDaLente = pouso && decisao?.surface === SURFACE.PULSAR
-      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SURFACE.PULSAR] * 0.4 }
+      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SURFACE.PULSAR] * RS_POR_RAIO.pulsar }
       : null;
     lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente });
     lensing.setTime(elapsed);

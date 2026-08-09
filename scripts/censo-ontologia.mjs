@@ -82,7 +82,7 @@ const q = (a, p) => [...a].sort((x, y) => x - y)[Math.floor(p * a.length)] ?? 0;
 const linha = (nome, vals, casas = 2) => {
   console.log(`  ${nome.padEnd(12)} min ${q(vals, 0).toFixed(casas).padStart(7)} · MED ${q(vals, 0.5).toFixed(casas).padStart(7)} · P90 ${q(vals, 0.9).toFixed(casas).padStart(7)} · máx ${q(vals, 0.999).toFixed(casas).padStart(7)}`);
 };
-linha('mass', num((p) => p.mass), 0);
+linha('chunks', num((p) => p.chunks), 0);
 linha('activity', num((p) => p.activity));
 linha('age', num((p) => p.age));
 linha('volatility', num((p) => p.volatility));

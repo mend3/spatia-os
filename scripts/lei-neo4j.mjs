@@ -47,7 +47,7 @@ const assinatura = (node, extra) => {
   const fisica = entityPhysics({ ...node, ...extra }, { dominante: node.__dominante === true });
   const c = classificar(fisica, node);
   const fen = fenomenos(fisica, node).map((f) => f.tipo).sort().join(',');
-  return `${c.familia}|${c.tipo}|${c.porte || ''}|${fen}|${fisica.scale}|${fisica.mass}`;
+  return `${c.familia}|${c.tipo}|${c.porte || ''}|${fen}|${fisica.scale}|${fisica.chunks}`;
 };
 
 // A dominância é contexto, e ela vem da contenção — não do grafo. Recalculá-la aqui mantém o

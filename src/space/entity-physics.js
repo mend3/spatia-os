@@ -95,7 +95,7 @@ export function evidenciaDeUso(meta) {
 export { USO_CHEIO };
 
 /** Massa acima da qual um corpo parado vira remanescente. Ver `server/recency.py`. */
-const MASSA_REMANESCENTE = 13;
+const CHUNKS_REMANESCENTE = 13;
 
 /**
  * As dimensões propostas que **não têm fato hoje**, com o dono de cada uma.
@@ -165,9 +165,22 @@ export function entityPhysics(node, contexto = {}) {
   const churn = Math.max(node.churn || 0, 0);
 
   return Object.freeze({
-    /** Massa bruta — a grandeza que governa ESCALA e gravidade. */
-    mass: massa,
-    /** O degrau da escada. Deriva só da massa, e é isso que corrige a inversão nº 1. */
+    /*
+     * CHUNKS — e o nome é o ponto. Este campo se chamava `mass`, e o comentário dele dizia
+     * "a grandeza que governa ESCALA e gravidade". Ele não governa gravidade nenhuma: é a
+     * CONTAGEM DE CONHECIMENTO do corpo, e nada aqui tem unidade.
+     *
+     * ⚠️ A troca não é cosmética. Com `mass` no contrato, `gravity = mass * k` é uma linha que
+     * ninguém questiona em revisão — e daí saem órbita e lente com uma constante inventada no meio.
+     * Com `chunks`, a mesma linha se lê como o absurdo que é. **A FRONTEIRA do §11.2 do
+     * `replanejamento-celeste.md`:** nenhuma grandeza física sai de uma variável cognitiva sem
+     * unidade e constante explícitas.
+     *
+     * Quem precisa de física de verdade tem casa própria: `space/astrofisica.js`, onde as razões
+     * `R_s/R` são adimensionais e vêm de fato astronômico, não daqui.
+     */
+    chunks: massa,
+    /** O degrau da escada. Deriva só da contagem, e é isso que corrige a inversão nº 1. */
     scale: degrau(massa),
     /** Energia: quanto o corpo está sendo trabalhado agora. Governa BRILHO, nunca tamanho. */
     activity: clamp01(churn / ATIVIDADE_CHEIA),
@@ -284,7 +297,7 @@ export function classificar(fisica, node) {
    * proibida — que é a diferença entre invariante implementada e invariante declarada.
    */
   if (fisica.dominante) {
-    return { familia: FAMILIA.CORPO, tipo: 'estrela', porte: porteEstelar(fisica.mass), motivo: 'entidade dominante do sistema' };
+    return { familia: FAMILIA.CORPO, tipo: 'estrela', porte: porteEstelar(fisica.chunks), motivo: 'entidade dominante do sistema' };
   }
 
   // Corpo não dominante nunca é estrela — o teto é planeta, e ele não pode passar a dominante.
@@ -341,7 +354,7 @@ export function fenomenos(fisica, node) {
   if (fisica.activity > 0.08) {
     lista.push({ tipo: 'atividade-de-cometa', motivo: 'trabalho recente: coma e cauda' });
   }
-  if (node.dwarf === 1 || (fisica.mass >= MASSA_REMANESCENTE && fisica.activity === 0 && fisica.dormant === 0 && fisica.age <= 0.25)) {
+  if (node.dwarf === 1 || (fisica.chunks >= CHUNKS_REMANESCENTE && fisica.activity === 0 && fisica.dormant === 0 && fisica.age <= 0.25)) {
     lista.push({ tipo: 'ana-branca', motivo: 'massa que sobrou depois que a atividade acabou' });
   }
   if (fisica.dormant >= 2 && fisica.activity === 0) {

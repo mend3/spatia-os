@@ -41,6 +41,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+/*
+ * ⚠️ IMPORTADO, não transcrito. As razões e a fórmula moram em `src/space/astrofisica.js`, que é um
+ * módulo PURO — sem `three` — exatamente para poder ser lido aqui em `node`. Uma transcrição a menos
+ * é uma obrigação de sincronia a menos, e este oráculo já carrega uma (a do GLSL, travada abaixo).
+ */
+import { RS_POR_RAIO, deflexao, raiosParaAnelVisivel } from '../src/space/astrofisica.js';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ler = (rel) => readFileSync(join(RAIZ, rel), 'utf8');
@@ -67,9 +73,6 @@ if (ausentes.length) {
   console.log('  atestar uma física que a cena não desenha. Atualize os dois, ou apague este script.');
   process.exit(1);
 }
-
-/** A deflexão de campo fraco, transcrita: `alfa = 2 R_s / b`. */
-const deflexao = (rs, b) => (2 * rs) / b;
 
 /**
  * O raio de Einstein: `sqrt(2 R_s · D_LS / (D_L · D_S))`.
@@ -100,33 +103,18 @@ const PISO_PX = 1;
  *
  * `R_s = 2GM/c²` = 2,953 km por massa solar.
  */
-const CLASSES = [
-  {
-    id: 'buraco-negro', rsPorR: 1,
-    razao: 'R_s É o raio, por definição do horizonte',
-    lenteAutorizada: true,
-  },
-  {
-    id: 'pulsar', rsPorR: 0.4,
-    razao: 'estrela de nêutrons: ~4,1 km de R_s (1,4 M☉) contra ~10,5 km de raio',
-    lenteAutorizada: true,
-  },
-  {
-    id: 'ana-branca', rsPorR: 2.95e-4,
-    razao: '0,6 M☉ → R_s 1,77 km contra ~6.000 km de raio (Sirius B)',
-    lenteAutorizada: false,
-  },
-  {
-    id: 'fotosfera', rsPorR: 4.24e-6,
-    razao: 'estrela tipo Sol: R_s 2,95 km contra 696.000 km de raio',
-    lenteAutorizada: false,
-  },
-  {
-    id: 'planeta', rsPorR: 1.39e-9,
-    razao: 'Terra: R_s 8,9 mm contra 6.371 km de raio',
-    lenteAutorizada: false,
-  },
-];
+/*
+ * A POLÍTICA — quem esta base AUTORIZA a dobrar a luz.
+ *
+ * ⚠️ Ela é declarada aqui e as RAZÕES vêm de `astrofisica.js`, de propósito: se a autorização fosse
+ * derivada da conta, a conferência abaixo viraria tautologia e não pegaria nada. Separadas, uma
+ * política que discorda da física falha — que é o único jeito de o portão ter dentes.
+ */
+const AUTORIZADAS = new Set(['buraco-negro', 'pulsar']);
+const CLASSES = Object.keys(RS_POR_RAIO).map((id) => ({
+  id, rsPorR: RS_POR_RAIO[id], lenteAutorizada: AUTORIZADAS.has(id),
+}));
+
 
 /*
  * ─────────────────────────── 4. A TABELA, E O VEREDITO POR CLASSE
@@ -167,7 +155,7 @@ console.log(`  ${C.fraco}Uma estrela tipo Sol fica ${(limiar / 4.24e-6).toFixed(
 console.log(`\n${C.forte}ANEL DE EINSTEIN${C.fim}  ${C.fraco}a que distância ele sai de dentro do próprio corpo${C.fim}`);
 const CAMERA_EM_RAIOS = 6.5; // medido em 2026-08-08: anexar um corpo chega em px 135 ⇒ D/R ≈ 6,5
 for (const c of CLASSES.filter((x) => x.id !== 'buraco-negro')) {
-  const precisaDeRaios = 1 / (2 * c.rsPorR);
+  const precisaDeRaios = raiosParaAnelVisivel(c.id);
   const alcanca = CAMERA_EM_RAIOS >= precisaDeRaios;
   const thetaE = raioDeEinstein(c.rsPorR, CAMERA_EM_RAIOS, CAMERA_EM_RAIOS * 2);
   console.log(
@@ -224,7 +212,7 @@ if (!bloco) {
         `só produz ${(2 * classe.rsPorR * K_PX_POR_RAD).toExponential(2)} px. Abaixo do piso de ${PISO_PX} px.`);
       continue;
     }
-    console.log(`  ${C.ok}✓${C.fim} SURFACE.${s.toUpperCase().padEnd(10)} R_s/R ${classe.rsPorR}  ${C.fraco}${classe.razao}${C.fim}`);
+    console.log(`  ${C.ok}✓${C.fim} SURFACE.${s.toUpperCase().padEnd(10)} R_s/R ${classe.rsPorR}  ${C.fraco}razão adimensional declarada em astrofisica.js${C.fim}`);
   }
   /*
    * ⚠️ E o R_s tem de sair de uma RAZÃO aplicada ao raio desenhado — nunca de `chunks`, `mass` ou
