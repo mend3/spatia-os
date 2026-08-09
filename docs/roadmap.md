@@ -399,10 +399,16 @@ mesmo fato).
   deste parágrafo: `memory` 1/10 · `tools` 1/10 · `plan` 1/10 · `web-results` 2/10 contra `answer`
   10/10. **Cortar `MEMORY_LIMIT` segue refutado** — ele alimenta o modelo (`agent.py`), então
   encolheria a RESPOSTA, não a tela.
-  ☠️ **Fica por PROVAR na tela** (esta sessão não abriu navegador): que a linha apontada caiba na
-  régua de `.source` sem quebrar em duas, que as marcas `.cite` de um grupo de oito não transbordem
-  a terceira coluna do grid, e quanto a lista de fato encolhe por rota. `spatia.hud().fontes` e
-  `.fendas[].alturaPx` respondem as três.
+  ⭑ **A METADE CONSERVADORA ESTÁ FOTOGRAFADA, e é a que falha para o lado seguro** (fixture, 09/08,
+  rota raiz, resposta real de 24 fontes): `memory` e `web-results` estavam **RECOLHIDOS** —
+  `spatia.hud().widgets.recolhidos` os lista —, e por isso **nenhuma das 24 linhas foi apontada**.
+  Painel recolhido não afirma nada, então manter as 24 é o comportamento CERTO, e o ramo que o
+  garante está exercido na tela.
+  ☠️ **A metade INTERESSANTE segue sem foto:** a linha que some e vira PONTEIRO com os `[n]` do
+  grupo dentro. Ela exige um painel de fonte **ABERTO**, e o acordeão não abriu por clique
+  programático no cabeçalho — precisa do gesto humano. **O que falta julgar quando abrir:** se a
+  linha apontada cabe na régua de `.source` sem quebrar em duas, e se as marcas de um grupo de oito
+  não transbordam a terceira coluna do grid.
 
 - **T-47 FECHADO** — `.sources` ganhou `max-height: 20vh`, `overflow-y: auto`, `pointer-events: auto`
   (barra que não se pode agarrar é enfeite — lição 1 do `.surface`) e o scrim em gradiente do
@@ -416,9 +422,11 @@ mesmo fato).
   ⭑ A conta do teto virou EXATA: `.source` declara `line-height: 1,45` (passo 15,05 px → ~7 linhas
   à vista em 742 px). Sem ele a altura era `normal` e o "≈305 px" da varredura era estimativa.
   Portão: `scripts/lei-fontes.mjs` (25 leis, 13 mutações vistas caindo, cada uma nomeada).
-  ⚠️ **Por provar na tela** (a sessão que entregou não abriu navegador): as 7 linhas cabendo, a
-  barra aparecendo com `scrollbar-color`, e `.answer` 36 vh + `.sources` 20 vh + meta dentro da
-  altura do palco. `spatia.hud().fontes` e `.fendas[].alturaPx` respondem.
+  ⭑ **FOTOGRAFADO** (fixture, 09/08, resposta real com **24 fontes** — 6 de memória, 18 de web):
+  vista de **87 px** com passo medido de **13,05 px** (`font-size` 9 px × razão 1,4497) → **6,6
+  linhas à vista**, que é o "~7 linhas" da conta. As **24 continuam no DOM**, a lista mede 396 px de
+  altura total, `overflow-y: auto` com rolagem de fato, e a barra aparece com `scrollbar-color`
+  laranja (`rgb(184,118,58)`). O teto declarado é `max-height: 148,4 px` = 20 vh de 742.
 
 - **T-49 / T-50** — ⭑ **o portão existe:** `VOCABULARIO_DO_WIDGET` e `FENDAS` em
   `kernel/registry.js` nomeiam o que o contrato aceita, o que cada fenda EXIGE declarado e o que ela
@@ -527,9 +535,20 @@ mesmo fato).
   ⭑ **As três condições estão fechadas.** A terceira mora em `hud/favoritos-ui.js`, desenhada na
   seção FAVORITO do painel de CONTEXTO (`apps/context.js`), com gesto em `F` e sonda em
   `spatia.favoritos()`. 99 leis sem navegador em `scripts/lei-favoritos-ui.mjs`, 12 mutações vistas
-  reprovando. **O que falta é FOTO**, e são três coisas que só ela julga: a faixa de `degradada`
-  em `--busy` se lendo como ANÚNCIO sobre o fundo do painel, os 8 chips de aparência cabendo na
-  régua de 250 px do trilho sem virar rolagem, e `F` chegando ao alvo que o painel nomeia.
+  reprovando.
+  ⭑ **FOTOGRAFADO** (fixture, 09/08, corpo `nucleo/bloco-04.md` travado, contexto `planetario`):
+  os **8 chips cabem em DUAS LINHAS DE QUATRO** dentro do trilho de **255 px medidos**, sem rolagem
+  e sem transbordo horizontal; a tela diz *"marca do operador — não é medida, e não decide o que o
+  corpo é"* logo abaixo de `VOCÊ MARCOU · operador · data · corpus`; e **`F` marcou o corpo que o
+  painel nomeia**.
+  ☠️ **A faixa `degradada` não tem OCORRÊNCIA para julgar** — `spatia.favoritos().degradadas` é 0.
+  Ela só se fotografa com uma marca cuja classe mudou, e fabricá-la é medir outra coisa.
+  ⚠️ **UM SINTOMA VISTO UMA VEZ, e ele não é conclusão:** logo após um clique perdido, o cabeçalho
+  do painel nomeava `bloco-04.md · PLANETA · TRAVADO` enquanto a seção FAVORITO ainda desenhava o
+  texto do AGREGADO, e o `F` daquele instante marcou um `dir:`. **Reproduzido com eventos de ponteiro
+  SINTÉTICOS**, que não são o gesto do operador — então isto é indício, não defeito medido. Se
+  confirmar-se com gesto real, é exatamente o que **T-43** prevê: a repintura da seção segue um sinal
+  diferente do cabeçalho, e as duas podem discordar por um quadro.
   ⚠️ **Nada da marca alcança o pixel do CÉU** — a escolha é registrada e `emDisco` é `null` porque
   ninguém mediu o disco. Quem transformar `null` em medida é o carregador de textura de T-34, por
   `declararEmDisco()`.
