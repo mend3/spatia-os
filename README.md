@@ -265,6 +265,15 @@ Enquanto o painel acompanha o corpo, a luz fica parada sobre ele — o painel e 
 Quando o corpo empurra o painel contra a borda da tela e continua, a luz **desliza** sobre a
 superfície: é aí que a profundidade tem o que mostrar, e é o mesmo mecanismo, não um segundo.
 
+**E o endereço leva as duas coisas junto.** `#/files/<caminho>` abre o documento **e** trava a
+câmera no astro dele — num link compartilhado, numa aba restaurada, num F5. Antes o endereço abria
+só o texto e a câmera voltava para onde você tinha parado da última vez, que costumava ser outro
+corpo: você lia o arquivo com o céu olhando para outra coisa.
+
+⭑ **Sem endereço nada mudou** — abrir na raiz continua devolvendo você ao astro da sessão anterior,
+com o zoom que você gravou. Endereço PEDIDO e último visitado são fatos diferentes, e o pedido só
+tem precedência quando existe.
+
 ⚠️ **Ele nunca sai da janela.** Quando o astro chega perto da borda o painel encosta e para — a
 direção continua legível, o texto continua inteiro. Onde ele está e **por que** está lá sai em
 `spatia.ancora()`, com as quatro causas separadas por nome: sem corpo travado, painel não montado,

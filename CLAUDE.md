@@ -675,6 +675,19 @@ conferir contra ela é tautologia — visto por mutação, baixar a margem relax
 ⚠️ **A §10b confere a PRÓPRIA PREMISSA** — ela afirma sobre «o painel livre», e uma varredura que
 deixa o painel prender mede outra coisa e reprova comportamento certo.
 
+## Ao mexer em quem decide o corpo em foco na entrada
+
+    node scripts/lei-foco.mjs
+
+Prova que o ENDEREÇO pedido vence o ÚLTIMO VISITADO **nos dois sentidos de montagem** — pedido antes
+e depois da memória —, que destravar também é pedido, e que memória que cedeu não ressuscita.
+☠️ **Pedir foco antes de a POSIÇÃO resolver perde o pedido em silêncio:** o laço de quadro solta o
+foco de quem não tem posição. Todo pedido herda a espera que existia só para a memória.
+☠️ **E a POSE gravada é da MEMÓRIA, nunca do pedido** — `startOrbit` é a pose do astro da sessão
+anterior, e aplicá-la a um corpo pedido por endereço enquadra o novo com o zoom do antigo. Por isso
+a origem viaja com o alvo até a aplicação, e o ramo que a lê está varrido no fonte.
+⭑ Quem arbitra é `space/foco-de-entrada.js`, PURO: ele devolve a decisão, e a cena é quem age.
+
 ## Ao mexer no teclado
 
     node scripts/lei-teclado.mjs

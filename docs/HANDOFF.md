@@ -97,8 +97,9 @@ falso nesta base.
 ela é por dívida de MODELO, não por tamanho.
 
 1. **T-40** — a marca de favorito não tem consumidor.
-2. **T-58** — o `prefs` vence o endereço pedido no deeplink de FOCO.
-3. **T-71 → T-72** — a REGRA DO FOCO no pixel, e ela é inaplicável sem a régua de altura por fenda.
+2. **T-71 → T-72** — a REGRA DO FOCO no pixel, e ela é inaplicável sem a régua de altura por fenda.
+3. **T-74 · T-75** — duas MEDIDAS que decidem outras tarefas sem construir nada (o vidro 3D decide
+   T-14; o atlas de glifo decide a §5.1 de `hud-e-canvas.md`).
 
 ⭑ **T-41 · T-42 · T-43 · T-45 · T-64 são um CLUSTER, não cinco tarefas soltas:** todas são
 *"declarado sem leitor"* ou *"dois donos para um estado"*. O corolário da REGRA DO CATÁLOGO

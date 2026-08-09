@@ -191,7 +191,7 @@ com ou sem produtor.
 | **T-55** | Enxugar a BANCADA — ela é o storybook dos objetos 3D, e tem espécimes depreciados | `blocked` | T-26 | — | — |
 | **T-56** | Satélites estão com LUAS — não existe e não faz sentido | `todo` | — | — | — |
 | **T-57** | Falta a família de anel para arquivo EXCLUÍDO (`D`) — ⚠️ o servidor nem emite esse estado | `todo` | — | — | KR3.1 |
-| **T-58** | ☠️ **Deeplink de FOCO não funciona** — o `prefs` vence o endereço | `todo` | — | — | KR4.1 |
+| **T-58** | Deeplink de FOCO — o endereço PEDIDO vence o último visitado | `done` | — | — | KR4.1 |
 | **T-59** | Melhorar o visual do QUASAR (`briefings/quasar-enhance.md`) | `todo` | — | — | — |
 | **T-60** | Melhorar o visual do PULSAR — luz FLAT (devia expandir em 360°) e nuvem estática | `todo` | — | — | — |
 | **T-61** | Texturas: asteroide, cometa, anel — pedregulho, poeira, colisão eventual | `todo` | T-34 | — | — |
@@ -504,12 +504,22 @@ mesmo fato).
   ⚠️ E o caso é ontologicamente diferente dos outros três: os três dizem *"existe e divergiu"*; o
   quarto diz *"não existe mais no disco"* — um corpo cujo arquivo sumiu ainda deve ter anel, ou
   deve ter outra coisa? É pergunta de MODELO.
-- **T-58** — ☠️ **O deeplink do DIÁRIO funciona** (provado em carga fria: aba do dia ativa, linha
-  marcada, detalhe preenchido). Quem não funciona é o **FOCO da cena**: `camera.focus` vive no
-  `prefs`, e o `aplicarFocoPendente` restaura o último visitado. **Duas fontes para "que corpo
-  olhar", e a gravada vence a pedida** — que é a mesma família do defeito do carimbo de corpus (o
-  estado velho vencendo o fato novo). ⚠️ A saída não é apagar a preferência: endereço PEDIDO e
-  último visitado são fatos diferentes, e o endereço tem precedência **quando existe**.
+- **T-58 FECHADA — a precedência é DECLARADA, e não sai da ordem de montagem.** Endereço PEDIDO e
+  último visitado são fatos de naturezas diferentes; quem arbitra é `space/foco-de-entrada.js`, um
+  módulo puro que devolve a DECISÃO em vez de agir. Portão: `scripts/lei-foco.mjs` (16 leis, 6
+  mutações vistas caindo).
+  ⭑ **PROVADO EM CARGA FRIA** (fixture): memória gravada em `orbita-a.md`, endereço
+  `#/files/…/remanescente.md` → foco em **`remanescente.md`**, pele `pulsar`, documento aberto e
+  ancorado. Controle na mesma máquina: sem endereço, a memória continua vencendo (`orbita-a.md`,
+  pele `planet`).
+  ☠️ **Eram TRÊS defeitos, não um.** (1) O endereço não pedia foco nenhum — só o clique pedia, via
+  `reveal`; (2) a precedência dependia de quem montasse primeiro, e cobrir só um sentido deixa o
+  outro solto; (3) **a POSE gravada atravessava para o corpo pedido** — `startOrbit` é a pose do
+  astro da sessão ANTERIOR, e aplicá-la a um corpo pedido por endereço enquadra o novo com o zoom
+  do antigo. A origem viaja com o alvo até a aplicação por causa disso.
+  ⚠️ **Pedido sem posição resolvida é ADIADO, nunca aplicado.** O laço solta o foco de quem não tem
+  posição — foi o que fez `focoPendente` existir para a memória, e todo pedido passa a herdar a
+  mesma espera. Emitir `ui.focus-node` cru na montagem de um app perde o pedido em silêncio.
 - **T-60** — ⚠️ **A queixa já está escrita na própria bancada.** `sandbox/pulsar-rig.js` lista como
   itens de brief ABERTOS: *#3 campo turbulento (o campo magnético é liso demais)*, *#4 feixes como
   volume (hoje são geometria)*, *#5 vento difuso no lugar da agulha*, *#9 halo em quatro camadas*.

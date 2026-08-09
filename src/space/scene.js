@@ -31,6 +31,7 @@ import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
 import { createBodies } from './bodies.js';
 import { criarAncoraDeDocumento } from './ancora-de-documento.js';
+import { criarFocoDeEntrada, ORIGEM } from './foco-de-entrada.js';
 import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams, LOD_FAR_PX as PLANETA_FAR } from './planet.js';
 import { RS_POR_RAIO } from './astrofisica.js';
@@ -750,8 +751,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
 
   /** O foco só se restaura UMA vez: recarga de topologia não deve arrastar a câmera de volta. */
   let focoRestaurado = false;
-  /** O astro salvo esperando posição resolver. Ver `aplicarFocoPendente`. */
-  let focoPendente = null;
+  /**
+   * Quem decide que corpo olhar na entrada — o ENDEREÇO pedido ou a MEMÓRIA da sessão anterior.
+   *
+   * A precedência é do módulo, não da ordem em que app e topologia montam. Ver `foco-de-entrada.js`.
+   */
+  const focoDeEntrada = criarFocoDeEntrada();
   /*
    * O enquadramento "em casa" — para onde `focusBody(null)` volta.
    *
@@ -1156,13 +1161,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * para eles.
    */
   const alvoDe = (node) => node?.source ?? node?.id ?? null;
-  on('ui.select', ({ node }) => focusNode(alvoDe(node)));
+  on('ui.select', ({ node }) => pedirFoco(alvoDe(node)));
   /*
    * Focar SEM abrir inspetor. `ui.select` faz as duas coisas porque nasceu do clique no céu, mas
    * quem já vai abrir o leitor central (árvore, busca) precisa só da câmera — e emitir
    * `ui.select` ali abriria um segundo painel com o mesmo arquivo.
    */
-  on('ui.focus-node', ({ source }) => focusNode(source ?? null));
+  on('ui.focus-node', ({ source }) => pedirFoco(source ?? null));
 
   /*
    * Filtro de tipo do histograma "forma do corpus". `kinds` nulo devolve o céu inteiro.
@@ -1493,7 +1498,29 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * ALVO: o loop persegue com suavização por tempo, então um segundo clique no meio do voo
    * redireciona em vez de teleportar, e a chegada tem a mesma física do resto da cena.
    */
+  /**
+   * O foco PEDIDO — endereço, clique, vizinho no painel. Adia quando a posição ainda não resolveu.
+   *
+   * ☠️ **Pedir foco antes de a posição resolver PERDE o pedido, em silêncio.** O laço de quadro
+   * solta o foco de quem não tem posição, então `focusNode` cru na montagem de um app some no
+   * quadro seguinte sem erro nenhum — é o mesmo defeito que fez `focoPendente` existir para a
+   * memória. Todo pedido passa por aqui para herdar a espera.
+   *
+   * ⚠️ **PEDIDO vence MEMÓRIA, e a precedência é declarada — não sai da ordem de montagem.**
+   * `prefs['camera.focus']` é onde o operador ESTAVA; um pedido é um fato novo. A memória só vale
+   * enquanto ninguém pediu nada.
+   */
+  function pedirFoco(source) {
+    const temPosicao = Boolean(source && graph.worldPositionOf(source));
+    if (focoDeEntrada.pedir(source, temPosicao) === 'aplicar') focusNode(source);
+  }
+
   function focusNode(source) {
+    /*
+     * Um foco aplicado descarta a restauração pendente: a memória não pode chegar depois e puxar a
+     * câmera para outro astro. O que se perde é a RESTAURAÇÃO — a gravação continua no fim desta
+     * função, então onde o operador está segue sendo lembrado.
+     */
     focusedNode = source;
     // Registra NO MOMENTO DO PEDIDO se o céu conhece este astro. Depois é tarde: o quadro solta
     // o foco de quem não tem posição, e aí "focado: null" já não diz se o pedido era inválido.
@@ -1793,54 +1820,63 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * feliz não é diagnóstico". `conhecido: false` aqui aponta direto para a armadilha do prefixo
      * do repo no id, que o handoff registra e que já mordeu antes.
      */
+    // Storage é entrada não confiável: o astro pode ter saído da topologia entre as sessões.
+    const desfecho = focoDeEntrada.lembrar(alvo, Boolean(alvo && graph.nodeAt(alvo)));
     trace('foco-restaura', () => ({
       etapa: 'agendar',
       salvo: alvo || '(vazio)',
       conhecido: alvo ? Boolean(graph.nodeAt(alvo)) : null,
+      // As três causas de "o foco não voltou" saem por NOME: ninguém salvou, o astro sumiu da
+      // topologia entre as sessões, ou um pedido explícito tem precedência.
+      desfecho,
     }));
-    // Storage é entrada não confiável: o astro pode ter saído da topologia entre as sessões.
-    if (!alvo || !graph.nodeAt(alvo)) return;
-    focoPendente = alvo;
   }
 
   /**
-   * Aplica o foco salvo no primeiro quadro em que o astro TEM POSIÇÃO. Chamada pelo laço.
+   * Aplica o foco pendente — memória ou pedido — no primeiro quadro em que o astro TEM POSIÇÃO.
    *
-   * ⚠️ **Aplicar direto no `loadGraph` NÃO funciona, e essa foi a primeira versão.** O laço de
-   * quadro solta o foco de quem não tem posição resolvida (`if (focusedNode && !nodeAt)`), e logo
-   * depois de `graph.load` as posições ainda não foram computadas — então o foco restaurado era
-   * apagado no quadro seguinte, em silêncio. A câmera voltava (ela vem de `startOrbit`, por outro
-   * caminho) e o astro não, que é exatamente o sintoma relatado.
+   * ☠️ **Aplicar direto no `loadGraph` NÃO funciona.** O laço de quadro solta o foco de quem não
+   * tem posição resolvida (`if (focusedNode && !nodeAt)`), e logo depois de `graph.load` as
+   * posições ainda não foram computadas — o foco é apagado no quadro seguinte, em silêncio. A
+   * câmera volta (ela vem de `startOrbit`, por outro caminho) e o astro não.
    *
    * O prazo existe para o pedido não ressuscitar minutos depois: se o astro nunca resolve — filtro
    * de tipo escondendo o `kind` dele, nó fora da janela de recência — ele é esquecido em vez de
    * puxar a câmera quando o operador já estiver olhando outra coisa.
    */
   function aplicarFocoPendente(elapsed) {
-    if (!focoPendente) return;
-    if (!graph.worldPositionOf(focoPendente)) {
+    const espera = focoDeEntrada.pendente();
+    if (!espera) return;
+    if (!graph.worldPositionOf(espera.source)) {
       if (elapsed > FOCO_PRAZO_S) {
-        trace('foco-restaura', () => ({ etapa: 'desistiu', alvo: focoPendente, apos: `${elapsed.toFixed(1)}s` }));
-        focoPendente = null;
+        const largado = focoDeEntrada.desistir();
+        trace('foco-restaura', () => ({
+          etapa: 'desistiu', alvo: largado.source, origem: largado.origem, apos: `${elapsed.toFixed(1)}s`,
+        }));
       }
       return;
     }
-    const alvo = focoPendente;
-    focoPendente = null;
-    trace('foco-restaura', () => ({ etapa: 'aplicou', alvo, em: `${elapsed.toFixed(2)}s` }));
+    const { source: alvo, origem } = focoDeEntrada.consumir();
+    trace('foco-restaura', () => ({ etapa: 'aplicou', alvo, origem, em: `${elapsed.toFixed(2)}s` }));
     focusNode(alvo);
     /*
-     * O ENQUADRAMENTO SALVO VENCE O AUTOMÁTICO.
+     * ☠️ **A POSE SALVA SÓ VALE PARA A MEMÓRIA, e é o mesmo par de fatos um nível abaixo.**
      *
      * `focusNode` mira `NODE_FOCUS_DISTANCE` e liga `fitPending`, que no quadro seguinte recalcula
-     * a distância para dar `FOCUS_FIT_PX`. Isso é o certo para um foco NOVO — e é errado aqui, onde
-     * o operador já escolheu o zoom e gravou. Sem desligar o `fitPending`, a câmera restauraria a
-     * pose salva e seria puxada para longe dela no quadro seguinte, o que lê como a cena corrigindo
-     * o operador.
+     * a distância para dar `FOCUS_FIT_PX`. Restaurando a SESSÃO isso é errado: o operador já
+     * escolheu o zoom e gravou, e deixar o `fitPending` de pé faz a câmera pousar na pose salva e
+     * ser puxada para longe dela no quadro seguinte — lê como a cena corrigindo o operador.
+     *
+     * Num PEDIDO é o contrário: `startOrbit` é a pose de OUTRO astro, o da sessão anterior, e
+     * aplicá-la a um corpo que alguém acabou de pedir por endereço enquadra o corpo novo com o
+     * zoom do antigo. Quem pediu por endereço não escolheu pose nenhuma — o enquadramento por raio
+     * é a única resposta que não inventa.
      */
-    orbit.polar = orbit.targetPolar = startOrbit.polar;
-    orbit.distance = orbit.targetDistance = startOrbit.distance;
-    fitPending = false;
+    if (origem === ORIGEM.MEMORIA) {
+      orbit.polar = orbit.targetPolar = startOrbit.polar;
+      orbit.distance = orbit.targetDistance = startOrbit.distance;
+      fitPending = false;
+    }
   }
 
   setInterval(() => saveOrbit(), ORBIT_SAVE_MS);

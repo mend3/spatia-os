@@ -793,8 +793,17 @@ function registerFilesWidgets() {
         pedidoDeLeitura = null;
         handler({ source: pendente });
       } else if (ctx.arg) {
-        // Nothing pending: the address IS the request. This is what makes `#/files/<caminho>`
-        // survive F5 and travel in a link, instead of being decoration on the hash.
+        /*
+         * Nothing pending: the address IS the request. This is what makes `#/files/<caminho>`
+         * survive F5 and travel in a link, instead of being decoration on the hash.
+         *
+         * ⚠️ O endereço pede as DUAS metades, como o clique. `reveal` emite foco E leitura porque
+         * *"me mostra este arquivo"* significa onde ele está no céu E o que tem dentro; abrir só o
+         * leitor pelo endereço entrega o texto sobre um céu que não sabe de que astro ele é — e o
+         * painel de conteúdo é ancorado no corpo em foco, então sem o foco ele não tem em que
+         * ancorar.
+         */
+        emit({ t: 'ui.focus-node', source: ctx.arg });
         handler({ source: ctx.arg });
       }
 
