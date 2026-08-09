@@ -35,12 +35,29 @@ apagado quando não está lá.
 
 ```bash
 cp .env.example .env            # nada é obrigatório; os defaults casam com a infra local
-./serve.py                      # http://127.0.0.1:8787
+make hooks                      # UMA vez por clone — ver abaixo
+make serve                      # http://127.0.0.1:8787
 ```
 
 É isso. Sem `npm install`, sem build, sem bundler — o `three.js` está vendorizado em
 `vendor/` e resolvido por importmap. A única dependência Python é o `fastembed`, declarada
 inline no `serve.py` (PEP 723) e resolvida pelo `uv` na primeira execução.
+
+⚠️ **`make hooks` não é opcional, e pular esse passo não dá sintoma.** Ele aponta o git para
+`.githooks/`, que é versionado; `.git/hooks/` não é, então um clone sem esse comando nasce **sem o
+portão** e commita sem que nada confira. `make` sozinho lista tudo o que dá para rodar:
+
+| | |
+|---|---|
+| `make leis` | ☠️ o portão — todos os guardas em ~4 s, sai 1 se qualquer um cair. Já roda no `pre-commit` |
+| `make leis-lista` | quem roda, e quem NÃO roda com o motivo MEDIDO |
+| `make rematerializar` | a cadeia inteira das dimensões do grafo, na ordem que a medida exige |
+| `make censos` | o que o céu DESENHA e o que o corpus É |
+| `make fixture` | cria e indexa o corpus sintético que exercita todos os tipos |
+
+⭑ **O tooling não tem lista mantida à mão.** Guarda novo entra no portão sozinho; script que
+materializa e não tem alvo no `Makefile` **reprova** (`scripts/lei-tooling.mjs`), e a ordem das
+receitas é derivada do fonte — quem lê um `.cache/X.json` depende de quem o escreve.
 
 ### O mínimo para o sistema fazer sentido
 
@@ -117,16 +134,27 @@ parado e sem pós-processamento — é lá que dá para conferir cada um isolado
 
 ### Os corpos — o que o arquivo É
 
-A forma vem do **tipo do arquivo**, e o tamanho vem da **massa** (número de chunks).
+☠️ **A forma NÃO vem da extensão do arquivo.** Ela vem do PAPEL que o arquivo tem no sistema onde
+mora: quem domina, quanto pesa, e o que anda acontecendo com ele. A extensão governa a COR, e mais
+nada — um `.yaml` de duas linhas e um `.md` de duzentas não podem desenhar o mesmo objeto só porque
+o formato deles é declarado.
 
-| | corpo | você está vendo | o fato |
+| | corpo | você está vendo | quando ele aparece |
 |---|---|---|---|
-| <img src="docs/screenshots/fotosfera.jpg" width="150"> | **fotosfera** | granulação fervendo, manchas escuras, borda escurecida | arquivo de texto denso — a pele padrão de um nó com massa |
-| <img src="docs/screenshots/planeta.jpg" width="150"> | **planeta** | crosta com relevo, oceano, nuvem e atmosfera no limbo | documento com seções — o relevo é a variação interna dele |
-| <img src="docs/screenshots/estacao.jpg" width="150"> | **estação** | módulos enfileirados e painéis solares | arquivo de configuração — **cada módulo é um serviço declarado**, cada painel uma seção |
-| <img src="docs/screenshots/cometa.jpg" width="150"> | **cometa** | núcleo escuro, coma brilhante e cauda longa | arquivo em atividade — o tamanho da coma e da cauda é a intensidade das reescritas recentes |
-| <img src="docs/screenshots/nebulosa.jpg" width="150"> | **nebulosa** | nuvem filamentar, **sem corpo central** | arquivo grande e difuso, sem estrutura interna que segure uma superfície |
-| <img src="docs/screenshots/pulsar.jpg" width="150"> | **pulsar** | feixe estreito girando, período regular | arquivo com ritmo de edição **regular** — hoje **0 corpos** no corpus real; só aparece na bancada ou no fixture |
+| <img src="docs/screenshots/fotosfera.jpg" width="150"> | **fotosfera** | granulação fervendo, manchas escuras, borda escurecida | o arquivo é a **entidade dominante** do sistema dele — o mais massivo da pasta, o que dá nome ao lugar |
+| <img src="docs/screenshots/planeta.jpg" width="150"> | **planeta** | crosta com relevo, oceano, nuvem e atmosfera no limbo | um corpo sólido do sistema, planeta ou lua — o relevo é a variação interna dele |
+| <img src="docs/screenshots/cometa.jpg" width="150"> | **cometa** | núcleo escuro, coma brilhante e cauda longa | a atividade recente **domina** o corpo (não apenas existe) — coma e cauda existem só perto do Sol, e somem quando ele se afasta |
+| <img src="docs/screenshots/pulsar.jpg" width="150"> | **pulsar** | feixe estreito girando, período regular | o cadáver de uma estrela **gigante** — quem decide é MASSA, não ritmo de edição |
+| <img src="docs/screenshots/estacao.jpg" width="150"> | **estação** | módulos enfileirados e painéis solares | ⚠️ **fora do céu, e por decisão**: ela representa um AGENTE, que não é corpo do corpus. Vive na bancada |
+| <img src="docs/screenshots/nebulosa.jpg" width="150"> | **nebulosa** | nuvem filamentar, **sem corpo central** | ⚠️ **fora do céu**: o berço exige uma contenção que o corpus não tem. A metade CADÁVER dela já é desenhada, como casca de supernova |
+
+⭑ **Asteroide fica sem pele de propósito** — o catálogo o define como corpo pequeno e IRREGULAR, e
+nenhuma das peles desenha irregularidade. Uma esfera com crosta afirmaria um mundo onde há uma
+pedra. Ele volta a ter pele quando entra em atividade extrema, e aí ele é um cometa: os dois são o
+mesmo corpo em estados diferentes.
+
+⚠️ **A distribuição do dia sai de `make censos`, nunca deste parágrafo.** Toda pele roteada tem
+população — se alguma nascer vazia, o portão reprova.
 
 Falta desta lista, e é dívida assumida: **galáxia** (agregado — pasta ou repo, com braços quando há
 grupo a afirmar), **buraco negro** (o núcleo cognitivo, no centro), **casca de supernova** e
@@ -185,7 +213,7 @@ espessura, continuidade ou posição — que não seja "aro".
 | `Alt+R` | devolve a câmera à deriva automática |
 | `⌘M` | mudo |
 | arrastar / roda | orbitar / aproximar |
-| clicar num nó | abre o conteúdo indexado dele |
+| clicar num nó | trava a câmera nele **e** abre o conteúdo indexado, ancorado no astro |
 
 ## As telas
 
@@ -359,13 +387,17 @@ src/
   kernel/  registry · router · widgets   ← rota, manifesto, montagem
   core/    bus · state · api · tuning · promtext (parser do /metrics)
   apps/    files · system · web · bridge · journal · metrics · security · activity · storage
-  space/   scene · graph · universe · solver          ← as duas cenas e o layout
-           entity-physics · superficies · catalog · astrofisica
-                                                     ← a ONTOLOGIA: quem decide o que um corpo É
+  space/   scene · graph · universe                  ← as duas cenas e o layout
+           entity-physics · superficies · sistemas · astrofisica
+                                                     ← a ONTOLOGIA: quem decide o que um corpo É.
+                                                       PUROS — sem three, sem DOM, sem cena
+           catalog · solver                          ← só os MODIFICADORES (anel, detritos,
+                                                       envoltório); a pele não sai daqui
            photosphere · planet · comet · pulsar · nebula · station · quasar
                                                      ← as PELES (uma por classe, roteadas pela ontologia)
            blackhole · lensing · stars · particles · satellites · galaxy · backdrop
            rings · moon-orbits · orbital-zones · links · lod · motion-catalog
+           foco-de-entrada · ancora-de-documento     ← que corpo olhar, e onde o documento dele mora
   hud/     frame · streams · answer · terminal · controls · boot · dom
   audio/   engine (síntese procedural, zero asset)
 vendor/    three.js + postprocessing
@@ -716,6 +748,13 @@ gradação (`space/lensing.js`).
 **Um objeto 3D novo** = o módulo em `space/` + um espécime na bancada (`sandbox.html`). O espécime
 declara os próprios controles e o que OLHAR; a bancada os desenha sozinha. É a REGRA DA INSPEÇÃO:
 camada sem controle é camada que ninguém confere.
+
+**Um script novo em `scripts/`** = o arquivo, e nada mais **se ele for um guarda**: o portão varre o
+diretório e o descobre sozinho. **Se ele materializar** — escrever em `.cache/` ou no grafo — ele
+precisa de um alvo no `Makefile`, e `scripts/lei-tooling.mjs` reprova enquanto não tiver: um
+snapshot que ninguém rematerializa não quebra nada, ele deixa de acontecer, e a API continua
+servindo o arquivo velho com cara de fato. A POSIÇÃO dele na cadeia não se declara — ela sai da
+medida, porque quem lê um `.cache/X.json` depende de quem o escreve.
 
 **Uma tela nova** = um módulo em `src/apps/` que registra os widgets e o manifesto
 (`id`, `name`, `color`, `key`, `widgets`). O `key` é declarado, nunca a posição — senão
