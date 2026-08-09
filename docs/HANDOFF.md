@@ -746,9 +746,11 @@ relação ou fato.**
 ### O que já está PRONTO e nenhum briefing sabe
 
 - **O traço de explicabilidade** — que o usuário chamou de *"talvez a feature mais importante"* —
-  **já está gravado inteiro**: os sete degraus do diagrama dele são sete eventos do `EVENTS.md`, em
-  ledger encadeado por hash, com tela (`src/apps/journal.js`). Falta só **endereço**
-  (`#/journal/<run-id>`), que é sub-rota no kernel. ⭑ **É a melhor razão valor/custo dos onze.**
+  **está pronto, endereço incluído**: sete eventos do `EVENTS.md` em ledger encadeado por hash, tela
+  em `src/apps/journal.js`, e `router.parse()` devolvendo `{app, arg}` com `journal.js:190`
+  resolvendo o alvo. ☠️ **Ficou escrito aqui como "falta o endereço" por causa de um relatório de
+  subagente que contradizia o `OS-SCREENS.md` §4, onde já constava fechado.** Falta a FOTO, não o
+  código.
 - **`cogload{tokens}` → `blackHole.setLoad`** existe ponta a ponta. O item favorito do autor do
   `black-hole-router` é o mais barato dos dez dele.
 - **A soft collision** do `ship-navigator` já tem o fato **e o padrão implementado**:

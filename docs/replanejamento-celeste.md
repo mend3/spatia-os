@@ -9,9 +9,17 @@
 > > **Não implementar mais nenhuma morfologia até a classificação que decide quando ela existe
 > > estar correta.**
 >
-> Nada aqui está em `src/`. Base: [`catalogo-celeste.md`](./catalogo-celeste.md) (o modelo atual),
+> Base: [`catalogo-celeste.md`](./catalogo-celeste.md) (o modelo atual),
 > [`briefings/multi-scene.md`](./briefings/multi-scene.md) (a cena nova) e pesquisa em fontes
-> primárias (NASA, ESA, JPL, Chandra, NTRS) feita em 2026-08-07.
+> primárias (NASA, ESA, JPL, Chandra, NTRS).
+>
+> ⚠️ **ESTE DOCUMENTO É CITADO PELO NÚMERO por dez módulos de `src/` e `server/`. Não renumere.**
+>
+> **Estado:** fases **A · B · C executadas** (§16) — a ontologia é `src/space/entity-physics.js`,
+> puro, sem `three`, e a lei que a protege é `scripts/lei-neo4j.mjs`. A **fase D** (a pele roteada
+> pela classe) está em `src/space/superficies.js`, com quatro peles no pool e **duas ausências
+> declaradas** (`station` e `nebula`) que têm motivo escrito em `AUSENTES_NA_TABELA` — nenhuma delas
+> é população faltando. O que ainda não tem dono está no [`roadmap.md`](./roadmap.md).
 
 ---
 

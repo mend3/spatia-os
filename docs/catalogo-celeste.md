@@ -542,7 +542,7 @@ Sondas: `spatia.bloom({ threshold, radius })` · `spatia.core({ regime, tokens }
 ⚠️ **O objeto é `window.spatia`**, e a lista viva está em `src/main.js` — quando os dois
 discordarem, o código está certo. ⚠️ Não confundir com as CHAVES `espatial.trace` / `espatial.*.v1` do
 `localStorage`, que continuam com o nome antigo **de propósito** (renomeá-las apaga o que está
-gravado, em silêncio — ver a tabela de `docs/README.md`).
+gravado, em silêncio — ver a tabela de `docs/identidade.md`).
 
 ---
 

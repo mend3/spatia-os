@@ -399,7 +399,7 @@ um FATO DE MUNDO, descrevem um corpus que não existe. Leia cada linha perguntan
 ☠️ **Nunca `sed` num nome sem separar os homônimos.** As sondas se chamam `spatia.*`, mas
 `espatial.trace`, `espatial.*.v1` e as métricas `espatial_*` mantêm o nome antigo **de propósito**:
 renomear a chave não migra o que está gravado, e a afinação feita à mão evapora em silêncio. A
-tabela de `docs/README.md` existe para impedir exatamente esse `sed`. **Leia cada ocorrência.**
+tabela de `docs/identidade.md` existe para impedir exatamente esse `sed`. **Leia cada ocorrência.**
 
 # As ferramentas de `scripts/`
 
@@ -578,4 +578,4 @@ parou de se mover — grandeza que ainda se acomoda não é regime.
 ⚠️ **O objeto é `spatia`.** Quando um doc e o código discordarem, **o código está certo**. ⚠️ Não confunda com as CHAVES do
 `localStorage` (`espatial.trace`, `espatial.*.v1`) e as métricas `espatial_*`: essas mantêm o nome
 antigo **de propósito** — renomear a chave não migra o que está gravado, e a afinação feita à mão
-evapora em silêncio (a tabela de `docs/README.md` existe para proteger exatamente isso).
+evapora em silêncio (a tabela de `docs/identidade.md` existe para proteger exatamente isso).

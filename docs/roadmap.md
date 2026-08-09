@@ -65,12 +65,18 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 ### O4 — O que já está gravado chega à tela
 
 > O traço de explicabilidade — que o usuário chamou de *"talvez a feature mais importante"* — **já
-> está gravado inteiro**: sete degraus, sete eventos, ledger encadeado por hash, tela pronta. Falta
-> endereço. É a melhor razão valor/custo de todo o conjunto.
+> está gravado inteiro**: sete degraus, sete eventos, ledger encadeado por hash, tela pronta.
+>
+> ☠️ **E o endereço TAMBÉM já está** — `router.parse()` devolve `{app, arg}`, sub-rota não remonta o
+> widget, e `apps/journal.js:190` resolve o alvo (*"com ele, o dia que contém a execução pedida"*).
+> `OS-SCREENS.md` §4 registrava isso como fechado; um relatório de subagente afirmou o contrário e a
+> afirmação entrou no handoff. **Doc velho perde para o código — e relatório de agente perde para os
+> dois.** O que falta é a FOTO: `desenhadas: N` prova que recebeu quadro, não que a imagem
+> está certa, e a mesma régua vale para "a rota resolve".
 
 | KR | medida | hoje |
 |---|---|---|
-| KR4.1 | `#/journal/<run-id>` é endereçável e compartilhável | ✗ |
+| KR4.1 | `#/journal/<run-id>` é endereçável e compartilhável | ⚠️ **no código, sem foto** |
 | KR4.2 | a segunda pergunta do operador sabe da primeira, **ou a tela diz que não** | ✗ (viola o princípio 10) |
 
 ---
@@ -89,7 +95,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-04** | `SceneDefinition` extraída de `setMode`, **sem mudar um número** | `todo` | — | T-05, T-06, T-08 | KR2.3 |
 | **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `todo` | T-04 | — | KR2.4 |
 | **T-06** | `src/core/tela.js` — dono único do estado de tela | `todo` | T-04 | T-13, T-14 | KR2.1 |
-| **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) | `todo` | — | — | KR4.1 |
+| **T-07** | Sub-rota endereçável (`#/journal/<run-id>`) — **conferir na tela** | `todo` | — | — | KR4.1 |
 | **T-08** | Pose da câmera com nome próprio (`escalaLocal`) | `todo` | T-04 | T-15 | KR2.2 |
 | **T-09** | `notice` com `severity` + produtor ambiental — **juntos, nunca separados** | `todo` | — | T-16 | KR1.1, KR1.2 |
 | **T-10** | `--resume` no `brain.py` | `todo` | — | — | KR4.2 |
@@ -108,12 +114,28 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-23** | Agente como corpo (a ESTAÇÃO) | `blocked` | decisão do usuário | — | — |
 | **T-24** | Passo 3 — distância × pixel contra o corpus real | `todo` | — | — | — |
 | **T-25** | Licença de `assets/textures/sun.jpg` | `todo` | — | publicação | — |
+| **T-26** | Granulação do anel — escolher entre `GRAIN`/`SWARM`/`BOULDER`/`SLAB` | `todo` | — | — | — |
+| **T-27** | i18n | `postponed` | — | — | — |
+| **T-28** | Zonas por razão de massa — declaradas, sem leitor | `todo` | — | — | KR3.3 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
 
 - **T-19** — `a_corte` 23,9 (fixture) e 26,3 (real) contra o raio orbital máximo 62, **zero janelas
   fechadas**: expiração, não defeito, e só morde se `M_total` crescer ~13×. ☠️ **A saída óbvia é
   falsa** — `rocheLimit(mass)` já É `2,44·R`, e a constante mora em `physicalRadius`.
+- **T-26** — as quatro candidatas estão prontas em `src/sandbox/ring-variants.js` com a pesquisa em
+  `catalogo-celeste.md`. **Falta o número:** a comparação a 25 px foi feita a olho, sem timer de
+  GPU, e as quatro custam coisas diferentes. ⚠️ O anel **não aparece no corpus real** (a varredura
+  de sujos é enraizada no `AGENT_CWD` e os arquivos que o `git status` acusa não estão indexados) —
+  só se julga no fixture ou na bancada.
+- **T-27** — o custo não é traduzir: são ~210 literais, e essa é a parte fácil. Os rótulos são
+  curtos e caixa-alta porque a HUD é hairline, e as réguas da systray, do `.config-key` (68 px para
+  a tecla) e do `.headstat` foram dimensionadas para o português. **Alemão e francês estouram
+  30–40% em largura** — i18n aqui é redesenhar largura, não trocar string. Só o passo que não se
+  desfaz foi dado (`plural()` em `hud/dom.js`).
+- **T-28** — a fronteira já trabalha (`μ ≥ 5` separa lua de sistema duplo), mas a zona é **só
+  declarada** em `src/space/catalog.js`. ⚠️ Implementar é decidir **o que ela muda na imagem**: se
+  não muda nada, é invariante sem leitor — o defeito que a REGRA DO CATÁLOGO existe para impedir.
 
 ### As três decisões que são do usuário
 
