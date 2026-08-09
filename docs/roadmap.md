@@ -150,7 +150,18 @@ com ou sem produtor.
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
 | **T-39** | As duas cenas olham pela MESMA ontologia — a pele tem um dono só (`space/sistemas.js`) | `done` | — | — | KR2.4 |
-| **T-71** | **Focus Workspace** — a cena adapta a composição ao que o operador está fazendo | `todo` | decisão do usuário | — | KR2.1 |
+| **T-71** | **A REGRA DO FOCO no pixel — nas DEZ rotas**, não só na cena principal | `todo` | — | T-72 | KR2.1 |
+| **T-72** | Orçamento de ALTURA por fenda — a REGRA DO FOCO não é aplicável sem esta régua | `todo` | — | T-71 | KR2.1 |
+| **T-73** | `sec-effective` mora em `strip`, a fenda dos RESIDENTES — mover ou redeclarar | `todo` | decisão do usuário | — | KR2.1 |
+| **T-74** | MEDIR o custo de um painel de VIDRO 3D — o número que decide o launcher | `todo` | — | T-14 | — |
+| **T-75** | MEDIR o custo de um atlas de glifo por token — decide se a §5.1 tem saída barata | `todo` | — | T-53 | — |
+| **T-76** | Descoberta de MCP — o widget que lista e instala servidores | `todo` | T-21 | — | — |
+| **T-77** | Catálogo de APIs públicas como CAPACIDADE, não como lista | `todo` | T-21 | — | — |
+| **T-78** | **Capability Registry** — instalar CAPACIDADE (widgets+MCP+eventos+agentes), não plugin | `todo` | T-21 | T-76, T-77 | — |
+| **T-79** | **AUDITAR os 17 «Quem reage» de `EVENTS.md`** — quantos fenômenos declarados têm leitor | `todo` | — | T-23 | KR1.1 |
+| **T-80** | O inspector tem TRÊS estados (recolhido → **resumo** → aberto) e ganha AÇÕES | `todo` | — | T-71 | KR2.1 |
+| **T-81** | Comprimir o cabeçalho — ⚠️ colide com refutação escrita sobre esconder dado atrás de gesto | `todo` | decisão do usuário | — | KR2.1 |
+| **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora e profundidade, não janela | `todo` | T-53 | — | KR2.1 |
 | **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) são DOIS nomes do mesmo vocabulário | `todo` | — | — | KR2.4 |
 | **T-70** | `resolveBody()` ainda decide uma PELE que ninguém lê — sobrou o modificador | `todo` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
@@ -183,37 +194,176 @@ com ou sem produtor.
 | **T-67** | Segunda textura de estrela (K/M, fria), escolhida pela TEMPERATURA | `todo` | — | — | — |
 | **T-68** | Passo 2 — feição no SPRITE, e **não** aro no corpo: é lá que os corpos vivem | `todo` | — | — | — |
 
-- **T-71** — proposta externa (revisão da OpenAI sobre uma captura da cena de foco): três estados de
-  composição — EXPLORE, FOCUS, INSPECT — com os trilhos virando *drawers*, o conteúdo crescendo
-  40–60% e a resposta do agente virando faixa transitória em vez de segunda caixa.
+- **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
+  foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
+  (navegando · lendo · conversando · inspecionando · árvore). A tarefa não é mais "avaliar a
+  sugestão" — é implementar a lei, e o que se discute é COMO, não SE.
+  ☠️ **Duas coisas que a lei já resolve e que a proposta não tinha:** (1) "dominar" é adjetivo até
+  se dizer de que grandeza — são três, e `metrics` reivindica 33,1% ao ponteiro com 10,3% de glifo;
+  (2) **recolher não é desmontar**, e **controle de estado ATIVO não cede** — `sky-time` governa a
+  janela temporal do céu em toda rota, e escondê-la deixa o corpus filtrado por uma data invisível.
+  ⭑ `answer` já obedece: sem resposta ele não desenha nada. É o exemplar.
+  Origem: revisão externa sobre uma captura da cena de foco — três estados (EXPLORE, FOCUS,
+  INSPECT), trilhos virando *drawers*, conteúdo maior e a resposta do agente como faixa transitória.
+  ⭑ **Os quatro TIERS que o review propõe são o vocabulário que falta ao `RESIDENTES`:**
+  `persistent · contextual · transient · optional`. Hoje a tabela é binária (é residente ou não), e
+  os quatro nomes separam *"nunca sai"* de *"aparece quando é a vez dele"* de *"vive segundos"*.
+  ⚠️ **Pôr `uiBudget` na tabela `CENAS` MEXE NUMA LEI:** `lei-cena.mjs` §1 recusa chave fora de
+  `id`/`passes`/`camadas`/`chegada`/`aoEntrar`. Chave nova ali é decisão de modelo e passa pelo
+  oráculo — não é um campo a mais.
+  ⭑ **A HIERARQUIA ORDENADA é a parte checável da proposta**, e vale mais que os percentuais:
+  ① objeto em foco · ② conteúdo dele · ③ atividade do agente (temporária) · ④ contexto · ⑤
+  instrumentação (só quando pedida). Ordem é verificável na bancada; *"65% / 20% / 10% / 5%"* não é
+  — os percentuais dele foram medidos e não batem (ver a tabela acima).
+  ⭑ **A faixa do agente decai em DOIS estágios**, e é o desenho certo: texto inteiro → depois de
+  segundos vira `● 3 relações encontradas` → recolhe. *"Evento é fenômeno temporário; a entidade
+  permanece"* — que é a mesma frase de `integracao-organica.md`, e ela amarra T-71 a T-79.
+  ⭑ **LOD aplicado à HUD** é empréstimo de vocabulário que a base já tem em 3D (`space/lod.js`): a
+  entidade permanece completa e a APRESENTAÇÃO muda com o nível de foco. Vale para o painel como
+  vale para o corpo.
+  ☠️ **O REVIEW OLHOU A CENA PRINCIPAL, E O INVENTÁRIO INVERTE A PRIORIDADE.** Medido nas dez rotas:
+  a **raiz é a mais LEVE** (5,4% de glifo · 88,4% de céu) e `journal` é a mais pesada (**24,7% ·
+  60,2%**), com `metrics`, `storage` e `system` entre 73% e 75% de céu. Os princípios são gerais —
+  *"o objeto em foco"* é a execução em `journal`, o gráfico em `metrics`, o arquivo em `files` —
+  então **aplicar a regra só ao céu conserta a tela menos quebrada**. A ordem por ganho é
+  `journal` → `metrics`/`storage`/`system` → o resto.
+  ⚠️ **E o ponteiro reordena de novo:** `metrics` reivindica **33,1%** com só 10,3% de glifo. Quem
+  otimizar por texto não vê essa; quem otimizar por ponteiro não vê o `journal`. São duas filas.
+- **T-80** — ☠️ **O inspector hoje é BINÁRIO (recolhido/aberto) e a crítica do review é que tudo
+  pesa igual** — caminho, tipo, massa, commit, reescritas, disco, indexado, alcance, favorito,
+  vínculos, seções, localizar, todos no mesmo tom. Três estados resolvem sem esconder nada:
+  **recolhido → RESUMO → aberto**, com o resumo sendo `nome · classe · massa · estado` e nada mais.
+  ⭑ **E há um vazio que o review acha e ninguém tinha nomeado: o inspector não oferece AÇÃO.** Ele
+  descreve o corpo e não diz o que dá para fazer com ele — *"abrir · relacionar · …"*. É o Princípio
+  Final ao contrário: depois de ler o painel, o operador ainda precisa descobrir sozinho o próximo
+  gesto. ⚠️ Quais ações existem depende de T-78 (o catálogo de ações por tipo de corpo).
+- **T-81** — o cabeçalho carrega `CUSTO · CHUNKS · JANELA · ÍNDICE`, que são operacionais e estão em
+  toda rota. Medido: o topo é **1,1% da tela em glifo** — pouco, e é a PRIMEIRA coisa na hierarquia
+  visual, sempre presente.
+  ☠️ **Colide com refutação ESCRITA nesta base:** `index.html:41-44` recusa esconder dado atrás de
+  gesto — *"dado que exige gesto para aparecer deixa de ser monitorado"*, com ganho medido de ~4% de
+  pixel. Mandar custo e janela para um popover é exatamente isso. **Ou a refutação cai com medida
+  nova, ou o cabeçalho encolhe sem esconder** (menos rótulo, mais densidade). É decisão de produto.
+- **T-82** — ⭑ **O review acerta o diagnóstico e a base já tem a peça construída e DESLIGADA.** Ele
+  diz que o documento *"flutua no centro sem relação espacial clara com o astro"* e que o operador
+  não sabe se aquilo pertence ao planeta, ao buraco negro, ao sistema ou à cena. A saída que ele
+  propõe — âncora, profundidade, parallax, o conteúdo emergindo da SUPERFÍCIE do corpo — é o que
+  `space/bodies.js` faz: posiciona HTML pela projeção da câmera **com oclusão pelo horizonte de
+  eventos** (`bodies.js:216-260`), e `installApps` não tem chamador.
+  ⚠️ **O desligamento de 07/08 foi por MOBÍLIA DE UI, e conteúdo não é mobília** — o próprio roadmap
+  já registra que *"o motivo do desligamento não alcança CONTEÚDO"*. Por isso isto depende de T-53,
+  que é a decisão de o que sobe para o mundo, e não é tarefa nova de engenharia: é religar com
+  escopo. ⚠️ *"Não um retângulo preto sólido"* também é parte do pedido, e essa metade é shader.
   ⭑ **A estrutura já tem casa nesta base, e isso é o que a torna barata:** `CENAS` (`scene.js`) já é
   tabela declarativa, `RESIDENTES` (`apps/residentes.js`) já declara o que cada rota monta COM o
   motivo, e `spatia.hud().widgets` já separa `recolhidos` de `naoMontados` de `ausentes` — o
   `uiBudget` que a proposta pede é `RESIDENTES` com uma coluna de PERMANÊNCIA a mais.
-  ☠️ **E a parte que a proposta erra é a MEDIDA, que agora existe.** Ela afirma
-  *"objeto 25% · conteúdo 25% · contexto 25% · HUD 25%"* e quer chegar a *"objeto/conteúdo 65%"*.
-  Medido em `bancada-hud.html` (janela de 1276×742, grade de 12 px, 7 076 pontos):
+  ⭑ **A MEDIDA existe, e a bancada monta o APP DE VERDADE** (`bancada-hud.html`, `index.html` num
+  `<iframe>`): painéis reais, conteúdo real, recolhimento real (`data-collapsed`). `HOJE` não aplica
+  override nenhum — o controle É a tela. As outras mexem em três coisas: a GRADE do `#hud`, quais
+  painéis recolhem, e o que vira alça.
 
-  | composição | TEXTO | TINTA | céu limpo | ⟵ trilho | palco | trilho ⟶ |
+  Medido em 1426×712, grade de 12 px, 7 021 pontos, rota raiz, corpo `bloco-04.md` travado:
+
+  | composição | TEXTO | TINTA | céu limpo | ⟵ | palco | ⟶ |
   |---|---|---|---|---|---|---|
-  | **HOJE** (controle) | **13,7%** | 21,0% | 62,3% | 2,9% | 6,4% | 3,1% |
-  | FOCUS | 4,7% | **27,6%** | **61,3%** | 0,0% | 4,0% | 0,1% |
-  | INSPECT | 6,9% | 14,2% | 71,0% | 1,0% | 3,8% | 1,6% |
-  | EXPLORE | 0,6% | 6,5% | **84,0%** | 0 | 0 | 0 |
+  | **HOJE** (controle) | 7,4% | 6,7% | 85,9% | 1,3% | 0,0% | 4,1% |
+  | EXPLORE | **2,2%** | 5,8% | **92,0%** | 0,1% | 0,0% | 0,1% |
+  | FOCUS | 5,6% | 6,3% | 88,1% | 0,1% | 0,0% | 3,5% |
+  | INSPECT | 9,6% | 6,7% | 83,7% | 3,2% | 0,0% | 4,1% |
 
-  ☠️ **FOCUS NÃO LIBERA CÉU — ele troca TEXTO por TINTA.** O céu limpo praticamente não se move
-  (62,3% → 61,3%), porque o conteúdo maior PINTA o que os trilhos só escreviam: a tinta SOBE de
-  21,0% para 27,6%. Quem libera céu de verdade é EXPLORE (84,0%), e é o estado que a proposta
-  descreve em uma linha. **A intuição "aumentar o conteúdo libera a tela" está refutada por medida:**
-  ela libera o OLHO (texto cai 13,7% → 4,7%) e ocupa a TELA.
-  ⚠️ **Os dois trilhos juntos são ~6% da tela em glifo**, não 50% — a impressão de que dominam vem
-  de densidade e contraste, que nenhuma destas três grandezas mede. Atacar "os painéis são grandes"
-  é atacar o número errado; o que os faz pesar é outra coisa.
-  ⚠️ **Estes números são dos ESPÉCIMES da bancada, não do app.** O controle é uma reconstrução da
-  composição de foco, e a régua real sai de rodar a mesma medida dentro do `index.html`. Enquanto
-  isso não existir, comparar bancada com app é comparar duas telas.
+  ☠️ **DUAS TABELAS ANTERIORES DESTE ITEM ESTAVAM ERRADAS, e as duas pelo mesmo motivo: espécime
+  reconstruído à mão.** A primeira dizia *"FOCUS não libera céu"* — era um painel com `width` fixa
+  transbordando uma coluna estreita. A segunda corrigiu isso e ainda media painéis que eu havia
+  escrito (`tipo 1 ▮▮▯▯`, `pasta 1..10`), com **tinta 19,6% no controle** contra **6,7% do app real**
+  — quase 3× para cima. **Reconstrução não é medida**, e o relato do operador foi exatamente esse:
+  *"os painéis reais são retráteis e têm mais conteúdo do que a bancada mostra"*.
+
+  ⚠️ **O QUE ESTES NÚMEROS AINDA NÃO DESCREVEM, e é a captura que motivou a proposta:** `palco 0,0%`
+  nas quatro linhas. A tela do relato tinha **documento aberto E resposta do agente no palco**, e
+  este estado não. Enquanto a bancada não dirigir o app até lá (abrir o arquivo, rodar a pergunta),
+  a comparação fala de uma tela mais vazia do que a que incomodou. **É a próxima peça de fidelidade,
+  e sem ela o número de FOCUS está subestimado.**
+
+  ⭑ **O que já se sustenta:** EXPLORE libera céu de verdade (85,9% → 92,0%) e derruba o texto de
+  7,4% para 2,2%; INSPECT com tudo aberto é o teto (83,7%), e ainda assim sobra mais céu do que a
+  proposta supõe. E o `ponteiro` do app anda junto na barra, para as três grandezas ficarem lado a
+  lado sem conversão.
+  ⚠️ **Um piso que a proposta não menciona:** trilho recolhido não pode virar caixa vazia. Um widget
+  sem conteúdo continua com corpo, e o CSS do app pinta o corpo — a primeira tentativa deixou dois
+  slabs pretos flanqueando o céu, piores que os trilhos que substituíam. A alça é uma coluna de
+  30 px com um glifo, e o recolhimento é o do app (`data-collapsed`), não um `display: none` novo.
   ⚠️ **É `blocked` por DECISÃO do usuário**, e não por engenharia: trocar o que fica na tela em cada
   estado é produto. A bancada existe para essa decisão ser tomada olhando número e pixel juntos.
+
+- **T-14 · O LAUNCHER — duas decisões tomadas, e uma delas por MEDIDA de colisão.**
+  ☠️ **O briefing pede `Space` e `Space` JÁ TEM DONO:** `hud/terminal.js` usa *segure ESPAÇO* para a
+  entrada de voz, e a instrução está impressa no rodapé (*"MANTENHA ESPAÇO PARA FALAR"*). **Decidido:
+  `Ctrl+K`**, que o próprio briefing oferece e que não colide com nada. Trocar a voz de tecla
+  reescreveria um hábito já anunciado na tela.
+  ⭑ **A camada já tem casa e nunca foi declarada:** `core/tela.js` é a pilha, e `launcher` aparece
+  **só em comentário** (`tela.js:8`, `hud/boot.js:69`). Registrar é `registrar({ id: 'launcher' })`
+  — uma linha, e o portão de vocabulário da camada já recusa id não declarado.
+  ⚠️ **O "Action Ring" (ações por CONTEXTO, não itens fixos) é a parte do briefing que vale mais e
+  não é do launcher:** ele precisa de um catálogo de ações por tipo de corpo, que é T-78. Sem ele o
+  menu é uma lista de rotas com vidro.
+- **T-74** — ☠️ **O canvas foi refutado para os 46 WIDGETS, não para um menu, e a diferença é real:**
+  a refutação (`hud-e-canvas.md` §7) conta 521 `el()`, 17 corpos de fonte e 26 `aria-*`, e nada
+  disso descreve uma superfície transitória de oito elementos. **Mas o orçamento é o mesmo**, e ele
+  não tem folga: a lente custa **3,8–5,1 ms** contra 0,31–0,35 ms do céu inteiro. Então a ordem é
+  MEDIR primeiro — um painel de vidro com refração na bancada, contra o quadro — e só depois
+  decidir. ⚠️ Glass real por FBO/transmissão é um segundo passe de composição, que é exatamente o
+  bolso já cheio.
+- **T-72** — ⭑ **É a regra que tem um TERMO FALTANDO, e o próprio código já confessa.** A semântica
+  das fendas diz o que cada uma significa e **não diz quantos cabem**. O acordeão
+  (`kernel/widgets.js:63-71`) é o remendo de runtime disso, e o comentário dele é a prova:
+  *"com todas abertas elas disputam a altura, e o que perde não fica menor, fica com ZERO. Um
+  gráfico de 14px sumia inteiro enquanto a legenda dele continuava na tela, sem erro nenhum"*.
+  ⚠️ **Uma regra que precisa de remendo de runtime para ser habitável é uma regra incompleta** — e o
+  termo é orçamento de altura por fenda. Ele conversa com T-71: decidir o que fica na tela sem ter
+  a régua de altura é decidir metade.
+- **T-73** — a fenda `strip` tem semântica declarada de RESIDENTES (*"o que nunca deve sair da
+  tela"*) e `sec-effective` mora nela existindo em **1 de 10 rotas** (medido; o censo de
+  `lei-residentes.mjs` §5 imprime o caso em amarelo toda vez). A fenda ganhou um segundo significado
+  sem que nada recusasse. ⚠️ **Não é renomeação:** ou o painel muda de fenda, ou a semântica de
+  `strip` passa a admitir o caso — e a régua da faixa (largura inteira) **não é** a do trilho de
+  230 px, então a decisão MUDA A TELA e tem de ser vista.
+- **T-76 / T-77 / T-78** — `features-widgets.md` é 5× maior que o T-21 que o roadmap lhe dava. As
+  três peças abaixo dele são independentes entre si e todas dependem da postura de segurança (T-21),
+  que é decisão sua: instalar coisa de terceiro é a premissa das três.
+  ☠️ **HOMÔNIMO, e ele é do tipo que esta base cobra caro:** `server/capabilities.py` **já existe** e
+  é escopo de PERMISSÃO (`decide`, `enforceable`, `settings_file`, `release`). O *Capability
+  Registry* do briefing é outra coisa — o que uma capacidade INSTALA (widgets, MCP, eventos,
+  agentes). Mesmo nome, grandezas diferentes; `docs/identidade.md` existe para impedir exatamente
+  esse `sed`. **Quem construir T-78 nomeia diferente, ou funde os dois de propósito e por escrito.**
+  ⭑ **E parte já existe:** `br-mcp` é widget montado na rota `bridge` (`apps/index.js:1207`) — T-76
+  não começa do zero, ele começa perguntando o que aquele widget já faz.
+- **T-79** — ☠️ **A TAREFA ERA OUTRA, e o review externo mostrou por quê.** Ele pede que *"o agente
+  invada o UNIVERSO, não a UI"* — pulsos percorrendo as conexões enquanto o agente trabalha, para a
+  tela não precisar de caixas. ⭑ **Isso já está DECLARADO:** `EVENTS.md` tem uma coluna *"Quem
+  reage"* para os **17** tipos de evento, e ela nomeia o fenômeno de cada um — `memory` → *"estrelas
+  do grafo acendem"*, `tool` → *"wormhole abre na cor de `kind`"*, `web` → *"satélite liga,
+  resultados caem como meteoros"*, `thought` → *"trilha tênue de partículas"*, `state` → *"o buraco
+  negro muda de regime"*.
+  ⭑ **E o substrato do AGENTE é real, ao contrário do ambiental:** toda pergunta emite. A fila
+  ambiental entrega 0 eventos em 301 s; o barramento do agente entrega dezenas por execução.
+  ⚠️ **Varredura CRUA (`grep` por nome em `src/space/*.js`, não medida): ~8 dos 17 têm menção.** Isso
+  é indício, não auditoria — `error` e `token` casam palavra comum. **A tarefa é a AUDITORIA:** para
+  cada um dos 17, existe leitor de verdade? O que não tiver é *fenômeno declarado sem leitor*, a
+  família que esta base já pagou cinco vezes — e aqui ela está num DOC que promete comportamento.
+  ☠️ **Só depois disso se sabe o que falta construir.** Construir o motor antes da auditoria é
+  reimplementar o que já existe com outro nome, que é a forma mais cara de desperdício desta base.
+  ⚠️ O barramento AMBIENTAL segue silencioso e a nota abaixo continua valendo para ele.
+  ☠️ **E construir o motor inteiro agora anima o vazio:** a fila entrega **0 eventos em 301 s**, e
+  três dos cinco observadores de `ambient.py` **não têm como disparar** (`index` precisa de 30 dias,
+  `credential` de um `expires_at` que ninguém declara, `graphdb` só dispara na queda). É a mesma
+  refutação do T-16.
+  ⭑ **O que destrava em pequeno:** os DOIS que emitem são `corpus` e `topology`, e os dois são eco de
+  comando humano — reindexar e rematerializar. **`topology` é o candidato**: a cadeia de
+  rematerialização é rodada de propósito e com frequência, então dá para ligar UM fenômeno de ponta
+  a ponta e provar `System Event → Universe Event → Phenomenon → Animation` com substrato real, sem
+  fabricar heartbeat. ⚠️ **Um fenômeno só, e com a lei do `ambient.py` valendo:** repetição inventada
+  é o que ensina o operador a não ler a tela.
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
 
@@ -818,16 +968,16 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `cena-como-lente.md` | T-04, T-05, T-08 | a `SceneDefinition` existir e o `lei-cena.mjs` sair 0 |
 | `multi-scene.md` | T-04 | idem — é o mesmo assunto por outro nome |
 | `splash-screen.md` | T-13 | `tela.js` existir e a splash montar nele |
-| `menu-iniciar.md` | T-14 | idem |
+| `menu-iniciar.md` | T-14, T-74, T-78 | ⚠️ o `Space` dele COLIDE com a voz (decidido: `Ctrl+K`), e o "Action Ring" é T-78, não T-14 |
 | `entrevista-usuario.md` | T-09, T-16, T-07 | ⚠️ as três estão `done` e ele **não morre**: 923 linhas, 15 expectativas, e só três tinham tarefa. Reler para extrair as próximas — **e sem confundir emitir com afirmar** (handoff §7-B) |
 | `black-hole-router.md` | — | ⚠️ o item favorito do autor (`cogload` → `setLoad`) **já existe ponta a ponta** |
 | `gravidade-entrelacamento.md` | T-12, T-22 | T-12 entregue e T-22 decidida |
 | `orbita-eliptica.md` | T-11 | ⚠️ a órbita elíptica **já está feita e medida** (área varrida máx/mín 1,0008) — resta o TRAÇO |
 | `quasar-enhance.md` | — | ⚠️ pede sete coisas e **quatro já existem** — conferir antes de implementar |
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |
-| `integracao-organica.md` | T-23 | decisão do usuário |
-| `features-widgets.md` | T-21 | decisão do usuário |
-| `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; faltam T-49/T-50 e T-53 estar decidida |
+| `integracao-organica.md` | T-23, **T-79** | ⚠️ T-23 é UMA tabela dele; o corpo é a arquitetura evento→fenômeno, e a PONTE não existe (`grep notice src/space/` = 0) |
+| `features-widgets.md` | T-21, **T-76, T-77, T-78** | ⚠️ T-21 era só a §5 dele. ☠️ `capabilities.py` é HOMÔNIMO — permissão, não registry |
+| `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; faltam T-53 estar decidida, e T-72/T-73/T-75, que ele levanta e o roadmap não cobria |
 
 ---
 

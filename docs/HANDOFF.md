@@ -134,6 +134,22 @@ todas *"declarado sem leitor"* ou *"dois donos para um estado"* — a família q
 cinco vezes, e o corolário da REGRA DO CATÁLOGO no `CLAUDE.md` diz como a auditoria se faz (varra
 cada chave declarada e procure um leitor). Fazê-las juntas cobra uma varredura só.
 
+☠️ **A FRENTE DE UI/HUD tem QUATRO briefings, e três estavam mal cobertos pelo roadmap** (mapeado em
+09/08, com as decisões do operador já tomadas):
+
+| briefing | o roadmap dava | o que faltava, e virou tarefa |
+|---|---|---|
+| `hud-e-canvas.md` | T-46…T-53 — **bem coberto**, 6 dos 7 passos entregues | T-72 (altura por fenda) · T-73 (`sec-effective`) · T-75 (atlas de glifo) |
+| `menu-iniciar.md` | T-14, uma linha | T-74 (medir o vidro 3D) · e o "Action Ring" é T-78 |
+| `features-widgets.md` | T-21 — **só a §5 dele** | T-76 · T-77 · T-78 |
+| `integracao-organica.md` | T-23 — **uma tabela dele** | T-79, a ponte evento→fenômeno |
+
+⭑ **A bancada das superfícies (`bancada-hud.html`) é a ferramenta dessa frente**, e ela monta o app
+DE VERDADE num `<iframe>` — painéis reais, retráteis, conteúdo real. `bancada.rotas()` varre as dez
+rotas; o inventário está em [`medidas.md`](./medidas.md).
+⚠️ **O que ela ainda NÃO faz:** dirigir o app até a composição que motivou a discussão (documento
+aberto + resposta no palco). Enquanto isso, `palco` sai 0,0% e o número de FOCUS está subestimado.
+
 ⚠️ **As decisões que são do usuário não são `blocked` por engenharia e nenhum agente as resolve
 sozinho** — estão nomeadas no fim do `roadmap.md`.
 
@@ -143,7 +159,7 @@ sozinho** — estão nomeadas no fim do `roadmap.md`.
 
 | o que você procura | onde |
 |---|---|
-| **as leis desta base** (FÍSICA · INSPEÇÃO · CATÁLOGO · FRONTEIRA · as duas do Neo4j) | [`../CLAUDE.md`](../CLAUDE.md) — é a Constituição, e lei mora lá |
+| **as leis desta base** (FÍSICA · INSPEÇÃO · CATÁLOGO · FRONTEIRA · **FOCO** · as duas do Neo4j) | [`../CLAUDE.md`](../CLAUDE.md) — é a Constituição, e lei mora lá |
 | **o que mente ao medir, e o que falha calado** | [`armadilhas.md`](./armadilhas.md) |
 | **números já medidos — NÃO remeça** | [`medidas.md`](./medidas.md) |
 | **o que está aberto, em que ordem, o que está REFUTADO e o que já foi decidido** | [`roadmap.md`](./roadmap.md) |
