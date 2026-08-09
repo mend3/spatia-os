@@ -75,7 +75,10 @@ export const PULSAR_SPEC = {
      * do corpo (0,10→0,16), o período (INVERSO — pulsar jovem e massivo é lento, o de
      * milissegundo é o velho reciclado) e nada mais. A obliquidade sai da semente.
      */
-    { key: 'massa', label: 'MASSA (rank)', type: 'range', min: 0, max: 1, step: 0.01, value: 0.5 },
+    // O rótulo diz a UNIDADE: 0 é o limiar de colapso e 1 é o dobro dele (ver `GIGANTE` em
+    // `pulsar.js`). "rank" nomeava um posto que o rig não lê mais, e slider com unidade errada é
+    // como se mede a coisa errada com convicção.
+    { key: 'massa', label: 'MASSA (× limiar, log2)', type: 'range', min: 0, max: 1, step: 0.01, value: 0.5 },
     { key: 'seed', label: 'SEED (caminho)', type: 'range', min: 0, max: 1, step: 0.001, value: 0.42 },
     /*
      * RAIO DA ÂNCORA em unidades de mundo — o mesmo número que `scene.js` usa como escala do

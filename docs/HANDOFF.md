@@ -556,6 +556,12 @@ fotosfera de 91 px +0,02 ms · **cometa + fotosfera juntos 1,23 ms** · ☠️ *
 geometria 1,73 ms**, contra 2,5–3,2 ms sem ele — **ele quase dobra o quadro sozinho**. É este número
 que justifica o teto de 4 ser publicado; **quem subir o teto remede aqui.**
 
+⭑ **O eixo do pulsar, FOTOGRAFADO na bancada** (09/08): `massa 0` → período **0,90 s**, núcleo
+**0,100**; `massa 1` → período **4,20 s**, núcleo **0,160**. Numa janela de 4 s isso é **4,44 contra
+0,95 pulsos** (batimento varrido em nove instantes). ☠️ **E o `core` é visualmente INERTE** — as
+ampliações do miolo nos dois extremos saem idênticas, porque feixe e brilho dominam o disco. Quem
+carrega o eixo é o RITMO, e ritmo não aparece em quadro congelado.
+
 **O PULSAR — o eixo do rig** (09/08, e o defeito era ANTI-ESCALA: percentil de cauda encolhe conforme
 a população cresce):
 

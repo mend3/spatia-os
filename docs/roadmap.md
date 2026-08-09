@@ -91,7 +91,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 |---|---|---|---|---|---|
 | **T-01** | Portão de corpus nos cinco overlays + carimbo nos scripts | `done` | — | T-12 | KR3.1 |
 | **T-02** | Eixo do pulsar ancorado no limiar (`GIGANTE`) | `done` | — | — | KR3.2 |
-| **T-03** | Foto do pulsar na bancada (o A/B é numérico) | `todo` | T-02 | — | KR3.2 |
+| **T-03** | Foto do pulsar na bancada | `done` | — | — | KR3.2 |
 | **T-04** | `SceneDefinition` extraída de `setMode`, **sem mudar um número** | `done` | — | T-05, T-06, T-08 | KR2.3 |
 | **T-05** | `lei-cena.mjs` — o oráculo que prova que a cena é LENTE | `todo` | — | — | KR2.4 |
 | **T-06** | `src/core/tela.js` — dono único do estado de tela | `todo` | — | T-13, T-14 | KR2.1 |
@@ -117,8 +117,14 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-26** | Granulação do anel — escolher entre `GRAIN`/`SWARM`/`BOULDER`/`SLAB` | `todo` | — | — | — |
 | **T-27** | i18n | `postponed` | — | — | — |
 | **T-28** | Zonas por razão de massa — declaradas, sem leitor | `todo` | — | — | KR3.3 |
+| **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `todo` | — | — | KR3.3 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-29** — a bancada mostra que varrer a massa de 0 a 1 muda `core` de **0,100 para 0,160** e
+  as duas ampliações do miolo saem **idênticas**: o brilho e os feixes dominam o disco. Quem carrega
+  o eixo é o `period` (**0,90 s → 4,20 s**, 4,44 contra 0,95 pulsos numa janela de 4 s). ⚠️ Ou
+  `CORE_GAIN` age em faixa visível, ou ele é invariante sem leitor — o alvo da REGRA DO CATÁLOGO.
 
 - **T-19** — `a_corte` 23,9 (fixture) e 26,3 (real) contra o raio orbital máximo 62, **zero janelas
   fechadas**: expiração, não defeito, e só morde se `M_total` crescer ~13×. ☠️ **A saída óbvia é
