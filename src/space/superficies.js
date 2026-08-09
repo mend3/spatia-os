@@ -42,6 +42,31 @@ export const SUPERFICIE = Object.freeze({
 });
 
 /**
+ * COMO SE CHAMA, NA TELA, cada pele — e este é o rótulo que o painel tem de dizer.
+ *
+ * ⚠️ **Ele mora aqui porque o painel não pode ter uma segunda derivação.** O rótulo saía de
+ * `classificar().tipo`, que responde a CLASSE; a pele sai de `superficieDe()`, que responde o que
+ * é DESENHADO. As duas são vocabulários legítimos e diferentes, e quando divergem o usuário lê uma
+ * coisa e vê outra: um corpo de classe `planeta` com `atividade-de-cometa` desenha cometa e o
+ * painel anunciava PLANETA. Reportado da tela — e é a TERCEIRA ocorrência desta forma (as duas
+ * anteriores estão no comentário de `apps/context.js`, cada uma consertada como caso particular).
+ *
+ * Derivar do mesmo lugar é o que impede a quarta: quem acrescentar pele acrescenta o nome aqui, na
+ * linha de cima, e o painel passa a dizê-lo sem que ninguém edite a HUD.
+ *
+ * `NENHUMA` não tem nome de propósito: ali não há corpo desenhado, e quem chama cai na CLASSE — que
+ * naquele caso é a resposta certa, porque é ela que decide o que a tela mostra.
+ */
+export const NOME_DA_SUPERFICIE = Object.freeze({
+  [SUPERFICIE.FOTOSFERA]: 'ESTRELA',
+  [SUPERFICIE.PLANETA]: 'PLANETA',
+  [SUPERFICIE.COMETA]: 'COMETA',
+  [SUPERFICIE.ESTACAO]: 'ESTAÇÃO',
+  [SUPERFICIE.PULSAR]: 'PULSAR',
+  [SUPERFICIE.NEBULOSA]: 'NEBULOSA',
+});
+
+/**
  * A pele de um corpo, decidida pela ontologia nova.
  *
  * @param {{familia:string, tipo:string, porte?:string}} classe  saída de `classificar()`

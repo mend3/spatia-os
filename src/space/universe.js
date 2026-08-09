@@ -23,7 +23,8 @@
  * logo nenhum planeta pode ser maior que a sua estrela.
  */
 import * as THREE from 'three';
-import { entityPhysics, classificar, raioPorMassa } from './entity-physics.js';
+import { entityPhysics, classificar, fenomenos, raioPorMassa } from './entity-physics.js';
+import { superficieDe, NOME_DA_SUPERFICIE } from './superficies.js';
 import { KIND_COLORS, createPointMaterial, starSeed, POINT_SCALE } from './graph.js';
 import { createLinks } from './links.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
@@ -372,6 +373,8 @@ export function createUniverse() {
   /* source → tipo, na ontologia NOVA. É o que impede a HUD de anunciar a taxonomia velha
      por cima da cena nova — o mesmo defeito que a camada de galáxia tinha. */
   const tipos = new Map();
+  /** Quem é o DOMINANTE do próprio sistema — FATO, com um dono só. Preenchido no laço de `load`. */
+  const dominantes = new Set();
 
   /*
    * ─────────────────────────── a REDE, e por que ela mora aqui
@@ -743,6 +746,8 @@ export function createUniverse() {
     object: group,
     /** O tipo de um corpo NESTA cena, ou `null` fora dela. A HUD pergunta; ela não deduz. */
     tipoDe: (source) => tipos.get(source) ?? null,
+    /** Dominância como FATO. Existe para `scene.js` parar de deduzi-la do RÓTULO da tela. */
+    ehDominante: (source) => dominantes.has(source),
 
     /**
      * Os sistemas desta cena — id, centro, envelope. É o que permite à câmera orbitar ALGO.
@@ -1233,6 +1238,7 @@ export function createUniverse() {
     load(payload) {
       limpar();
       tipos.clear();
+      dominantes.clear();
       /*
        * O veredito de evidência viaja com a topologia (`stats.uso.evidencia`), escrito por quem
        * mediu. Lê-lo aqui em vez de recalcular é a mesma regra da legenda dos arcos: o que se vê
@@ -1260,7 +1266,41 @@ export function createUniverse() {
         tipos.set(agg.id, agg.type === 'repo' ? 'GALÁXIA' : 'SISTEMA');
         for (const f of meus) {
           const fis = entityPhysics(f, { dominante: f.id === dono.id, sistema: agg.id });
-          tipos.set(f.source, classificar(fis, f).tipo.toUpperCase());
+          const classe = classificar(fis, f);
+          /*
+           * ⚠️ **O PAINEL NOMEIA O QUE A TELA DESENHA — e por isso o rótulo sai da PELE.**
+           *
+           * Aqui estava `classificar(fis, f).tipo`, uma SEGUNDA derivação, paralela à que decide o
+           * que é desenhado. As duas são legítimas e respondem perguntas diferentes: `classificar`
+           * dá a CLASSE (o que o corpo É, e o que ele pode carregar), `superficieDe` dá a PELE (o
+           * que aparece). Elas divergem de propósito — um corpo de classe `planeta` com o fenômeno
+           * `atividade-de-cometa` desenha COMETA, porque coma e cauda são ESTADO e vencem a pele do
+           * corpo enquanto duram.
+           *
+           * Divergindo, o painel dizia PLANETA sobre um cometa na tela. Reportado, e é a TERCEIRA
+           * vez que esta forma aparece: o comentário de `apps/context.js` já registra duas
+           * anteriores (`agent` desenhado como ESTAÇÃO com o painel dizendo ESTRELA), cada uma
+           * consertada como caso particular. Derivar do mesmo lugar é o que impede a quarta.
+           *
+           * `NENHUMA` cai na CLASSE, e ali ela é a resposta certa: sem corpo desenhado não há o que
+           * nomear pela pele (o asteroide sem pele é o caso vivo).
+           */
+          const pele = superficieDe(classe, fis, fenomenos(fis, f).map((x) => x.tipo));
+          tipos.set(f.source, NOME_DA_SUPERFICIE[pele] ?? classe.tipo.toUpperCase());
+          /*
+           * ☠️ **DOMINÂNCIA É FATO, e ela era recuperada LENDO O RÓTULO.**
+           *
+           * `scene.js` montava a física do corpo em foco com
+           * `dominante: universe.tipoDe(source) === 'ESTRELA'` — um texto de TELA usado como dado.
+           * Funcionava por coincidência enquanto `tipos` guardava a classe em maiúsculas; no
+           * instante em que o rótulo passou a nomear a PELE, uma estrela com atividade de cometa
+           * passou a rotular COMETA, perdeu a dominância e caiu de estrela para planeta.
+           * **Medido: 22 fotosferas viraram 21 e 3 cometas viraram 2**, contra o censo.
+           *
+           * Quem sabe quem é o dominante é este laço — ele acabou de escolher o `dono`. Publicar o
+           * fato custa um Set e fecha o canal por onde apresentação virava física.
+           */
+          if (f.id === dono.id) dominantes.add(f.source);
         }
       }
 

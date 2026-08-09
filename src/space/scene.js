@@ -1320,7 +1320,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * porque o bloco que desenha é o MESMO. O que muda é quem decide, não quem desenha.
    */
   function decisaoDoUniverso(node) {
-    const fisica = entityPhysics(node, { dominante: universe.tipoDe(node.source) === 'ESTRELA' });
+    /*
+     * ☠️ Aqui era `universe.tipoDe(node.source) === 'ESTRELA'` — **um rótulo de TELA lido como
+     * dado.** Ele acertava enquanto `tipos` guardava a classe em maiúsculas, e quebrou no instante
+     * em que o rótulo passou a nomear a PELE: estrela com atividade de cometa rotula COMETA, perdia
+     * a dominância e caía para planeta (medido: 22 fotosferas → 21, 3 cometas → 2). Dominância é
+     * FATO e agora vem publicada como fato.
+     */
+    const fisica = entityPhysics(node, { dominante: universe.ehDominante(node.source) });
     const classe = classificar(fisica, node);
     const ativos = fenomenos(fisica, node).map((f) => f.tipo);
     const surface = superficieDe(classe, fisica, ativos);
