@@ -577,7 +577,7 @@ export function createUniverse() {
        * por cima dela apagaria o relevo que a pele existe para mostrar — a mesma razão pela qual
        * `haloOf` já cede no AGENTE. Fora do foco, cede conforme a esfera ganha borda.
        */
-      spriteHalo[i] = i === cedidoIdx ? 1 : suave(pisoSprite, largura, pxG);
+      spriteHalo[i] = cedidos.has(i) ? 1 : suave(pisoSprite, largura, pxG);
     }
     sprites.geometry.getAttribute('aSize').needsUpdate = true;
     sprites.geometry.getAttribute('aHalo').needsUpdate = true;
@@ -613,7 +613,19 @@ export function createUniverse() {
    * degrau, e é grátis — nenhum quadro precisa decidir nada.
    */
   const FATOR_NUCLEO = 0.98;
-  let cedidoIdx = -1;
+  /*
+   * OS CORPOS QUE CEDERAM — plural desde 08/08, e o plural é a feature.
+   *
+   * Era um índice só (`cedidoIdx`), porque só o corpo em FOCO ganhava pele. Com a câmera chegando
+   * dentro de um sistema, corpos SEM foco passam a ter pixel para pele (medido: 3 de 71 acima de
+   * 22 px, 1 acima de 90 px), e cada um deles precisa das mesmas duas cessões: o sprite se apaga e
+   * a esfera encolhe para `FATOR_NUCLEO`, virando o núcleo por baixo da pele.
+   *
+   * ⚠️ Um número não vira um Set por conveniência: `i === cedidoIdx` respondia "é ELE?" e a
+   * pergunta agora é "está entre eles?". Manter o número e adicionar um segundo campo daria duas
+   * fontes para o mesmo fato — o defeito que esta base mais persegue.
+   */
+  const cedidos = new Set();
   /* Posição de mundo do planeta 0, atualizada por quadro. É a sonda que prova MOVIMENTO —
      sem ela, "os astros orbitam?" não distingue órbita parada de órbita invisível. */
   const amostra = new THREE.Vector3();
@@ -1008,9 +1020,48 @@ export function createUniverse() {
      * A alternativa seria a cena UNIVERSO desenhar a própria pele, e ela seria uma segunda cópia
      * das seis que já existem e já foram validadas na bancada.
      */
+    /**
+     * Os corpos que cederam, em bloco. `cederPara` continua valendo para o caso de um só.
+     *
+     * @param {Array<string>} sources
+     */
+    cederParaVarios(sources = []) {
+      cedidos.clear();
+      for (const src of sources) {
+        const i = indiceDe.get(src);
+        if (i !== undefined) cedidos.add(i);
+      }
+    },
+
+    /**
+     * Os corpos com mais PIXEL agora, para quem decide quem ganha pele.
+     *
+     * ⚠️ Ela NÃO recalcula nada: lê `pxGeometria`, que o laço do quadro já preencheu. Recalcular
+     * aqui seria a segunda régua do mesmo fato, e as duas divergiriam no dia em que o fov mudasse —
+     * é a divergência que o comentário de `ancoraDoUniverso` manda vigiar.
+     *
+     * @param {number} k        quantos devolver, no máximo
+     * @param {string|null} excluir  o corpo em foco, que já tem caminho próprio
+     */
+    candidatosAPele(k = 4, excluir = null) {
+      if (!pxGeometria || !posicoes || !corpos.length) return [];
+      const lista = [];
+      for (let i = 0; i < corpos.length; i++) {
+        const src = corpos[i]?.source;
+        if (!src || src === excluir) continue;
+        lista.push({ i, source: src, px: pxGeometria[i] });
+      }
+      lista.sort((a, b) => b.px - a.px);
+      return lista.slice(0, k).map(({ i, source, px }) => ({
+        source, px, node: corpos[i], radius: raiosPorIndice[i],
+        position: new THREE.Vector3(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]),
+      }));
+    },
+
     cederPara(source) {
       const i = source ? indiceDe.get(source) : undefined;
-      cedidoIdx = i === undefined ? -1 : i;
+      cedidos.clear();
+      if (i !== undefined) cedidos.add(i);
     },
 
     /**
@@ -1492,7 +1543,7 @@ export function createUniverse() {
         // A POSIÇÃO é escrita sempre — o arco e o picking dependem dela mesmo com o corpo oculto.
         // Quem some é só a ESCALA da instância: zero desenha nada e não custa fragmento nenhum.
         posicoes[i * 3] = V3.x; posicoes[i * 3 + 1] = V3.y; posicoes[i * 3 + 2] = V3.z;
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio * (i === cedidoIdx ? FATOR_NUCLEO : 1)));
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio * (cedidos.has(i) ? FATOR_NUCLEO : 1)));
         estrelas.setMatrixAt(i, M4);
       }
       for (let k = 0; k < orbitas.length; k++) {
@@ -1508,7 +1559,7 @@ export function createUniverse() {
         const zr = x * Math.sin(o.giro) + z * Math.cos(o.giro);
         const c = centros[o.centro];
         V3.set(c.pos.x + xr, c.pos.y + zr * Math.sin(o.inc), c.pos.z + zr * Math.cos(o.inc)).add(desloca);
-        M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp * (centros.length + k === cedidoIdx ? FATOR_NUCLEO : 1)));
+        M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp * (cedidos.has(centros.length + k) ? FATOR_NUCLEO : 1)));
         planetas.setMatrixAt(k, M4);
         const p = (centros.length + k) * 3;
         posicoes[p] = V3.x; posicoes[p + 1] = V3.y; posicoes[p + 2] = V3.z;
@@ -1584,7 +1635,7 @@ export function createUniverse() {
        * de sair `NaN`.
        */
       if (camera && viewportHeight && sujosAtivos.length) {
-        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, cedidoIdx);
+        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, cedidos.size === 1 ? [...cedidos][0] : -1);
       }
     },
 

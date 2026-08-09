@@ -367,6 +367,12 @@ async function main() {
        */
       pixels: () => scene.universePixels(),
       /**
+       * As peles desenhadas SEM foco, e quantas o teto cortou: `spatia.universo.peles()`.
+       *
+       * ⚠️ `cortadas` existe porque corte calado lê como "cobri tudo". Ver `scene.js`, o pool.
+       */
+      peles: () => scene.universeSkins(),
+      /**
        * Onde a câmera desta cena está ancorada, e por quê: `spatia.universo.ancora()`.
        *
        * A origem deixou de ser o padrão — ela é a última degradação. Ver `scene.universeAnchor`.

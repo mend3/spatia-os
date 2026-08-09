@@ -32,7 +32,7 @@ import { createParticles } from './particles.js';
 import { createSatellites, createWormholes, TOOL_COLORS } from './satellites.js';
 import { createBodies } from './bodies.js';
 import { createBackdrop } from './backdrop.js';
-import { createPlanet, planetParams } from './planet.js';
+import { createPlanet, planetParams, LOD_FAR_PX as PLANETA_FAR } from './planet.js';
 import { createLinks } from './links.js';
 import { createGalaxy, galaxyParams, diskPx, LOD_ARM_PX, LOD_FULL_PX } from './galaxy.js';
 import { createQuasars, quasarParams } from './quasar.js';
@@ -40,7 +40,7 @@ import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody, SURFACE } from './solver.js';
 import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown, BODY_SPAN } from './lod.js';
-import { createPhotosphere, photosphereParams } from './photosphere.js';
+import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } from './photosphere.js';
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
 import { createStation, stationParams } from './station.js';
@@ -223,6 +223,54 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   let hubs = [];
   const planet = createPlanet();
+
+  /*
+   * ─────────────────── AS PELES SEM FOCO, e o teto que impede isto de virar uma conta aberta
+   *
+   * O relato: *"mesmo sem foco, ao chegar perto o suficiente deveríamos poder ver suas formas
+   * reais"*. Até 08/08 isso era impossível por PIXEL — o §4b do `distancia-e-forma` mediu `0 de 71`
+   * corpos acima de 22 px no enquadramento de casa e concluiu que a pele só era alcançável por foco.
+   *
+   * ⚠️ **Aquela conclusão morreu com a câmera que a produziu.** Ela valia enquanto a câmera orbitava
+   * a ORIGEM a 150 unidades, sem como se aproximar sem travar num corpo. Com a chegada por envelope,
+   * medido sem foco nenhum: P50 5,52 px, máximo 91,34 px, **3 de 71 acima de 22 px e 1 acima de 90**.
+   * A pele passou a ser alcançável, e o que bloqueava deixou de ser pixel e passou a ser ARQUITETURA
+   * — `photosphere` e `planet` eram objetos ÚNICOS, alimentados por `ancoraDoUniverso(focusedNode)`.
+   *
+   * ## O desenho, e por que ele é ADITIVO
+   *
+   * O caminho do corpo em FOCO não foi tocado. Ele carrega a sonda, o `fitPending`, a coroa, a
+   * cessão e a casca de supernova, tudo afinado no olho ao longo de várias rodadas — reescrevê-lo
+   * para caber num laço genérico trocaria uma feature nova por um risco de regressão em tudo que já
+   * funciona. Estas peles são as dos OUTROS corpos, e elas param onde o foco começa.
+   *
+   * ## O teto, e por que ele é PUBLICADO
+   *
+   * Cada pele é uma esfera de 96×96 com ~27 avaliações de ruído por pixel coberto. O orçamento desta
+   * cena é 0,23 ms de geometria; a cena AGENTE gasta 1,95 ms com UMA pele em foco. Sem teto, chegar
+   * perto de um sistema apertado ligaria dezenas. `cortadas` vai na sonda porque *um corte calado lê
+   * como "cobri tudo"* — a armadilha nº 4 do handoff, o resto que não sabe se nomear.
+   *
+   * ⚠️ Só PLANETA e FOTOSFERA entram no pool: são 66 dos 71 corpos do fixture. As morfológicas
+   * (cometa, estação, pulsar, nebulosa) continuam só no foco — elas têm parâmetros e assinaturas de
+   * `update` próprios, e o fixture tem 3 cometas e ZERO das outras três. Pool para população que não
+   * existe seria código sem quem o exerça, que é o que a REGRA DO CATÁLOGO proíbe pelo avesso.
+   */
+  const PELES_VIZINHAS_MAX = 4;
+  const poolPlaneta = [];
+  const poolFotosfera = [];
+  /** `planetParams`/`photosphereParams` são PUROS e caros: derivá-los por quadro seria desperdício. */
+  const paramsPorFonte = new Map();
+  let pelesVizinhas = { desenhadas: 0, teto: PELES_VIZINHAS_MAX, cortadas: 0, corpos: [] };
+
+  /** Um slot do pool, criado sob demanda — a mesma preguiça do `build` das peles. */
+  function slotDaPele(pool, criar) {
+    for (const p of pool) if (!p.usado) return p;
+    const nova = { pele: criar(), usado: false, fonte: null };
+    scene.add(nova.pele.object);
+    pool.push(nova);
+    return nova;
+  }
 
   /**
    * O laço do A/B DENTRO DO MESMO QUADRO. Uma lei só, duas cenas.
@@ -1997,7 +2045,64 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * resolve é a esfera virar NÚCLEO (2% menor): a pele opaca a cobre de perto, e ela reaparece
      * sozinha conforme a pele apaga. Transição contínua, sem quadro nenhum decidindo nada.
      */
-    universe.cederPara(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE ? focusedNode : null);
+    /*
+     * ─────────────────── AS PELES SEM FOCO. Ver o bloco do pool para o porquê e para o teto.
+     *
+     * A ORDEM é por pixel, e não por massa nem por proximidade: quem tem mais pixel é quem tem mais
+     * a mostrar, e é a mesma grandeza que o `LOD_FAR_PX` de cada pele já usa para decidir se vale
+     * desenhar. Duas réguas para "quem ganha pele" divergiriam na primeira mudança de fov.
+     */
+    for (const p of [...poolPlaneta, ...poolFotosfera]) p.usado = false;
+    const vizinhas = [];
+    let cortadas = 0;
+    if (modo === 'universo') {
+      for (const c of universe.candidatosAPele(PELES_VIZINHAS_MAX * 3, focusedNode)) {
+        const sup = decisaoDoUniverso(c.node)?.surface;
+        const ehPlaneta = sup === SURFACE.PLANET;
+        const ehFotosfera = sup === SURFACE.PHOTOSPHERE;
+        if (!ehPlaneta && !ehFotosfera) continue;
+        if (c.px < (ehPlaneta ? PLANETA_FAR : FOTOSFERA_FAR)) continue;
+        if (vizinhas.length >= PELES_VIZINHAS_MAX) { cortadas += 1; continue; }
+        const slot = slotDaPele(ehPlaneta ? poolPlaneta : poolFotosfera,
+          ehPlaneta ? createPlanet : createPhotosphere);
+        slot.usado = true;
+        slot.fonte = c.source;
+        if (!paramsPorFonte.has(c.source)) {
+          paramsPorFonte.set(c.source, ehPlaneta
+            ? planetParams(c.node)
+            : photosphereParams(c.node, hash01, graph.kindColor(c.node.kind)));
+        }
+        slot.pele.object.position.copy(c.position);
+        slot.pele.object.scale.setScalar(c.radius);
+        // A luz vem do NÚCLEO, a mesma regra do corpo em foco: iluminar de outra direção poria o
+        // terminador em desacordo com o que se vê, e é o terminador que faz a esfera ler como esfera.
+        LIGHT_DIR.copy(c.position).negate().normalize();
+        const base = paramsPorFonte.get(c.source);
+        slot.pele.update(
+          ehPlaneta ? { ...base, light: [LIGHT_DIR.x, LIGHT_DIR.y, LIGHT_DIR.z] } : base,
+          camera, c.px, elapsed
+        );
+        vizinhas.push({ source: c.source, px: +c.px.toFixed(1), pele: sup });
+      }
+    }
+    // Slot que ninguém pediu neste quadro tem de PARAR DE DESENHAR. `px = 0` derruba o nível de
+    // detalhe a zero e o próprio módulo esconde o grupo — o mesmo caminho que o corpo em foco usa
+    // ao soltar, e não um `visible = false` por fora que a pele não saberia explicar.
+    for (const p of [...poolPlaneta, ...poolFotosfera]) {
+      if (p.usado || !p.fonte) continue;
+      p.pele.update(paramsPorFonte.get(p.fonte) ?? {}, camera, 0, elapsed);
+      p.fonte = null;
+    }
+    pelesVizinhas = { desenhadas: vizinhas.length, teto: PELES_VIZINHAS_MAX, cortadas, corpos: vizinhas };
+
+    /*
+     * A CESSÃO é PLURAL: o corpo em foco e cada vizinho com pele cedem o sprite e viram núcleo.
+     * Um só chamador, uma só lista — ver `universe.cederParaVarios`.
+     */
+    universe.cederParaVarios([
+      ...(modo === 'universo' && decisao && decisao.surface !== SURFACE.NONE && focusedNode ? [focusedNode] : []),
+      ...vizinhas.map((v) => v.source),
+    ]);
     /*
      * ⚠️ **A COROA da estrela, e ela existe porque a cena AGENTE a tinha por outro caminho.**
      *
@@ -2315,6 +2420,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * opacos de longe" são dois relatos diferentes sobre a mesma foto, e só o histograma os separa.
      */
     universePixels: () => universe.pixels(),
+    /** As peles desenhadas SEM foco, e o que o teto cortou. `spatia.universo.peles()`. */
+    universeSkins: () => pelesVizinhas,
 
     /**
      * Onde a câmera do UNIVERSO está ancorada, e por quê. `spatia.universo.ancora()`.
@@ -2371,6 +2478,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // Topologia nova reconstrói os sistemas: o índice guardado passa a apontar para outro lugar.
       // `SCHEMA_VERSION` protege dado em disco; isto protege um índice em memória, pelo mesmo motivo.
       sistemaCorrente = null;
+      paramsPorFonte.clear();
       hubs = buildHubs(payload);
       // Só agora o céu sabe responder se conhece o astro salvo. Ver `aplicarFocoPendente`.
       agendarFoco();
