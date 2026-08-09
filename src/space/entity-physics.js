@@ -246,9 +246,46 @@ export function entityPhysics(node, contexto = {}) {
      */
     usage: typeof node.usage === 'number' ? node.usage : null,
 
-    /** Contexto: este arquivo é o corpo mais massivo do sistema dele? */
+    /** Contexto: este arquivo é o corpo mais massivo do sistema dele? Ver `dominanteDe`. */
     dominante: contexto.dominante === true,
     sistema: contexto.sistema ?? null,
+  });
+}
+
+/**
+ * QUEM É O DOMINANTE de um sistema — a regra, com um dono só.
+ *
+ * `dominante` é a única entrada de contexto de `entityPhysics`, e ela decide muito: só o dominante
+ * alcança `case 'estrela'` (o não-dominante tem **teto em planeta**), e daí saem porte, pele, luz e
+ * envelope. Quem calcula errado troca a identidade de um corpo, não um detalhe dele.
+ *
+ * ⚠️ **Existiam QUATRO cópias desta regra** — a cena e três oráculos —, e duas haviam derivado no
+ * empate: escolhiam o primeiro da iteração enquanto a cena desempatava pelo menor `id`. O
+ * `censo-superficies` chegou a afirmar por escrito *"recalculada como a cena faz"* enquanto não
+ * fazia, que é a definição de oráculo atestando código que não existe. Medido no fixture: **4
+ * sistemas empatam no topo e 1 divergia** (`varredura/fotosfera`, três arquivos de 10 chunks — o
+ * censo elegia `limpa.json`, a cena elegia `coberta.json`), e a divergência aparecia lá na frente
+ * como o censo contando 22 fotosferas contra as 21 do app.
+ *
+ * Por isso ela é EXPORTADA em vez de transcrita, pela mesma razão que o `censo-planetas.mjs`
+ * importa `planetParams`: derivação em JS não precisa de oráculo, precisa de uma fonte.
+ *
+ * ⚠️ **O desempate por menor `id` não é enfeite.** Sem ele, um sistema onde os maiores empatam em
+ * `chunks` teria dominante decidido pela ORDEM DE ITERAÇÃO do grafo — ou seja, uma estrela que
+ * troca de corpo quando o indexador muda de ordem, sem nada ter acontecido no disco. O `id` é
+ * estável entre sessões e entre máquinas, como a semente do planeta e pelo mesmo motivo.
+ *
+ * @param {Array<{id: string, chunks?: number}>} arquivos  os corpos de UM sistema
+ * @returns {object|null} o dominante, ou `null` se o sistema não tem corpo nenhum
+ */
+export function dominanteDe(arquivos = []) {
+  if (!arquivos.length) return null;
+  return arquivos.reduce((x, y) => {
+    const mx = x.chunks || 0;
+    const my = y.chunks || 0;
+    if (my > mx) return y;
+    if (my < mx) return x;
+    return x.id < y.id ? x : y;
   });
 }
 

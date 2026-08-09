@@ -27,7 +27,7 @@
  * grandeza que a classificação lê). Foi assim que a §"varra o COMPORTAMENTO, não a string" do
  * handoff descreveu o mesmo erro na galáxia.
  */
-import { entityPhysics, classificar, fenomenos } from '../src/space/entity-physics.js';
+import { entityPhysics, classificar, fenomenos, dominanteDe } from '../src/space/entity-physics.js';
 
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
 
@@ -50,16 +50,21 @@ const assinatura = (node, extra) => {
   return `${c.familia}|${c.tipo}|${c.porte || ''}|${fen}|${fisica.scale}|${fisica.chunks}`;
 };
 
-// A dominância é contexto, e ela vem da contenção — não do grafo. Recalculá-la aqui mantém o
-// teste fiel ao que o céu faz, em vez de testar uma física sem sistema.
+/*
+ * A dominância é contexto, e ela vem da contenção — não do grafo.
+ *
+ * ⚠️ Era transcrita aqui com um `>` estrito, que diverge da cena no EMPATE (ela desempata pelo
+ * menor `id`). Um teste de fidelidade que recalcula a regra por conta própria testa a sua cópia,
+ * não o céu — e no fixture isso já trocava o dominante de um sistema. `dominanteDe` é importada.
+ */
 const porSistema = new Map();
 for (const n of graph.nodes) {
   if (n.type !== 'file') continue;
   const dir = n.dir || '';
-  const atual = porSistema.get(dir);
-  if (!atual || (n.chunks || 0) > (atual.chunks || 0)) porSistema.set(dir, n);
+  if (!porSistema.has(dir)) porSistema.set(dir, []);
+  porSistema.get(dir).push(n);
 }
-for (const n of porSistema.values()) n.__dominante = true;
+for (const v of porSistema.values()) dominanteDe(v).__dominante = true;
 
 const corpos = graph.nodes.filter((n) => n.type === 'file');
 const violacoes = [];

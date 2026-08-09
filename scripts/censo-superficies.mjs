@@ -19,7 +19,7 @@
  * ⚠️ Ele mede o ÍNDICE, nunca o disco — e o corpus `espatial_vivo` inclui código de propósito, o
  * que o real não faz. É CAPACIDADE, não comportamento do céu real.
  */
-import { entityPhysics, classificar, fenomenos } from '../src/space/entity-physics.js';
+import { entityPhysics, classificar, fenomenos, dominanteDe } from '../src/space/entity-physics.js';
 import { SUPERFICIE, superficieDe, AUSENTES_NA_TABELA } from '../src/space/superficies.js';
 
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
@@ -30,15 +30,23 @@ if (!graph) {
   process.exit(1);
 }
 
-// A dominância é contexto e vem da CONTENÇÃO, não do grafo — recalculada como a cena faz.
+/*
+ * A dominância é contexto e vem da CONTENÇÃO, não do grafo.
+ *
+ * ⚠️ Aqui ela era TRANSCRITA, com um `>` estrito — e o comentário afirmava *"recalculada como a
+ * cena faz"* enquanto não fazia: no empate a cena desempata pelo menor `id` e esta cópia ficava
+ * com o primeiro da iteração. Medido: 4 sistemas empatam no topo do fixture e 1 divergia
+ * (`varredura/fotosfera`), e a divergência saía aqui como 22 fotosferas contra as 21 do app.
+ * Agora a regra é IMPORTADA — não há oráculo a manter em dia quando a derivação é JS.
+ */
 const porSistema = new Map();
 for (const n of graph.nodes) {
   if (n.type !== 'file') continue;
   const dir = n.dir || n.repo || '';
-  const atual = porSistema.get(dir);
-  if (!atual || (n.chunks || 0) > (atual.chunks || 0)) porSistema.set(dir, n);
+  if (!porSistema.has(dir)) porSistema.set(dir, []);
+  porSistema.get(dir).push(n);
 }
-const dominantes = new Set([...porSistema.values()].map((n) => n.id));
+const dominantes = new Set([...porSistema.values()].map((v) => dominanteDe(v).id));
 
 const corpos = graph.nodes.filter((n) => n.type === 'file');
 const porSuperficie = new Map();

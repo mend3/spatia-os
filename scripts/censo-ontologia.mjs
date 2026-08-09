@@ -19,7 +19,7 @@
  */
 import fs from 'node:fs';
 import {
-  entityPhysics, classificar, fenomenos, degrau, ESCADA, AUSENTES, FAMILIA,
+  entityPhysics, classificar, fenomenos, degrau, ESCADA, AUSENTES, FAMILIA, dominanteDe,
 } from '../src/space/entity-physics.js';
 
 const BASE = 'http://127.0.0.1:8787';
@@ -59,12 +59,9 @@ let semDominante = 0;
 for (const agg of aggs) {
   const meus = (filhos.get(agg.id) || []).filter((c) => c?.type === 'file');
   if (!meus.length) { semDominante++; continue; }
-  const dono = meus.reduce((a, b) => {
-    const ma = a.chunks || 0, mb = b.chunks || 0;
-    if (mb > ma) return b;
-    if (mb < ma) return a;
-    return a.id < b.id ? a : b;
-  });
+  // Esta cópia CASAVA com a cena — e era cópia do mesmo jeito. Quatro transcrições da mesma regra,
+  // livres para divergir na primeira edição; duas já haviam divergido. `dominanteDe` é a fonte.
+  const dono = dominanteDe(meus);
   for (const f of meus) contexto.set(f.id, { dominante: f.id === dono.id, sistema: agg.id });
 }
 

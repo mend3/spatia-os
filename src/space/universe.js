@@ -23,7 +23,7 @@
  * logo nenhum planeta pode ser maior que a sua estrela.
  */
 import * as THREE from 'three';
-import { entityPhysics, classificar, fenomenos, raioPorMassa } from './entity-physics.js';
+import { entityPhysics, classificar, fenomenos, raioPorMassa, dominanteDe } from './entity-physics.js';
 import { superficieDe, NOME_DA_SUPERFICIE } from './superficies.js';
 import { KIND_COLORS, createPointMaterial, starSeed, POINT_SCALE } from './graph.js';
 import { createLinks } from './links.js';
@@ -1258,10 +1258,7 @@ export function createUniverse() {
       for (const agg of aggs) {
         const meus = (filhos.get(agg.id) || []).filter((c) => c?.type === 'file');
         if (!meus.length) continue;
-        const dono = meus.reduce((x, y) => {
-          const mx = x.chunks || 0, my = y.chunks || 0;
-          return my > mx ? y : my < mx ? x : (x.id < y.id ? x : y);
-        });
+        const dono = dominanteDe(meus);
         sistemas.push({ agg, estrela: dono, planetas: meus.filter((f) => f.id !== dono.id) });
         tipos.set(agg.id, agg.type === 'repo' ? 'GALÁXIA' : 'SISTEMA');
         for (const f of meus) {
