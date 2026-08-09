@@ -247,9 +247,17 @@ if (!corpos.length) {
  * cópia com `>` estrito diverge da cena no empate (ela desempata pelo menor `id`), e um teste de
  * fidelidade que recalcula a regra por conta própria testa a sua cópia, não o céu.
  */
+const EMITIDOS = new Set(graph.nodes.filter((x) => x.type === 'dir').map((x) => x.dir));
 const porSistema = new Map();
 for (const n of corpos) {
-  const dir = n.dir || n.repo || '';
+  /*
+   * ⚠️ O sistema sai dos nós `dir` EMITIDOS, não de `n.dir`: o servidor só promove a sistema a
+   * pasta com mais de um arquivo (`graph._hierarchy`), e agrupar por `dir` distinto daria ao
+   * arquivo solitário um sistema próprio — ele viraria dominante, e portanto ESTRELA, por causa do
+   * layout. A dominância aqui tem de ser a MESMA que a cena calcula, senão o oráculo perturba um
+   * céu que não é o servido.
+   */
+  const dir = EMITIDOS.has(n.dir || '') ? n.dir : `repo:${n.repo}`;
   if (!porSistema.has(dir)) porSistema.set(dir, []);
   porSistema.get(dir).push(n);
 }

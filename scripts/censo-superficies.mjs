@@ -39,12 +39,39 @@ if (!graph) {
  * (`varredura/fotosfera`), e a divergência saía aqui como 22 fotosferas contra as 21 do app.
  * Agora a regra é IMPORTADA — não há oráculo a manter em dia quando a derivação é JS.
  */
+const EMITIDOS = dirsEmitidos(graph);
+/**
+ * O SISTEMA de um corpo — e ele sai do que o SERVIDOR EMITIU, não de `n.dir`.
+ *
+ * ☠️ Agrupar por `dir` DISTINTO conta sistema que a cena não monta. O servidor só emite nó `dir`
+ * para pasta com **mais de um** arquivo (`graph._hierarchy`, `keep_dirs`), pelo motivo escrito lá:
+ * *"diretório sem irmãos vira aresta direta para o repo — filamento de um nó só polui o céu sem
+ * informar nada"*. Um arquivo sozinho numa pasta pertence ao REPO.
+ *
+ * ⚠️ **A diferença não é de contagem, é de PAPEL.** Medido no fixture de 2026-08-09: agrupando por
+ * `dir` distinto o `atlas/.claude/agents/revisor.md` fica sozinho no próprio sistema, vira
+ * dominante e portanto ESTRELA; agrupado como a cena agrupa, ele disputa no repo e resolve
+ * PLANETA. São 22 sistemas contra 21, e **21 fotosferas contra 20** — layout de diretório
+ * decidindo o que um corpo É, que é o defeito que esta base já pagou duas vezes.
+ *
+ * A regra é IMPORTADA do fato, não transcrita: quem decide é a lista de nós `dir` da resposta.
+ */
+function sistemaDeCorpo(node, dirsEmitidos) {
+  const dir = node.dir || '';
+  return dirsEmitidos.has(dir) ? dir : `repo:${node.repo}`;
+}
+
+/** Os `dir` que o servidor promoveu a sistema. Ver `sistemaDeCorpo`. */
+function dirsEmitidos(graph) {
+  return new Set(graph.nodes.filter((n) => n.type === 'dir').map((n) => n.dir));
+}
+
 const porSistema = new Map();
 for (const n of graph.nodes) {
   if (n.type !== 'file') continue;
-  const dir = n.dir || n.repo || '';
-  if (!porSistema.has(dir)) porSistema.set(dir, []);
-  porSistema.get(dir).push(n);
+  const sis = sistemaDeCorpo(n, EMITIDOS);
+  if (!porSistema.has(sis)) porSistema.set(sis, []);
+  porSistema.get(sis).push(n);
 }
 const dominantes = new Set([...porSistema.values()].map((v) => dominanteDe(v).id));
 

@@ -120,7 +120,8 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
 | **T-16** | Modo Assistir | `blocked` | T-09 | — | KR1.3 |
 | **T-17** | `keyup` + `blur` no teclado — `keys.isHeld` e a lei da tecla que não fica presa | `done` | — | T-15 | — |
-| **T-18** | Um diretório sem agregado é um sistema? (handoff 0b) | `todo` | — | — | — |
+| **T-18** | Um diretório sem agregado é um sistema? (handoff 0b) | `done` | — | — | — |
+| **T-36** | `conectividade.mjs` agrupa por `dir` distinto — o ALCANCE herda o mesmo viés do 0b | `todo` | — | — | KR3.1 |
 | **T-19** | Quebrar a dependência de `M_total` nas luas (handoff 0c) | `postponed` | — | — | — |
 | **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
 | **T-21** | Marketplace × a postura de segurança escrita | `blocked` | decisão do usuário | — | — |
@@ -138,6 +139,12 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-35** | **FAVORITOS** — o operador marca corpos para acompanhar, e escolhe a aparência nomeada | `todo` | — | T-34 | KR2.1 |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-36** — o ALCANCE é *"a fração dos vínculos laterais cujo destino está FORA do sistema"*, e
+  `conectividade.mjs:65` define sistema por `dir` distinto. O snapshot já confessa que **filho único
+  de pasta tem alcance 1,0 por construção**, e ρ **−0,808** com o tamanho do sistema no fixture — os
+  dois são o mesmo viés do 0b, visto pela métrica. ⚠️ Consertar exige **rematerializar e remedir os
+  três ρ**, então não entrou junto.
 
 - **T-13** — ☠️ **Splash como CAMADA PRÓPRIA está refutada por uso**: ela virou uma SEGUNDA parede
   entre o diagnóstico e o céu, e chegou a desenhar a marca **por cima do céu vivo**. E o que ela
