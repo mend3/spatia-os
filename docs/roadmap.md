@@ -98,7 +98,7 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
 | **T-12** | Força do vínculo no arco | `blocked` | substrato | — | — |
 | **T-30** | `forca` sai da UNIDADE do tipo, não dos extremos da amostra | `done` | — | T-12 | KR3.1 |
-| **T-13** | Splash | `todo` | — | — | KR2.1 |
+| **T-13** | **Reescrever a TELA DE ENTRADA** — o `#boot` vira a abertura, com o diagnóstico dentro | `todo` | — | — | KR2.1 |
 | **T-14** | Launcher / menu iniciar | `todo` | — | — | KR2.1 |
 | **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
 | **T-16** | Modo Assistir | `blocked` | T-09 | — | KR1.3 |
@@ -113,10 +113,42 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-25** | Licença de `assets/textures/sun.jpg` | `done` | — | — | — |
 | **T-26** | Granulação do anel — escolher entre `GRAIN`/`SWARM`/`BOULDER`/`SLAB` | `todo` | — | — | — |
 | **T-27** | i18n | `postponed` | — | — | — |
-| **T-28** | Zonas por razão de massa — declaradas, sem leitor | `todo` | — | — | KR3.3 |
-| **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `todo` | — | — | KR3.3 |
+| **T-28** | Zonas por razão de massa — declaradas, sem leitor | `archived` | — | — | KR3.3 |
+| **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `done` | — | — | KR3.3 |
+| **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
+| **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `todo` | — | T-16 | KR1.2 |
+| **T-34** | Malha `glb` para asteroide e estação (engine vem de outro projeto) | `todo` | — | — | — |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-13** — ☠️ **Splash como CAMADA PRÓPRIA está refutada por uso**: ela virou uma SEGUNDA parede
+  entre o diagnóstico e o céu, e chegou a desenhar a marca **por cima do céu vivo**. E o que ela
+  mostrava o `#boot` já mostra — `TOPOLOGIA` e a coleção no `NÚCLEO COGNITIVO`. O pedido é
+  **reescrever a tela de entrada**, não somar uma. `src/hud/splash.js` fica como material da
+  reescrita; hoje não é montado.
+
+- **T-32** — o arquivo já está no disco e **não tem consumidor**; o motor de áudio é síntese pura,
+  então música de fundo é canal NOVO. ☠️ **A licença não se resolve por inspeção:** os metadados
+  foram removidos (só `TYER 2025` e o encoder sobraram) e a origem não declara direito nenhum.
+  Uso local não é distribuição — o bloqueio é a publicação, e vale para o repositório, não só para o
+  build. As saídas e as fontes licenciadas estão em [`../assets/CREDITS.md`](../assets/CREDITS.md).
+- **T-33** — o servidor já emite `notice` com `severity` e `action`, e `api.watchSystem()` já despeja
+  no barramento. **Não existe `bus.on('notice')` em `src/`**: nenhum pixel muda. O que desenhar já
+  está decidido no `EVENTS.md` — `severity` escolhe a cor, `action` é o texto acionável, `at` dá a
+  idade, e `info` no mesmo `topic` apaga o de pé.
+- **T-34** — os links por modelo estão em [`../assets/CREDITS.md`](../assets/CREDITS.md).
+  ⚠️ Malha resolve FORMA, não CLASSE: usar um asteroide para todos repete o erro que a textura de
+  planeta cometeria. Sortear por semente do caminho, como o terreno do planeta já faz. E o custo de
+  malha única por corpo **não está medido** — o "geometria é barato" desta base foi medido para
+  esferas instanciadas.
+
+- **T-13** — a camada `splash` está no working tree e **25 leis saem 0 sem navegador** (a pilha
+  `mundo > splash > boot`, a entrega sem ninguém nomear o de baixo, `null` de topologia que não
+  vira `0 corpos`, carimbo de corpus ausente recusado em vermelho). **O que falta é FOTO**, e são
+  três coisas que só ela julga: a legibilidade sobre o disco de acreção (a splash não tem fundo —
+  a régua é a sombra de 1px da HUD), a marca não SALTAR entre `#boot` e `#splash`, e o gesto que
+  a dissolve chegar mesmo ao canvas. ⚠️ Ao fechar: anunciar no `README.md` e **só então** apagar
+  `docs/briefings/splash-screen.md`.
 
 - **T-12** — a `forca` já é da UNIDADE do tipo (`ESCALAS` em `vizinhanca.mjs`): contagem por
   `v/(v+1)`, cosseno pela identidade. O que falta é **substrato**: o fixture tem UM tipo só
@@ -134,11 +166,6 @@ acontece nada?"*, que é o Princípio Final ao contrário.
   em `scripts/`** — invariante provada uma vez e sem portão é invariante declarada na sessão
   seguinte.
 
-- **T-29** — a bancada mostra que varrer a massa de 0 a 1 muda `core` de **0,100 para 0,160** e
-  as duas ampliações do miolo saem **idênticas**: o brilho e os feixes dominam o disco. Quem carrega
-  o eixo é o `period` (**0,90 s → 4,20 s**, 4,44 contra 0,95 pulsos numa janela de 4 s). ⚠️ Ou
-  `CORE_GAIN` age em faixa visível, ou ele é invariante sem leitor — o alvo da REGRA DO CATÁLOGO.
-
 - **T-19** — `a_corte` 23,9 (fixture) e 26,3 (real) contra o raio orbital máximo 62, **zero janelas
   fechadas**: expiração, não defeito, e só morde se `M_total` crescer ~13×. ☠️ **A saída óbvia é
   falsa** — `rocheLimit(mass)` já É `2,44·R`, e a constante mora em `physicalRadius`.
@@ -152,9 +179,17 @@ acontece nada?"*, que é o Princípio Final ao contrário.
   a tecla) e do `.headstat` foram dimensionadas para o português. **Alemão e francês estouram
   30–40% em largura** — i18n aqui é redesenhar largura, não trocar string. Só o passo que não se
   desfaz foi dado (`plural()` em `hud/dom.js`).
-- **T-28** — a fronteira já trabalha (`μ ≥ 5` separa lua de sistema duplo), mas a zona é **só
-  declarada** em `src/space/catalog.js`. ⚠️ Implementar é decidir **o que ela muda na imagem**: se
-  não muda nada, é invariante sem leitor — o defeito que a REGRA DO CATÁLOGO existe para impedir.
+- **T-28** — ☠️ **A zona graduada está REFUTADA por medida, e o símbolo tinha DOIS donos.** Na
+  tabela apagada `μ` era a razão entre a massa de DOIS CORPOS de um sistema; em `orbital-zones.js`
+  ele é o número de SEÇÕES de um arquivo — mesmo símbolo, mesmo 5, grandezas diferentes. Medido no
+  fixture de 09/08 pela definição da tabela (22 sistemas): *família colisional* (`μ ≪ 1`) é **vazia
+  por aritmética** (`μ` é a maior massa sobre a segunda e nunca desce de 1), *sistema duplo*
+  (`1 ≤ μ < 5`) leva **18 dos 22 (81,8%)** e *primária* leva 4, dos quais 2 são de um corpo só. A
+  cena desenha **uma estrela por sistema nos 22**, então a zona graduada não muda um pixel; quem
+  tem leitor é o fato BINÁRIO, `dominanteDe`. Implementá-la seria desenhar um segundo corpo em
+  81,8% dos sistemas — **pipeline novo, não limiar**, e com as 0 sobreposições em 17.578 pares no
+  caminho. ⭑ **Fica o portão, sai a zona:** `MU_MIN = 5` continua recusando 9 dos 72 corpos e
+  agora se justifica pelo caso degenerado (`N^(-1/3)` = 1,000 com uma seção).
 
 ### As três decisões que são do usuário
 

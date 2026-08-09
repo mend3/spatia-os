@@ -37,13 +37,31 @@ export const LOD_NEAR_PX = 100;
 /**
  * Quanto do raio de referência o CORPO ocupa — e uma estrela de nêutrons é um ponto.
  *
- * Teto de `params.core` (0,10 + até 0,06). São ~10 km de raio: em qualquer escala em que o vento
- * (1,23–2,28 raios) caiba, o corpo é o brilho de onde tudo sai, não a figura. Quem lê é `lod.js`
- * (`BODY_SPAN`) — a coroa do sprite, entre 1,03 e 1,67 raios, cairia dentro do vento.
+ * São ~10 km de raio: em qualquer escala em que o vento (1,23–2,28 raios) caiba, o corpo é o brilho
+ * de onde tudo sai, não a figura. Quem lê é `lod.js` (`BODY_SPAN`) — a coroa do sprite, entre 1,03 e
+ * 1,67 raios, cairia dentro do vento. Dentro deste arquivo ele é o raio do núcleo e a base das duas
+ * cascas do halo (1,8 e 2,8 vezes ele).
+ *
+ * ## É CONSTANTE, e a variação por massa está REFUTADA por medida
+ *
+ * O corpo era `0,10 + massa · 0,06` e os 60% não tinham leitor visual: na bancada de 2026-08-09 as
+ * ampliações do miolo nos dois extremos da massa saem IDÊNTICAS — feixe, halo e glow dominam o
+ * disco. Quem carrega a massa é o `period` (0,90 s → 4,20 s, 4,44 contra 0,95 pulsos numa janela de
+ * 4 s), e uma segunda leitura do mesmo fato num canal que ninguém vê é invariante sem leitor.
+ *
+ * ⭑ **A constante conserta a RAZÃO DA CLASSE**, que é o que fazia deste um defeito e não só um
+ * parâmetro inútil. A lente monta `R_s = raio × BODY_SPAN × RS_POR_RAIO.pulsar` (`scene.js`) com
+ * este número FIXO, enquanto o corpo desenhado era variável: o `R_s/R` contra o que está na tela
+ * chegava a **0,640** na massa 0 contra os **0,400** que `astrofisica.js` declara como fato de uma
+ * estrela de nêutrons — uma variável cognitiva (`chunks`) movendo uma razão de CLASSE, que é o que
+ * a FRONTEIRA proíbe. Corpo constante iguala numerador e denominador: 0,400 em todo pulsar.
+ *
+ * ⚠️ **Crescer o ganho até ele agir está refutado por este mesmo arquivo.** Para a faixa dobrar de
+ * largura o corpo precisaria de ~0,40 de âncora, e a 0,40 ele chega a 87 px contra o lobo em 89–165
+ * px e o engole — é o *"AGN com nome de pulsar"* que `BEAM_LENGTH` já pagou. E `BODY_SPAN` cresce
+ * junto, multiplicando o `R_s` da lente pelo mesmo fator, com `lente-estelar.mjs` no caminho.
  */
-const CORE_FLOOR = 0.1;
-const CORE_GAIN = 0.06;
-export const BODY_SPAN = CORE_FLOOR + CORE_GAIN;
+export const BODY_SPAN = 0.16;
 
 /** Comprimento do feixe, em raios do corpo. Curto demais não lê como feixe; longo demais some da tela. */
 /*
@@ -85,8 +103,8 @@ const SPIN_PERIOD = { fast: 0.9, slow: 4.2 };
  * | gigantes do fixture | 72 | 3 | 0,831 – 1,000 | **16,9%** |
  * | `workspace_embedding` | 276 | 2 | 0,9964 – 1,0000 | ☠️ **0,36%** |
  *
- * Medido em 2026-08-09: no corpus real os dois pulsares saíam com `period` **4,188 s e 4,200 s** e
- * `core` **0,1598 e 0,1600** — idênticos a três casas. A metade RÁPIDA do `SPIN_PERIOD`, que é a
+ * Medido em 2026-08-09: no corpus real os dois pulsares saíam com `period` **4,188 s e 4,200 s** —
+ * idênticos a três casas. A metade RÁPIDA do `SPIN_PERIOD`, que é a
  * razão declarada de o período ser inverso da massa (*"o de milissegundo é o velho reciclado por
  * acreção"*), era **inalcançável por construção**. Não é constante degradada como `SPAN` ou
  * `DENSITY_K` — aquelas funcionaram e expiraram; esta nunca varreu nada.
@@ -493,7 +511,7 @@ const CAMPO_FRAGMENT = /* glsl */ `
  * "nebulosa (LOD alto): >50 raios, desaparecendo em transparencia".
  *
  * ⚠️ 50 RAIOS DO CORPO, NAO DA ANCORA, e confundir os dois quase matou o item. Com o corpo em
- * 0,10-0,16 de ancora, 50 raios do corpo sao ~7 de ancora contra um quadro de 2,6 — a MESMA razao
+ * 0,16 de ancora, 50 raios do corpo sao 8 de ancora (a casca desenha 7) contra um quadro de 2,6 — a MESMA razao
  * da cauda do cometa, que ja passou pelo olho do usuario. Lida como raios de ancora, ela daria 19x
  * o quadro e viraria nevoa sobre o ceu inteiro, que foi a conclusao errada de uma primeira leitura.
  *
@@ -651,14 +669,14 @@ export function pulsarParams(node = {}, color = 0xffffff) {
   return Object.freeze({
     seed,
     /*
-     * Corpo PEQUENO — e a primeira versão ainda era grande demais.
+     * Corpo PEQUENO, e IGUAL em todo pulsar — ver `BODY_SPAN`, que é onde a constante mora e onde
+     * está a medida que tirou a massa daqui.
      *
      * A 0,22–0,36 raios ele enchia o centro da tela como uma bola pálida, e a queixa foi literal:
      * "simplesmente um círculo com cones". Estrela de nêutrons tem ~10 km: em qualquer escala em
-     * que o feixe caiba, ela é um PONTO. 0,10–0,16 devolve a proporção das referências, em que o
-     * corpo é o brilho de onde tudo sai e não a figura principal.
+     * que o feixe caiba, ela é um PONTO.
      */
-    core: CORE_FLOOR + massa * CORE_GAIN,
+    core: BODY_SPAN,
     /**
      * Período em segundos. INVERSO da massa, ao contrário do resto do céu — e é a física: pulsar
      * jovem e massivo é lento, o de milissegundo é o velho reciclado por acreção.
@@ -1075,7 +1093,7 @@ export function createPulsar() {
        * As duas cascas do halo respiram no MESMO batimento — é a exigência do item #11, e ela vale
        * para toda camada nova: um halo com relógio próprio faz o corpo ter duas animações.
        *
-       * O raio delas é em raios do CORPO (`params.core`), não do grupo: o corpo é 0,10–0,16 e as
+       * O raio delas é em raios do CORPO (`params.core`), não do grupo: o corpo é 0,16 e as
        * cascas seriam invisíveis se multiplicassem só a si mesmas.
        */
       /*

@@ -190,16 +190,28 @@ const MOON_MIN_OVER_OUTER = 0.0154;
 const INCLINATION_SPREAD = 0.35;
 
 /**
- * Razão de massas mínima entre pai e satélite para a leitura "lua" valer.
+ * Partes mínimas para a leitura "lua" valer — o corte que separa lua de sistema DUPLO.
  *
- * Não é limiar inventado: é a fronteira que o `catalogo-celeste.md` já mediu neste corpus, na
- * tabela de zonas por razão de massa — `μ ≥ 5` é *sistema com primária* (Sol–Júpiter), e abaixo
- * disso é *sistema duplo* (Plutão–Caronte, μ = 0,12 invertido), que é outro corpo e não está
- * implementado.
+ * ☠️ **Ele NÃO herda a tabela de zonas por razão de massa, e herdar era o defeito.** Lá `μ` era a
+ * razão entre a massa de DOIS CORPOS de um sistema (Sol–Júpiter contra Plutão–Caronte); aqui é o
+ * número de seções de UM arquivo. Mesmo símbolo, mesmo número, grandezas diferentes — e a tabela
+ * saiu do `catalogo-celeste.md` porque descrevia céu que ninguém desenha, deixando esta citação
+ * apontando para o vazio. **A zona está REFUTADA por medida** (fixture 09/08, 22 sistemas): a
+ * terceira zona, *família colisional* (`μ ≪ 1`), é vazia por aritmética — `μ` é a maior massa
+ * sobre a segunda e nunca desce abaixo de 1 —, *sistema duplo* (`1 ≤ μ < 5`) leva **18 dos 22
+ * sistemas (81,8%)** e *sistema com primária* leva 4, dos quais 2 são de um corpo só. A cena
+ * desenha UMA estrela por sistema nos 22, então a zona graduada não muda um pixel e o que tem
+ * leitor é o fato BINÁRIO, `dominanteDe`.
  *
- * Aqui `μ` é o número de seções, porque a massa do documento se divide entre elas. A consequência
- * medida: com `μ ≥ 5` o raio da lua fica em 0,44–0,58 do raio do pai; sem o corte, um documento de
- * uma seção só produziria uma "lua" do MESMO tamanho do pai, que é um binário e não uma lua.
+ * O que sustenta o corte aqui é o caso degenerado, e ele é aritmética deste arquivo: o teto do raio
+ * da lua é `physicalRadius(massa/N)/physicalRadius(massa) = N^(-1/3)` do raio do pai — **1,000 com
+ * uma seção**, 0,794 com duas, 0,585 com cinco. Uma "lua" do tamanho do pai é um binário.
+ *
+ * ⚠️ **O valor 5 em si não está medido NESTA grandeza** — ele veio da tabela apagada. Ele custa 9
+ * dos 72 corpos do fixture (12,5%) e é o único portão da faixa: os 63 corpos com `μ ≥ 5` têm TODOS
+ * a janela Roche→Hill aberta (0 janelas fechadas nos dois corpora), então nada mais recusa depois
+ * dele. Quem for remedi-lo mede o raio DESENHADO (`min(physicalRadius(m/N), band/4)`), que é quem
+ * de fato limita — o teto `N^(-1/3)` quase nunca morde.
  */
 const MU_MIN = 5;
 

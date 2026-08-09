@@ -116,6 +116,7 @@ export const PULSAR_SPEC = {
     '⚠️ a ordem das três é a afirmação do objeto: VENTO > JATO > LOBO',
     '⚠️ o vento é um TORO, não um ouriço: orbite e procure a CINTURA equatorial',
     'OBLIQUIDADE não pode ser 0 nem 90° — nos dois o beaming deixa de existir',
+    '⚠️ MASSA move o `período` e SÓ ele: o `núcleo` é constante, e o readout diz isso — slider que anda com um número parado é a falha calada de sempre',
   ],
   build(ctx) {
     const grupo = new THREE.Group();
@@ -154,7 +155,7 @@ export const PULSAR_SPEC = {
           alinhamento: ultimo.alinhamento.toFixed(3),
           período: `${params.period.toFixed(2)} s`,
           obliquidade: `${((params.obliquity * 180) / Math.PI).toFixed(0)}°`,
-          'núcleo (raios)': params.core.toFixed(3),
+          'núcleo (raios)': `${params.core.toFixed(3)}  (constante — ver BODY_SPAN)`,
           feixe: params.beam.toFixed(2),
           filamento: values.filamento === 0 ? 'desligado' : `${values.filamento.toFixed(2)} · decai ${values.decaimento.toFixed(2)}`,
           nebulosa: values.nebulosa === 0 ? 'desligada' : `${values.nebulosa.toFixed(2)} · 7,0 R âncora`,

@@ -6,7 +6,7 @@
  *
  * Uso: node lei-tela.mjs        (sai 0 quando as leis valem)
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 /*
  * ☠️ A raiz sai do PRÓPRIO arquivo, nunca de um caminho absoluto de máquina. Com o caminho fixo o
@@ -177,14 +177,35 @@ conferir('§7 tela repete o decodificador do kernel em todo endereço',
   telaBate === CORPUS.length, `${telaBate}/${CORPUS.length}`);
 console.log(`\n[medida] session.route diverge do router.parse em ${divergem}/${CORPUS.length} endereços`);
 
-// ------------------------------------------- §8 quem ESCREVE estado de tela
-const escritores = [];
-for (const arquivo of ['src/main.js', 'src/hud/boot.js', 'src/core/session.js', 'src/kernel/router.js']) {
-  const texto = src(arquivo);
-  if (/from '.*core\/tela\.js'/.test(texto)) escritores.push(arquivo);
+/** Todo `.js` sob um diretório, relativo à RAIZ — o que separa varredura de lista branca. */
+function varrer(dir) {
+  const saida = [];
+  for (const entrada of readdirSync(`${RAIZ}/${dir}`, { withFileTypes: true })) {
+    const caminho = `${dir}/${entrada.name}`;
+    if (entrada.isDirectory()) saida.push(...varrer(caminho));
+    else if (entrada.name.endsWith('.js')) saida.push(caminho);
+  }
+  return saida;
 }
-conferir('§8 só main.js e hud/boot.js escrevem na tela',
-  escritores.join(',') === 'src/main.js,src/hud/boot.js', escritores.join(','));
+
+// ------------------------------------------- §8 quem ESCREVE estado de tela
+/*
+ * ☠️ **VARREDURA, nunca lista branca.** Isto conferia quatro arquivos NOMEADOS, e por isso não viu
+ * `hud/splash.js` nascer escrevendo na tela: um arquivo fora da lista escrevia à vontade e o
+ * oráculo saía 0. Guarda que só olha onde já se sabe não é guarda — é a forma exata do defeito que
+ * ela existe para pegar. Agora a varredura é de `src/` INTEIRO, e quem importar a `tela` sem estar
+ * declarado aqui derruba a lei.
+ *
+ * ⚠️ Acrescentar um nome a `PERMITIDOS` é uma DECISÃO: cada escritor novo é mais um lugar de onde o
+ * estado de tela pode sair, que é exatamente o que a `tela.js` existe para não haver.
+ */
+const PERMITIDOS = ['src/hud/boot.js', 'src/hud/splash.js', 'src/main.js'];
+const escritores = varrer('src')
+  .filter((arquivo) => /from '[^']*core\/tela\.js'/.test(src(arquivo)))
+  .sort();
+conferir('§8 só os escritores DECLARADOS importam a tela',
+  escritores.join(',') === PERMITIDOS.join(','),
+  `declarados [${PERMITIDOS.join(', ')}] · encontrados [${escritores.join(', ')}]`);
 conferir('§8 a sonda existe em window.spatia', /tela: \(\) => tela\.estado\(\)/.test(src('src/main.js')));
 
 // ---------------------------------------------------------------- veredito

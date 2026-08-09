@@ -237,6 +237,18 @@ async function main() {
     for (const name of events) window.addEventListener(name, unlock, true);
   }
 
+  /*
+   * ⚠️ **A splash NÃO é montada, e isso é decisão.** Como camada própria ela virava uma SEGUNDA
+   * tela entre o diagnóstico e o céu — o operador dispensava o boot e encontrava outra parede.
+   * O que ela mostrava (`CÉU` e `CORPUS`) o `#boot` já mostra: `TOPOLOGIA` e a coleção no
+   * `NÚCLEO COGNITIVO`. Duas telas afirmando o mesmo fato é o pedágio que o princípio 11
+   * (*"nada aparece, nada desaparece"*) recusa.
+   *
+   * O módulo fica porque o destino é REESCREVER A TELA DE ENTRADA com ele — o `#boot` deixa de
+   * ser lista de subsistemas e passa a ser a abertura, com o diagnóstico dentro. Ver T-13.
+   */
+  const splash = { anunciar: () => {} };
+
   const boot = createBoot(bootRoot, {
     /**
      * `ambient` é a resposta do gate do boot — som ligado ou entrada em silêncio.
@@ -428,6 +440,15 @@ async function main() {
     nodeCount = scene.loadGraph(graph);
     frame.applyGraph(nodeCount);
     streams.note(`TOPOLOGIA CARREGADA · ${nodeCount} CORPOS`, 'good');
+    /*
+     * A MESMA contagem da nota acima, e é esse o ponto: ela é escrita numa superfície que o boot
+     * está cobrindo, no único minuto em que ninguém pode lê-la. A splash não produz número novo —
+     * ela mostra o que já estava sendo afirmado, na hora em que dá para ler.
+     *
+     * `graph.corpus` vem do servidor, que é quem lê o `.env`. Adivinhar aqui seria repetir o
+     * defeito que os scripts pagaram: `?? 'vault/'` não falha, mede o corpus errado com convicção.
+     */
+    splash.anunciar({ ceu: nodeCount, corpus: graph.corpus ?? null });
     // Seção que não coube em órbita é informação perdida da tela: quem corta avisa.
     const luas = scene.moonReport?.();
     if (luas?.dropped) {
@@ -438,6 +459,9 @@ async function main() {
     }
   } catch (error) {
     streams.note(`TOPOLOGIA INDISPONÍVEL: ${error.message}`, 'bad');
+    // `null`, nunca 0: um céu que não carregou e um céu vazio dão a mesma imagem, e só um deles
+    // é um defeito. A camada de chegada não pode ser o lugar onde essa diferença se perde.
+    splash.anunciar({ ceu: null, corpus: null, motivo: error.message });
   }
 
   // Sem topologia não há estrela para receber anel — sondar o disco só gastaria `git status`.

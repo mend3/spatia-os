@@ -73,6 +73,12 @@ cd /Users/victor/workspace/espatial-os && ./serve.py    # 127.0.0.1:8787 · Qdra
 Abra, clique em **IGNORAR** na tela de boot (obrigatório depois de TODO reload, senão ela fica por
 cima e as sondas devolvem `null`).
 
+⚠️ **Depois do boot vem a camada `splash`, e ela NÃO bloqueia** (`pointer-events: none`, nenhum
+`preventDefault`): as sondas respondem com ela na tela. O que muda é
+`spatia.tela().camada === 'splash'` até o primeiro gesto — **e o primeiro gesto a dissolve**, então
+uma medida que comece com um clique já entra com `camada: 'mundo'`. Ler a camada antes e depois é
+o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
+
 | guarda | quando |
 |---|---|
 | `node scripts/check-shaders.mjs` | **antes de todo commit** — sai 0 |
@@ -340,6 +346,11 @@ dois na hora (máx/mín 23,96× é fase; ~1× seria aro). É a armadilha nº 5 d
 
 ---
 
+☠️ **`TOPOLOGIA` DO BOOT NÃO CONTA A MESMA COISA QUE O RESTO DA BASE.** Ele publica o retorno de
+`scene.loadGraph`, que soma corpos + LUAS (**460** num corpus de **72 corpos**), com o rótulo
+"corpos" — a mesma palavra que `stats.files`, `cena().corpos` e todo censo usam para ARQUIVO.
+Mesma palavra, duas grandezas, e a maior aparece na primeira tela que alguém lê.
+
 ☠️ **MEDIR SUB-ROTA EXIGE CARGA FRIA.** Trocar só o `location.hash` **não recarrega o documento**, e
 o router trata sub-rota **sem remontar** de propósito — o endereço existe para trazer o estado de
 volta, e remontar destruiria isso. Quem mudar o hash e ler estará medindo o mount ANTERIOR. Force
@@ -600,11 +611,15 @@ fotosfera de 91 px +0,02 ms · **cometa + fotosfera juntos 1,23 ms** · ☠️ *
 geometria 1,73 ms**, contra 2,5–3,2 ms sem ele — **ele quase dobra o quadro sozinho**. É este número
 que justifica o teto de 4 ser publicado; **quem subir o teto remede aqui.**
 
-⭑ **O eixo do pulsar, FOTOGRAFADO na bancada** (09/08): `massa 0` → período **0,90 s**, núcleo
-**0,100**; `massa 1` → período **4,20 s**, núcleo **0,160**. Numa janela de 4 s isso é **4,44 contra
-0,95 pulsos** (batimento varrido em nove instantes). ☠️ **E o `core` é visualmente INERTE** — as
-ampliações do miolo nos dois extremos saem idênticas, porque feixe e brilho dominam o disco. Quem
-carrega o eixo é o RITMO, e ritmo não aparece em quadro congelado.
+⭑ **O eixo do pulsar é o RITMO, e só ele** (09/08): `massa 0` → período **0,90 s**; `massa 1` →
+**4,20 s** — numa janela de 4 s, **4,44 contra 0,95 pulsos** (batimento varrido em nove instantes).
+Ritmo não aparece em quadro congelado. **O `core` é CONSTANTE (0,16)**, e o `CORE_GAIN` que o movia
+está refutado: as ampliações do miolo nos dois extremos saíam idênticas (feixe, halo e glow dominam
+o disco), e o corpo variável punha o `R_s/R` da lente em **0,640** contra os **0,400** que
+`astrofisica.js` declara — variável cognitiva movendo razão de CLASSE. Números da faixa, para não
+remedir: âncora **216,7 px** na chegada (`FOCUS_FIT_PX/SKIN_EXTENT`, fb 1484 · fov 80), corpo
+**21,7 → 34,7 px** de raio na varredura inteira, halos **39→62** e **61→97 px**; e **81,9% do
+fixture satura em massa 0**, com só 11 dos 72 no interior da faixa.
 
 **O PULSAR — o eixo do rig** (09/08, e o defeito era ANTI-ESCALA: percentil de cauda encolhe conforme
 a população cresce):
@@ -621,6 +636,15 @@ em **0 exato**: amplitude do eixo **0,0036 → 0,6090 (169×)**, amplitude do `p
 
 **As LUAS, nos dois corpora (09/08):** `a_corte` 23,9 (fixture) e 26,3 (real) contra o raio orbital
 máximo **62** · **0 janelas fechadas** nos dois · 63 e 163 corpos com lua · `slack` MED 1,871 e 1,582.
+⚠️ Como a janela nunca fecha, **`MU_MIN = 5` é o ÚNICO portão da faixa**: 63 dos 72 do fixture passam
+por ele e os 9 recusados (12,5%) não são recusados em mais lugar nenhum.
+
+**AS ZONAS POR RAZÃO DE MASSA, medidas pela definição da tabela** (fixture 09/08, `μ` = maior massa
+sobre a segunda, por sistema, 22 sistemas): *família colisional* (`μ ≪ 1`) **vazia por aritmética**
+(`μ ≥ 1` sempre) · *sistema duplo* (`1 ≤ μ < 5`) **18 (81,8%)** · *primária* (`μ ≥ 5`) 4, dos quais
+2 são de um corpo só. μ finito: mín 1,00 · MED 1,56 · máx 24,00, com 4 empates exatos em 1,00.
+⚠️ **A cena desenha uma estrela por sistema nos 22** — a zona graduada não muda um pixel, e o `μ`
+do `orbital-zones.js` (nº de seções) **não é o mesmo `μ`**.
 
 **Teto de driver:** `ALIASED_POINT_SIZE_RANGE = [1, 511]` nesta máquina. O teto é verdade sobre PIXEL e
 mentira sobre GEOMETRIA — derivar tamanho de mundo do valor com teto trava o corpo em 153,3 px para
@@ -642,21 +666,16 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 **Branch `cena-universo`** — sem push, não mesclada.
 ⚠️ **NÃO COMMITE SEM O USUÁRIO PEDIR.** Deixe no working tree e relate.
 
-**No working tree agora (09/08), nada commitado:**
+**No working tree agora, nada commitado — a camada SPLASH (T-13):**
 
 | arquivo | o quê |
 |---|---|
-| `server/graphdb.py` | `_recusa_de_corpus` + os cinco leitores de snapshot |
-| `server/graph.py` | `stats.influencia` passa a ser publicado |
-| `scripts/{centralidade,uso,conectividade,vizinhanca,conceitos}.mjs` | carimbam `corpus` no snapshot |
-| `scripts/vizinhanca.mjs` | `ESCALAS` — a `forca` sai da unidade do tipo (T-30); a saída mede quantos vínculos caem em zero |
-| `src/space/entity-physics.js` | `evidenciaDeUso` propaga o motivo da recusa |
-| `src/space/pulsar.js` | `GIGANTE` — a massa do rig vira razão ao limiar |
-| `src/sandbox/pulsar-rig.js` | o slider inverte pela MESMA lei |
-| `src/space/scene.js` | `CENAS` + `aplicarCena` extraídos de `setMode`; `escalaLocal()`/`porteLocal()` (T-08) |
-| `scripts/lei-cena.mjs` | o oráculo da lei da cena (T-05) |
-| `src/core/tela.js` | o dono único do estado de tela (T-06) |
-| `src/hud/boot.js` · `src/main.js` | a camada `boot` se declara; `tela.install` e a sonda `spatia.tela()` |
+| `src/hud/splash.js` | a camada de CHEGADA: qual céu e de qual corpus, sobre a cena viva |
+| `index.html` | `#splash` (z-index 9, **abaixo** do boot) + a regra da marca compartilhada com o `#boot` |
+| `src/main.js` | `createSplash` **antes** do `createBoot` — a ordem de montagem é a ordem da pilha |
+
+⚠️ Outras sessões trabalham em `server/`, `src/space/`, `src/sandbox/` e `scripts/` ao mesmo
+tempo; o que aparecer ali no `git status` não é desta linha.
 
 **Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
 
@@ -737,6 +756,15 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
    `session` sai `''` na raiz e `core` pela `tela`, e é o que `spatia.session()` mostra. Hoje o
    campo **não tem nenhum leitor** além dessa sonda (`grep` em `src/`): a decisão é apagá-lo da
    `session` ou dar-lhe um leitor, e ela é de quem opera, não de quem mede.
+
+0f. ☠️ **O §8 do `lei-tela.mjs` é uma LISTA BRANCA DE QUATRO ARQUIVOS, não uma varredura** — e
+   `src/hud/splash.js` agora escreve na tela sem que ele saiba. Ele confere
+   `['src/main.js','src/hud/boot.js','src/core/session.js','src/kernel/router.js']` e exige que só
+   os dois primeiros importem `core/tela.js`: **qualquer arquivo fora da lista escreve à vontade e
+   o oráculo sai 0.** É a forma exata de invariante que esta base já pagou cinco vezes — declarada,
+   e não implementada. **O conserto é trocar a lista por uma varredura de `src/` inteiro** com a
+   permissão nomeada (`main.js`, `hud/boot.js`, `hud/splash.js`), e ele mora em `scripts/`.
+
 1. **DECISÃO DO USUÁRIO — de onde vem a luz de um corpo em FOCO.** O "planeta transparente" da cena
    AGENTE está **medido, e não é defeito de código**: o corpo em foco está iluminado por trás, e o
    que se vê é um **CRESCENTE**. Medido em 08/08 (A/B no mesmo quadro, controle em **0 pixels**):
@@ -878,6 +906,8 @@ o critério dela. ⚠️ **Duas cópias divergiriam**, e a que alguém lesse pri
 | amarrar a chegada num sistema ao piso da pele | a tangência NUNCA existiu: o maior corpo chega entre **19,8 e 69,9 px** (mediana 48,5) e **0 de 21 sistemas** alcançam o piso de 90. Amarrar não afina `irPara` — transforma-a em `anexar`, e o resto do sistema sai do quadro |
 | `rocheLimit(raio)` para apagar o `DENSITY_K` (item 0c) | `rocheLimit(mass)` **já é** `2,44·R`; a constante mora em `physicalRadius`, e o outro raio da cena está na régua do SPRITE, que não é conversível |
 | normalizar a massa do pulsar DENTRO da faixa gigante (item 0d) | é a mesma família do defeito — faria o período de um corpo depender de quem mais está no céu, e com população 1 é degenerada |
+| a massa mover o `core` do pulsar (T-29) | os 60% da faixa não têm leitor visual (as duas ampliações do miolo saem idênticas) **e** o corpo variável punha o `R_s/R` da lente em 0,640 contra os 0,400 do fato de classe. Subir o ganho até ele agir é pior: a 0,40 de âncora o corpo engole o lobo (87 px contra 89–165) e o `R_s` da lente cresce junto |
+| as ZONAS por razão de massa como classificação graduada (T-28) | a terceira zona é vazia por aritmética, a do meio leva **81,8% dos sistemas**, e a cena desenha a mesma imagem nas três. Quem tem leitor é o fato BINÁRIO (`dominanteDe`); a zona exigiria um segundo corpo em 81,8% dos sistemas — pipeline, não limiar |
 
 ## 8. Onde procurar a história
 

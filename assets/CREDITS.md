@@ -34,18 +34,32 @@ declara licença nenhuma**. Intermediário não licencia o que não é dele — 
 
 ## ☠️ Pendências
 
-### `interstellar.mp3` — 10 MB, sem licença e SEM CONSUMIDOR
+### `interstellar.mp3` — destinado a virar a música de fundo (**T-32**)
 
-Chegou no mesmo minuto que o `sun.jpg` (2026-08-06 01:16), do mesmo repositório sem licença.
-**Nada em `src/`, `server/` ou nos dois HTML o carrega** — conferido por varredura.
+10,15 MB, sem consumidor hoje: nada em `src/`, `server/` ou nos dois HTML o carrega. O motor de
+áudio é síntese procedural, zero asset — então música de fundo é **canal novo**, não substituição.
 
-O motor de áudio deste projeto é **síntese procedural, zero asset**. Então o arquivo não é uma
-dependência: é peso morto com um nome que sugere trilha de filme, num repositório de origem que não
-declara direito nenhum. **Diferente do `sun.jpg`, aqui não há licença livre plausível a rastrear.**
+☠️ **A licença é a parte que falta, e ela não se resolve por inspeção.** Os metadados foram
+REMOVIDOS: sobraram `TYER 2025` e o encoder, sem título, artista ou álbum. O que resta é o nome do
+arquivo e a origem — `github.com/SoumyaEXE/3d-Solar-System-ThreeJS`, que **não declara licença
+nenhuma**. Diferente do `sun.jpg`, não há um autor a rastrear por hash: não dá para provar o que a
+faixa é, e é exatamente por isso que ela não pode ser publicada assim.
 
-⭑ **A saída barata é apagá-lo.** Nada quebra, e 10 MB saem do repositório. Fica como decisão porque
-apagar binário é irreversível na árvore de trabalho — no git ele permanece no histórico, e um
-`git filter-repo` seria necessário antes de publicar.
+⚠️ **Uso local ≠ publicação.** Rodar na máquina de quem desenvolve não é distribuir. O bloqueio é a
+publicação — e ele vale para o repositório, não só para o build.
+
+⭑ **As saídas, em ordem de custo:**
+1. **Trocar a faixa** por uma de licença explícita. Ambiente/espacial com uso comercial permitido
+   existe em [Free Music Archive](https://freemusicarchive.org/) (filtre por CC BY / CC0),
+   [Kevin MacLeod · incompetech](https://incompetech.com/music/royalty-free/) (CC BY 4.0) e
+   [Pixabay Music](https://pixabay.com/music/) (licença própria, uso comercial).
+2. **Gerar** a faixa — o motor já é síntese, e o princípio 7 (*"toda animação representa informação
+   real"*) fica satisfeito de graça se o ambiente responder ao estado do universo em vez de tocar
+   por cima dele.
+3. Comprar licença da faixa atual, se ela for identificada.
+
+⚠️ **O git guarda o histórico.** Se o arquivo sair, ele continua nos objetos — publicar limpo
+exigiria `git filter-repo`. Decidir cedo é mais barato que decidir depois.
 
 ### `sky/CREDITS.md` afirma o que não é mais verdade
 
@@ -105,14 +119,34 @@ insígnia da NASA são **restritos**; nem tudo no acervo é obra da NASA (há ma
 copyright próprio); e o uso não pode sugerir endosso. **Cada item se confere individualmente** — o
 guarda-chuva "NASA é domínio público" é falso no detalhe.
 
-⚠️ E o formato é outro problema: o acervo é de **MODELOS 3D** (`3ds`, `blend`, `glb`, `stl`, `obj`),
-não de mapas equiretangulares. Um `.glb` de asteroide não se aplica como textura — ele **substitui a
-geometria**, o que é uma mudança de modelo, não de pele.
+⚠️ O acervo é de **MODELOS 3D** (`3ds`, `blend`, `glb`, `stl`, `obj`), não de mapas
+equiretangulares. Um `.glb` não é pele: ele **substitui a geometria**.
+
+⭑ **Há engine de `glb` disponível** (de outro projeto), então malha deixou de ser um impedimento —
+e isso muda o acervo da NASA de "formato errado" para a fonte certa dos dois casos em que a cena
+precisa de FORMA, não de pele.
+
+| modelo | serviria a | link |
+|---|---|---|
+| **Bennu** (101955) — OSIRIS-REx, malha global | **asteroide** | [science.nasa.gov](https://science.nasa.gov/resource/bennu-3d-model/) · [SVS 5069](https://svs.gsfc.nasa.gov/5069) |
+| **Itokawa** (25143) — Hayabusa | **asteroide** | [science.nasa.gov](https://science.nasa.gov/resource/asteroid-itokawa-3d-model/) |
+| **Eros** (433) — NEAR Shoemaker | **asteroide** | [science.nasa.gov](https://science.nasa.gov/resource/eros-3d-model/) |
+| **OSIRIS-REx** (a sonda) | **estação** | [solarsystem.nasa.gov](https://solarsystem.nasa.gov/resources/2360/osiris-rex-3d-model/) |
+| acervo completo, espelhado | ambos | [github.com/nasa/NASA-3D-Resources](https://github.com/nasa/NASA-3D-Resources) |
+
+⚠️ **Malha resolve FORMA, não CLASSE.** Os três asteroides são corpos distintos com silhuetas
+distintas — usar um deles para todo asteroide do céu repete o erro que a textura de planeta cometeria
+(todo arquivo parecendo o mesmo objeto). Com 1 asteroide no fixture isso não aparece; com 50, sim.
+**Sortear a malha por semente do caminho**, como o planeta já faz com o terreno, é o que mantém a
+forma dizendo algo sobre o arquivo.
+
+⚠️ **Custo não medido.** Uma malha de asteroide da NASA tem dezenas de milhares de triângulos contra
+a esfera de hoje. O orçamento desta cena está no PÓS (~90%), então geometria é o bolso barato — mas
+"barato" foi medido para esferas instanciadas, não para malhas únicas por corpo. **Meça antes de
+adotar N delas.**
 
 | categoria | serviria a | ressalva |
 |---|---|---|
-| **Asteroides** (Bennu, Eros, Itokawa) | **asteroide** — forma irregular real | é MALHA, não textura. Trocaria a esfera lisa por geometria — decisão de modelo |
-| **Satélites / espaçonaves** | **estação** | idem, e é o caso mais forte do acervo: estação é objeto construído |
 | **Lunar** (terreno, sítios Apollo) | **lua** | terreno local, não mapa global — não casa com esfera |
 | **Pillars of Creation** | nebulosa | ⚠️ já coberto pelos fundos JWST |
 
