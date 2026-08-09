@@ -483,8 +483,8 @@ continua lá, e a tela não mente nem acusa — ela deixa de afirmar.**
     node scripts/leis.mjs
 
 Roda **todos** os guardas e sai 1 se qualquer um cair. **~3,6 s.** Está instalado como
-`pre-commit`; num clone novo, `sh scripts/instalar-hook.sh` (o `.git/hooks/` não é versionado, e
-sem isso o clone nasce sem guarda nenhum).
+`pre-commit`; num clone novo, **`make hooks`** — ele aponta o git para `.githooks/`, que é
+VERSIONADO. ☠️ `.git/hooks/` não é, e era assim que um clone nascia sem guarda nenhum.
 
 ⚠️ **Este parágrafo dizia o contrário — *"nenhuma delas roda sozinha; a pergunta diz quando
 usá-las"* — e essa era a razão de os defeitos passarem.** Com 4 oráculos respondendo perguntas

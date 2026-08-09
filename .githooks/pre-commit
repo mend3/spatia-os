@@ -1,0 +1,7 @@
+#!/bin/sh
+# O PORTÃO. Sai 1 e o commit não acontece.
+#
+# ⚠️ Este arquivo é VERSIONADO, e é essa a diferença que importa: `.git/hooks/` não é, então um
+# clone novo nascia sem guarda nenhum e o defeito voltava calado. Aqui basta `make hooks` uma vez
+# (`git config core.hooksPath .githooks`), e o guarda passa a viajar com o repositório.
+exec node "$(git rev-parse --show-toplevel)/scripts/leis.mjs"

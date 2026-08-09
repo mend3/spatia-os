@@ -64,8 +64,10 @@ O produto é **SpatIA** (`Espatial OS` está aposentado; o diretório em disco c
 propósito). A janela de depuração é **`window.spatia`**.
 
 ```bash
-cd /Users/victor/workspace/espatial-os && ./serve.py    # 127.0.0.1:8787 · Qdrant 6333 · Neo4j 7474
-node scripts/leis.mjs                                   # ☠️ SEMPRE, antes de commitar
+make            # o que dá para rodar — o tooling inteiro está no Makefile
+make hooks      # UMA vez por clone: o git passa a usar os hooks VERSIONADOS de .githooks/
+make serve      # 127.0.0.1:8787 · Qdrant 6333 · Neo4j 7474
+make leis       # ☠️ o portão. Já roda no pre-commit
 ```
 
 Abra, clique em **IGNORAR** na tela de boot (obrigatório depois de TODO reload, senão ela fica por
@@ -74,7 +76,7 @@ cima e as sondas devolvem `null`).
 **O portão é um só.** `node scripts/leis.mjs` roda todos os guardas em ~4 s e sai 1 se qualquer um
 cair. ⚠️ **Quantos são sai do próprio comando**, nunca deste parágrafo — guarda novo entra sozinho, e
 quem NÃO roda é MEDIDO (efeito colateral), não declarado à mão. Está no `pre-commit`; clone novo pede
-`sh scripts/instalar-hook.sh`.
+**`make hooks`** (aponta o git para `.githooks/`, que é versionado — `.git/hooks/` não é).
 
 ⚠️ **A tabela por-guarda não mora aqui.** Ela dizia *quando* rodar cada um, e escolher era exatamente
 como os defeitos passavam — quatro guardas foram flagrados sem guardar o que diziam na mesma sessão.
@@ -99,7 +101,8 @@ falso nesta base.
 
 ## 2. O estado agora
 
-**Branch `cena-universo`** — sem push, não mesclada. Working tree LIMPO.
+**Branch `cena-universo`** — empurrada, com o [PR #1](https://github.com/mend3/spatia-os/pull/1)
+aberto contra `main`, não mesclada.
 
 **Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
 
