@@ -101,7 +101,8 @@ ela é por dívida de MODELO, não por tamanho.
 3. **T-14, o launcher** — a medida que faltava está feita: ele leva vidro de **CSS**, e vidro 3D
    está recusado por aritmética sobre o orçamento do quadro. A tecla é `Ctrl+K` (decidida — `Space`
    já é da voz), e a camada `launcher` só precisa ser registrada em `core/tela.js`.
-4. **T-75** — a última MEDIDA que decide sem construir: o custo de um atlas de glifo por token.
+4. **T-80** — o inspector tem três estados e ganha AÇÕES. ⚠️ Quais ações existem depende de T-78,
+   que é decisão sua; os TRÊS ESTADOS não dependem.
 
 ⭑ **T-41 · T-42 · T-43 · T-45 · T-64 são um CLUSTER, não cinco tarefas soltas:** todas são
 *"declarado sem leitor"* ou *"dois donos para um estado"*. O corolário da REGRA DO CATÁLOGO

@@ -334,6 +334,41 @@ mede MAIS, e a bancada ainda não a dirige — mas o APP já foi dirigido até l
 
 ---
 
+## O UPLOAD DO ATLAS DE GLIFO — o buraco que o `hud-e-canvas.md` §5.1 declarava sem número
+
+WebGL2 com `EXT_disjoint_timer_query_webgl2`, 60 repetições por medida, aba visível e em foco.
+Atlas monoespaçado de 95 glifos, célula de 20 px (corpo 18 px = 9 px CSS a dpr 2).
+
+| operação | µs por chamada |
+|---|---|
+| base: só o desenho do quad que amostra | 32,5 |
+| `texImage2D` do atlas inteiro (512² e 1024²) | **175–257** |
+| **`texSubImage2D` de uma faixa 1024×20** | **7,6** |
+| repintura do canvas 2D inteiro (CPU, antes de subir) | 43,5 |
+
+⭑ **A saída barata EXISTE e é CONDICIONAL: o upload tem de ser por REGIÃO.** Contra o bolso barato
+do UNIVERSO (**230 µs** de geometria), 7,6 µs por token é 3,3% — cabe. Já **175–257 µs por token
+consome o bolso inteiro**, e a HUD reescreve a resposta a cada token (`hud/answer.js` redesenha a
+resposta INTEIRA). ☠️ **O port ingênuo é o caro:** portar `answer.js` como está, redesenhando tudo,
+é justamente o caso de 175–257 µs. O atlas só é viável INCREMENTAL.
+
+⚠️ **A banda 175–257 µs é banda, não ponto, e o motivo está medido:** `texImage2D` REALOCA o
+armazenamento, e alternar 512²/1024² entre medidas contamina cada uma com a realocação da anterior
+— por isso 512² sai mais caro que 1024² na tabela, que é impossível por pixel. O número que decide
+é o da SUB-REGIÃO, que não realoca e por isso sai limpo.
+
+☠️ **DOIS MÉTODOS FORAM REFUTADOS ANTES DESTE, e ficam escritos para ninguém repetir:**
+
+| método | por que não mede |
+|---|---|
+| `gl.finish()` em volta do upload | **não força o trabalho** na arquitetura de command buffer do Chrome. Deu 1024² inteiro em **0,5 µs** — 4 MB a 8 TB/s, e mais rápido que o 512². Número plausível e falso |
+| `readPixels` como sincronia dura | funciona, mas tem **piso de 298 µs** que engole o sinal: a diferença entre com e sem upload some no ruído, e a ordenação sai invertida |
+
+⭑ O único instrumento que responde é a **query de tempo de GPU**. Ela está disponível neste
+navegador, e é ela que produziu a tabela.
+
+---
+
 ## O CUSTO DO VIDRO — o número que decide o launcher (fixture, 1426×742, dpr 2, buffer 2852×1484)
 
 ### A folga do quadro é de CENA, e as duas não se parecem

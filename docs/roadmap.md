@@ -163,7 +163,7 @@ com ou sem produtor.
 | **T-72** | Orçamento de ALTURA por fenda — piso, pedido e a QUARTA causa de «o painel sumiu» | `done` | — | T-71 | KR2.1 |
 | **T-73** | `sec-effective` mora em `strip`, a fenda dos RESIDENTES — mover ou redeclarar | `todo` | decisão do usuário | — | KR2.1 |
 | **T-74** | O custo do VIDRO — medido: CSS não derruba quadro; vidro 3D recusado por aritmética | `done` | — | T-14 | — |
-| **T-75** | MEDIR o custo de um atlas de glifo por token — decide se a §5.1 tem saída barata | `todo` | — | T-53 | — |
+| **T-75** | O upload do atlas por token — medido: a saída barata existe e é CONDICIONAL | `done` | — | — | — |
 | **T-76** | Descoberta de MCP — o widget que LISTA servidores (instalar é T-78) | `todo` | — | — | — |
 | **T-77** | Catálogo de APIs públicas como CAPACIDADE, não como lista | `todo` | — | — | — |
 | **T-78** | **Capability Registry** — INSTALAR capacidade | `blocked` | decisão do usuário | — | — |
@@ -332,6 +332,22 @@ com ou sem produtor.
   ⚠️ **O "Action Ring" (ações por CONTEXTO, não itens fixos) é a parte do briefing que vale mais e
   não é do launcher:** ele precisa de um catálogo de ações por tipo de corpo, que é T-78. Sem ele o
   menu é uma lista de rotas com vidro.
+- **T-75 FECHADA — a saída barata do atlas EXISTE, e é CONDICIONAL.** Números em
+  [`medidas.md`](./medidas.md).
+  ⭑ **`texSubImage2D` de uma faixa custa 7,6 µs; o atlas inteiro custa 175–257 µs.** Contra o bolso
+  barato do UNIVERSO (230 µs de geometria), o primeiro é 3,3% e cabe; o segundo consome o bolso
+  INTEIRO, por token.
+  ☠️ **O port ingênuo é justamente o caro:** `hud/answer.js` redesenha a resposta INTEIRA a cada
+  token. Portá-lo como está é o caso de 175–257 µs. O atlas só é viável INCREMENTAL — e isso deixa
+  de ser preferência de estilo para ser condição de orçamento.
+  ☠️ **DOIS MÉTODOS DE MEDIÇÃO FORAM REFUTADOS, e ficam escritos:** `gl.finish()` **não força o
+  trabalho** no command buffer do Chrome (deu 4 MB em 0,5 µs, mais rápido que 1 MB — plausível e
+  falso), e `readPixels` como sincronia tem piso de 298 µs que engole o sinal. Quem responde é a
+  QUERY DE TEMPO DE GPU.
+  ⚠️ A banda 175–257 µs é banda porque `texImage2D` REALOCA: alternar tamanhos entre medidas
+  contamina cada uma com a realocação da anterior. O número que decide é o da sub-região, que não
+  realoca.
+
 - **T-74 FECHADA — o launcher leva vidro de CSS.** Medido em [`medidas.md`](./medidas.md).
   ⭑ **CSS não derruba quadro**: `blur(12px)` no tamanho do launcher dá **0 quadros perdidos em 597**
   — e o CONTROLE POSITIVO, um blur de tela cheia a 40 px, também dá **0**. Sem o controle,
@@ -1111,7 +1127,7 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |
 | `integracao-organica.md` | T-23, **T-79** | ⚠️ T-23 é UMA tabela dele; o corpo é a arquitetura evento→fenômeno, e a PONTE não existe (`grep notice src/space/` = 0) |
 | `features-widgets.md` | T-21, **T-76, T-77, T-78** | ⚠️ T-21 era só a §5 dele. ☠️ `capabilities.py` é HOMÔNIMO — permissão, não registry |
-| `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; e T-53 fechou com o DOCUMENTO ancorado no corpo (T-82, a âncora). Faltam T-72/T-73/T-75, que ele levanta e o roadmap não cobria |
+| `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; e T-53 fechou com o DOCUMENTO ancorado no corpo (T-82, a âncora). T-72 (a régua de altura), T-74 e T-75 (as duas medidas) também fecharam. Falta **T-73**, que é decisão sua |
 
 ---
 
