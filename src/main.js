@@ -9,6 +9,7 @@
 import { on, ui, emit } from './core/bus.js';
 import * as state from './core/state.js';
 import * as session from './core/session.js';
+import * as tela from './core/tela.js';
 import * as attention from './core/attention.js';
 import * as api from './core/api.js';
 import { createScene } from './space/scene.js';
@@ -124,6 +125,14 @@ async function main() {
     requestAnimationFrame(seguir);
   }
   const scene = createScene(canvas, { labelLayer: bodyLayer, signals: hudYield });
+  /*
+   * Antes do router e do boot, de propósito: `tela` é espelho de `ui.scene-mode` e `ui.route`, e
+   * a emissão que ela não pode perder é a primeira — a que o `router.start` produz.
+   *
+   * `scene.mode()` é o único fato daqui que não chega por evento: a cena só anuncia quando TROCA.
+   * Quem o conhece declara uma vez, em vez de o estado nascer com um palpite.
+   */
+  tela.install({ cena: scene.mode() });
   /*
    * `document`, não `hud`, para os módulos que ADOTAM nós.
    *
@@ -299,6 +308,13 @@ async function main() {
   window.spatia = Object.freeze({
     session: () => session.snapshot(),
     state: () => state.snapshot(),
+    /**
+     * O que está na tela AGORA, de um lugar só: camada na frente, pilha, cena e rota.
+     *
+     * ⚠️ É a sonda que separa "o botão não fez nada" de "fez, e a tela não seguiu": camada, cena
+     * e rota lidas em leituras diferentes podem discordar sem que nada acuse. Ver `core/tela.js`.
+     */
+    tela: () => tela.estado(),
     /** Custo da cadeia de pós-processamento, medido na hora. Ver `scene.sampleRenderCost`. */
     renderCost: (n) => scene.sampleRenderCost(n),
     /** Raio aparente, nível de detalhe e distância do planeta em foco — ou `null`. */

@@ -24,10 +24,22 @@
  */
 import { el, set } from './dom.js';
 import { button } from './button.js';
+import { registrar, mostrar, sair } from '../core/tela.js';
 
 const STEP_DELAY_MS = 90;
+const CAMADA = 'boot';
 
 export function createBoot(root, { onEngage }) {
+  /*
+   * Esta tela está NA FRENTE de tudo, e quem sabe disso é ela. Sem o anúncio, "o boot ainda está
+   * por cima" é um fato que só existe como classe de CSS num nó do DOM — e quem precisar dele
+   * (a splash, o launcher, uma sonda) teria de perguntar ao DOM de outra camada.
+   *
+   * `fail()` de propósito não sai: a tela continua em cena com o diagnóstico, e o estado tem de
+   * dizer a mesma coisa que os olhos.
+   */
+  registrar({ id: CAMADA });
+  mostrar(CAMADA);
   const log = root.querySelector('[data-boot-log]');
   const status = root.querySelector('[data-boot-status]');
   let failed = false;
@@ -113,6 +125,8 @@ export function createBoot(root, { onEngage }) {
             console.error('[boot] engate falhou; entrando sem ele', error);
           }
           root.classList.add('gone');
+          // A camada de baixo reaparece sozinha; esta tela não precisa saber qual é.
+          sair(CAMADA);
           // Só remove do DOM depois da transição, senão o fade não acontece.
           setTimeout(() => root.remove(), 1400);
           resolve();

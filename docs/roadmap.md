@@ -47,7 +47,7 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 | KR | medida | hoje |
 |---|---|---|
 | KR2.1 | **estado de tela** tem dono único | ⭑ `core/tela.js` — camada · cena · rota num objeto só, `spatia.tela()`. ⚠️ `session.route` sobrevive **sem leitor** (handoff 0e) |
-| KR2.2 | **pose da câmera** tem nome próprio | ⚠️ `escalaLocal()`/`porteLocal()` separados em `scene.js` — **sem prova de tela** |
+| KR2.2 | **pose da câmera** tem nome próprio | ⭑ `escalaLocal()` · `porteLocal()` · `orbit.distance`, provado na tela |
 | KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
 | KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 11 call sites · 1.080 perturbações) |
 
@@ -98,7 +98,6 @@ acontece nada?"*, que é o Princípio Final ao contrário.
 | **T-11** | Traçar a elipse dos planetas (cópia de `moon-orbits.js`) | `todo` | — | — | — |
 | **T-12** | Força do vínculo no arco | `blocked` | substrato | — | — |
 | **T-30** | `forca` sai da UNIDADE do tipo, não dos extremos da amostra | `done` | — | T-12 | KR3.1 |
-| **T-31** | `scripts/lei-tela.mjs` — pôr o oráculo da tela ao lado dos outros | `todo` | — | — | KR2.1 |
 | **T-13** | Splash | `todo` | — | — | KR2.1 |
 | **T-14** | Launcher / menu iniciar | `todo` | — | — | KR2.1 |
 | **T-15** | Voo básico (o começo do `ship-navigator`) | `blocked` | T-08 | — | — |
