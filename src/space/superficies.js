@@ -173,12 +173,75 @@ export function superficieDe(classe, fisica, fenomenosAtivos = []) {
  * uma supernova, e essa dependência não existe em código"*. O §2.7.1 do `replanejamento-celeste.md`
  * a resolveu: a dependência era MASSA, não tempo — supernova e estrela de nêutrons são duas
  * consequências da mesma causa. Hoje ele é roteado pelo fenômeno `colapso`, e tem população.
+ *
+ * ☠️ **AS DUAS AUSÊNCIAS RESTANTES ESTAVAM ESCRITAS COMO CONDIÇÕES QUE NÃO PORTEIAM NADA** —
+ * medido em 2026-08-09, e as duas pelo mesmo mecanismo. Cada uma nomeava um fato que, ao virar
+ * verdade, **continuaria não produzindo a pele**, porque o que falta não é o fato: é o CAMINHO.
+ * É a REGRA DO CATÁLOGO pelo avesso — declarar a condição não a implementa, e uma condição falsa
+ * é pior que nenhuma, porque manda a próxima pessoa medir a coisa errada com convicção total.
+ * A `station` já mandou: o rótulo tem população desde antes de alguém ir olhar.
  */
 export const AUSENTES_NA_TABELA = Object.freeze({
+  /*
+   * ⚠️ **O PORTÃO ANTIGO DIZIA *"quando o rótulo `Agent` do Neo4j tiver população, que hoje é 0"* —
+   * e a população NÃO é 0.** Medido em 2026-08-09 contra o banco: `Agent` existe com **1 nó**
+   * (`id: "claude"`, `brain: "claude"`), com 11 `RAN` para `Run` e 8 `Astro` do fixture `TOUCHED`.
+   * A condição escrita está SATISFEITA há tempo, e nenhuma estação nasceu — porque ela nunca foi
+   * o portão.
+   *
+   * **O portão real é TOPOLÓGICO, e a lei nº 2 do Neo4j o fecha por construção.** O banco só
+   * chega ao céu como OVERLAY, e o overlay casa por `node["source"]` (`annotate_usage`,
+   * `annotate_influence` e `annotate_connectivity` em `server/graphdb.py`, reaplicados por
+   * `_reanexar_snapshots`). Um overlay MODIFICA corpo que já existe; ele nunca cria um. E o nó
+   * `Agent` tem as chaves `[group_id, id, brain]` — **`source` não está entre elas**, então não há
+   * sequer a que corpo se prender. Somar mil agentes ao rótulo não move este número.
+   *
+   * ⚠️ **E a rota tentadora é a taxonomia refutada.** O fixture tem 5 nós com `kind: "agent"`
+   * (`revisor.md`, `varredura.md`, os três `farol-*.md`) e é por eles que a estação voltaria fácil
+   * — que é exatamente a linha `agent → estação · 414` da inversão nº 1 (§2.1). Além de proibida,
+   * ela classificaria o ARQUIVO QUE DESCREVE o agente, não o agente: `farol-intenso.md` resolve
+   * hoje como COMETA, por churn 27.
+   *
+   * **O que teria de ser verdade:** um agente entra na TOPOLOGIA como corpo — com `source`,
+   * sistema onde morar e as grandezas que `entityPhysics()` lê — vindo de um produtor que não é o
+   * Qdrant (o diário, via `journal`/`uso.mjs`, é o candidato: é lá que a identidade já é FATO).
+   * E `classificar()` ganha família para objeto CONSTRUÍDO, que o catálogo hoje não nomeia. É
+   * outro pipeline, não outro limiar — e enquanto ele não existir, a ausência é estrutural.
+   */
   station: 'a estação é objeto CONSTRUÍDO e representa um AGENTE (§8 do replanejamento: não tem '
-    + 'análogo natural). A cena UNIVERSO desenha conhecimento, não agentes — ela volta quando o '
-    + 'rótulo `Agent` do Neo4j tiver população, que hoje é 0',
-  nebula: 'nebulosa é berço ou cadáver (§3.2), e nenhum dos dois é propriedade de UM corpo: berço é '
-    + 'região de arquivos novos, cadáver é a casca que a supernova já desenha. Ela é feição de '
-    + 'REGIÃO, e a cena ainda não tem esse nível',
+    + 'análogo natural). A cena UNIVERSO desenha conhecimento, e agente não é corpo do corpus: o '
+    + 'rótulo `Agent` do Neo4j TEM população (1 em 2026-08-09) e não basta, porque o Neo4j só '
+    + 'anota corpo existente por `source` — ele nunca cria um. Falta um produtor que ponha o '
+    + 'agente na topologia, e família de objeto construído em `classificar()`',
+  /*
+   * ⚠️ **O PORTÃO ANTIGO DIZIA *"a cena ainda não tem esse nível"*, e o "ainda" é a parte falsa.**
+   * Ele se lê como fila — como se o nível estivesse a um commit de distância. Medido em
+   * 2026-08-09, ele está a uma CONTRADIÇÃO de distância, e a nebulosa é meia pendência, não uma:
+   *
+   * **O cadáver já está desenhado.** A casca expelida é a `supernova`, que é modificador e tem
+   * população (3 de 71 no fixture). Metade da nebulosa nunca esteve em falta.
+   *
+   * **O berço é que não fecha.** Ele é *"região de arquivos novos/não rastreados"* (§3.2), e a
+   * região teria de ser um fato de CONTENÇÃO entre sistema e corpo. Não existe:
+   *
+   * - **os arquivos novos não se agrupam.** Fixture: 7 `untracked` espalhados por 6 sistemas,
+   *   **nunca mais de 1 por sistema** — a maior fração é um sistema de UM arquivo, que é o
+   *   próprio caso aberto do agregado ausente, não um berço.
+   * - **o aninhamento de diretórios é um nível ACIMA, não abaixo** — e ele não se separa. Medido
+   *   nos dois corpora: **todo** pai de aninhamento é também um sistema com corpos próprios
+   *   (vivo 3 de 3: `src` 7 filhos + 1 arquivo, `espatial-os` 6 + 6, `docs` 1 + 11; fixture 2 de
+   *   2). Promover um deles a região tiraria a estrela de um sistema que a tem.
+   * - **o que sobra agrupa por RELAÇÃO** (`CO_EDITED`, `SIMILAR_TO`, `ABOUT`), e desenhar relação
+   *   como POSIÇÃO desfaz a separação contenção × relacionamento do §9.1 — o maior ganho do
+   *   briefing, e o que matou as linhas atravessando a cena.
+   *
+   * Então o berço não espera um nível: ele espera que um dos três deixe de ser verdade. Enquanto
+   * os três valerem, a ausência é decisão, e a nebulosa segue viva SÓ na bancada.
+   */
+  nebula: 'nebulosa é berço ou cadáver (§3.2), e os dois têm desfechos diferentes: o CADÁVER já é '
+    + 'desenhado (a casca da `supernova`, 3 de 71 no fixture) e nunca esteve em falta. O BERÇO é '
+    + 'região de arquivos novos, e região exige contenção entre sistema e corpo — medido, ela não '
+    + 'existe: os novos não se agrupam (máx 1 por sistema), o aninhamento de dir é nível ACIMA e '
+    + 'nenhum pai se separa do próprio sistema, e o resto agrupa por RELAÇÃO, que o §9.1 proíbe '
+    + 'desenhar como posição',
 });
