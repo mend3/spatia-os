@@ -16,7 +16,13 @@
 >
 > **Fechar um item é MOVER o resíduo** — a armadilha para o §5, o número para o §6, o resto para o
 > corpo do commit — **e apagar o relato.** Item fechado que fica *"pelo valor do sintoma"* é o modo
-> de falha característico daqui. Acima de ~800 linhas, algo está sendo contado duas vezes.
+> de falha característico daqui.
+>
+> ⚠️ **Tamanho não é a métrica; DUPLICAÇÃO é.** O §6 cresce porque se mediu, e medida com "não
+> remeça" ao lado é o arquivo funcionando. Antes de cortar por comprimento, procure **o mesmo fato
+> em dois lugares** — foi assim que ele chegou a 1.122 linhas, com uma seção inteira repetindo o
+> `roadmap`. Se nada estiver duplicado e ele ainda incomodar, o que falta é **partir o §6**, não
+> apagá-lo.
 
 ---
 
@@ -698,18 +704,13 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 ## 7. O estado agora, e o que está aberto
 
 **Branch `cena-universo`** — sem push, não mesclada.
-⚠️ **NÃO COMMITE SEM O USUÁRIO PEDIR.** Deixe no working tree e relate.
+⚠️ **Commit exige REVIEW antes** — e review aqui é rodar os oráculos e **provar por mutação** que
+eles reprovam. Oráculo que nunca foi visto falhando não é guarda: é teste verde.
+⚠️ **Commite por ARQUIVO, nunca por diretório**, quando houver outra sessão escrevendo — `git add
+docs/` já varreu trabalho alheio para dentro de um commit uma vez.
 
-**No working tree agora, nada commitado — a camada SPLASH (T-13):**
-
-| arquivo | o quê |
-|---|---|
-| `src/hud/splash.js` | a camada de CHEGADA: qual céu e de qual corpus, sobre a cena viva |
-| `index.html` | `#splash` (z-index 9, **abaixo** do boot) + a regra da marca compartilhada com o `#boot` |
-| `src/main.js` | `createSplash` **antes** do `createBoot` — a ordem de montagem é a ordem da pilha |
-
-⚠️ Outras sessões trabalham em `server/`, `src/space/`, `src/sandbox/` e `scripts/` ao mesmo
-tempo; o que aparecer ali no `git status` não é desta linha.
+**Working tree LIMPO.** O que está aberto vive no [`roadmap.md`](./roadmap.md), não aqui —
+tabela de arquivo em voo envelhece a cada commit e vira a primeira linha errada que alguém lê.
 
 **Não rastreados e NÃO são meus:** `docs/briefings/ship-navigator.md`, `src/.DS_Store`.
 
