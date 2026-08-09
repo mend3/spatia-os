@@ -58,8 +58,12 @@ def wants_web(question: str, forced: bool | None) -> bool:
     return bool(YEAR_PATTERN.search(lowered))
 
 
-def run(question: str, *, web: bool | None = None) -> Iterator[dict]:
-    """Gera os eventos de uma execução completa. Nunca levanta: falha vira evento `error`."""
+def run(question: str, *, origin: str, web: bool | None = None) -> Iterator[dict]:
+    """Gera os eventos de uma execução completa. Nunca levanta: falha vira evento `error`.
+
+    `origin` é o CANAL, e não tem default de propósito: é ele que nomeia o fio da conversa
+    (`fio.py`), e um default faria um caminho novo continuar, calado, a conversa de outro.
+    """
     started = time.monotonic()
     question = question.strip()
     if not question:
@@ -82,7 +86,7 @@ def run(question: str, *, web: bool | None = None) -> Iterator[dict]:
     if use_web:
         yield from _step_web(question, web_hits)
 
-    yield from _step_answer(question, memory_hits, web_hits, started)
+    yield from _step_answer(question, memory_hits, web_hits, started, origin)
     yield {"t": "done"}
 
 
@@ -150,23 +154,23 @@ def sources_of(memory_hits: list[dict], web_hits: list[dict]) -> list[dict]:
     return sources
 
 
-def _step_answer(question: str, memory_hits: list[dict], web_hits: list[dict], started: float) -> Iterator[dict]:
+def _step_answer(question: str, memory_hits: list[dict], web_hits: list[dict], started: float, origin: str) -> Iterator[dict]:
     sources = sources_of(memory_hits, web_hits)
     yield {"t": "sources", "sources": sources}
     yield {"t": "state", "state": "thinking", "label": "ACORDANDO O NÚCLEO"}
 
     if config.get("BRAIN") == "claude":
-        yield from _brain_claude(question, memory_hits, web_hits, sources)
+        yield from _brain_claude(question, memory_hits, web_hits, sources, origin)
     else:
         yield from _brain_ollama(question, memory_hits, web_hits, started)
 
 
-def _brain_claude(question: str, memory_hits: list[dict], web_hits: list[dict], sources: list[dict]) -> Iterator[dict]:
+def _brain_claude(question: str, memory_hits: list[dict], web_hits: list[dict], sources: list[dict], origin: str) -> Iterator[dict]:
     """O agente de verdade: recebe o contexto recuperado e ainda pode usar as ferramentas
     dele. Os eventos de estado/tool/token/resposta vêm do próprio stream do CLI."""
     prompt = llm.build_prompt(question, memory_hits, web_hits)
     produced_answer = False
-    for event in brain.stream(prompt):
+    for event in brain.stream(prompt, origin):
         if event.get("t") == "answer":
             produced_answer = True
             event = {**event, "sources": sources}
@@ -177,6 +181,9 @@ def _brain_claude(question: str, memory_hits: list[dict], web_hits: list[dict], 
 
 
 def _brain_ollama(question: str, memory_hits: list[dict], web_hits: list[dict], started: float) -> Iterator[dict]:
+    # `none` porque este caminho não tem sessão nenhuma: `llm.stream` monta o prompt do zero a
+    # cada pergunta. Dizer `new` aqui prometeria que a próxima continuaria esta.
+    yield {"t": "thread", "continuity": "none", "thread": None, "turn": 1, "since": None}
     yield {"t": "state", "state": "answering", "label": "SINTETIZANDO"}
     clock = time.monotonic()
     yield _tool_call("ollama.generate", clock, config.get("OLLAMA_MODEL"))

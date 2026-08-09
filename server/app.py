@@ -17,7 +17,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import agent, ambient, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch, graphdb
+from . import agent, ambient, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, fio, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch, graphdb
 
 logger = logging.getLogger("espatial.app")
 
@@ -48,8 +48,14 @@ ROUTE_LABELS = {
     "/api/attach": "attach",
     "/api/dirty": "dirty",
     "/api/vizinhanca": "vizinhanca",
+    "/api/thread": "thread",
     "/metrics": "metrics",
 }
+
+# O canal desta rota. Ele nomeia o FIO da conversa (`fio.py`) e vai no diário como `origin` — os
+# dois têm de ser a mesma palavra, senão a linha do diário e a conversa retomada falam de canais
+# diferentes com o mesmo nome.
+ORIGEM_CONSOLE = "console"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -78,12 +84,12 @@ class Handler(BaseHTTPRequestHandler):
             self._hook(parsed.path[len("/hooks/"):].strip("/"))
             return
 
-        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate"):
+        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate", "/api/thread"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
-        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget") and not self._same_site():
+        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/thread") and not self._same_site():
             metrics.crosssite_refused.inc()
             journal.denial("cross-site", parsed.path, f"Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')}")
             self._json({"error": "requisição cross-site recusada"}, status=403)
@@ -116,6 +122,14 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/config":
                 permissions.update(payload)
                 self._json(permissions.describe())
+                return
+            if parsed.path == "/api/thread":
+                # Cortar o fio é o controle que torna a continuidade uma ESCOLHA: sem ele a única
+                # forma de começar assunto novo seria reiniciar o servidor.
+                cortados = fio.forget(
+                    str(payload.get("origin") or ORIGEM_CONSOLE), "cortado pelo operador"
+                )
+                self._json({"cut": cortados, **fio.describe()})
                 return
             if parsed.path == "/api/speech":
                 speech.update(payload)
@@ -308,6 +322,10 @@ class Handler(BaseHTTPRequestHandler):
                     payload["day"] = day
                     payload["runs"] = journal.read(day)
                 self._json(payload)
+            elif route == "/api/thread":
+                # O fio de cada canal: se a próxima pergunta sabe da anterior, e de quantos
+                # turnos. A tela precisa poder dizer isso ANTES de perguntar — depois já é tarde.
+                self._json(fio.describe())
             elif route == "/api/system-events":
                 self._system_events()
             elif route == "/api/graph":
@@ -465,9 +483,14 @@ class Handler(BaseHTTPRequestHandler):
         `permissionDecision: deny` é o que o CLI entende como "não faça"; devolver `{"allow":
         false}` seria um campo que ninguém do outro lado lê — a quinta linha da tabela da REGRA
         DO CATÁLOGO, escrita de novo.
+
+        ⚠️ A chave da contagem é `run`, carimbado pela `--settings` daquela execução, e não
+        `session_id`: o CLI repete a sessão em toda retomada, e contar por ela faria o teto de
+        `calls_per_run` valer para o fio inteiro. O `session_id` continua vindo no corpo porque
+        é ele que liga a decisão à transcrição na hora de investigar.
         """
         decisao = capabilities.decide(
-            str(payload.get("session_id") or ""),
+            str(payload.get("run") or ""),
             str(payload.get("tool") or ""),
             str(payload.get("target") or ""),
         )
@@ -582,10 +605,10 @@ class Handler(BaseHTTPRequestHandler):
             # A vaga de concorrência não é tomada aqui: quem conta é o registro de execuções
             # vivas, alimentado pelo `recorder` — e ele cobre exatamente o mesmo intervalo.
             for event in recorder.instrument(
-                agent.run(question, web=forced),
+                agent.run(question, origin=ORIGEM_CONSOLE, web=forced),
                 config.get("BRAIN"),
                 question=question,
-                origin="console",
+                origin=ORIGEM_CONSOLE,
             ):
                 self._sse(event)
         except (BrokenPipeError, ConnectionResetError):

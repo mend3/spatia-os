@@ -570,6 +570,17 @@ Sobe um upstream de mentira e confere se `status` e `reason` saem do FATO e não
 quando as quatro famílias batem. Existe porque dois rótulos de métrica não tinham ninguém capaz de
 emiti-los.
 
+## Ao mexer na continuidade da conversa
+
+    python3 -m server.lei_fio
+
+Sobe um CLI `claude` de mentira e confere a ARGV que o servidor montou: que `--resume` só aparece
+havendo fio, que ele **convive com a `--settings` do portão** no mesmo comando, que a chave contada
+pelo portão é a da EXECUÇÃO e não a da sessão, e que fio quebrado degrada anunciando. Sai 0 quando
+as cinco leis batem. ☠️ **Ele desvia `journal.DIR` para um temporário e confere a cadeia real antes
+e depois** — um oráculo do fio que escrevesse no ledger encadeado corromperia o que a base tem de
+mais caro. ⚠️ O lugar dele é `scripts/lei-fio.py`; mora em `server/` por acidente de sessão.
+
 ## E o que NÃO está aqui
 
 As sondas de runtime vivem na cena, não em `scripts/`. Elas respondem sobre **o quadro que está na

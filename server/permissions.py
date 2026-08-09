@@ -25,7 +25,7 @@ import logging
 import threading
 from pathlib import Path
 
-from . import catalog, config
+from . import catalog, config, fio
 
 logger = logging.getLogger("espatial.permissions")
 
@@ -159,6 +159,13 @@ def update(patch: dict) -> dict:
             STORE.write_text(json.dumps(merged, indent=1), encoding="utf-8")
         except OSError as e:
             logger.warning(f"não gravei a config: {e}")
+    # ⚠️ Mudar permissão CORTA o fio da conversa, em qualquer direção.
+    #
+    # As flags novas valem a partir da próxima execução — isso o portão garante. O que elas não
+    # alcançam é a TRANSCRIÇÃO: retomar carrega o que as ferramentas já leram, e desligar `Read`
+    # não apaga de lá o arquivo que ele trouxe. Continuar o fio depois de apertar as permissões
+    # seria servir, sob as regras novas, a colheita das antigas.
+    fio.forget(None, "as permissões mudaram")
     logger.info(
         f"permissões: modo={merged['mode']} · {len(merged['tools_off'])} ferramentas, "
         f"{len(merged['skills_off'])} skills, {len(merged['agents_off'])} agentes desligados"

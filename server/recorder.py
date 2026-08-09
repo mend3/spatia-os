@@ -171,6 +171,13 @@ def _observe(run: Run, event: dict) -> None:
             run.record["agent"]["model"] = run.model or None
             run.record["agent"]["session"] = event.get("session") or run.record["agent"]["session"]
 
+    elif kind == "thread":
+        # A continuidade vem ANTES do `brain`, e é o único evento que existe mesmo quando a
+        # execução morre sem `init`. Gravá-la aqui é o que permite ao diário responder "esta
+        # execução herdou contexto?" — a pergunta que as flags sozinhas não respondem.
+        if run.record is not None and isinstance(run.record.get("agent"), dict):
+            run.record["agent"]["continuity"] = event.get("continuity")
+
     elif kind == "limit":
         window = event.get("window") or "unknown"
         metrics.rate_limit_allowed.set(1 if event.get("status") == "allowed" else 0, window=window)

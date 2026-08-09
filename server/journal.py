@@ -160,12 +160,19 @@ def begin(question: str, origin: str, brain: str = "") -> dict:
     declarou", nunca "modelo padrão" — a mesma regra de `null` ≠ `0` que governa a influência.
     Execuções anteriores a esta mudança não têm a chave, e isso também é honesto: elas rodaram
     num tempo em que ninguém mediu.
+
+    ## `continuity` — se esta execução herdou contexto
+
+    Sem ela o diário registra o que a execução FEZ e não o que ela SABIA. Duas linhas com as
+    mesmas flags e a mesma pergunta são execuções diferentes quando uma retomou a transcrição da
+    outra: a retomada entrou com tudo o que as ferramentas da anterior já tinham lido, e uma
+    auditoria que não vê isso audita metade da entrada. `None` até o `brain` declarar.
     """
     return {
         "id": None,
         "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "origin": origin,
-        "agent": {"brain": brain or None, "model": None, "session": None},
+        "agent": {"brain": brain or None, "model": None, "session": None, "continuity": None},
         "question": question,
         "flags": permissions.cli_flags(),
         "tools": [],
