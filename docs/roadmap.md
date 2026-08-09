@@ -19,8 +19,8 @@
 | `postponed` | possível hoje, e escolhemos não fazer. O motivo fica escrito |
 | `archived` | não vamos fazer. Refutado por medida, ou o problema deixou de existir |
 
-⚠️ **`blocked` por decisão do usuário não é `blocked` por engenharia.** As três decisões do §7-B são
-do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozinho.
+⚠️ **`blocked` por decisão do usuário não é `blocked` por engenharia.** As decisões listadas abaixo
+são do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozinho.
 
 ---
 
@@ -156,8 +156,62 @@ com ou sem produtor.
 | **T-43** | A repintura da marca (`context.js`) é invariante DECLARADA sem oráculo | `todo` | — | — | KR2.4 |
 | **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
 | **T-45** | `.row.warn` não existe no CSS — quatro emissores de um tom sem leitor | `todo` | — | — | — |
+| **T-46** | **A sonda da HUD** (`spatia.hud()`) — quanto da janela a interface reivindica ao PONTEIRO, por rota, e o que está recolhido | `todo` | — | T-51, T-52 | KR2.1 |
+| **T-47** | `.sources` não tem teto, nem rolagem, nem scrim — 24 fontes empilham ≈305 px sobre o disco | `todo` | — | — | — |
+| **T-48** | O conjunto residente é DECLARADO e não imposto — `#/security` não monta `timeline` | `todo` | — | T-52 | KR2.1 |
+| **T-49** | `registerWidget` aceita chave fora do vocabulário — a REGRA DO CATÁLOGO sem portão | `todo` | — | T-50 | — |
+| **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `todo` | T-49 | — | — |
+| **T-51** | O painel de palco cria ZONA MORTA sobre o corpo em foco — o escape só cobre o widget VAZIO | `todo` | T-46 | — | — |
+| **T-52** | A referência repete o painel: **24 de 24** na raiz, **0** nas outras oito | `todo` | T-48 | — | — |
+| **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
 
 ### `postponed` e `archived` ficam escritos — apagá-los faz a próxima sessão reabrir
+
+- **T-46 … T-53** — a varredura da interface está em
+  [`briefings/hud-e-canvas.md`](./briefings/hud-e-canvas.md), com a conta de cada número.
+  ☠️ **T-46 vem primeiro e não é cerimônia:** `window.spatia` expõe **16 sondas** e **nenhuma**
+  responde sobre a HUD (`awk 'NR>=324 && NR<=464' src/main.js | grep -cE "^\s{4}[a-zA-Z]+:"`), e é
+  por isso que *"o painel está na frente do astro"* e *"o painel tem o mesmo âmbar do anel"* dão a
+  MESMA foto — `hud/yield.js:6-15` já se enganou uma vez por isso e mediu 37 de 45 pontos chegando
+  ao canvas. ⚠️ **Aquela medida vale, e não cobre 7 das 10 rotas:** ela é de uma tela sem painel de
+  palco montado. Consertar T-51 antes de T-46 é escolher um valor que faz a foto fechar
+  (armadilha 17 do handoff).
+  ⚠️ **T-46 também mede o QUINTO dono do estado de tela:** `espatial.collapsed.v1` decide quais
+  painéis têm corpo visível, `core/tela.js` não o conhece, e ele **atravessa a rota** — abrir uma
+  seção recolhe e PERSISTE todos os irmãos do trilho (`kernel/widgets.js:63-71`). Antes de acusar a
+  tela, `JSON.parse(localStorage.getItem('espatial.collapsed.v1') || '{}')`.
+
+- **T-48** — é invariante DECLARADA em dois lugares (`OS-SCREENS.md` §0 e `apps/index.js:65-72`,
+  *"`context` entra em TODAS as listas, como `sky-time` e `timeline`"*) e imposta em nenhum:
+  `registerApp` confere que o widget EXISTE (`registry.js:72-77`) e nada mais. `#/security`
+  (`apps/security.js:79-82`) é a única das dez sem `timeline`.
+
+- **T-52** — ☠️ **a redundância não é parecença, é o MESMO CAMPO.** A fonte de corpus imprime
+  `hit["source"]` na lista (`agent.py:146` → `hud/answer.js:146`) e o mesmo `hit.source` em MEMÓRIA
+  RECUPERADA (`hud/streams.js:240`); a de web imprime `hit["title"]` nos dois
+  (`agent.py:151` · `hud/streams.js:519`). E os 24 são derivados, não amostra:
+  **`MEMORY_LIMIT = 6` (`agent.py:19`) + `MAX_RESULTS = 6` por provedor (`websearch.py:21,80`) ×
+  3 provedores com chave (`websearch.py:71-73`)**. Provedor a mais = seis linhas a mais.
+  ⚠️ **A assimetria é que decide o conserto, não o tamanho:** na raiz os painéis existem e a
+  redundância é **24 de 24**; nas outras oito rotas `memory`/`tools`/`web-results` não são montados
+  e a lista é a **única** testemunha. Por isso T-48 vem antes.
+  ☠️ **E o `[n]` é CONTRATO com o prompt** (`EVENTS.md:145`, `agent.py:142-144`): sumir com a lista
+  quebra a citação, que `hud/answer.js:89-95` desenha riscada quando não bate. **Cortar
+  `MEMORY_LIMIT` está refutado como saída** — ele alimenta o modelo (`agent.py:158-163`), então
+  encolheria a RESPOSTA, não a tela.
+
+- **T-47** — `.answer` tem teto (`max-height: 36vh`), rolagem e scrim em gradiente
+  (`index.html:442-456`); `.sources` não tem nenhum dos três (`index.html:494`). O que transborda
+  não rola: **some**, porque `.widget-body` é `overflow: hidden` (`index.html:714`) — a mesma forma
+  de falha que `index.html:332-336` já nomeou (*"conteúdo cortado sem barra … lê como bug"*).
+  ⚠️ **Fundo opaco está refutado por escrito** em `hud/yield.js:11-15`: a HUD hairline vive de pouco
+  contraste. A saída é o scrim que o `.answer` já usa.
+
+- **T-49 / T-50** — a assimetria é dentro da própria base: `core/tela.js:39` recusa chave fora do
+  vocabulário de camada e `scripts/lei-cena.mjs` faz o mesmo pela cena; `registry.js:117` espalha
+  `...contract` sem conferir nada, então `surafce: true` nasceria sem fundo e sem ninguém acusar.
+  `br-deliveries` (`apps/index.js:1158-1161`) é o único widget de palco sem `surface: true` — o
+  defeito que `index.html:839-842` já descreveu quando a página de configuração nasceu sem fundo.
 
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
@@ -293,7 +347,7 @@ com ou sem produtor.
   caminho. ⭑ **Fica o portão, sai a zona:** `MU_MIN = 5` continua recusando 9 dos 72 corpos e
   agora se justifica pelo caso degenerado (`N^(-1/3)` = 1,000 com uma seção).
 
-### As três decisões que são do usuário
+### As decisões que são do usuário
 
 Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozinho**:
 
@@ -303,6 +357,18 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
    sobreposições em 17.578 pares** que uma coordenada nova pode destruir.
 3. **T-23 · Agente como corpo.** É **pipeline novo, não limiar** — e há recusa por escrito em
    `modelo-de-renderizacao.md:462`: *"estação orbital, não nave"*.
+4. **T-53 · O que sobe para o MUNDO.** A preferência escrita é *"fazer tudo em canvas"*, e o pedágio
+   está medido nos dois sentidos (`hud-e-canvas.md` §5). ⭑ **O meio-termo não é proposta: está
+   construído e desligado** — `space/bodies.js` posiciona HTML pela projeção da câmera
+   (`bodies.js:251,263-264`) **com oclusão pelo horizonte de eventos** (`bodies.js:216-260`), e
+   `installApps` **não tem chamador** (`grep -rn "installApps" src/` devolve a definição em
+   `scene.js:2607` e dois comentários). O desligamento é decisão do usuário de 07/08
+   (`main.js:208-225`): *"um corpo de UI no meio do céu compete por atenção com os astros que são o
+   conteúdo"* — e o mesmo bloco declara que *"voltar a montar é uma linha"*.
+   ⚠️ **O motivo do desligamento não alcança CONTEÚDO.** Uma fonte de corpus não é mobília de UI: a
+   estrela dela já acende no céu por `memory` (`scene.js:993-1002`). A pergunta binária é **o que
+   TEM lugar no mundo** — e QUOTAS, MÉTRICAS e PERMISSÕES não têm, então ocluí-las por um planeta
+   seria feição sem fato.
 
 ---
 
@@ -335,3 +401,4 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |
 | `integracao-organica.md` | T-23 | decisão do usuário |
 | `features-widgets.md` | T-21 | decisão do usuário |
+| `hud-e-canvas.md` | T-46 … T-53 | a sonda da HUD existir, os residentes terem portão e T-53 estar decidida |

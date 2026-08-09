@@ -87,25 +87,13 @@ o que distingue "a splash não saiu" de "a sonda leu antes do gesto".
 
 | guarda | quando |
 |---|---|
-| `node scripts/check-shaders.mjs` | **antes de todo commit** — sai 0 |
-| `node scripts/lei-neo4j.mjs` | após tocar em `entity-physics.js` |
-| `node scripts/lei-cena.mjs` | após tocar em `scene.js` ou nos módulos puros — prova que a cena é LENTE |
-| `node scripts/lei-tela.mjs` | após tocar em `core/tela.js` ou em quem escreve na tela |
-| `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla fica presa |
-| `node scripts/lei-notice.mjs` | após tocar em `hud/streams.js` ou no contrato de `notice` |
-| `node lei-thread.mjs` | após tocar em `hud/streams.js` ou no contrato de `thread` — prova que `broken` não passa calado. ⚠️ **O lugar dele é `scripts/`**; a RAIZ se acha sozinha nos dois, então mover é só mover |
-| `node scripts/lei-afericao.mjs` | após tocar em `hud/frame.js`, no laço `watchHealth` de `main.js` ou em `SCAN_SECONDS` do `server/ambient.py` — os pontos de subsistema param de afirmar o presente quando a leitura vence. ⚠️ Ele TRANSCREVE o `SCAN_SECONDS` do vigia: mudou lá, o oráculo reprova aqui |
-| `node scripts/lei-favoritos.mjs` | após tocar em `space/favoritos.js` — a marca não vaza para a ontologia |
-| `node scripts/lei-favoritos-ui.mjs` | após tocar em `hud/favoritos-ui.js`, em quem desenha a marca, ou no agrupamento de `universe.load()` — a tela diz *"você marcou"* e separa os quatro estados. ⚠️ Ele TRANSCREVE as chamadas de `universe.load()`: a HUD não alcança `universe.ehDominante`, e o rótulo de `tipoDe()` é texto de tela |
-| `node scripts/lei-teclado.mjs` | após tocar em `core/keys.js` — nenhuma tecla sobrevive a perder o foco |
-| `node scripts/lei-cena.mjs` | após tocar em `CENAS`/`aplicarCena`, ou em `entity-physics.js`/`superficies.js` |
-| `node scripts/censo-superficies.mjs` | após tocar em roteamento de pele — nenhuma pele pode nascer vazia |
-| `node scripts/censo-ontologia.mjs` · `censo-corpus.mjs` · `censo-morfologias.mjs` | ao mexer em classificação, limiar ou constante calibrada |
-| `node scripts/censo-planetas.mjs` | quando o céu parecer "todos iguais" |
-| `node scripts/campo.mjs` · `costura-disco.mjs` · `lado-distante.mjs` | qualquer edição no buraco negro |
-| `node scripts/lente-estelar.mjs` | ao mexer na lente — e **antes de dar lente a qualquer corpo novo** |
-| `python3 scripts/motivo-upstream.py` | ao mexer em erro de upstream |
-| `python3 -m server.lei_fio` | ao mexer em `brain.py`, `fio.py` ou no portão de capacidades — sobe um CLI de mentira e confere a argv; ☠️ **não toca no diário real, e prova que não tocou** |
+| **`node scripts/leis.mjs`** | ☠️ **SEMPRE.** Roda os 22 em ~3,6 s e sai 1 se qualquer um cair. Está no `pre-commit`; clone novo pede `sh scripts/instalar-hook.sh` |
+
+⚠️ **A tabela por-guarda saiu daqui.** Ela dizia *quando* rodar cada um, e escolher era exatamente
+como os defeitos passavam — quatro guardas foram flagrados sem guardar o que diziam na mesma
+sessão. O que cada um responde está no cabeçalho dele e no `CLAUDE.md`; **quando** rodar tem uma
+resposta só.
+
 
 ⚠️ **Os oráculos TRANSCREVEM o GLSL — a fonte é o shader, a transcrição é cópia.** Mudou um, mude o
 outro, ou o oráculo passa a atestar código que não existe. E **`check-shaders` NÃO compila GLSL**:
@@ -377,6 +365,14 @@ diário tem registros que não são execução.
 ☠️ **WIDGET COLAPSADO PARECE WIDGET VAZIO** — só o cabeçalho, sem nem a mensagem de vazio. O estado
 está em `localStorage` (`espatial.collapsed.v1`, listas `abertas`/`fechadas`) e é PREFERÊNCIA DO
 OPERADOR, não defeito. Confira essa chave antes de acusar a tela de não desenhar.
+> ⚠️ **E o operador não precisa ter recolhido nada:** abrir UMA seção recolhe e PERSISTE todas as
+> irmãs do mesmo trilho (`kernel/widgets.js:63-71`), e a chave é por `id` de widget, não por
+> (rota, widget) — recolher `context` em `#/files` recolhe `context` nas dez rotas. Um clique deixa
+> até 3 painéis do trilho como cabeçalho puro, para sempre.
+> ⚠️ **A outra causa de "o painel não está aí" é o MANIFESTO, e não é defeito:** `memory`, `tools` e
+> `plan` estão em **1 das 10** listas de widgets (só `SYSTEM_VIEW`), `vitals` e `web-results` em 2 —
+> enquanto `answer` está nas 10. **A resposta é residente; os painéis que ela duplica não são.**
+> A terceira causa É defeito, e é T-48: `#/security` não monta `timeline`.
 
 ☠️ **`cena().quadros` CONTA SÓ O UNIVERSO — no AGENTE ele congela.** Usá-lo como prova de vida ao
 medir a cena AGENTE devolve "não mudou" com a tela parada, que é a armadilha do §4 com o contador

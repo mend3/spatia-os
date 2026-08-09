@@ -409,8 +409,29 @@ tabela de `docs/identidade.md` existe para impedir exatamente esse `sed`. **Leia
 # As ferramentas de `scripts/`
 
 Elas existem porque este projeto tem um modo de falha característico: **a feição some, o shader
-continua lá, e a tela não mente nem acusa — ela deixa de afirmar.** Nenhuma delas roda sozinha em
-CI; todas respondem uma pergunta específica, e é a pergunta que diz quando usá-las.
+continua lá, e a tela não mente nem acusa — ela deixa de afirmar.**
+
+## ☠️ Só uma linha importa, e é esta
+
+    node scripts/leis.mjs
+
+Roda **todos** os guardas e sai 1 se qualquer um cair. **~3,6 s.** Está instalado como
+`pre-commit`; num clone novo, `sh scripts/instalar-hook.sh` (o `.git/hooks/` não é versionado, e
+sem isso o clone nasce sem guarda nenhum).
+
+⚠️ **Este parágrafo dizia o contrário — *"nenhuma delas roda sozinha; a pergunta diz quando
+usá-las"* — e essa era a razão de os defeitos passarem.** Com 4 oráculos respondendo perguntas
+estreitas, escolher qual rodar era razoável. Com 22 a 3,6 s, escolher é como se perde guarda:
+medido numa sessão só, quatro deles não guardavam o que diziam (lista branca que não via o quinto
+arquivo; lei cega para uma das duas cenas; fato de mundo gravado como lei; `RAIZ` que fazia o
+oráculo passar sobre uma cópia MUTADA). **Quantidade de arquivo não é cobertura.**
+
+⭑ `--lista` mostra o que roda e o que NÃO roda com o motivo. Quem não roda é só quem **muta estado
+compartilhado** (`.cache/`, o Neo4j, o fixture) — e isso é MEDIDO no fonte, não listado à mão: a
+lista e a medida discordarem derruba o portão.
+
+As perguntas individuais continuam valendo para saber **o que** cada um responde — é para isso que
+serve o resto desta seção.
 
 ## Antes de mexer no buraco negro
 
