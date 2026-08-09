@@ -159,8 +159,8 @@ com ou sem produtor.
 | **T-46** | `spatia.hud()` — ⭑ **rodada nas 10 rotas**; as estimativas do briefing viraram medida | `done` | — | — | KR2.1 |
 | **T-47** | A lista de fontes tem TETO de vista, rolagem, scrim e o **total publicado** — as 24 continuam no DOM | `done` | — | — | KR2.1 |
 | **T-48** | O conjunto residente é DECLARADO **e imposto** — `RESIDENTES` + `declararApp`, e `#/security` monta `timeline` | `done` | — | T-52 | KR2.1 |
-| **T-49** | `registerWidget` aceita chave fora do vocabulário — a REGRA DO CATÁLOGO sem portão | `doing` | — | T-50 | — |
-| **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `todo` | T-49 | — | — |
+| **T-49** | `registerWidget` aceita chave fora do vocabulário — a REGRA DO CATÁLOGO sem portão | `done` | — | T-50 | — |
+| **T-50** | `br-deliveries` é widget de palco **sem `surface: true`** — o disco atravessa o texto | `done` | — | — | — |
 | **T-51** | Zona morta do palco — ⭑ **provado na tela: ZERO ao ponteiro nas 8 rotas que o montam** | `done` | — | — | — |
 | **T-52** | A linha de referência sai quando um painel VISÍVEL já a afirma — e vira PONTEIRO, com o `[n]` dentro | `done` | — | — | KR2.1 |
 | **T-53** | O que sobe para o MUNDO — `space/bodies.js` está pronto e desmontado | `blocked` | decisão do usuário | — | — |
@@ -398,19 +398,15 @@ mesmo fato).
   `kernel/registry.js` nomeiam o que o contrato aceita, o que cada fenda EXIGE declarado e o que ela
   proíbe; `registerWidget` recusa NO REGISTRO e `scripts/lei-catalogo.mjs` prova as duas recusas por
   perturbação (12 mutações vistas caindo, cada uma nomeada).
-  ☠️ **Faltam TRÊS linhas, e enquanto elas não entrarem a lei sai 1 e o boot morre em
-  `registerApps()`** — todas em território que T-49 não podia tocar:
-  1. `apps/index.js:1161` (`br-deliveries`) → `surface: true,` — é T-50.
-  2. `apps/widgets-core.js:67` (`answer`) → `surface: false,`. **`br-deliveries` NÃO era o único
-     widget de palco sem `surface`**: o `answer` também não declara, e a decisão dele é legítima
-     (o palco não leva moldura) — o que faltava era DIZÊ-LA.
-  3. `apps/widgets-core.js:79` → tirar o padrão `surface = false` de `listWidget`. Enquanto ele
-     existir, o invólucro FABRICA a decisão e o registro nunca vê a ausência — o portão em runtime
-     fica armado sobre um valor que ninguém declarou.
+  ⭑ **As três linhas entraram, e o portão está armado ponta a ponta:** `br-deliveries`
+  (`apps/index.js`) declara `surface: true` — é T-50; `answer` (`apps/widgets-core.js`) declara
+  `surface: false`, porque a decisão dele é legítima (o palco não leva moldura) e o que faltava era
+  DIZÊ-LA; e `listWidget` perdeu o padrão `surface = false`. ☠️ **O padrão era o pior dos três:**
+  enquanto ele existia, o invólucro FABRICAVA a decisão e o registro nunca via a ausência — o portão
+  em runtime ficava armado sobre um valor que ninguém declarou.
   ⚠️ **A varredura da fonte (§4 da lei) é o que alcança o que o invólucro engole:** `surafce: true`
   num `listWidget({…})` some na desestruturação antes do registro, e só a auditoria da declaração
-  acusa. Contagem de hoje, do `node scripts/lei-catalogo.mjs`: **46 declarações · 44 passam · 9 no
-  palco**.
+  acusa. A contagem do dia sai de `node scripts/lei-catalogo.mjs`, nunca deste parágrafo.
 
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
