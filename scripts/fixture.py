@@ -90,9 +90,10 @@ ARQUIVOS = [
     # nunca chegaria lá. Com eles, `colapso/` é um sistema cuja estrela está morta — que é o caso
     # real (PSR B1257+12 tem planetas em volta de um pulsar).
     #
-    # ⚠️ `varredura/pulsar/` continua existindo e serve ao modelo ANTERIOR (roteamento por
-    # regularidade de cadência), que o §2.7.1 substituiu. Ele não foi removido aqui para não
-    # misturar duas mudanças; quem fechar aquela pendência decide o destino dele.
+    # ⭑ `varredura/pulsar/` FOI REMOVIDO em 2026-08-09 — ele servia ao modelo anterior (cadência),
+    # e a medida que o condenou está no lugar onde ele ficava. `colapso/` passou a ser o único
+    # espécime do pulsar, o que é cobertura de TIPO e não de PARÂMETRO: ele prova que o caminho
+    # desenha, não que o `core`/`period` foram exercitados. Ver a nota em `VARREDURA`.
     f("colapso/remanescente.md", LIMPO, 120, "estrela morta: massa alta, atividade encerrada"),
     f("colapso/orbita-a.md", LIMPO, 5, "companheiro do remanescente"),
     f("colapso/orbita-b.md", LIMPO, 4, "companheiro do remanescente"),
@@ -165,10 +166,22 @@ VARREDURA = [
     f("varredura/nebulosa/compose-mini.yml", LIMPO, 2, "dois serviços"),
     f("varredura/nebulosa/compose-media.yml", LIMPO, 5, "cinco serviços"),
     f("varredura/nebulosa/compose-cheia.yml", LIMPO, 12, "doze serviços"),
-    # PULSAR nos dois extremos de massa — o período é INVERSO dela (o de milissegundo é o velho
-    # reciclado). As cadências entram em `CADENCIAS`, logo abaixo; sem ritmo não há classe.
-    f("varredura/pulsar/leve.sh", LIMPO, 2, "ritmo de corpo leve"),
-    f("varredura/pulsar/pesado.md", LIMPO, 90, "ritmo de corpo pesado"),
+    # ⛔ `varredura/pulsar/` SAIU em 2026-08-09, e não por arrumação — por medida. Ele varria o
+    # eixo de MASSA do pulsar sob o portão de CADÊNCIA, que o §2.7.1 substituiu. Dois fatos o
+    # condenaram, e o segundo é o que impede recriá-lo mais adiante:
+    #
+    # (1) `regularity` não é lida por ninguém no roteamento. Os dois espécimes classificavam
+    #     `asteroide` (sem pele) e `estrela:gigante` (FOTOSFERA) — nenhum chegava a pulsar, e o
+    #     `1,00` que eles carregavam em `CADENCIAS` não tinha leitor.
+    # (2) **O eixo é invarrível por construção.** `pulsarParams` deriva `core` e `period` de
+    #     `massRank`, que é POSTO no céu inteiro; o portão do pulsar é `chunks >= 80`. Gigante
+    #     implica massRank 0,822–1,000, então `period` só alcança **3,61–4,25 s de uma escala
+    #     0,9–4,2** — a metade rápida do `SPIN_PERIOD` (o pulsar de milissegundo) é inalcançável.
+    #     Um trio de massas não varreria nada, e mais espécimes não consertam isso.
+    #
+    # O pulsar segue com o espécime de TIPO em `colapso/` (um ponto do parâmetro). Fechar o eixo
+    # exige acertar a escala que o rig lê contra a que o portão seleciona — é trabalho no `rig`,
+    # não no fixture, e está anotado como aberto.
 ]
 ARQUIVOS.extend(VARREDURA)
 
@@ -196,10 +209,10 @@ CADENCIAS = {
     "atlas/scripts/limpar.sh": [40, 40, 40, 40, 40],      # metrônomo  · CV 0
     "atlas/config/limites.toml": [34, 45, 38, 42, 36],    # quase      · CV ~0,10
     "atlas/src/rota.ts": [1, 1, 2, 1, 115],               # rajada     · CV > 1
-    # Os dois extremos de MASSA com o mesmo ritmo — o que muda entre eles é o período, que é
-    # inverso da massa, e o tamanho do núcleo (0,10 → 0,16). Ver `varredura`.
-    "varredura/pulsar/leve.sh": [30, 30, 30, 30, 30],
-    "varredura/pulsar/pesado.md": [30, 30, 30, 30, 30],
+    # ⛔ Os dois de `varredura/pulsar/` saíram com os espécimes em 2026-08-09 — o motivo está lá.
+    # ⚠️ Os três que ficam NÃO são resto: `regularity` continua sendo fato publicado no nó, e a
+    # RAJADA segue sendo o controle negativo dele. O que morreu foi a cadência decidir CLASSE,
+    # não a cadência ser medida.
 }
 
 # `nucleo` — hub massivo, para acender o QUASAR (o portão hoje é massa de bojo).
