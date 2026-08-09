@@ -689,10 +689,41 @@ como estado de React reintroduziria o acoplamento que ele existe para evitar.
 
 ## Referencias e Links
 
-- https://github.com/dgreenheck/webgpu-black-hole
+### As fontes estão EM DISCO — leia-as, não lembre delas
+
+    opensrc list                       # o que já está espelhado
+    opensrc path owner/repo            # o caminho absoluto (busca se faltar)
+    opensrc fetch owner/repo           # espelha um novo
+
+> ☠️ **A regra deste projeto: fonte em disco vence memória.** Um shader lembrado é um shader
+> inventado — `blackhole-geodesic.js` diz isso por escrito, e as cinco invariantes dele foram lidas
+> no clone, não recordadas. Antes de afirmar como uma biblioteca se comporta, **abra o arquivo**.
+> ⚠️ `three.js` está espelhado em **r171**, que é a versão de `vendor/` — perguntar à memória sobre
+> "a API do three" é perguntar sobre outra versão.
+
+| repositório | o que ele deu a este projeto |
+|---|---|
+| [`mrdoob/three.js`](https://github.com/mrdoob/three.js) `@r171` | o motor, na versão exata de `vendor/` |
+| [`pmndrs/postprocessing`](https://github.com/pmndrs/postprocessing) | os passes — e o orçamento desta cena mora neles |
+| [`ebruneton/black_hole_shader`](https://github.com/ebruneton/black_hole_shader) | a geodésica e a cor do disco (BSD-3), citada em `quasar.js` |
+| [`dgreenheck/threejs-procedural-planets`](https://github.com/dgreenheck/threejs-procedural-planets) | o terreno do planeta procedural |
+| [`stegu/webgl-noise`](https://github.com/stegu/webgl-noise) | o simplex 3D do GLSL |
+| [`patriciogonzalezvivo/thebookofshaders`](https://github.com/patriciogonzalezvivo/thebookofshaders) | referência de shader |
+| [`SoumyaEXE/3d-Solar-System-ThreeJS`](https://github.com/SoumyaEXE/3d-Solar-System-ThreeJS) | ⚠️ intermediário **sem licença declarada** — foi por onde `sun.jpg` entrou, e a procedência real teve de ser provada por hash |
+| [`getzep/graphiti`](https://github.com/getzep/graphiti) | o outro grafo que **coexiste** no mesmo Neo4j — é ele que decide quais rótulos estão tomados |
+| `dgreenheck/webgpu-black-hole` · `vlwkaos/threejs-blackhole` · `oseiskar/black-hole` · `MisterPrada/singularity` | as quatro implementações comparadas ao desenhar o buraco negro |
+| [`vercel-labs/opensrc`](https://github.com/vercel-labs/opensrc) | a própria ferramenta |
+
+☠️ **`nasa/NASA-3D-Resources` NÃO está espelhado, e é decisão:** ele puxa **2,6 GB** — quase o dobro
+de todo o resto do cache junto (1,7 GB para os catorze). Um acervo de malhas não se lê como código:
+o que se quer dele é **um modelo por vez**, e isso se baixa do item. O mapa do que serve a esta
+cena, com link por modelo, está em [`assets/CREDITS.md`](assets/CREDITS.md).
+
+### Outras
+
 - https://threejsroadmap.com/blog/raytracing-a-black-hole-with-webgpu
-- https://github.com/vlwkaos/threejs-blackhole
-- https://github.com/SoumyaEXE/3d-Solar-System-ThreeJS
 - https://www.astronexus.com/projects/hyg (stars data)
 - https://eyes.nasa.gov/apps/solar-system/#/home
 - https://threejs.org/examples/webgl_shaders_sky.html
+- https://www.solarsystemscope.com/textures/ (CC BY 4.0)
+- https://esawebb.org/images/ (os fundos JWST, CC BY 4.0)

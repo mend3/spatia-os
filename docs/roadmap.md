@@ -77,6 +77,23 @@ do usuário por natureza — nenhum agente deve "destravá-las" resolvendo sozin
 
 ---
 
+## As fontes estão em disco — `opensrc`
+
+    opensrc list                  # os 14 repositórios espelhados
+    opensrc path owner/repo       # o caminho absoluto (busca se faltar)
+
+☠️ **Fonte em disco vence memória, e isto é regra do projeto.** Um shader lembrado é um shader
+inventado. `three.js` está espelhado em **r171** — a versão exata de `vendor/` —, então perguntar à
+memória sobre "a API do three" é perguntar sobre outra versão. O que cada repositório deu a este
+projeto está no [`README`](../README.md#referencias-e-links).
+
+⚠️ **Espelhar é caro.** `nasa/NASA-3D-Resources` sozinho puxa **2,6 GB** contra 1,7 GB dos catorze
+juntos, e por isso **não está espelhado**: acervo de malha não se lê como código — quer-se um modelo
+por vez, e isso se baixa do item. Os links por modelo estão em
+[`../assets/CREDITS.md`](../assets/CREDITS.md).
+
+---
+
 ## As tarefas
 
 ⚠️ **A ordem não é valor puro: é destravar o maior número de briefings por peça**, e não construir
