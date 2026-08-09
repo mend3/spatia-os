@@ -78,8 +78,15 @@
   #barra button[aria-pressed="true"] { background: rgba(200, 150, 80, 0.18); color: #f0dcb4; border-color: #c8964e; }
   #leitura { margin-left: auto; display: flex; gap: 14px; align-items: baseline; white-space: nowrap; }
   #leitura b { color: #f0dcb4; font-weight: 600; }
+  /*
+   * ⚠️ O `watch` mora FORA da área que a medida varre e num canto que a composição não usa.
+   * A primeira posição (embaixo à esquerda) caía por cima do trilho esquerdo — a bancada
+   * atrapalhando o que ela existe para mostrar. Ele não entra na conta: `medir()` só percorre
+   * `#hud`, e este bloco está fora.
+   */
   #vigia {
-    position: fixed; z-index: 40; left: 12px; bottom: 52px; max-width: 46ch;
+    position: fixed; z-index: 40; right: 12px; bottom: 52px; max-width: 52ch;
+    padding: 8px 10px; background: rgba(6, 9, 15, 0.86); border: 1px solid rgba(200, 150, 80, 0.22);
     font: 10px/1.6 ui-monospace, Menlo, monospace; color: #8e7c5c;
   }
   #vigia u { color: #d8b070; text-decoration: none; display: block; margin-bottom: 3px; letter-spacing: 0.16em; }
