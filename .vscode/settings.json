@@ -1,0 +1,50 @@
+// As duas ferramentas convivem aqui, e o que as faz brigar tem nome.
+//
+// ☠️ **O conflito NÃO é prettier × tsc** — o `tsc` deste repo roda com `noEmit` e não escreve uma
+// linha. É prettier × o formatador EMBUTIDO do VS Code, que também formata JS e disputa o mesmo
+// `onSave`. Por isso `javascript.format.enable` é `false`: existe UM formatador.
+//
+// ☠️ **E `formatOnSave` inteiro reformataria arquivo inteiro no primeiro toque.** Medido: prettier
+// mudaria **78 dos 111** arquivos de `src/`, então salvar um ajuste de uma linha produziria um diff
+// de centenas — o trabalho de formatação enterrando o trabalho de verdade. `formatOnSaveMode:
+// "modifications"` limita ao que o git vê como alterado.
+{
+  // ─────────────────────────────────────────────────────────────── formato: UM dono
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "modifications",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  // ⚠️ HTML fica FORA do formato automático: medido, prettier não muda o `index.html` — mas ele é
+  // o arquivo onde vivem o CSS e os nós que quatro oráculos leem, e formatá-lo por acidente num
+  // save é risco sem ganho.
+  "[html]": { "editor.formatOnSave": false },
+
+  // Os formatadores embutidos, desligados — é o que impede dois donos do mesmo save.
+  "javascript.format.enable": false,
+  "typescript.format.enable": false,
+  // Só formata onde há `.prettierrc`; sem isto o prettier aplica os padrões dele em qualquer
+  // arquivo aberto, inclusive fora deste repo.
+  "prettier.requireConfig": true,
+
+  // ─────────────────────────────────────────────────────────────── tipos: só DIAGNÓSTICO
+  // O `tsconfig.json` já liga `checkJs`; isto vale para arquivo aberto fora dele.
+  "js/ts.implicitProjectConfig.checkJs": true,
+  "javascript.preferences.quoteStyle": "single",
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+
+  // ⚠️ `endOfLine: "lf"` no `.prettierrc` só vale para o que o prettier escreve; isto vale para
+  // arquivo NOVO, e as duas discordando é como um `\r\n` entra num repo de `\n`.
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+
+  // ⚠️ O `index.html` tem regra de CSS em UMA linha por regra, e é assim que se faz `grep` numa
+  // regra. A régua de 110 é a do `.prettierrc`, medida (P95 do `src/` = 102 colunas).
+  "editor.rulers": [110],
+
+  // Pastas que não são código deste repo — busca e watcher fora delas.
+  "search.exclude": { "vendor/**": true, "node_modules/**": true, ".cache/**": true },
+  "files.watcherExclude": { "**/.cache/**": true, "**/vendor/**": true }
+}

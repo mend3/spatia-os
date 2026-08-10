@@ -1,0 +1,7 @@
+# O `three` e os add-ons de `jsm/` são cópias upstream: reformatá-los faz todo `diff` contra a
+# origem virar ruído, e a próxima atualização vira conflito de estilo em vez de conflito de código.
+vendor/
+
+node_modules/
+.cache/
+assets/

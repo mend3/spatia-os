@@ -858,6 +858,34 @@ mundo — **a cena não desenhava um arco e o painel anunciava 4.226**. `connect
 apontando para lugares que não existem.** Elas produzem **zero com cara de medida**. Todo script que
 fale com o corpus confere o override, ou herda o defeito.
 
+## Ao mexer em JSDoc, ou ao suspeitar de assinatura mentindo
+
+    make tipos
+
+`tsc --checkJs` sobre o JS, guiado pelo JSDoc. Pega a classe que **nenhum oráculo alcança e a tela
+não acusa**: documentação que mente sobre a própria assinatura, nome de propriedade trocado,
+contagem de argumento errada. Três defeitos saíram assim — `adopt` com um `@param` por chave num
+parâmetro desestruturado (o tipo virava `String` e TODA chamada acusava), `cederParaVarios`
+documentando um nome que não existe, e `spec.keys` lido por `keys.js` e ausente do contrato.
+
+☠️ **É MEDIDA, não lei, e está FORA do portão de propósito.** `leis.mjs` varre `scripts/` inteiro,
+então um guarda ali faria `make leis` depender de `npx` e de rede — o portão roda offline em ~4 s, e
+essa propriedade vale mais. A receita **RECUSA relatar sem medir**: a primeira versão dela imprimiu
+*"0 diagnósticos"* com o `tsc` não tendo rodado (`npx -y typescript@5 tsc` falha; o pacote precisa
+vir em `-p`), e zero-porque-não-mediu saía idêntico a zero-porque-está-limpo.
+
+⚠️ **`vendor/` sai do relatório** — o TS segue import e entra no `jsm/` mesmo com ele no `exclude`.
+
+⭑ **`types/three.d.ts` nomeia a superfície do `three` que esta base usa**, e é a REGRA DO CATÁLOGO
+aplicada ao vendor: membro novo pede uma linha. As alternativas foram medidas — `paths` para o
+bundle dá **1.031** diagnósticos (o TS tenta tipar o vendorizado), e a declaração curta deixa
+`THREE.Vector3` quebrado em posição de tipo.
+
+⚠️ **Não existe `package.json`, e o cabeçalho do `Makefile` diz por quê.** Isso decide o resto:
+ESLint está fora (precisaria do mecanismo que o repo recusa). `.prettierrc` existe porque editor
+lê config sem instalação — e **nada foi reformatado**: medido, prettier mudaria **78 dos 111**
+arquivos de `src/`, e essa é uma decisão de quem opera, não um efeito colateral de configurar.
+
 ## Ao suspeitar de custo
 
 Cole `scripts/baseline.js` no console da aba da cena, com a **janela em primeiro plano**. Leva ~35 s

@@ -1,0 +1,44 @@
+// Conferência de tipos sobre JS puro — este projeto não tem um `.ts` e não vai ter.
+//
+// O que ele compra: a classe de defeito que nenhum dos oráculos alcança e que a tela não acusa —
+// JSDoc que MENTE sobre a própria assinatura, nome de propriedade trocado, contagem de argumento
+// errada. Três já foram achados assim (`adopt`, `cederParaVarios`, `spec.keys`).
+//
+// ☠️ **`noEmit` sempre.** O navegador carrega o `src/` direto, por importmap; qualquer saída de
+// build aqui seria uma segunda cópia do código, livre para divergir da que roda.
+//
+// ⚠️ **Isto NÃO entra em `make leis`.** O portão roda offline em ~4 s, e `tsc` não está no
+// repositório — `scripts/` é varrido inteiro por `leis.mjs`, então um guarda aqui exigiria `npm`
+// para o portão inteiro. A conferência é `make tipos`, e é MEDIDA, não lei.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // `DOM.Iterable` porque a base itera `NodeList` e `Set` de eventos sem espalhar em array.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    // `bundler`: o carregador real é o importmap do `index.html`, que resolve sem extensão nem
+    // `node_modules`. `node16` exigiria `package.json`, que este projeto deliberadamente não tem.
+    "moduleResolution": "bundler",
+
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+
+    // ⚠️ **`strict` fica FALSO, e é medida, não preguiça.** Ligado, o `noImplicitAny` sozinho
+    // acusa centenas de parâmetros de calllback num código que nunca declarou tipos — o sinal
+    // útil afogaria no ruído, e um relatório que ninguém lê é o mesmo que nenhum relatório.
+    "strict": false,
+
+    // ☠️ **`three` NÃO é mapeado para o `vendor/`, e isto é MEDIDO.** Apontando `paths` para
+    // `vendor/three.module.js`, o TS tenta tipar o bundle vendorizado e os erros saltam de 156 para
+    // **1.031** — ~700 deles `new THREE.X()` reportado como não-construível. Tipagem inventada é
+    // pior que tipagem ausente: ela afoga o sinal. O módulo é declarado OPACO em `types/`.
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  // `scripts/` fica de fora: os oráculos montam DOM e `globalThis` de mentira de propósito, e
+  // conferi-los contra a lib do navegador acusaria justamente o que os faz funcionar.
+  "include": ["src/**/*.js", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "vendor", ".cache", "assets", "server"]
+}

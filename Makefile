@@ -10,7 +10,7 @@
 # `make` não muda como um arquivo é interpretado. É despachante, e só.
 
 .DEFAULT_GOAL := ajuda
-.PHONY: ajuda leis leis-lista hooks serve rematerializar grafo snapshots conceitos censos fixture fixture-limpar
+.PHONY: ajuda leis leis-lista hooks serve rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
 
 # ⚠️ CRASE em receita de make é SUBSTITUIÇÃO DE COMANDO no shell — a primeira versão desta
 # receita escreveu "o portão é `make leis`" e o `make ajuda` RODOU o portão inteiro para montar a
@@ -90,6 +90,30 @@ censos:  ## o que o céu DESENHA e o que o corpus É — inclui a saúde das con
 fixture:  ## cria e indexa o corpus sintético que exercita todos os kind
 	@FIXTURE_ROOT=$${FIXTURE_ROOT:-$$HOME/workspace/espatial-fixtures} \
 	  uv run --with fastembed python scripts/fixture.py
+
+# ─────────────────────────────────────────────────────────────────── os tipos, e é CENSO
+#
+# ⚠️ **Fora do portão, e é medida — não lei.** `leis.mjs` varre `scripts/` INTEIRO, então um guarda
+# ali dentro faria `make leis` inteiro depender de `npx` e de rede. O portão roda offline em ~4 s, e
+# essa propriedade vale mais do que ter isto dentro dele.
+#
+# `tsc` confere JS por JSDoc e pega a classe que nenhum oráculo alcança: documentação que MENTE
+# sobre a própria assinatura, nome de propriedade trocado, contagem de argumento errada.
+#
+# ⚠️ **`vendor/` sai do relatório.** O TS segue import e entra no `jsm/` mesmo com ele no `exclude`;
+# são ~19 diagnósticos sobre código que este repo não mantém e que abafariam os nossos.
+# ☠️ **A PRIMEIRA versão desta receita relatou "0 diagnosticos" com o tsc NAO tendo rodado.**
+# `npx -y typescript@5 tsc` falha ("could not determine executable to run") — o pacote precisa vir
+# em `-p`. O `grep -c` sobre a saida de erro devolvia 0, e zero-porque-nao-mediu e zero-porque-esta-
+# limpo saiam identicos. E `null` != `0` aplicado ao proprio relatorio, e o pior padrao que existe
+# nesta base: o cabecalho AFIRMA e a carga esta vazia. A receita agora RECUSA relatar sem medir.
+tipos:  ## confere os tipos por JSDoc (tsc --checkJs). MEDIDA, não lei — fora do portão
+	@npx -y -p typescript@5 tsc --version > /dev/null 2>&1 \
+	  || { printf '\033[31mnao medi\033[0m: tsc indisponivel (npx -p typescript@5). Sem rede?\n'; exit 1; }
+	@npx -y -p typescript@5 tsc -p tsconfig.json 2>&1 | grep -v '^vendor/' > /tmp/spatia-tipos.txt || true
+	@printf 'diagnosticos em src/: %s\n\n' "$$(grep -c 'error TS' /tmp/spatia-tipos.txt || true)"
+	@grep -oE 'error TS[0-9]+' /tmp/spatia-tipos.txt | sort | uniq -c | sort -rn | head -12
+	@printf '\n  \033[2mrelatorio completo em /tmp/spatia-tipos.txt\033[0m\n'
 
 fixture-limpar:  ## apaga o repositório do fixture e a coleção
 	@FIXTURE_ROOT=$${FIXTURE_ROOT:-$$HOME/workspace/espatial-fixtures} \

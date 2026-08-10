@@ -59,12 +59,17 @@ function vazio() {
     nos: 0,
     cobertos: 0,
     semContexto: 0,
-    ehDominante: () => false,
-    sistemaDe: () => null,
-    identidadeDe: () => null,
-    identidadeDaFonte: () => null,
-    // ⚠️ O índice vazio responde a MESMA forma do cheio: um chamador que precise testar qual dos
-    // dois tem na mão acabaria testando a presença do método, que é contrato por acidente.
+    /*
+     * ⚠️ **MESMA FORMA do cheio, e forma inclui ARIDADE.** Declarados sem parâmetro, estes quatro
+     * respondem igual em tempo de execução (JS ignora argumento a mais) e mentem no contrato: quem
+     * lê a assinatura — pessoa ou inferência de tipo — vê duas funções diferentes onde o comentário
+     * promete uma. Um chamador que precise testar qual dos dois tem na mão acabaria testando a
+     * presença do método, que é contrato por acidente.
+     */
+    ehDominante: (_source) => false,
+    sistemaDe: (_source) => null,
+    identidadeDe: (_node) => null,
+    identidadeDaFonte: (_source) => null,
     todas: () => new Map(),
   });
 }

@@ -1,0 +1,12 @@
+// ⚠️ **A única extensão que este repo EXIGE é o prettier**, e é por dependência real: as
+// configurações de formato apontam `esbenp.prettier-vscode` como formatador padrão, e sem ela o
+// `formatOnSave` cai de volta no formatador embutido — que é justamente o que se desligou.
+//
+// A conferência de tipos NÃO precisa de extensão: o TypeScript vem no VS Code e lê o
+// `tsconfig.json` sozinho.
+{
+  "recommendations": ["esbenp.prettier-vscode"],
+  // O ESLint está FORA por decisão registrada: ele exigiria `package.json`, e o cabeçalho do
+  // `Makefile` mede os dois efeitos colaterais que este repo recusa.
+  "unwantedRecommendations": ["dbaeumer.vscode-eslint"]
+}

@@ -105,6 +105,8 @@ export function isTyping(target = document.activeElement) {
  * @param {boolean} [spec.meta]       exige ⌘/Ctrl
  * @param {boolean} [spec.alt]        exige Alt
  * @param {boolean} [spec.whileTyping] dispara MESMO com foco em texto (só Escape e afins)
+ * @param {string} [spec.keys]       o RÓTULO da tecla na barra de dicas, quando não há tecla única
+ *                                   de onde derivá-lo (`pattern` de dígitos escreve `1–9`)
  * @param {string} spec.label         o que a barra de dicas mostra
  * @param {Function} handler
  */
