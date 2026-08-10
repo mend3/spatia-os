@@ -175,7 +175,7 @@ com ou sem produtor.
 | **T-70** | `resolveBody()` decidia uma PELE que ninguém lia — hoje ele só resolve MODIFICADOR | `done` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos — ⭑ a idade passou a alcançar só quem ela mediu | `done` | — | — | KR3.1 |
-| **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |
+| **T-42** | `/api/health` tinha DOIS donos — ⭑ um pollster, e quem precisa da leitura assina | `done` | — | — | KR2.2 |
 | **T-43** | A repintura da marca — ⭑ virou `lei-favoritos-ui.mjs` §11: notifica, e SOLTA | `done` | — | — | KR2.4 |
 | **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
 | **T-45** | Tom emitido sem regra que o pinte — ⚠️ eram **3 em `.row` + 2 em `.unit`**, não os «4» declarados | `done` | — | — | KR2.4 |
@@ -862,6 +862,20 @@ mesmo fato).
   ☠️ **`[data-tone]` está FORA do escopo, declarado:** ali o tom é atributo casado com a classe do
   elemento (`.hs-value[data-tone="warn"]`), então *"que regra pinta este tom?"* só tem resposta
   sabendo qual elemento — par que o próprio CSS já mantém junto.
+- **T-42 FECHADA — `/api/health` tem UM pollster, e o resto LÊ.** O dono é `main.js` (boot + laço,
+  `AFERICAO_MS` 30 s) e publica em `core/saude.js`; quem precisa da leitura assina `aoAferir`.
+  ☠️ **`sys-about` sondava a 15 s — o DOBRO da cadência —, e o defeito não é o tráfego:** o
+  cabeçalho anunciava idade de 28 s ao lado de um painel mostrando uma leitura de 2 s. Dois fatos
+  corretos que se contradizem na tela, e nada os reconcilia porque nenhum sabe do outro. Ele também
+  sondava com a aba ESCONDIDA, que o laço recusa fazer de propósito.
+  ⭑ Os chamadores caíram de **5 para 3** (`main.js` ×2 + o lote de `security.js`); `sys-about` e o
+  teto de gasto do `vitals` passaram a assinar.
+  ⚠️ **A exceção é `security.js` e está declarada com o motivo:** ele pede `/api/config`, health e
+  `/metrics` num lote sob um `erro` só, e tirar um do lote deixaria o painel com um estado de falha
+  que não cobre mais tudo o que ele mostra. A lei recusa que a exceção vire CADÊNCIA — chamar uma
+  vez na montagem é outra coisa que sondar.
+  ⭑ `lei-afericao.mjs` §15 guarda, e varre também o CANCELAMENTO de toda assinatura: ouvinte de
+  painel destruído repinta um DOM fora da árvore, sem erro e sem sintoma, e mais um a cada rota.
 - **T-41 FECHADA — a idade da aferição alcança só os pontos que ela mediu.** Cada ponto declara a
   FONTE do próprio estado (`afericao` · `local` · `carga`, em `hud/frame.js`) e o vencimento no CSS
   casa `[data-fonte="afericao"]`.

@@ -10,7 +10,7 @@
  *
  * Uso: node scripts/lei-afericao.mjs        (sai 0 quando as leis valem)
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 /*
  * ☠️ A raiz sai do PRÓPRIO arquivo, nunca de argumento, de env nem de caminho de máquina. Com
@@ -279,6 +279,85 @@ conferir('§14 (controle) o grupo está vencido', vencida() === 'vencida', Strin
 const porFonte = Object.fromEntries(pontos().map((p, i) => [FONTES[i], p.children[0].dataset.fonte]));
 conferir('§14 vencido o grupo, `stream` e `graph` mantêm fonte fora da regra',
   porFonte.local === 'local' && porFonte.carga === 'carga', JSON.stringify(porFonte));
+
+// ------------------------------------------- §15 `/api/health` tem UM pollster, e o resto LÊ
+
+/*
+ * ☠️ **DOIS DONOS DA MESMA AFERIÇÃO produzem duas verdades com idades diferentes.**
+ *
+ * `sys-about` tinha `setInterval` próprio a 15 s contra os 30 s de `AFERICAO_MS`: o cabeçalho
+ * anunciava idade de 28 s ao lado de um painel mostrando uma leitura de 2 s. Dois fatos corretos
+ * que se contradizem na tela, e nada os reconcilia porque nenhum sabe do outro. Ele também sondava
+ * com a aba ESCONDIDA, que o laço recusa fazer de propósito.
+ *
+ * ⭑ O dono é `main.js` (boot + laço) e publica em `core/saude.js`; quem precisa da leitura ASSINA.
+ */
+/*
+ * ⚠️ **Sem comentário, e isto derrubou a lei ao ser escrita:** a prosa que explica *"tinha
+ * `setInterval` próprio a 15 s"* faz a varredura achar `setInterval` no bloco que a proíbe.
+ */
+const semProsa = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+
+const ARQUIVOS_SRC = (function varrer(dir, saco = []) {
+  for (const e of readdirSync(`${RAIZ}/${dir}`, { withFileTypes: true })) {
+    const caminho = `${dir}/${e.name}`;
+    if (e.isDirectory()) varrer(caminho, saco);
+    else if (e.name.endsWith('.js')) saco.push(caminho);
+  }
+  return saco;
+})('src');
+
+/** Quem pode chamar `health()` sem ser o dono, e o motivo. Entrada órfã é acusada. */
+const FORA_DO_DONO = Object.freeze({
+  'src/apps/security.js':
+    'lote de TRÊS endpoints sob um `erro` só (`/api/config` + health + `/metrics`); tirar um do lote '
+    + 'deixaria o painel com um estado de falha que não cobre mais tudo o que ele mostra',
+});
+
+const chamadores = ARQUIVOS_SRC.filter((f) => /\bhealth\(\)/.test(semProsa(src(f))));
+const intrusos = chamadores.filter((f) => f !== 'src/main.js' && !FORA_DO_DONO[f]);
+const orfaos = Object.keys(FORA_DO_DONO).filter((f) => !chamadores.includes(f));
+
+conferir('§15 ☠️ o dono de `/api/health` é `main.js`, e mais ninguém sonda',
+  intrusos.length === 0, `também chamam: ${intrusos.join(', ')}`);
+conferir('§15 `FORA_DO_DONO` não é tabela velha', orfaos.length === 0, orfaos.join(', '));
+
+/*
+ * ⚠️ **A exceção do lote não pode virar CADÊNCIA.** Chamar uma vez na montagem é outra coisa que
+ * sondar: o que produz duas idades vivas é o temporizador, e é ele que a lei recusa.
+ */
+for (const arquivo of Object.keys(FORA_DO_DONO)) {
+  const fonte = semProsa(src(arquivo));
+  const temCadencia = /setInterval\([\s\S]{0,400}?health\(\)/.test(fonte)
+    || /health\(\)[\s\S]{0,400}?setInterval\(/.test(fonte);
+  conferir(`§15 a exceção \`${arquivo}\` lê UMA vez, não sonda`, !temCadencia);
+}
+
+/*
+ * E o painel que era o segundo dono: nem chama, nem tem temporizador seu — ele assina.
+ */
+const indexSrc = semProsa(src('src/apps/index.js'));
+const blocoAbout = indexSrc.slice(indexSrc.indexOf("id: 'sys-about'"), indexSrc.indexOf("id: 'sys-services'"));
+conferir('§15 `sys-about` não pede a saúde', !/health\(\)/.test(blocoAbout));
+conferir('§15 `sys-about` não tem cadência própria', !/setInterval/.test(blocoAbout));
+conferir('§15 `sys-about` ASSINA a aferição', /aoAferir\(/.test(blocoAbout));
+
+/*
+ * ☠️ **Quem assina numa montagem SOLTA na destruição** — ouvinte de painel destruído repinta um DOM
+ * fora da árvore, sem erro e sem sintoma, e mais um a cada troca de rota. Vale para todos os
+ * assinantes de `core/saude.js`, não só para o que causou esta tarefa.
+ */
+for (const arquivo of ARQUIVOS_SRC.filter((f) => /aoAferir\(/.test(semProsa(src(f))))) {
+  const fonte = semProsa(src(arquivo));
+  const nomes = [...fonte.matchAll(/const\s+(\w+)\s*=\s*saudeStore\.aoAferir\(/g)].map((m) => m[1]);
+  const anonimos = [...fonte.matchAll(/saudeStore\.aoAferir\(/g)].length - nomes.length;
+  conferir(`§15 toda assinatura em \`${arquivo}\` guarda o cancelamento`, anonimos === 0,
+    `${anonimos} assinatura(s) com o cancelamento descartado`);
+  for (const nome of nomes) {
+    conferir(`§15 e \`${nome}\` é chamado na destruição`,
+      new RegExp(`destroy:[\\s\\S]{0,200}?\\b${nome}\\b`).test(fonte), arquivo);
+  }
+}
 
 // ---------------------------------------------------------------- veredito
 console.log(`\n${ok.length} leis provadas`);

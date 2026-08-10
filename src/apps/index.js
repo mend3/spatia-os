@@ -20,6 +20,7 @@ import { declararApp, declararVista } from './residentes.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
 import { classeDeLinha } from '../hud/tons.js';
+import * as saudeStore from '../core/saude.js';
 import { registerContextWidget } from './context.js';
 import { registerJournal } from './journal.js';
 import { registerMetrics } from './metrics.js';
@@ -823,19 +824,23 @@ function registerFilesWidgets() {
 // ---------------------------------------------------------------- SISTEMA
 
 function registerSystemWidgets() {
-  let health = null;
 
   listWidget({
     id: 'sys-about',
     title: 'SOBRE ESTE SISTEMA',
     slot: 'left',
     render(view) {
-      async function draw() {
-        try {
-          health = await api.health();
-        } catch (error) {
-          return view.empty(`servidor não respondeu: ${error.message}`);
-        }
+      /*
+       * ☠️ **ESTE PAINEL NÃO AFERE — ele LÊ a aferição.** Ele tinha `setInterval` próprio a 15 s
+       * contra os 30 s do laço de saúde: duas leituras do mesmo servidor com idades diferentes, e
+       * nada as reconciliando. O cabeçalho anunciava idade de 28 s ao lado de um painel mostrando
+       * uma leitura de 2 s — dois fatos corretos que se contradizem na tela.
+       *
+       * ⚠️ E ele sondava com a aba ESCONDIDA, que o laço recusa fazer de propósito.
+       */
+      function draw() {
+        const { saude: health } = saudeStore.snapshot();
+        if (!health) return view.empty('aguardando a primeira aferição');
         const rows = [
           ['NÚCLEO', health.brain === 'claude' ? 'claude · subprocesso' : `ollama · ${health.ollama?.models?.[0] ?? '—'}`],
           ['RAIZ DO AGENTE', health.agent_cwd],
@@ -850,8 +855,9 @@ function registerSystemWidgets() {
         }));
       }
       draw();
-      const timer = setInterval(draw, 15000);
-      return { destroy: () => clearInterval(timer) };
+      // Solta na destruição: ouvinte de painel destruído repinta um DOM fora da árvore.
+      const soltar = saudeStore.aoAferir(draw);
+      return { destroy: soltar };
     },
   });
 
@@ -940,8 +946,9 @@ function registerSystemWidgets() {
        * sessão é esta aba, o teto é o dia inteiro em disco. Misturá-las num número só faria
        * duas abas abertas parecerem ter gasto metade do que gastaram.
        */
-      let budget = null;
-      ctx.api.health().then((payload) => { budget = payload.budget; draw(); }).catch(() => {});
+      // O teto vem da AFERIÇÃO, não de um pedido próprio: `/api/health` tem um pollster só.
+      let budget = saudeStore.snapshot().saude?.budget ?? null;
+      const soltarTeto = saudeStore.aoAferir((saude) => { budget = saude?.budget ?? null; draw(); });
 
       function draw() {
         const store = snapshot();
@@ -979,7 +986,7 @@ function registerSystemWidgets() {
       }
       draw();
       const timer = setInterval(draw, 1000);
-      return { destroy: () => clearInterval(timer) };
+      return { destroy: () => { clearInterval(timer); soltarTeto(); } };
     },
   });
 }

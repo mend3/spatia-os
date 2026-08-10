@@ -110,11 +110,12 @@ defeito vive (gradiente raso), e ali a maior parte é saturada. Isolado o regime
 a cauda desabando. **Antes de aceitar um nulo, pergunte se a métrica alcança o defeito** — nulo com
 controle fechado é a forma mais convincente de estar errado.
 
-⭑ **T-41 · T-42 · T-43 · T-45 · T-64 são um CLUSTER, não cinco tarefas soltas:** todas são
-*"declarado sem leitor"* ou *"dois donos para um estado"*. O corolário da REGRA DO CATÁLOGO
-(`CLAUDE.md`) diz como a auditoria se faz, e fazê-las juntas cobra uma varredura só.
-⭑ **T-41, T-43, T-45 e T-64 saíram (09/08); T-88 foi arquivada por já estar respondida. Resta
-T-42.** T-45 deixou ferramenta para o resto: `scripts/lei-tom.mjs`.
+⭑ **A auditoria de *"declarado sem leitor"* / *"dois donos para um estado"* é a que mais rende
+aqui, e o corolário da REGRA DO CATÁLOGO (`CLAUDE.md`) diz como se faz.** Feita em bloco, cobra uma
+varredura só — o cluster de cinco saiu assim.
+⭑ **O CLUSTER FECHOU (09/08)** — T-41, T-42, T-43, T-45 e T-64 entregues, T-88 arquivada por já
+estar respondida. Ele deixou duas ferramentas: `scripts/lei-tom.mjs` (tom emitido × regra que o
+pinta) e `core/saude.js` (um dono para `/api/health`).
 ☠️ **A varredura já corrigiu DUAS linhas do roadmap, e a lição vale para as outras quatro:** o
 número declarado em T-45 estava errado nos dois sentidos, e **T-88 já tinha resposta escrita** no
 próprio roadmap (*"`connectivity` no pixel … seria segunda codificação do mesmo fato"*). **Meça o

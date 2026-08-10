@@ -8,6 +8,7 @@
  */
 import { on, ui, emit } from './core/bus.js';
 import * as state from './core/state.js';
+import * as saudeStore from './core/saude.js';
 import * as session from './core/session.js';
 import * as tela from './core/tela.js';
 import * as attention from './core/attention.js';
@@ -926,6 +927,7 @@ async function main() {
   try {
     health = await api.health();
     frame.applyHealth(health);
+    saudeStore.publicar(health);
     // O botão de voz precisa do DESEJADO, que o health não carrega: sem ele, TTS desligado por
     // decisão e TTS caído chegam iguais e a tela promete uma voz que não vem.
     api.units().then((units) => voice.applyHealth(health, units)).catch(() => voice.applyHealth(health));
@@ -1206,6 +1208,7 @@ function watchHealth(frame) {
     try {
       const saude = await api.health();
       frame.applyHealth(saude);
+      saudeStore.publicar(saude);
       /*
        * ⚠️ **Quem sabe do disco é o SERVIDOR** — o navegador não lista sistema de arquivos, e
        * sondar arquivo por arquivo confundiria 404 de rede com arquivo ausente. O modelo de
