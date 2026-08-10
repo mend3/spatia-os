@@ -141,6 +141,10 @@ sozinho** — estão nomeadas no fim do `roadmap.md`.
 Proposta de *"dinâmica de entidades"*, *"campo de influência"* ou *"gravidade cognitiva"* chega
 aqui com frequência e é meia-recusa: o canal de BRILHO já existe (`universe.js:brilhoDe`), o de
 COORDENADA está fechado com guarda. Confira a linha do T-22 antes de abrir tarefa nova.
+⚠️ **T-86 · T-87 · T-88 nasceram dessa triagem e estão FORA da ordem acima, por decisão do usuário
+(09/08): abertas para não se perderem, não para atacar agora.** Quem pegar uma delas começa pelo
+briefing `dinamica-de-entidades.md`, que já chega triado — ele existe justamente para a leitura não
+ser paga duas vezes.
 
 ---
 

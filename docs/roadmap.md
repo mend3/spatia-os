@@ -205,6 +205,9 @@ com ou sem produtor.
 | **T-83** | `lei-residentes.mjs` guarda a ROTA e não a TABELA — tirar um residente de `RESIDENTES` sai 0 | `todo` | — | — | KR2.4 |
 | **T-84** | O disco atravessava o que NÃO É SÓLIDO — oclusor macio por ÂNGULO, e a geodésica que era truncada | `done` | — | T-85 | KR2.4 |
 | **T-85** | A BANDA em faixas largas no gradiente claro — é quantização de SAÍDA, e o grão nunca a alcançava | `done` | — | — | — |
+| **T-86** | O BARICENTRO — sistema duplo com dois corpos, ambos `f(t)` em torno do centro de massa | `todo` | — | — | KR3.2 |
+| **T-87** | Acoplamento entre agentes como VÍNCULO, nunca como trajetória | `blocked` | T-23 | — | — |
+| **T-88** | Varrer os consumidores de influência — quem mais deveria ler `centrality`/`usage` e não lê | `todo` | — | — | KR3.4 |
 
 - **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
   foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
@@ -809,6 +812,33 @@ mesmo fato).
   `readPixels` fora de `rAF` aninhado devolve zero, o recorte central cai dentro da SOMBRA, duas
   fotos separadas por segundos atribuem animação ao tratamento, e passa-alta ×16 mostra contorno em
   QUALQUER gradiente de 8 bits (é o piso do formato, não defeito).
+- **T-86 · T-87 · T-88 são o que SOBROU da REGRA DA COORDENADA**, e a linha que os separa é a
+  mesma: nenhum deles pode ganhar uma coordenada nova. Saem de
+  [`briefings/dinamica-de-entidades.md`](./briefings/dinamica-de-entidades.md), que já chega com a
+  triagem feita — a maior parte daquela proposta descrevia o que existe com outro nome.
+- **T-86 · O baricentro.** ⚠️ **É a única lacuna de MODELO que a triagem confirmou**, e ela é real:
+  a cena desenha *uma estrela por sistema* nos 22, enquanto `μ` (razão da maior massa pela segunda)
+  põe **18 dos 22 — 81,8%** na faixa de sistema duplo. O corpo central num FOCO da elipse já está
+  feito; o que não existe é o segundo corpo.
+  ☠️ **É PIPELINE NOVO, não limiar** — foi por isso que a zona graduada de T-28 foi arquivada, e o
+  mesmo custo continua de pé: desenhar um companheiro em 81,8% dos sistemas, com as **0
+  sobreposições em 17.578 pares** no caminho. Reabrir sem essa medida refeita é reabrir T-28.
+  ⭑ **E ele NÃO viola a coordenada:** `baricentro = f(razão de massa, layout)` e cada corpo é
+  `f(baricentro, fase)`. Tudo reconstruível, nada acumulado — o alvo é a mesma classe de derivação
+  que `posicao-canonica.js` já usa.
+- **T-87 · Acoplamento entre agentes.** Dois agentes que colaboram formam um sistema, e hoje isso
+  não tem como ser dito: `edge = true` é tudo o que existe. A saída é a do Neo4j — o vínculo muda
+  **brilho, espessura do arco, partículas**, e nunca a órbita de nenhum dos dois.
+  ⚠️ `blocked` por T-23, e não por engenharia: enquanto agente for **estação orbital, não nave**
+  (recusa escrita em `modelo-de-renderizacao.md:462`), não há dois corpos a acoplar.
+- **T-88 · Os consumidores de influência.** É o CENSO que fecha a REGRA DA COORDENADA pelo lado
+  positivo: decidido que influência governa apresentação, **quem mais deveria lê-la e não lê?** Hoje
+  o único consumidor é `universe.js:brilhoDe` (`centrality` 0,9 · `usage` 0,45 atrás do portão de
+  evidência); `connectivity` é materializada e **não tem um leitor visual sequer**.
+  ⚠️ **A pergunta é do corolário da REGRA DO CATÁLOGO, e o veredito pode ser NÃO:** dimensão sem
+  superfície que a torne observável não ganha campo — some-se ao caso do `steering`, que fora de
+  foco não tem onde ser desenhado. Ligar `connectivity` a um pixel só porque ela existe é a sexta
+  ocorrência do defeito que a base já pagou cinco vezes.
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
   está**, então ela responde uma pergunta que ele não pode ter. Depois de marcar, ele precisa fazer
@@ -1199,6 +1229,7 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `entrevista-usuario.md` | T-09, T-16, T-07 | ⚠️ as três estão `done` e ele **não morre**: 923 linhas, 15 expectativas, e só três tinham tarefa. Reler para extrair as próximas — **e sem confundir emitir com afirmar** (handoff §7-B) |
 | `black-hole-router.md` | — | ⚠️ o item favorito do autor (`cogload` → `setLoad`) **já existe ponta a ponta** |
 | `gravidade-entrelacamento.md` | T-12, T-22 | ⚠️ **T-22 decidida (09/08)** — falta só T-12 entregue |
+| `dinamica-de-entidades.md` | T-86, T-87, T-88 | ⭑ **nasce TRIADO** (09/08): a tese central já está refutada por medida dentro dele, e o que sobrou são as três tarefas. Morre quando T-86 e T-88 tiverem veredito — T-87 depende de T-23 e pode morrer `won't` |
 | `orbita-eliptica.md` | T-11 | ⚠️ a órbita elíptica **já está feita e medida** (área varrida máx/mín 1,0008) — resta o TRAÇO |
 | `quasar-enhance.md` | — | ⚠️ pede sete coisas e **quatro já existem** — conferir antes de implementar |
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |
