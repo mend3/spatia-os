@@ -102,7 +102,7 @@ export const SONDA_SPEC = {
           erro
             ? { ESTADO: 'FALHOU', MOTIVO: erro }
             : !medida
-              ? { ESTADO: 'carregando…', ARQUIVO: 'HubbleSpaceTelescope.glb · DRACO' }
+              ? { ESTADO: 'carregando…', ARQUIVO: 'hubble-space-telescope.glb · DRACO' }
               : {
                   TRIÂNGULOS: medida.triangulos.toLocaleString('pt-BR'),
                   MALHAS: `${medida.malhas} · ${medida.materiais} materiais · ${medida.texturas} texturas`,
