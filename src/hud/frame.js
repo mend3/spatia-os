@@ -84,24 +84,50 @@ export function createFrame(root) {
    * usa mouse. Um quarto da tinta, a mesma informação — e a faixa liberada passa a mostrar o
    * CONTEXTO, que é o que de fato muda a cada gesto.
    */
-  function service(id, label) {
+  function service(id, label, fonte) {
     const node = el('span', 'svc');
     node.title = label;
     node.setAttribute('aria-label', label);
     const dot = el('i', 'dot');
+    // A FONTE viaja no pixel porque é ela que decide se o vencimento da aferição alcança este ponto.
+    dot.dataset.fonte = fonte;
     node.append(dot);
     services.append(node);
-    indicators.set(id, { node, dot });
+    indicators.set(id, { node, dot, fonte });
   }
 
-  for (const [id, label] of [
-    ['brain', 'CORE'],
-    ['qdrant', 'MEMORY'],
-    ['ollama', 'LOCAL'],
-    ['graph', 'GRAPH'],
-    ['stream', 'LINK'],
+  /*
+   * ☠️ **A IDADE DA AFERIÇÃO DESCREVE TRÊS PONTOS, e emprestá-la aos cinco erra nos DOIS sentidos.**
+   *
+   * `applyHealth` carimba `aferidoEm` e marca `brain`, `qdrant` e `ollama`. Os outros dois nunca
+   * passaram por ali:
+   *
+   * - `stream` sai do store LOCAL, reescrito a cada tique — apagá-lo como vencido é apagar um fato
+   *   que acabou de ser escrito, no mesmo tique em que foi escrito;
+   * - `graph` sai da CARGA da topologia, e "carregou com N corpos" não expira como "responde
+   *   agora" expira. Emprestar-lhe a idade de uma aferição fresca o faz afirmar presente sobre uma
+   *   leitura que ninguém refez.
+   *
+   * ⭑ É `null` ≠ `0` por ponto: a idade qualifica a leitura que a produziu, e só ela. Quem decide
+   * quanto do vencimento alcança cada ponto é o CSS, por `[data-fonte]`.
+   */
+  const FONTE = Object.freeze({
+    /** `/api/health`, e a idade de `pintarAfericao` é exatamente a deles. */
+    AFERICAO: 'afericao',
+    /** o store desta aba, reescrito no tique — não há o que vencer. */
+    LOCAL: 'local',
+    /** a carga da topologia; verdade desde o `applyGraph`, e não uma afirmação sobre agora. */
+    CARGA: 'carga',
+  });
+
+  for (const [id, label, fonte] of [
+    ['brain', 'CORE', FONTE.AFERICAO],
+    ['qdrant', 'MEMORY', FONTE.AFERICAO],
+    ['ollama', 'LOCAL', FONTE.AFERICAO],
+    ['graph', 'GRAPH', FONTE.CARGA],
+    ['stream', 'LINK', FONTE.LOCAL],
   ]) {
-    service(id, label);
+    service(id, label, fonte);
   }
 
   /*

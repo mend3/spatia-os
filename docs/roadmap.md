@@ -174,7 +174,7 @@ com ou sem produtor.
 | **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) eram DOIS nomes do mesmo vocabulário — sobrou `SUPERFICIE` | `done` | — | T-70 | KR2.4 |
 | **T-70** | `resolveBody()` decidia uma PELE que ninguém lia — hoje ele só resolve MODIFICADOR | `done` | T-69 | — | KR2.4 |
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
-| **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos | `todo` | — | — | KR3.1 |
+| **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos — ⭑ a idade passou a alcançar só quem ela mediu | `done` | — | — | KR3.1 |
 | **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |
 | **T-43** | A repintura da marca — ⭑ virou `lei-favoritos-ui.mjs` §11: notifica, e SOLTA | `done` | — | — | KR2.4 |
 | **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
@@ -862,10 +862,17 @@ mesmo fato).
   ☠️ **`[data-tone]` está FORA do escopo, declarado:** ali o tom é atributo casado com a classe do
   elemento (`.hs-value[data-tone="warn"]`), então *"que regra pinta este tom?"* só tem resposta
   sabendo qual elemento — par que o próprio CSS já mantém junto.
-- **T-41** — a idade carimba os cinco pontos do cabeçalho e só `brain`/`qdrant`/`ollama` vêm do
-  `/api/health`. `graph` é leitura de BOOT afirmada como presente; `stream` é repintado a cada 1 s
-  do store local e apagado como "vencido" **no mesmo tique em que foi escrito**. É o defeito que a
-  entrega diz ter fechado, sobrevivendo em dois dos cinco.
+- **T-41 FECHADA — a idade da aferição alcança só os pontos que ela mediu.** Cada ponto declara a
+  FONTE do próprio estado (`afericao` · `local` · `carga`, em `hud/frame.js`) e o vencimento no CSS
+  casa `[data-fonte="afericao"]`.
+  ☠️ **Errava nos DOIS sentidos, e é isso que torna o caso instrutivo:** `stream` sai do store local
+  e era apagado como vencido **no mesmo tique em que foi escrito**; `graph` sai da CARGA da
+  topologia e, com aferição fresca, afirmava presente sobre uma leitura que ninguém refez. Um
+  defeito apagava fato vivo, o outro fabricava frescor.
+  ⚠️ **Ponto de fonte `afericao` refrescado por evento continua sendo apagado, e está certo** — a
+  idade é o PISO da certeza do grupo, não uma afirmação sobre cada evento. Falha para o lado seguro.
+  ⭑ `lei-afericao.mjs` §14 guarda, e a metade que importa é a que casa a fonte DECLARADA com quem
+  de fato marca o ponto dentro de `applyHealth`: sem ela a tabela vira rótulo que envelhece sozinho.
 
 - **T-39 FECHADO** — a pele do corpo em foco sai de `superficieDe` nas DUAS cenas, e o contexto que
   ela exige (quem DOMINA o sistema) tem um dono só: `src/space/sistemas.js`, puro e sem cena.

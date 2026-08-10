@@ -225,6 +225,61 @@ conferir('§13 o tom vencido tem cor própria', /\.svc-afericao\[data-tone="bad"
 conferir('§13 ☠️ e o grupo vencido tem regra — senão o atributo não vira pixel',
   /\.status-services\[data-afericao="vencida"\]/.test(html));
 
+// ------------------------------------- §14 a idade qualifica QUEM ela mediu, e mais ninguém
+
+/*
+ * ☠️ **A idade descreve TRÊS pontos e era emprestada aos CINCO, errando nos DOIS sentidos.**
+ *
+ * `applyHealth` carimba `aferidoEm` e marca `brain`, `qdrant` e `ollama`. Os outros dois nunca
+ * passam por ali: `stream` é reescrito do store local no tique — e apagado como vencido no MESMO
+ * tique — e `graph` sai da carga da topologia, cuja verdade não expira do jeito que "responde
+ * agora" expira; com aferição fresca ele afirmava presente sobre uma leitura que ninguém refez.
+ *
+ * ⚠️ **Um ponto de fonte `afericao` PODE ser refrescado por evento** (`memory` acende `qdrant`), e
+ * apagá-lo junto continua certo: a idade é o PISO da certeza do grupo, não uma afirmação sobre cada
+ * evento. Falha para o lado seguro. Os dois consertados falhavam para o lado inseguro.
+ */
+const FONTES = pontos().map((p) => p.children[0].dataset.fonte);
+conferir('§14 todo ponto declara a FONTE do seu estado', FONTES.every(Boolean), JSON.stringify(FONTES));
+
+const fonteSrc = src('src/hud/frame.js');
+/** id → fonte, lido da tabela do fonte: a lei não repete a lista, ela a IMPORTA por varredura. */
+const declarado = new Map(
+  [...fonteSrc.matchAll(/\['(\w+)',\s*'[A-Z]+',\s*FONTE\.(\w+)\]/g)].map((m) => [m[1], m[2]])
+);
+conferir('§14 a tabela de fontes tem os cinco pontos', declarado.size === pontos().length,
+  `${declarado.size} de ${pontos().length}`);
+
+/*
+ * ☠️ **A fonte DECLARADA tem de bater com quem de fato marca o ponto** — senão a tabela vira um
+ * rótulo que envelhece sozinho, que é o defeito original com outra roupa. O recorte é do corpo de
+ * `applyHealth`, e a pergunta é de PERTINÊNCIA: quem a aferição marca declara `AFERICAO`, e quem
+ * ela não marca, não.
+ */
+const corpoApply = fonteSrc.slice(fonteSrc.indexOf('applyHealth(health) {'),
+  fonteSrc.indexOf('applyGraph(count) {'));
+const marcadosNaAfericao = new Set([...corpoApply.matchAll(/mark\('(\w+)'/g)].map((m) => m[1]));
+for (const [id, fonte] of declarado) {
+  const aferido = marcadosNaAfericao.has(id);
+  conferir(`§14 \`${id}\` declara ${fonte} e ${aferido ? 'É' : 'NÃO é'} marcado por applyHealth`,
+    aferido === (fonte === 'AFERICAO'), `declarado ${fonte}, marcado em applyHealth: ${aferido}`);
+}
+
+conferir('§14 ☠️ o vencimento no CSS alcança SÓ a fonte que a aferição mediu',
+  /\.status-services\[data-afericao="vencida"\] \.dot\[data-fonte="afericao"\]/.test(html),
+  'a regra apaga todos os pontos, inclusive os que a aferição nunca leu');
+
+/*
+ * E o pixel, de ponta a ponta: passadas três aferições sem aferir, o grupo declara vencido — e o
+ * ponto de fonte local continua com a fonte que o exclui da regra.
+ */
+frame.applyHealth(saude());
+avancar(AFERICAO_MS * 3 + 1000);
+conferir('§14 (controle) o grupo está vencido', vencida() === 'vencida', String(vencida()));
+const porFonte = Object.fromEntries(pontos().map((p, i) => [FONTES[i], p.children[0].dataset.fonte]));
+conferir('§14 vencido o grupo, `stream` e `graph` mantêm fonte fora da regra',
+  porFonte.local === 'local' && porFonte.carga === 'carga', JSON.stringify(porFonte));
+
 // ---------------------------------------------------------------- veredito
 console.log(`\n${ok.length} leis provadas`);
 for (const f of falhas) console.log(`  ✗ ${f}`);
