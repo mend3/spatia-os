@@ -178,7 +178,7 @@ com ou sem produtor.
 | **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |
 | **T-43** | A repintura da marca (`context.js`) é invariante DECLARADA sem oráculo | `todo` | — | — | KR2.4 |
 | **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
-| **T-45** | `.row.warn` não existe no CSS — quatro emissores de um tom sem leitor | `todo` | — | — | — |
+| **T-45** | Tom emitido sem regra que o pinte — ⚠️ eram **3 em `.row` + 2 em `.unit`**, não os «4» declarados | `done` | — | — | KR2.4 |
 | **T-46** | `spatia.hud()` — ⭑ **rodada nas 10 rotas**; as estimativas do briefing viraram medida | `done` | — | — | KR2.1 |
 | **T-47** | A lista de fontes tem TETO de vista, rolagem, scrim e o **total publicado** — as 24 continuam no DOM | `done` | — | — | KR2.1 |
 | **T-48** | O conjunto residente é DECLARADO **e imposto** — `RESIDENTES` + `declararApp`, e `#/security` monta `timeline` | `done` | — | T-52 | KR2.1 |
@@ -845,6 +845,22 @@ mesmo fato).
   MAIS perguntas — *"quais eu marquei?"*, *"como volto lá?"* — que é o Princípio Final ao
   contrário. As três condições de T-35 estão fechadas e **nenhuma delas é a que faz a marca VALER:
   alguém ler.**
+- **T-45 FECHADA — o par EMISSOR × REGRA agora é conferido, e o defeito era maior do que a linha
+  dizia.** `streams.note(…, 'warn')` desenhava `class="row warn"` sem `.row.warn` no CSS: a linha
+  saía na cor padrão, indistinguível de uma comum.
+  ⚠️ **O número declarado estava errado nos dois sentidos** — varrido o `src/` em 09/08 são **3
+  emissores em `.row`** (`main.js`, via `note`: luas sem espaço · perfil recomendado · nenhum corpo
+  sob atenção) e **2 em `.unit`** (`apps/index.js`, serviços e webhooks), que a linha não nomeava.
+  ⭑ **A prova de que era assimetria e não gosto:** `anunciar()` manda o MESMO texto e o MESMO tom
+  para `boot.disco` e `streams.note`. O boot tinha `.boot-line.warn`; a timeline não tinha
+  `.row.warn`. Mesma palavra, duas superfícies, uma pintando.
+  ⭑ O vocabulário passou a morar num lugar só (`src/hud/tons.js`, com a frase do que cada tom
+  AFIRMA) e `scripts/lei-tom.mjs` guarda os dois sentidos: tom sem regra (a tela cala) e regra sem
+  tom (CSS morto, que faz quem lê o seletor parar de procurar). A §3 pega o tom inventado num call
+  site, e `classeDeLinha` impede que ele chegue ao DOM.
+  ☠️ **`[data-tone]` está FORA do escopo, declarado:** ali o tom é atributo casado com a classe do
+  elemento (`.hs-value[data-tone="warn"]`), então *"que regra pinta este tom?"* só tem resposta
+  sabendo qual elemento — par que o próprio CSS já mantém junto.
 - **T-41** — a idade carimba os cinco pontos do cabeçalho e só `brain`/`qdrant`/`ollama` vêm do
   `/api/health`. `graph` é leitura de BOOT afirmada como presente; `stream` é repintado a cada 1 s
   do store local e apagado como "vencido" **no mesmo tique em que foi escrito**. É o defeito que a

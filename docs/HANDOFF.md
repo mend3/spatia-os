@@ -113,6 +113,12 @@ controle fechado é a forma mais convincente de estar errado.
 ⭑ **T-41 · T-42 · T-43 · T-45 · T-64 são um CLUSTER, não cinco tarefas soltas:** todas são
 *"declarado sem leitor"* ou *"dois donos para um estado"*. O corolário da REGRA DO CATÁLOGO
 (`CLAUDE.md`) diz como a auditoria se faz, e fazê-las juntas cobra uma varredura só.
+⭑ **T-45 saiu (09/08) e deixou ferramenta para o resto: `scripts/lei-tom.mjs`.** Restam T-41, T-42
+e T-43 — mais T-88, que é a mesma forma.
+☠️ **A varredura já corrigiu DUAS linhas do roadmap, e a lição vale para as outras quatro:** o
+número declarado em T-45 estava errado nos dois sentidos, e **T-88 já tinha resposta escrita** no
+próprio roadmap (*"`connectivity` no pixel … seria segunda codificação do mesmo fato"*). **Meça o
+defeito no código antes de consertá-lo** — a descrição da tarefa é doc, e doc perde para código.
 ⚠️ **T-83 é vizinho e NÃO é do cluster** — lá o leitor existe e é imposto; o que não tem guarda é a
 POPULAÇÃO da lista que ele lê.
 

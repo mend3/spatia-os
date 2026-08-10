@@ -19,6 +19,7 @@ import { ROUTE_ROOT } from '../kernel/registry.js';
 import { declararApp, declararVista } from './residentes.js';
 import { registerCoreWidgets, listWidget } from './widgets-core.js';
 import { registerSkyTime } from './sky-time.js';
+import { classeDeLinha } from '../hud/tons.js';
 import { registerContextWidget } from './context.js';
 import { registerJournal } from './journal.js';
 import { registerMetrics } from './metrics.js';
@@ -893,7 +894,7 @@ function registerSystemWidgets() {
           // `disabled` não é falha: é decisão declarada, e vai para o fim em tom apagado.
           const desligado = unit.wanted === 'disabled';
           const ruim = unit.missing;
-          const row = el('div', `unit ${unit.up && !ruim ? '' : ruim ? 'down' : 'warn'}`);
+          const row = el('div', classeDeLinha('unit', unit.up && !ruim ? '' : ruim ? 'down' : 'warn'));
           row.append(el('i', 'dot'), el('span', 'unit-name', unit.id));
           row.append(
             el(
@@ -1140,7 +1141,7 @@ function registerBridgeWidgets() {
         try {
           const { webhooks } = await api.integrations();
           view.set(webhooks.map((hook) => {
-            const row = el('div', `unit ${hook.verified ? '' : 'warn'}`);
+            const row = el('div', classeDeLinha('unit', hook.verified ? '' : 'warn'));
             row.append(el('i', 'dot'), el('span', 'unit-name', hook.label));
             row.append(el('span', 'unit-detail', hook.verified ? 'HMAC ativo' : 'sem verificação'));
             row.querySelector('.dot').dataset.status = hook.verified ? 'on' : 'busy';

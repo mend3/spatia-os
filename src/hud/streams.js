@@ -57,6 +57,7 @@ import { threads, cutThread } from '../core/api.js';
 import { el, set, feed, shortPath, clock, plural } from './dom.js';
 import { button } from './button.js';
 import { causaDe } from '../core/upstream.js';
+import { classeDeLinha } from './tons.js';
 
 const TIMELINE_LIMIT = 26;
 const MEMORY_LIMIT = 8;
@@ -197,7 +198,7 @@ export function createStreams(root, { toolColor }) {
   const openTools = new Map();
 
   function stamp(text, { tone = '', duration = null } = {}) {
-    const row = el('div', `row ${tone}`);
+    const row = el('div', classeDeLinha('row', tone));
     row.append(el('span', 'row-time', clock().time));
     row.append(el('span', 'row-text', text));
     if (duration !== null) row.append(el('span', 'row-meta', `${duration}ms`));
@@ -428,7 +429,7 @@ export function createStreams(root, { toolColor }) {
       avisos.prepend(fio.node);
     }
     fio.node.dataset.thread = estado;
-    fio.linha.className = `row ${tom}`.trim();
+    fio.linha.className = classeDeLinha('row', tom);
     set(fio.hora, desdeQuando(desde));
     set(fio.texto, frase);
     set(fio.ordem, ordem);

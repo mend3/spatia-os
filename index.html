@@ -362,6 +362,7 @@
   .row-meta { color: var(--amber-dim); font-size: 9px; }
   .row.dim { color: var(--ink-faint); }
   .row.good .row-text { color: var(--good); }
+  .row.warn .row-text { color: var(--busy); }
   .row.bad .row-text { color: var(--bad); }
 
   /*
@@ -1160,6 +1161,7 @@
   .unit { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
           padding: 4px 0; }
   .unit.down { opacity: 0.45; }
+  .unit.warn .unit-name { color: var(--busy); }
   .unit-name { color: var(--ink-dim); font-size: 9.5px; letter-spacing: 0.12em; }
   .unit-detail { color: var(--ink-faint); font-size: 8.5px; }
   .unit-sub { grid-column: 2 / -1; color: var(--ink-faint); font-size: 8px; line-height: 1.5; }
