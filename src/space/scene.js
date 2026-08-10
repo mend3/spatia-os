@@ -886,6 +886,26 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // O universo já foi normalizado para caber no zoom de hoje (ver `universe.js`), então aqui
       // basta recuar até enquadrá-lo.
       chegada: () => HOME_UNIVERSO,
+      /*
+       * ☠️ **A nota acima diz que `fitPending` só religa na volta ao AGENTE, e isso deixava um
+       * corpo travado INALCANÇÁVEL nesta cena.**
+       *
+       * O argumento dela continua valendo onde nasceu: *"me mostre o universo"* e *"me leve até
+       * este corpo"* são gestos diferentes, e trocar de cena é o primeiro. Mas ele foi aplicado
+       * também ao caso em que **já existe um corpo travado** — e aí o operador tem um pedido em
+       * vigor, feito por ele, que a troca de cena descartava em silêncio.
+       *
+       * ⚠️ **Sem foco, nada muda:** `chegada()` enquadra o universo inteiro, como sempre. O
+       * enquadramento por raio só entra quando há um pedido a honrar, e é a mesma linha que a cena
+       * AGENTE já usava.
+       *
+       * ⭑ O sintoma que isto fecha não se parecia com enquadramento: o corpo ficava com 1 a 7 px,
+       * nenhuma pele alcançava o piso de LOD, e a leitura era *"o objeto está opaco e o zoom não
+       * funciona"*.
+       */
+      aoEntrar: () => {
+        if (focusedNode) fitPending = true;
+      },
     }),
   });
 
