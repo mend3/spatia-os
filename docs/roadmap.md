@@ -395,10 +395,25 @@ com ou sem produtor.
   ⭑ **Alargar a semântica de `strip` era a outra saída, e é a que se recusou:** um segundo
   significado numa fenda é exatamente como ela perde o primeiro. `strip` volta a ser **1 widget em
   10 de 10 rotas** (`sky-time`), medido no censo.
-  ⚠️ **A régua muda e ainda não foi VISTA na tela:** a faixa é de largura inteira, o trilho é
-  `minmax(230px, 20vw)`. Medido no CSS e no dado — `.chunk-text` traz `pre-wrap` + `word-break` e o
-  argv real tem **77 caracteres** —, então ele quebra em duas linhas em vez de estourar. **Falta a
-  foto.**
+  ⭑ **VISTO na tela** (`hud.html`, 09/08), varrendo a largura da janela — o `pre` não estoura em
+  nenhum eixo em nenhuma delas:
+
+  | janela | trilho `left` | linhas do argv |
+  |---|---|---|
+  | 1600 px | 320 | 2 |
+  | 1280 px | 256 | 3 |
+  | 1024 px | **230** (o piso do `minmax`) | 3 |
+  | ≤ 900 px | oculto | — |
+
+  ☠️ **E a varredura achou uma segunda diferença que a tarefa não nomeava: `strip` SOBREVIVE abaixo
+  de 900 px e os trilhos NÃO.** Há `@media (max-width: 900px)` pondo `display: none` em `left` e
+  `right`, enquanto a faixa fica em largura inteira. Morando em `strip`, este painel herdava a
+  sobrevivência que a fenda dá a RESIDENTE — e a media query é a semântica da fenda implementada no
+  pixel.
+  ⭑ **Isso confirma a decisão em vez de complicá-la:** abaixo de 900 px a tela de segurança inteira
+  já se reduz ao `stage`, porque `sec-mode`, `sec-tools`, `sec-reach` e `sec-exposure` também vivem
+  nos trilhos. O painel passou a desaparecer **junto com a própria tela**, em vez de sobreviver
+  sozinho a ela.
   ☠️ **Decidida POR AGENTE sob autorização de 09/08.**
 - **T-21 DECIDIDA, em duas metades** — e a partição é o que destrava sem gastar a recusa escrita. A
   frase de `OS-SCREENS.md` (*"instalar app de terceiro nisso é entregar a máquina"*) é sobre
