@@ -509,16 +509,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const asteroide = createAsteroide();
 
   /*
-   * ☠️ **A MARCA chega à cena INJETADA, e é a lei de dependência que obriga.** O estado dela vive no
-   * `prefs` que a HUD instala, e *"a seta é de mão única — nada em `space/` importa a interface"*.
-   * Então `main.js` entrega a consulta, e este módulo só a chama.
-   *
-   * ⚠️ **A VERSÃO existe porque o parâmetro da pele é CACHEADO por corpo em foco.** Sem ela, marcar
-   * um corpo que já está travado não trocaria nada na tela até o operador sair e voltar — a escolha
-   * valeria e a tela não diria.
+   * ⚠️ **A VERSÃO da declaração de aparências existe porque o parâmetro da pele é CACHEADO por corpo
+   * em foco.** Sem ela, marcar um corpo que já está travado não trocaria nada na tela até o operador
+   * sair e voltar — a escolha valeria e a tela não diria. Quem consome textura por quadro
+   * (`texturaDeAparencia`) não precisa dela; quem congela parâmetros na entrada em foco, sim.
    */
-  let consultarMarca = () => null;
-  let versaoDaMarca = 0;
+  let versaoDaAparencia = 0;
   const comet = createComet();
   const pulsar = createPulsar();
   const nebula = createNebula();
@@ -2580,7 +2576,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const MORFOLOGICAS = [SUPERFICIE.ESTACAO, SUPERFICIE.COMETA, SUPERFICIE.PULSAR, SUPERFICIE.NEBULOSA, SUPERFICIE.ASTEROIDE];
     if (pouso && MORFOLOGICAS.includes(decisao.surface)) {
       const cor = graph.kindColor(pouso.node.kind);
-      const chaveDaPele = `${focusedNode}|${versaoDaMarca}`;
+      const chaveDaPele = `${focusedNode}|${versaoDaAparencia}`;
       if (chaveDaPele !== morphSource) {
         morphSource = chaveDaPele;
         morphParams = {
@@ -2588,8 +2584,15 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           [SUPERFICIE.COMETA]: () => cometParams(pouso.node, cor),
           [SUPERFICIE.PULSAR]: () => pulsarParams(pouso.node, cor),
           [SUPERFICIE.NEBULOSA]: () => nebulaParams(pouso.node, cor),
-          // A rocha não usa COR do kind: a pele dela é textura, e a cor viria por cima dela.
-          [SUPERFICIE.ASTEROIDE]: () => asteroideParams(pouso.node.id, hash01, consultarMarca(pouso.node)),
+          /*
+           * A rocha não usa COR do kind: a pele dela é textura, e a cor viria por cima dela.
+           *
+           * ⭑ **A aparência escolhida entra pelo MESMO canal do planeta** (`aparenciaDe`), e não por
+           * um segundo. O planeta consome o arquivo como MAPA por quadro; a rocha o consome como
+           * PARÂMETRO congelado na entrada em foco — mesmo fato, dois consumos, um dono só.
+           */
+          [SUPERFICIE.ASTEROIDE]: () =>
+            asteroideParams(pouso.node.id, hash01, aparenciaDe.get(pouso.node.source) ?? null),
         }[decisao.surface]();
       }
       for (const pele of [station.object, comet.object, pulsar.object, nebula.object, asteroide.object]) {
@@ -2636,6 +2639,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         px: Number(pouso.px.toFixed(1)),
         montado: Boolean(objeto?.visible && objeto.parent),
         naCena: Boolean(objeto?.parent),
+        /*
+         * ☠️ **A ROCHA diz que TEXTURA está vestindo, e sem isto "a marca chega ao pixel" não é
+         * verificável de fora.** `montado: true` responde que a pele desenha, nunca QUAL arquivo
+         * ela pegou — e é justamente onde a escolha do operador some sem sintoma.
+         *
+         * ⚠️ Os dois campos só existem na ROCHA, e não em toda pele morfológica: chave presente e
+         * `null` numa fotosfera se leria como *"o operador não escolheu"* quando o fato é *"esta
+         * pele não veste arquivo"*.
+         */
+        ...(decisao.surface === SUPERFICIE.ASTEROIDE
+          ? {
+              escolha: aparenciaDe.get(pouso.node.source) ?? null,
+              textura: morphParams?.pele ?? null,
+            }
+          : {}),
       };
       if (decisao.surface === SUPERFICIE.COMETA) {
         level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());
@@ -3235,6 +3253,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       aparenciaDe.clear();
       const entradas = mapa instanceof Map ? mapa.entries() : Object.entries(mapa || {});
       for (const [source, arquivo] of entradas) if (source && arquivo) aparenciaDe.set(source, arquivo);
+      /*
+       * ⚠️ **A versão sobe em TODA declaração, inclusive na que não muda nada.** Comparar mapas para
+       * só subir quando difere trocaria uma remontagem barata (a pele do corpo em foco) por uma
+       * comparação que erra calada — e a versão só invalida cache de UM corpo.
+       */
+      versaoDaAparencia += 1;
       return aparenciaDe.size;
     },
     setMode: (proximo) => {
@@ -3672,21 +3696,6 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * candidatos a autor — o fresnel na superfície e a casca aditiva — são cortados pelo MESMO
      * `params.atmosphere`. Sem separá-los, "é a atmosfera" é tudo o que se consegue dizer.
      */
-    /**
-     * Liga a consulta da MARCA — `(node) => arquivoDeTextura | null`.
-     *
-     * ⭑ Chamada de novo a cada mudança de marca: cada chamada BUMPA a versão, e é ela que invalida
-     * o parâmetro cacheado do corpo em foco. Sem isso, marcar um corpo já travado não trocaria a
-     * pele até o operador sair e voltar.
-     *
-     * ⚠️ `null` religa o padrão (o hash), e não apaga a pele: um céu sem guardador de favoritos
-     * continua desenhando rocha, só que sem escolha de ninguém.
-     */
-    declararMarcas(consultar) {
-      consultarMarca = typeof consultar === 'function' ? consultar : () => null;
-      versaoDaMarca += 1;
-    },
-
     skinTerms: (ajuste) => planet.termos(ajuste),
 
     /**
