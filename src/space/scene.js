@@ -240,6 +240,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const d = caixa('right');
     return { inicio: e ? e.right : 0, fim: d ? d.left : larguraPx };
   });
+  /*
+   * ☠️ **REPOUSO NÃO É DOCUMENTO.** Fechado o arquivo, o leitor volta a uma DICA de uma linha — e
+   * ancorada ela vira uma caixa pintada ao lado do astro, dizendo o que fazer em seguida. É a REGRA
+   * DO FOCO ao contrário: o painel deixa de ser a extensão espacial do corpo e passa a competir com
+   * ele justo quando não tem nada a dizer. Medido: `dy = +287,5 px` empurrando a dica da altura
+   * do topo do palco (y=105) para o meio da tela (y=393), com a rocha em foco atrás.
+   *
+   * ⭑ **O discriminador é o MESMO que o CSS já usa** para o painel vazio ceder o ponteiro
+   * (`lei-palco.mjs` §5) — um estado, uma pergunta. Um segundo marcador para o mesmo fato é como
+   * os dois divergem no dia em que só um for corrigido.
+   */
+  ancoraDoDocumento.documentoPor(
+    (painel) => !painel.querySelector(':scope > .widget-body > .scroll > .widget-empty:only-child')
+  );
   /* Reusados por quadro — alocar `Vector3` no laço é lixo por quadro, como o resto da cena faz. */
   const ndcDoFoco = new THREE.Vector3();
   const limboDoHorizonte = new THREE.Vector3();

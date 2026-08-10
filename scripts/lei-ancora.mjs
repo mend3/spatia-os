@@ -14,9 +14,9 @@
  * 2. ☠️ **O documento PERDIDO.** O corpo em foco sai do quadro quando o operador orbita; um painel
  *    que o siga sem teto sai junto, e o operador fica sem o texto que estava lendo e sem saber por
  *    quê. O teto é a §6.
- * 3. ☠️ **A DEGRADAÇÃO MUDA.** *"O documento não se moveu"* tem quatro causas — sem corpo travado,
- *    painel não montado, corpo atrás da câmera, corpo eclipsado pelo horizonte — e a tela mostra a
- *    mesma imagem nas quatro. Cada uma sai por NOME (§1–§4).
+ * 3. ☠️ **A DEGRADAÇÃO MUDA.** *"O documento não se moveu"* tem cinco causas — sem corpo travado,
+ *    painel não montado, painel montado e SEM DOCUMENTO, corpo atrás da câmera, corpo eclipsado
+ *    pelo horizonte — e a tela mostra a mesma imagem nas cinco. Cada uma sai por NOME (§1–§4e).
  * 4. ☠️ **A REPINTURA POR QUADRO.** `transform` é composto e sai de graça; o `radial-gradient` da
  *    luz é PINTURA. Reescrevê-lo a 120 Hz não muda a imagem e não aparece no FPS travado no teto
  *    do monitor — aparece no orçamento, que nesta cena não tem folga. §10.
@@ -115,9 +115,9 @@ console.log(
     `folga ${FOLGA_EM_RAIOS}× o raio${C.fim}\n`
 );
 
-// ───────────────────────────────────────────── §1–§4 · AS QUATRO AUSÊNCIAS SAEM POR NOME
+// ───────────────────────────────────────────── §1–§4e · AS CINCO AUSÊNCIAS SAEM POR NOME
 
-console.log(`${C.forte}§1–§4  AS QUATRO CAUSAS DE «NÃO SE MOVEU»${C.fim}`);
+console.log(`${C.forte}§1–§4e  AS CINCO CAUSAS DE «NÃO SE MOVEU»${C.fim}`);
 {
   const semPainel = criarAncoraDeDocumento(() => null);
   semPainel.atualizar(ctx());
@@ -159,6 +159,72 @@ console.log(`${C.forte}§1–§4  AS QUATRO CAUSAS DE «NÃO SE MOVEU»${C.fim}`
     '§4',
     a4.estado().motivo === MOTIVOS_DA_ANCORA.ECLIPSADO && !p4.dataset.ancorado,
     'corpo atrás do horizonte solta com motivo PRÓPRIO — não é o mesmo fato que «não há corpo»'
+  );
+
+  /*
+   * ☠️ A QUINTA CAUSA: o painel MONTADO e SEM DOCUMENTO.
+   *
+   * Fechado o arquivo, o leitor volta a uma DICA de uma linha — e ancorada ela vira uma caixa
+   * pintada ao lado do astro dizendo o que fazer em seguida. É a REGRA DO FOCO ao contrário: o
+   * painel deixa de ser a extensão espacial do corpo e passa a COMPETIR com ele justo quando não
+   * tem nada a dizer. Solto, ele volta ao topo do palco, que é onde o flex já o punha.
+   */
+  const p5 = painelDeMentira();
+  const a5 = criarAncoraDeDocumento(() => p5);
+  a5.atualizar(ctx());
+  const ancorouAntes = p5.dataset.ancorado === 'sim';
+  a5.documentoPor(() => false);
+  a5.atualizar(ctx());
+  checar(
+    '§4b',
+    ancorouAntes &&
+      a5.estado().motivo === MOTIVOS_DA_ANCORA.SEM_DOCUMENTO &&
+      !p5.dataset.ancorado &&
+      p5.style.props['--ancora-dx'] === undefined,
+    'painel em REPOUSO solta, e o deslocamento é APAGADO — a dica volta ao topo do palco'
+  );
+  checar(
+    '§4c',
+    MOTIVOS_DA_ANCORA.SEM_DOCUMENTO !== MOTIVOS_DA_ANCORA.SEM_PAINEL,
+    '`painel-sem-documento` ≠ `painel-nao-montado`: o painel está ali, e quem ler o segundo vai ' +
+      'procurar na rota um widget que está montado e desenhando'
+  );
+
+  /*
+   * ⚠️ **O caso que MORDE: corpo perfeitamente enquadrado.** Travado, na frente da câmera, fora do
+   * horizonte — nada em `ctx` acusa, e era assim que a dica ia parar ao lado do astro. A ausência de
+   * documento é fato do PAINEL, e nenhuma das outras quatro guardas alcança.
+   *
+   * ⭑ **E não há lei de ORDEM aqui, apesar da tentação de escrever uma.** Medido por mutação: mover
+   * a pergunta para depois das guardas de `ctx` deixa esta seção VERDE, porque todas elas saem pelo
+   * mesmo `soltar`. Guarda que não distingue nada é teste verde com cara de lei.
+   */
+  const p6 = painelDeMentira();
+  const a6 = criarAncoraDeDocumento(() => p6);
+  a6.documentoPor(() => false);
+  a6.atualizar(ctx({ ndc: { x: 0.3, y: -0.2, z: 0.5 }, px: 120 }));
+  checar(
+    '§4d',
+    a6.estado().motivo === MOTIVOS_DA_ANCORA.SEM_DOCUMENTO,
+    'repouso solta MESMO com o corpo enquadrado — as outras quatro guardas não alcançam este fato'
+  );
+
+  /*
+   * ⭑ O PADRÃO É ANCORAR. Quem não injeta a pergunta continua com o comportamento de sempre: a
+   * degradação é perder a DISTINÇÃO, nunca perder o documento.
+   */
+  const p7 = painelDeMentira();
+  const a7 = criarAncoraDeDocumento(() => p7);
+  a7.atualizar(ctx());
+  const semInjecao = a7.estado().motivo;
+  a7.documentoPor(() => false);
+  a7.atualizar(ctx());
+  a7.documentoPor(null);
+  a7.atualizar(ctx());
+  checar(
+    '§4e',
+    semInjecao === MOTIVOS_DA_ANCORA.ANCORADO && a7.estado().motivo === MOTIVOS_DA_ANCORA.ANCORADO,
+    'sem `documentoPor` ancora; `null` VOLTA a ancorar — a régua desligada não desliga o documento'
   );
 }
 

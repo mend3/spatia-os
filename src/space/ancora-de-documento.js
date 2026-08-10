@@ -81,13 +81,18 @@ const LUZ_PLENA_PX = 120;
 /**
  * O estado que o painel publica, para a sonda poder dizer POR QUE ele está onde está.
  *
- * ☠️ *"O documento não se moveu"* tem quatro causas que a tela não separa: não há corpo travado,
- * o painel não está montado, o corpo está atrás da câmera, ou ele está eclipsado pelo horizonte.
- * Cada uma sai por nome — diagnóstico que só existe no caminho feliz não é diagnóstico.
+ * ☠️ *"O documento não se moveu"* tem CINCO causas que a tela não separa: não há corpo travado, o
+ * painel não está montado, o painel está montado e sem documento, o corpo está atrás da câmera, ou
+ * ele está eclipsado pelo horizonte. Cada uma sai por nome — diagnóstico que só existe no caminho
+ * feliz não é diagnóstico.
+ *
+ * ⚠️ **`SEM_DOCUMENTO` não é `SEM_PAINEL`, e juntá-los mentiria nas duas direções**: o painel está
+ * montado e desenhando, e quem lesse *"não montado"* iria procurar na rota o widget que está ali.
  */
 const MOTIVOS = Object.freeze({
   SEM_CORPO: 'sem-corpo-em-foco',
   SEM_PAINEL: 'painel-nao-montado',
+  SEM_DOCUMENTO: 'painel-sem-documento',
   ATRAS: 'corpo-atras-da-camera',
   ECLIPSADO: 'corpo-atras-do-horizonte',
   ANCORADO: 'ancorado',
@@ -102,6 +107,12 @@ const MOTIVOS = Object.freeze({
  */
 export function criarAncoraDeDocumento(acharPainel, medirFaixa = FAIXA_CHEIA) {
   let medir = medirFaixa;
+  /*
+   * ⭑ **O padrão é ANCORAR.** Quem não injetar a pergunta continua com o comportamento de sempre —
+   * a degradação é perder a distinção, nunca perder o documento.
+   */
+  /** @type {(painel: Element) => boolean} */
+  let temDocumento = () => true;
   let ultimo = { motivo: MOTIVOS.SEM_CORPO, x: null, y: null, px: 0, lado: null };
   let painelAnterior = null;
   /** A última luz ESCRITA no nó, para o limiar de repintura comparar contra ela. */
@@ -135,6 +146,22 @@ export function criarAncoraDeDocumento(acharPainel, medirFaixa = FAIXA_CHEIA) {
     },
 
     /**
+     * Liga a pergunta *"este painel está mostrando um DOCUMENTO?"* — `(painel) => boolean`.
+     *
+     * ☠️ **Dica de uma linha não é documento, e ancorá-la põe uma caixa pintada ao lado do astro
+     * dizendo o que fazer em seguida.** É a REGRA DO FOCO ao contrário: o painel deixa de ser a
+     * extensão espacial do corpo e passa a COMPETIR com ele, no exato momento em que não tem nada a
+     * dizer. Solto, ele volta para o topo do palco, que é onde o flex já o punha.
+     *
+     * ⚠️ **Quem responde é a HUD, não este módulo.** *"Tem documento"* é forma de DOM da interface, e
+     * *"a seta é de mão única — nada em `space/` importa a interface"*. `null` volta a ancorar
+     * sempre.
+     */
+    documentoPor(fn) {
+      temDocumento = typeof fn === 'function' ? fn : () => true;
+    },
+
+    /**
      * @param {object} ctx
      * @param {{x:number, y:number, z:number}} ctx.ndc   o corpo em foco já projetado (NDC)
      * @param {number} ctx.px        raio aparente do corpo, em px CSS
@@ -153,6 +180,15 @@ export function criarAncoraDeDocumento(acharPainel, medirFaixa = FAIXA_CHEIA) {
       painelAnterior = painel;
 
       if (!painel) return soltar(null, MOTIVOS.SEM_PAINEL);
+      /*
+       * ⚠️ **Repouso solta MESMO com o corpo perfeitamente enquadrado** — é esse o caso que morde: o
+       * corpo está travado, na frente da câmera e fora do horizonte, e nada em `ctx` acusa. A
+       * ausência de documento é fato do PAINEL, não da projeção.
+       *
+       * ⭑ A posição entre as guardas acima e as de `ctx` é indiferente ao resultado: qualquer uma
+       * delas sai por `soltar`. Não há lei de ordem aqui, e escrever uma seria guarda de fachada.
+       */
+      if (!temDocumento(painel)) return soltar(painel, MOTIVOS.SEM_DOCUMENTO);
       if (!ctx) return soltar(painel, MOTIVOS.SEM_CORPO);
       if (ctx.eclipsado) return soltar(painel, MOTIVOS.ECLIPSADO);
       /* `z > 1` é atrás da câmera: a projeção espelha o ponto, e o painel saltaria para o lado errado. */
