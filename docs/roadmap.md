@@ -142,10 +142,10 @@ com ou sem produtor.
 | **T-18** | Um diretório sem agregado é um sistema? — o censo agrupa por `dir`, a cena por nó AGREGADO | `done` | — | — | — |
 | **T-36** | `conectividade.mjs` agrupa como a cena agrupa — e o ρ com o tamanho do sistema NÃO era o filho único | `done` | — | — | KR3.1 |
 | **T-19** | Quebrar a dependência de `M_total` nas luas — RISCO DE EXPIRAÇÃO, não defeito vivo | `postponed` | — | — | — |
-| **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
+| **T-20** | De onde vem a luz de um corpo em foco — ⚠️ **mantida como está**, e é a mais fraca das sete | `archived` | — | — | — |
 | **T-21** | Marketplace × segurança — ⭑ **DECIDIDA em duas metades: LER sim, INSTALAR não** | `todo` | — | T-76, T-77 | — |
 | **T-22** | Gravidade cognitiva — ⭑ **DECIDIDA: influência governa BRILHO e ênfase, nunca a coordenada.** A metade que existia virou lei com guarda; a metade que movia órbita está RECUSADA | `done` | — | — | KR3.4 |
-| **T-23** | Agente como corpo (a ESTAÇÃO) | `blocked` | decisão do usuário | — | — |
+| **T-23** | Agente como corpo — ⭑ **DIREÇÃO DECIDIDA: ESTAÇÃO.** Falta o pipeline, que é trabalho, não decisão | `todo` | — | T-87 | — |
 | **T-24** | Passo 3 — distância × pixel contra o corpus real | `todo` | — | — | — |
 | **T-25** | Licença de `assets/textures/sun.jpg` | `done` | — | — | — |
 | **T-26** | Granulação do anel — escolher entre `GRAIN`/`SWARM`/`BOULDER`/`SLAB` | `todo` | — | T-55 | — |
@@ -166,10 +166,10 @@ com ou sem produtor.
 | **T-75** | O upload do atlas por token — medido: a saída barata existe e é CONDICIONAL | `done` | — | — | — |
 | **T-76** | Descoberta de MCP — o widget que LISTA servidores (instalar é T-78) | `todo` | — | — | — |
 | **T-77** | Catálogo de APIs públicas como CAPACIDADE, não como lista | `todo` | — | — | — |
-| **T-78** | **Capability Registry** — INSTALAR capacidade | `blocked` | decisão do usuário | — | — |
+| **T-78** | **Capability Registry** (INSTALAR) — ⭑ **DECIDIDO: recusado.** T-21 já partiu: LER sim, INSTALAR não | `archived` | — | — | — |
 | **T-79** | **AUDITADOS os 17 «Quem reage»** — 9 têm fenômeno de cena, 0 declarados sem leitor | `done` | — | T-23 | KR1.1 |
 | **T-80** | O inspector tem TRÊS estados (recolhido → **resumo** → aberto) e ganha AÇÕES | `todo` | — | T-71 | KR2.1 |
-| **T-81** | Comprimir o cabeçalho — ⚠️ colide com refutação escrita sobre esconder dado atrás de gesto | `todo` | decisão do usuário | — | KR2.1 |
+| **T-81** | Comprimir o cabeçalho — ⭑ **DECIDIDO: NÃO.** É 1,1% da tela, e a refutação escrita continua de pé | `archived` | — | — | KR2.1 |
 | **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora, luz do corpo e paralaxe | `done` | T-53 | — | KR2.1 |
 | **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) eram DOIS nomes do mesmo vocabulário — sobrou `SUPERFICIE` | `done` | — | T-70 | KR2.4 |
 | **T-70** | `resolveBody()` decidia uma PELE que ninguém lia — hoje ele só resolve MODIFICADOR | `done` | T-69 | — | KR2.4 |
@@ -198,7 +198,7 @@ com ou sem produtor.
 | **T-62** | Camada externa do BURACO NEGRO — poeira, detritos, profundidade e volume | `todo` | — | — | — |
 | **T-63** | `orbital-zones.js` emprestava nome de FÍSICA a metáfora — ⭑ **DECIDIDO: os nomes deixam de afirmar física** | `done` | — | — | KR3.2 |
 | **T-64** | `session.route` — ⭑ **DECIDIDO: apagado.** A medida da divergência virou LEI | `done` | — | — | KR2.1 |
-| **T-65** | Levar a REDE à cena AGENTE — o dado e o desenho já existem; falta decidir | `blocked` | decisão do usuário | — | — |
+| **T-65** | Levar a REDE à cena AGENTE — ⭑ **DECIDIDO: não.** A cena é LENTE, e ali o assunto é a execução | `archived` | — | — | — |
 | **T-66** | O sistema APERTADO — 38 arquivos numa pasta dão planetas de 0,10 unidade | `todo` | — | — | — |
 | **T-67** | Segunda textura de estrela (K/M, fria), escolhida pela TEMPERATURA | `todo` | — | — | — |
 | **T-68** | Passo 2 — feição no SPRITE, e **não** aro no corpo: é lá que os corpos vivem | `todo` | — | — | — |
@@ -206,7 +206,7 @@ com ou sem produtor.
 | **T-84** | O disco atravessava o que NÃO É SÓLIDO — oclusor macio por ÂNGULO, e a geodésica que era truncada | `done` | — | T-85 | KR2.4 |
 | **T-85** | A BANDA em faixas largas no gradiente claro — é quantização de SAÍDA, e o grão nunca a alcançava | `done` | — | — | — |
 | **T-86** | O BARICENTRO — sistema duplo com dois corpos, ambos `f(t)` em torno do centro de massa | `todo` | — | — | KR3.2 |
-| **T-87** | Acoplamento entre agentes como VÍNCULO, nunca como trajetória | `blocked` | T-23 | — | — |
+| **T-87** | Acoplamento entre agentes como VÍNCULO, nunca como trajetória | `blocked` | T-23 (ENTREGA, não mais decisão) | — | — |
 | **T-88** | Consumidores de influência — ☠️ **JÁ ESTAVA RESPONDIDA** neste arquivo quando foi aberta | `archived` | — | — | KR3.4 |
 | **T-89** | Atenção com DUAS fontes — o painel pintava do payload, a tecla lia o store | `done` | — | — | KR2.2 |
 
@@ -253,13 +253,17 @@ com ou sem produtor.
   descreve o corpo e não diz o que dá para fazer com ele — *"abrir · relacionar · …"*. É o Princípio
   Final ao contrário: depois de ler o painel, o operador ainda precisa descobrir sozinho o próximo
   gesto. ⚠️ Quais ações existem depende de T-78 (o catálogo de ações por tipo de corpo).
-- **T-81** — o cabeçalho carrega `CUSTO · CHUNKS · JANELA · ÍNDICE`, que são operacionais e estão em
-  toda rota. Medido: o topo é **1,1% da tela em glifo** — pouco, e é a PRIMEIRA coisa na hierarquia
-  visual, sempre presente.
-  ☠️ **Colide com refutação ESCRITA nesta base:** `index.html:41-44` recusa esconder dado atrás de
-  gesto — *"dado que exige gesto para aparecer deixa de ser monitorado"*, com ganho medido de ~4% de
-  pixel. Mandar custo e janela para um popover é exatamente isso. **Ou a refutação cai com medida
-  nova, ou o cabeçalho encolhe sem esconder** (menos rótulo, mais densidade). É decisão de produto.
+- **T-81 RECUSADA — o número que a motivava é o que a mata.** As duas saídas eram *derrubar a
+  refutação com medida nova* ou *encolher sem esconder*, e nenhuma se sustenta:
+  ☠️ **A refutação escrita continua de pé, e não há medida nova.** `index.html:41-44` recusa
+  esconder dado atrás de gesto — *"dado que exige gesto para aparecer deixa de ser monitorado"* —
+  com ganho medido de ~4% de pixel. Custo e janela num popover é exatamente isso.
+  ☠️ **E encolher sem esconder mira 1,1% da tela em glifo**, que é o que o topo ocupa. É o mesmo
+  erro que o T-71 já nomeia: *aplicar a regra à superfície menos quebrada*. As rotas pesadas são
+  pesadas por outro motivo — `journal` tem **24,7%** de glifo, vinte vezes o cabeçalho inteiro.
+  ⭑ **Quem quiser reabrir traz a medida que falta:** não "o cabeçalho parece grande", e sim quanto
+  de glifo ou de ponteiro ele custa numa rota onde isso decida alguma coisa (`spatia.hud()`).
+  ☠️ **Decidida POR AGENTE sob autorização de 09/08.**
 - **T-82 FECHADA — âncora e profundidade.** O documento do corpo travado encosta no limbo dele, anda
   com a câmera e é ILUMINADO por ele: `space/ancora-de-documento.js` publica posição e luz em
   `--ancora-*`, o CSS as consome, o portão é `scripts/lei-ancora.mjs` (26 leis, 13 mutações vistas
@@ -446,7 +450,17 @@ com ou sem produtor.
   **re-emissão** (`ui.state-changed`, de `core/state.js:41`) e não casava o padrão. **Varra o
   COMPORTAMENTO, não a string** — é a mesma armadilha da galáxia que era billboard no vértice.
   ⭑ **O que sobra de verdade para T-23:** o barramento do agente é rico e ligado; o que falta é o
-  agente ser um CORPO, que é outra coisa e continua sendo decisão sua.
+  agente ser um CORPO.
+  ⭑ **DIREÇÃO DECIDIDA — ESTAÇÃO, e ela já estava desenhada.** `modelo-de-renderizacao.md:462`
+  descreve a forma inteira: *"estação orbital, não nave — presa ao seu centro gravitacional, com
+  antenas, painéis e luzes; quando o agente executa, ela EMITE"*. E diz de onde nasce:
+  `satellites.js` já desenha satélites de ferramenta e wormholes, apontados para o núcleo em vez de
+  para o corpo do agente. **Nave continua recusada:** posição independente quebra o determinismo que
+  a REGRA DA COORDENADA protege.
+  ⚠️ **O que fica aberto é PIPELINE, não decisão** — 54 corpos de agente que hoje não existem na
+  cena. Por isso a tarefa vira `todo` e não `done`, e **T-87 passa a esperar a ENTREGA de T-23**, não
+  mais uma decisão.
+  ☠️ Decidida POR AGENTE sob autorização de 09/08.
 
 - **T-79 (contexto original)** — ☠️ **A TAREFA ERA OUTRA, e o review externo mostrou por quê.** Ele pede que *"o agente
   invada o UNIVERSO, não a UI"* — pulsos percorrendo as conexões enquanto o agente trabalha, para a
@@ -482,7 +496,15 @@ com ou sem produtor.
   o limbo por setor varia **23,96×** entre o lado aceso e o apagado, e desligar os dois termos de
   atmosfera deixa em **24,53×**, inalterado. Não é aro; é fase. Vale o corolário da REGRA DA FÍSICA:
   a física produziu o fenômeno esperado, então o que sobra é **linguagem visual**. ⚠️ Mudar a direção
-  da luz conserta a leitura **e muda a composição que o usuário chama de "mais bonita"** — decisão dele.
+  da luz conserta a leitura **e muda a composição que o usuário chama de "mais bonita"**.
+  ⭑ **MANTIDA COMO ESTÁ, e esta é a mais fraca das sete decisões — reabra-a primeiro.** As outras
+  seis foram decididas por evidência já escrita nesta base; esta não tem evidência de nenhum lado:
+  o defeito está refutado por medida (não há aro; há fase), o ganho de leitura da luz nova **não
+  foi medido**, e do outro lado há uma preferência estética que o operador ENUNCIOU. Trocar uma
+  preferência enunciada por um ganho não medido é o pior negócio possível.
+  ⚠️ **O que reabriria com base:** medir a leitura do crescente — quanto do limbo o operador
+  consegue nomear em cada direção de luz —, e aí a decisão passa a ter dois números em vez de um.
+  ☠️ Decidida POR AGENTE sob autorização de 09/08.
 - **T-24** — a borda do planalto anda com a pose (**3 px a 260 un · 4 a 150 e 116 · 4,5 a 58**): a
   FORMA da conclusão sobrevive, a magnitude não. Mais sistemas no mesmo `OCUPACAO` dão envelopes
   menores, e é por isso que o `PISO` não se congela contra o fixture.
@@ -513,9 +535,16 @@ fato).
   ☠️ **Havia um leitor, e não era código de produto: era o próprio oráculo**, que recortava o
   `readHash` do fonte para medir. *"Zero leitores em `src/`"* e *"zero leitores"* não são a mesma
   frase, e a diferença derruba o portão na hora de apagar.
-- **T-65** — hoje só o UNIVERSO desenha os quatro tipos. O dado é o mesmo (`/api/vizinhanca`) e o
-  desenho é o mesmo (`links.js`); falta decidir se as duas cenas devem afirmar a mesma coisa —
-  **isso é produto, não engenharia**.
+- **T-65 RECUSADA — a cena é uma LENTE, e as duas não olham a mesma coisa.** `lei-cena.mjs` guarda
+  que a cena decide **o que ACENDE e de onde se OLHA**, nunca o que um corpo É: não desenhar a rede
+  no AGENTE é escolha legítima de lente, não omissão.
+  ⭑ **E a REGRA DO FOCO decide o resto:** na cena AGENTE o assunto é a EXECUÇÃO, com o núcleo no
+  centro. Os quatro tipos de vínculo afirmam semelhança de CORPUS — informação verdadeira que ali
+  disputaria atenção com o que o operador foi ver.
+  ⚠️ O dado (`/api/vizinhanca`) e o desenho (`links.js`) continuam prontos: reabrir custa ligar, não
+  construir. O que falta para reabrir é um caso em que a semelhança de corpus ajude a ler uma
+  execução.
+  ☠️ **Decidida POR AGENTE sob autorização de 09/08.**
 - **T-66** — as três saídas: aceitar o LOD, subir `OCUPACAO` pagando com os vazios, ou desenhar o
   sistema apertado como agregado e resolvê-lo na aproximação. ⚠️ **Agregar de longe vai na direção
   OPOSTA ao relato do usuário** — é resposta para ESCALA, não para distância.
@@ -1234,7 +1263,16 @@ que já está salvo, e a afinação do operador evapora em silêncio.
 
 ### As decisões que são do usuário
 
-Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozinho**:
+Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozinho**.
+
+☠️ **SETE FORAM RESOLVIDAS POR AGENTE em 09/08, sob autorização explícita do operador** — T-20,
+T-23, T-63, T-65, T-73, T-78 e T-81. A regra acima continua valendo: a autorização foi daquele dia
+e daquelas sete, não um cheque em branco. **Cada linha diz de quem é a decisão**, porque uma
+autorização permite decidir e não transfere a procedência.
+
+⭑ **O critério que as separou, e ele vale para a próxima leva:** seis foram decididas por evidência
+que já existia nesta base — recusa escrita, lei, ou número medido. **Só T-20 não tinha evidência de
+nenhum lado**, e é a que fica marcada para reabrir primeiro.
 
 1. **T-21 · Marketplace × segurança.** `OS-SCREENS.md` recusou por escrito (*"instalar app de
    terceiro nisso é entregar a máquina"*) e o `/api/health` confirma a premissa. É binário.
@@ -1249,8 +1287,10 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
    integrador** (a lua, área varrida 1,0008). Quem propuser movimento acumulativo está propondo
    revogar *"o mesmo conhecimento cai sempre no mesmo lugar"*, e isso é uma decisão de escopo, não
    uma consequência da astronomia.
-3. **T-23 · Agente como corpo.** É **pipeline novo, não limiar** — e há recusa por escrito em
-   `modelo-de-renderizacao.md:462`: *"estação orbital, não nave"*.
+3. **T-23 · Agente como corpo — DIREÇÃO DECIDIDA (09/08, por agente): ESTAÇÃO.** A forma já estava
+   desenhada em `modelo-de-renderizacao.md:462` (*"estação orbital, não nave"*), e **nave continua
+   recusada** — posição independente quebra o determinismo da REGRA DA COORDENADA. O que fica aberto
+   é PIPELINE, não decisão, e é ele que T-87 espera.
 4. **T-53 · O que sobe para o MUNDO — DECIDIDA E ENTREGUE. A linha fica pelo ESCOPO**, que continua
    sendo decisão sua a cada item novo. A preferência escrita é *"fazer tudo em canvas"*, e o pedágio
    está medido nos dois sentidos (`hud-e-canvas.md` §5).
