@@ -97,7 +97,8 @@ ela é por dívida de MODELO, não por tamanho.
 1. **T-71** — a REGRA DO FOCO no pixel. A régua de altura já existe (T-72), e a ordem por ganho tem
    dois apoios que concordam: `journal` é a rota mais pesada em GLIFO **e** a fenda mais pressionada
    em ALTURA.
-2. **T-40** — a marca de favorito não tem consumidor.
+2. **T-40** — falta a LISTA de *"quais eu marquei"*. ⭑ A metade do CÉU fechou: planeta e rocha
+   vestem a textura escolhida, pelo mesmo canal e com a cena sem saber o que é um favorito.
 3. **T-14, o launcher** — a medida que faltava está feita: ele leva vidro de **CSS**, e vidro 3D
    está recusado por aritmética sobre o orçamento do quadro. A tecla é `Ctrl+K` (decidida — `Space`
    já é da voz), e a camada `launcher` só precisa ser registrada em `core/tela.js`.

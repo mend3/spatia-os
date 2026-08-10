@@ -309,15 +309,45 @@ corpo: você lia o arquivo com o céu olhando para outra coisa.
 com o zoom que você gravou. Endereço PEDIDO e último visitado são fatos diferentes, e o pedido só
 tem precedência quando existe.
 
-⚠️ **Ele nunca sai da janela.** Quando o astro chega perto da borda o painel encosta e para — a
-direção continua legível, o texto continua inteiro. Onde ele está e **por que** está lá sai em
-`spatia.ancora()`, com as quatro causas separadas por nome: sem corpo travado, painel não montado,
-corpo atrás da câmera, corpo eclipsado.
+⚠️ **Ele nunca sai da janela, e nunca cobre os trilhos.** Quando o astro chega perto da borda o
+painel encosta e para — a direção continua legível, o texto continua inteiro, e os painéis laterais
+continuam clicáveis. A faixa em que ele anda é o **palco**, não a janela: onde os trilhos somem
+(janela estreita), ela volta a ser a janela inteira sozinha. Onde ele está e **por que** está lá sai
+em `spatia.ancora()`, com as quatro causas separadas por nome: sem corpo travado, painel não
+montado, corpo atrás da câmera, corpo eclipsado.
 
 ⭑ **A área que ele tira do céu é a mesma de antes** — a caixa que já pintava mudou de lugar, não de
 tamanho: 533 pontos ao ponteiro com e sem a âncora. Seguir a câmera custa **0,9 µs por quadro**, e o
 gradiente **não repinta**: zero repinturas em 601 quadros parado e em 480 quadros de zoom.
 `scripts/lei-ancora.mjs` guarda as três coisas.
+
+### Você dá cara aos arquivos que importam — e o céu obedece
+
+Um céu deduzido inteiro é justo e é anônimo: nenhum dos 1 636 corpos é *o seu*. Marque um com **`F`**
+e ele passa a ter dono; escolha uma aparência na seção **FAVORITO** do painel de contexto e ele passa
+a ter cara.
+
+> **A escolha vence a dedução, e é a única coisa na tela que faz isso.**
+
+Um arquivo que o sistema desenharia como rocha cinza vira **Marte**; um que ele desenharia como
+planeta genérico vira **Saturno**, com as bandas da textura real — e o anel de git por cima, que é
+fato do corpus e continua sendo dito. Trave o corpo, troque a aparência: **a troca é no mesmo
+quadro**, sem sair e voltar.
+
+⚠️ **Marca não é medida, e a tela diz isso com essas palavras.** Ela não muda o que o corpo É — nem
+classe, nem física, nem tamanho, nem lugar. Ela mora em você (`prefs`), não no corpus: dois
+operadores veem marcas diferentes sobre a mesma topologia, e é exatamente isso que a torna marca.
+
+⭑ **O que cada corpo aceita sai do que ele É.** Rocha, cometa e planeta recebem as peles sólidas;
+estrela, supernova e núcleo de quasar recebem as gasosas. Corpo sem contexto de aparência **diz por
+quê** em vez de oferecer uma lista vazia.
+
+⚠️ **Marca cuja classe mudou não some — ela ANUNCIA.** *"Não marquei"* e *"marquei e não vale mais
+aqui"* são fatos diferentes, e a escolha fica guardada esperando o corpo voltar.
+
+A régua é `spatia.favoritos()`, e o que a rocha em foco está de fato vestindo sai em
+`spatia.planet().morfologica` — `escolha` (o arquivo declarado) ao lado de `textura` (o que a pele
+pegou).
 
 ## Arquitetura
 

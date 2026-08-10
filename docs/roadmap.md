@@ -173,7 +173,7 @@ com ou sem produtor.
 | **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora, luz do corpo e paralaxe | `done` | T-53 | — | KR2.1 |
 | **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) eram DOIS nomes do mesmo vocabulário — sobrou `SUPERFICIE` | `done` | — | T-70 | KR2.4 |
 | **T-70** | `resolveBody()` decidia uma PELE que ninguém lia — hoje ele só resolve MODIFICADOR | `done` | T-69 | — | KR2.4 |
-| **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
+| **T-40** | A marca não tem CONSUMIDOR — ⭑ **o CÉU passou a saber** (planeta e rocha); falta a LISTA de *"quais marquei"* | `todo` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos — ⭑ a idade passou a alcançar só quem ela mediu | `done` | — | — | KR3.1 |
 | **T-42** | `/api/health` tinha DOIS donos — ⭑ um pollster, e quem precisa da leitura assina | `done` | — | — | KR2.2 |
 | **T-43** | A repintura da marca — ⭑ virou `lei-favoritos-ui.mjs` §11: notifica, e SOLTA | `done` | — | — | KR2.4 |
@@ -903,6 +903,18 @@ mesmo fato).
   MAIS perguntas — *"quais eu marquei?"*, *"como volto lá?"* — que é o Princípio Final ao
   contrário. As três condições de T-35 estão fechadas e **nenhuma delas é a que faz a marca VALER:
   alguém ler.**
+  ⭑ **A METADE DO CÉU FECHOU.** O planeta veste a textura escolhida como albedo, e a rocha a veste
+  como pele — os dois pelo MESMO canal (`scene.declararAparencias`, `source → arquivo`), com a cena
+  sem saber o que é um favorito. Quem valida contra o catálogo é `asteroideParams` (rocha) e
+  `APARENCIAS` (na montagem do mapa); fora do catálogo, o hash volta a responder.
+  ⚠️ **A versão da declaração é LOAD-BEARING** — ela invalida o parâmetro cacheado do corpo em foco.
+  Sem ela, marcar um corpo **já travado** vale no modelo e não troca um pixel; visto por mutação na
+  cena: `escolha` andando para `mars.jpg` com `textura` parada em `ceres.jpg`.
+  ⭑ A régua é `spatia.planet().morfologica` — na ROCHA ela devolve `escolha` (o arquivo declarado) ao
+  lado de `textura` (o que a pele pegou). `montado: true` diz que a pele desenha, **nunca qual
+  arquivo ela vestiu**, e é aí que a escolha some sem sintoma.
+  ☠️ **O que continua aberto é a LISTA, e é a metade que responde às duas perguntas do parágrafo
+  acima.** Céu sabendo não é lista: quem marcou dez corpos ainda não tem por onde voltar a eles.
 - **T-89 FECHADA — a atenção tem UMA resposta, na tela e no gesto.** O painel de contexto pintava
   do PAYLOAD de `ui.links` na notificação e do STORE na montagem e na marca; a tecla de marcar lê o
   store. Duas fontes para o mesmo fato, e quem está adiantado dependia da ordem de registro no
@@ -1077,9 +1089,9 @@ mesmo fato).
   confirmar-se com gesto real, era a DIVERGÊNCIA ENTRE DOIS SINAIS — e ela deixou de ser possível
   em **T-89**: o painel assina `attention.aoMudar` em vez de pintar do payload cru, e o store
   notifica DEPOIS de trocar. `scripts/lei-atencao.mjs` guarda.
-  ⚠️ **Nada da marca alcança o pixel do CÉU** — a escolha é registrada e `emDisco` é `null` porque
-  ninguém mediu o disco. Quem transformar `null` em medida é o carregador de textura de T-34, por
-  `declararEmDisco()`.
+  ⚠️ **`emDisco` é `null` porque ninguém mediu o disco** — *"não medi"*, e não *"não há"*. Quem
+  transformar `null` em medida é o carregador de textura de T-34, por `declararEmDisco()`.
+  (A marca alcança o pixel do céu desde T-40 — ver a linha dele.)
 - **T-16** — ☠️ **MODO ASSISTIR COMO MODO ESTÁ REFUTADO POR MEDIDA.** A fila que ele assistiria
   entregou **0 eventos em 301 s** de assinatura real ao `/api/system-events` (`medidas.md`). Uma superfície que assiste ao vazio CRIA a pergunta *"por que não
   acontece nada?"* — o Princípio Final ao contrário — e um terceiro eixo de estado ao lado de

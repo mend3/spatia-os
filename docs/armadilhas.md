@@ -65,6 +65,14 @@ regime (passo local ≤ 2 LSB), o mesmo A/B dá p99 **21 → 11** e máx **160 �
 > **Antes de aceitar um nulo, pergunte se a métrica ALCANÇA o defeito.** Nulo com controle fechado é
 > a forma mais convincente de estar errado — ele traz junto a prova de que o instrumento funciona.
 
+☠️ **MEDIR SOBREPOSIÇÃO NA MOLDURA DO WIDGET RESPONDE SOBRE A CAIXA ERRADA.** `[data-widget="…"]` é
+a moldura: ela POSICIONA, é transparente e é `pointer-events: none`. Quem pinta e quem rouba o
+clique é o `.widget-body` de dentro. Medido no leitor do corpo travado: a moldura ia a **1162** e
+dizia `invade: false` com o trilho em **1215**; o corpo ia a **1572** e cobria o trilho inteiro.
+> **A régua é a REGRA DO PALCO aplicada a quem mede: pergunte a QUEM PINTA.** É a mesma razão pela
+> qual `spatia.hud()` mede área que aceita ponteiro e não área desenhada — só que aqui o erro é do
+> instrumento, não do código medido, e ele sai com a forma de um `false` tranquilo.
+
 ☠️ **RECORTE COMPARADO EXIGE O MESMO RETÂNGULO, nunca o mesmo CRITÉRIO.** Dois recortes centrados
 por "centroide da área clara" caem em lugares diferentes quando o tratamento muda a área clara — e a
 diferença de conteúdo lê como artefato. Foi assim que uma "aresta reta" virou pista de bloom por uma
