@@ -272,11 +272,20 @@ conferir('§1 o contexto planetário tem população', populacao.get(F.CONTEXTO.
  */
 // A guarda de tipo não é paranoia: sem ela uma entrada de catálogo sem `arquivo` MATA o script aqui,
 // antes de o apontamento do §1 chegar ao veredito — morrer no lugar errado esconde o diagnóstico.
-const emDisco = new Set(
-  todas.map((a) => a.arquivo).filter((a) => typeof a === 'string' && fs.existsSync(path.join(RAIZ, a)))
-);
+/*
+ * ☠️ **O NUMERADOR e o DENOMINADOR contavam coisas DIFERENTES, e o resultado era «7 faltando» com
+ * zero faltando.** `emDisco` é um `Set` de CAMINHOS, e o mesmo arquivo serve dois contextos —
+ * `mars.jpg` é a MARTE do planetário e a do rochoso. Comparado contra a contagem de ENTRADAS, ele
+ * imprimia `9/16` sobre um catálogo completo, e o outro oráculo do favorito imprimia `16/16` sobre o
+ * mesmo disco. Duas medidas do mesmo fato discordando é como um número apodrece sem ninguém acusar.
+ */
+const arquivos = new Set(todas.map((a) => a.arquivo).filter((a) => typeof a === 'string'));
+// A guarda de tipo não é paranoia: sem ela uma entrada de catálogo sem `arquivo` MATA o script aqui,
+// antes de o apontamento do §1 chegar ao veredito — morrer no lugar errado esconde o diagnóstico.
+const emDisco = new Set([...arquivos].filter((a) => fs.existsSync(path.join(RAIZ, a))));
 console.log(
-  `  \x1b[2m[medida] ${emDisco.size}/${todas.length} texturas do catálogo em disco (T-34 ainda não rodou)\x1b[0m`
+  `  \x1b[2m[medida] ${emDisco.size}/${arquivos.size} arquivos distintos em disco · ` +
+    `${todas.length} entradas no catálogo (o mesmo arquivo serve dois contextos)\x1b[0m`
 );
 
 // ══════════════════════════════════ §2 A MARCA NÃO CHEGA A QUEM DIZ O QUE UM CORPO É

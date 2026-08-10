@@ -154,7 +154,7 @@ com ou sem produtor.
 | **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `done` | — | — | KR3.3 |
 | **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
 | **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `done` | — | T-16 | KR1.2 |
-| **T-34** | Malha `glb` para asteroide e estação — **CubeSat GENÉRICO** é o candidato de estação | `todo` | — | T-61 | — |
+| **T-34** | Malha de arquivo para a ESTAÇÃO — ⭑ **o asteroide está entregue**; falta o CubeSat, que nem está em `assets/3d/` | `todo` | — | — | — |
 | **T-35** | **FAVORITOS** — modelo, persistência, interface e FOTO | `done` | — | T-34 | KR2.1 |
 | **T-37** | O assinante de `thread` no cliente + o botão que corta o fio — a outra metade do T-10 | `done` | — | — | KR4.2 |
 | **T-38** | O favorito oferece aparência que a cena não sabe aplicar | `done` | — | — | KR2.4 |
@@ -173,7 +173,7 @@ com ou sem produtor.
 | **T-82** | O documento como EXTENSÃO ESPACIAL do astro — âncora, luz do corpo e paralaxe | `done` | T-53 | — | KR2.1 |
 | **T-69** | `SURFACE` (solver) e `SUPERFICIE` (superficies) eram DOIS nomes do mesmo vocabulário — sobrou `SUPERFICIE` | `done` | — | T-70 | KR2.4 |
 | **T-70** | `resolveBody()` decidia uma PELE que ninguém lia — hoje ele só resolve MODIFICADOR | `done` | T-69 | — | KR2.4 |
-| **T-40** | A marca não tem CONSUMIDOR — ⭑ **o CÉU passou a saber** (planeta e rocha); falta a LISTA de *"quais marquei"* | `todo` | — | — | KR2.1 |
+| **T-40** | A marca tem CONSUMIDOR nas duas metades — o CÉU veste a escolha, e a LISTA `MARCADOS` leva de volta | `done` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos — ⭑ a idade passou a alcançar só quem ela mediu | `done` | — | — | KR3.1 |
 | **T-42** | `/api/health` tinha DOIS donos — ⭑ um pollster, e quem precisa da leitura assina | `done` | — | — | KR2.2 |
 | **T-43** | A repintura da marca — ⭑ virou `lei-favoritos-ui.mjs` §11: notifica, e SOLTA | `done` | — | — | KR2.4 |
@@ -194,7 +194,7 @@ com ou sem produtor.
 | **T-58** | Deeplink de FOCO — o endereço PEDIDO vence o último visitado | `done` | — | — | KR4.1 |
 | **T-59** | Melhorar o visual do QUASAR (`briefings/quasar-enhance.md`) | `todo` | — | — | — |
 | **T-60** | Melhorar o visual do PULSAR — luz FLAT (devia expandir em 360°) e nuvem estática | `todo` | — | — | — |
-| **T-61** | Texturas: asteroide, cometa, anel — pedregulho, poeira, colisão eventual | `todo` | T-34 | — | — |
+| **T-61** | O COMETA não consome a pele que o catálogo já lhe oferece — ⭑ asteroide entregue, anel é T-26 | `todo` | — | — | KR2.4 |
 | **T-62** | Camada externa do BURACO NEGRO — poeira, detritos, profundidade e volume | `todo` | — | — | — |
 | **T-63** | `orbital-zones.js` emprestava nome de FÍSICA a metáfora — ⭑ **DECIDIDO: os nomes deixam de afirmar física** | `done` | — | — | KR3.2 |
 | **T-64** | `session.route` — ⭑ **DECIDIDO: apagado.** A medida da divergência virou LEI | `done` | — | — | KR2.1 |
@@ -897,24 +897,25 @@ mesmo fato).
   ☠️ **Antes de abrir tarefa, o `grep` é NESTE arquivo.** Um roadmap deste tamanho responde
   perguntas que ninguém procura nele, e reabrir uma decisão escrita custa mais que tomá-la — as
   seções *"o que já está PRONTO"* e *"o que está REFUTADO"* existem para essa varredura.
-- **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
-  T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
-  está**, então ela responde uma pergunta que ele não pode ter. Depois de marcar, ele precisa fazer
-  MAIS perguntas — *"quais eu marquei?"*, *"como volto lá?"* — que é o Princípio Final ao
-  contrário. As três condições de T-35 estão fechadas e **nenhuma delas é a que faz a marca VALER:
-  alguém ler.**
-  ⭑ **A METADE DO CÉU FECHOU.** O planeta veste a textura escolhida como albedo, e a rocha a veste
-  como pele — os dois pelo MESMO canal (`scene.declararAparencias`, `source → arquivo`), com a cena
-  sem saber o que é um favorito. Quem valida contra o catálogo é `asteroideParams` (rocha) e
-  `APARENCIAS` (na montagem do mapa); fora do catálogo, o hash volta a responder.
-  ⚠️ **A versão da declaração é LOAD-BEARING** — ela invalida o parâmetro cacheado do corpo em foco.
+- **T-40 FECHADA — a marca tem consumidor nas DUAS metades.**
+  ⭑ **O CÉU:** planeta veste a escolha como albedo, rocha como pele, os dois pelo MESMO canal
+  (`scene.declararAparencias`, `source → arquivo`) com a cena sem saber o que é um favorito. Fora do
+  catálogo o hash volta a responder.
+  ⚠️ **A VERSÃO da declaração é LOAD-BEARING** — ela invalida o parâmetro cacheado do corpo em foco.
   Sem ela, marcar um corpo **já travado** vale no modelo e não troca um pixel; visto por mutação na
-  cena: `escolha` andando para `mars.jpg` com `textura` parada em `ceres.jpg`.
-  ⭑ A régua é `spatia.planet().morfologica` — na ROCHA ela devolve `escolha` (o arquivo declarado) ao
-  lado de `textura` (o que a pele pegou). `montado: true` diz que a pele desenha, **nunca qual
-  arquivo ela vestiu**, e é aí que a escolha some sem sintoma.
-  ☠️ **O que continua aberto é a LISTA, e é a metade que responde às duas perguntas do parágrafo
-  acima.** Céu sabendo não é lista: quem marcou dez corpos ainda não tem por onde voltar a eles.
+  cena, `escolha` andando para `mars.jpg` com `textura` parada em `ceres.jpg`.
+  ⭑ **A LISTA:** `MARCADOS`, trilho esquerdo de `#/files`, e o clique dela é o mesmo `reveal` da
+  árvore — foco no céu **e** leitor aberto. Ordem por RECÊNCIA de marcação: *"o que eu estava
+  acompanhando"* é pergunta sobre o presente, e alfabética ordenaria por um fato do caminho, que é o
+  que a árvore ao lado já faz.
+  ☠️ **Corpo fora da topologia servida NÃO é botão** — `reveal` pediria foco num astro que não
+  existe, e a tela ficaria idêntica ao clique que funcionou. `noCeu` é o fato, e ele vira `<div>`.
+  ⚠️ **Ela NÃO é residente, e isso é a REGRA DO FOCO aplicada:** *"some o que INFORMA; fica o que
+  COMANDA algo que está ligado"*. A lista informa, e nada nela continua agindo fora da tela.
+  ⭑ As réguas: `spatia.planet().morfologica` devolve, **na rocha**, `escolha` (o arquivo declarado)
+  ao lado de `textura` (o que a pele pegou) — `montado: true` diz que a pele desenha, nunca qual
+  arquivo ela vestiu. E `spatia.favoritos()` responde pela lista.
+  Portão: `lei-favoritos-ui.mjs` §12, 6 mutações vistas reprovando.
 - **T-89 FECHADA — a atenção tem UMA resposta, na tela e no gesto.** O painel de contexto pintava
   do PAYLOAD de `ui.links` na notificação e do STORE na montagem e na marca; a tecla de marcar lê o
   store. Duas fontes para o mesmo fato, e quem está adiantado dependia da ordem de registro no
@@ -1089,9 +1090,10 @@ mesmo fato).
   confirmar-se com gesto real, era a DIVERGÊNCIA ENTRE DOIS SINAIS — e ela deixou de ser possível
   em **T-89**: o painel assina `attention.aoMudar` em vez de pintar do payload cru, e o store
   notifica DEPOIS de trocar. `scripts/lei-atencao.mjs` guarda.
-  ⚠️ **`emDisco` é `null` porque ninguém mediu o disco** — *"não medi"*, e não *"não há"*. Quem
-  transformar `null` em medida é o carregador de textura de T-34, por `declararEmDisco()`.
-  (A marca alcança o pixel do céu desde T-40 — ver a linha dele.)
+  ⭑ **`emDisco` É MEDIDA hoje, e por outro caminho que não o previsto:** quem publica a lista é o
+  SERVIDOR (`server/app.py:_texturas`, no `/api/health`) e quem a entrega é `main.js`, por
+  `declararEmDisco()`. Sem `texturas` no payload o conjunto volta a `null`, que é a resposta honesta
+  — *"não medi"* nunca vira *"não há"*. (A marca alcança o pixel do céu desde T-40.)
 - **T-16** — ☠️ **MODO ASSISTIR COMO MODO ESTÁ REFUTADO POR MEDIDA.** A fila que ele assistiria
   entregou **0 eventos em 301 s** de assinatura real ao `/api/system-events` (`medidas.md`). Uma superfície que assiste ao vazio CRIA a pergunta *"por que não
   acontece nada?"* — o Princípio Final ao contrário — e um terceiro eixo de estado ao lado de
@@ -1116,6 +1118,28 @@ mesmo fato).
   planeta cometeria. Sortear por semente do caminho, como o terreno do planeta já faz. E o custo de
   malha única por corpo **não está medido** — o "geometria é barato" desta base foi medido para
   esferas instanciadas.
+  ⭑ **A metade do ASTEROIDE está entregue e na cena**: oito malhas de levantamento real
+  (`space/asteroide.js`, base `assets/3d/`), escolhidas por hash, com a **UV gerada** — o formato não
+  traz uma —, LOD, e a escolha do operador vencendo o hash.
+  ☠️ **Sobra a ESTAÇÃO, e ela é o caso mais difícil, não o que restou:** o motivo já está escrito
+  como DADO em `space/favoritos.js` (`SEM_APARENCIA.estacao`) — *"ela pede MALHA, não mapa: é objeto
+  CONSTRUÍDO"*. O CubeSat **nem está em `assets/3d/`**, então a tarefa começa por obter o arquivo.
+  ⚠️ **A SONDA do operador (`space/sonda.js`) carrega um `.glb` e NÃO tem consumidor de cena** — só
+  a bancada (`sandbox/sonda-rig.js`) a importa. Isso é T-15, não T-34, e é "declarado sem leitor" na
+  forma que esta base mais paga.
+
+- **T-61** — ⭑ **o ASTEROIDE veste textura de arquivo** (peles do catálogo, UV gerada), e o ANEL já é
+  campo procedural com pedregulho no canal `G` de `ring-rock.js`, gasto só no LOD de perto. O que
+  falta no anel é a ESCOLHA de granulação, que tem linha própria (**T-26**) e um número que ainda não
+  foi medido.
+  ☠️ **O que sobra é o COMETA, e ele é «declarado sem leitor» com o painel no caminho:**
+  `contextoDe()` põe `SUPERFICIE.COMETA` em `CONTEXTO.ROCHOSO`, então a tela OFERECE as oito peles
+  para um cometa — e `scene.js` chama `cometParams(node, cor)` sem a aparência, com o núcleo em
+  `ShaderMaterial` cuja rocha é uma COR (`uRock`), não um mapa.
+  ⚠️ **É exatamente o sintoma que T-38 (`done`) diz ter fechado** — *"o favorito oferece aparência
+  que a cena não sabe aplicar"* —, e a diferença é que lá a pele não aceitava mapa nenhum. Aqui ela
+  aceitaria: o trabalho é passar `aparenciaDe` ao `cometParams` e dar `map` ao núcleo, o que é
+  mexida de SHADER e não de roteamento. Antes disso, `check-shaders.mjs`.
 
 - **T-13** — a camada `splash` está no working tree e **25 leis saem 0 sem navegador** (a pilha
   `mundo > splash > boot`, a entrega sem ninguém nomear o de baixo, `null` de topologia que não

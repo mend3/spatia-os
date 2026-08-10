@@ -58,10 +58,12 @@ declara licença nenhuma**. Intermediário não licencia o que não é dele — 
 derivação do dado. Um arquivo parecer Marte é escolha de gente, e a tela diz isso. Sem a marca, a
 pele procedural continua sendo quem desenha.
 
-⚠️ **Ceres vem da série `_fictional` do Solar System Scope** — o mapa é artístico, não fotográfico.
-Ele entra porque o ASTEROIDE é a única classe sem pele nenhuma, e mesmo assim é o único item deste
-catálogo cuja superfície não é medida. Quem trocá-lo por dado real (`Bennu`, `Eros`, `Itokawa` da
-NASA — ver T-34) troca uma ilustração por uma malha.
+⚠️ **Ceres vem da série `_fictional` do Solar System Scope** — o mapa é artístico, não fotográfico,
+e é o único item deste catálogo cuja superfície não é medida.
+⭑ **A FORMA do asteroide, essa é medida:** oito malhas de levantamento real da NASA
+(`assets/3d/asteroid-*.stl`) — Bennu, Itokawa, Kleopatra, Toutatis, Geographos, Mithra, Golevka e
+1996 HW1. Textura artística sobre malha medida é uma composição honesta: a silhueta afirma o corpo,
+a pele não afirma nada.
 
 ⭑ **Reconferir as dez de uma vez:**
 
@@ -123,7 +125,7 @@ afirmação de um fato sobre um arquivo. Isso decide o que entra:
 |---|---|---|
 | **planeta** | ☠️ **NÃO** | é procedural POR DECISÃO, gerado por semente do caminho. `censo-planetas.mjs` existe para medir quantos formatos distintos o corpus produz. Uma foto de Marte faria todo arquivo parecer Marte **independentemente do que ele É** — o modo de olhar decidindo a classe, que é o defeito que esta base já pagou duas vezes |
 | **lua** | ⭑ **talvez** | a lua é PARTE NOMEADA de um documento, e hoje é ponto de 4,5 px. Textura em 4 px não entrega detalhe — mede antes (`MOON_MIN_OVER_OUTER`) |
-| **asteroide** | ⭑ **sim, e é a lacuna real** | é a única classe do censo **sem pele nenhuma** (*"fica esfera lisa até existir a pele dele, e isso é decisão"*). 1 corpo no fixture |
+| **asteroide** | ⭑ **entregue** | veste as peles do catálogo ROCHOSO sobre **malha de levantamento real**, com a UV gerada (o `.stl` não traz uma). A pele é PADRÃO emprestado, e a forma é que carrega o fato |
 | **estação** | ⭑ **sim** | é objeto CONSTRUÍDO. Modelo de satélite/sonda real é o análogo honesto, e a NASA publica dezenas |
 | **pulsar · quasar · buraco negro** | ☠️ **NÃO** | não existe foto de superfície de estrela de nêutrons ou de quasar. O que se vê deles é **emissão**, e emissão é o que o shader já calcula. Uma "textura de pulsar" seria ilustração, não medida |
 | **nebulosa** | ⚠️ já resolvido | os fundos JWST em `sky/` são exatamente isso, e o crédito está lá |
@@ -245,8 +247,8 @@ inútil para esta cena.
 
 ### O que eu recomendaria medir primeiro
 
-1. **Asteroide** é a única classe sem pele, e portanto o único caso em que textura **acrescenta** em
-   vez de substituir. Ceres (CC BY 4.0) é o caminho mais barato.
+1. **Asteroide** — ⭑ **feito.** Foi o único caso em que textura ACRESCENTA em vez de substituir, e é
+   por isso que ele veio primeiro.
 2. **Lua** só depois de medir: ela vive em ~4,5 px, e o handoff já mediu que **detalhe por zoom está
    refutado** — textura invisível é peso de download com cara de melhoria.
 3. **Estação** é o caso onde a NASA ganha da Solar System Scope, e é o único em que vale encarar

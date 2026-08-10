@@ -97,13 +97,13 @@ ela é por dívida de MODELO, não por tamanho.
 1. **T-71** — a REGRA DO FOCO no pixel. A régua de altura já existe (T-72), e a ordem por ganho tem
    dois apoios que concordam: `journal` é a rota mais pesada em GLIFO **e** a fenda mais pressionada
    em ALTURA.
-2. **T-40** — falta a LISTA de *"quais eu marquei"*. ⭑ A metade do CÉU fechou: planeta e rocha
-   vestem a textura escolhida, pelo mesmo canal e com a cena sem saber o que é um favorito.
-3. **T-14, o launcher** — a medida que faltava está feita: ele leva vidro de **CSS**, e vidro 3D
+2. **T-14, o launcher** — a medida que faltava está feita: ele leva vidro de **CSS**, e vidro 3D
    está recusado por aritmética sobre o orçamento do quadro. A tecla é `Ctrl+K` (decidida — `Space`
    já é da voz), e a camada `launcher` só precisa ser registrada em `core/tela.js`.
-4. **T-80** — o inspector tem três estados e ganha AÇÕES. ⚠️ Quais ações existem depende de T-78,
+3. **T-80** — o inspector tem três estados e ganha AÇÕES. ⚠️ Quais ações existem depende de T-78,
    que é decisão sua; os TRÊS ESTADOS não dependem.
+4. **T-61** — o COMETA não consome a pele que o catálogo já lhe oferece. ⚠️ É mexida de SHADER (o
+   núcleo tem `uRock` como COR, não mapa), não de roteamento — `check-shaders.mjs` antes.
 
 ⚠️ **A métrica é parte da hipótese, e T-85 pagou isso caro.** Uma medida com controle FECHADO deu
 nulo e quase virou refutação escrita: ela varria a faixa clara inteira sem isolar o regime em que o

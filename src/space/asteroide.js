@@ -53,8 +53,10 @@ export const MALHAS = Object.freeze([
  * ESCOLHE são a mesma pergunta; com duas tabelas, a primeira edição as separa — e o sintoma é o
  * painel oferecendo uma opção enquanto o céu desenha outra.
  *
- * ⚠️ `APARENCIAS[ROCHOSO]` é quem decide o conjunto, e o motivo de cada exclusão mora lá: os quatro
- * gigantes GASOSOS ficam fora porque mapa de atmosfera numa rocha lê como listra pintada.
+ * ⚠️ `APARENCIAS[ROCHOSO]` é quem decide o conjunto, e o motivo de cada exclusão mora lá. Hoje são
+ * OITO, e as quatro fotos de gigante gasoso estão entre elas: a decisão é que sobre uma rocha elas
+ * valem como PADRÃO emprestado, não como afirmação de atmosfera — a única fora é a Terra, que
+ * retrata um mundo específico e reconhecível.
  */
 export const PELES = Object.freeze(
   Object.values(APARENCIAS[CONTEXTO.ROCHOSO]).map((a) => a.arquivo.replace('assets/textures/', ''))

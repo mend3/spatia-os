@@ -345,6 +345,20 @@ quê** em vez de oferecer uma lista vazia.
 ⚠️ **Marca cuja classe mudou não some — ela ANUNCIA.** *"Não marquei"* e *"marquei e não vale mais
 aqui"* são fatos diferentes, e a escolha fica guardada esperando o corpo voltar.
 
+### E a lista devolve você a eles
+
+Marcar sem lista deixa a segunda pergunta sem resposta: *"quais eu marquei?"* e *"como volto lá?"*.
+A seção **MARCADOS**, no trilho da esquerda ao lado da ÁRVORE, responde as duas — cada linha traz o
+corpo e a cara que você deu a ele, e **um clique leva de volta**: a câmera trava no astro e o
+documento abre, como se você tivesse achado o arquivo na árvore.
+
+A ordem é por **quando você marcou**, não alfabética — a pergunta é *"o que eu estava
+acompanhando"*, e ordenar por caminho é o que a árvore ao lado já faz melhor.
+
+☠️ **Corpo que sumiu do céu não vira botão morto.** Se o arquivo saiu do corpus entre duas sessões, a
+marca continua na lista e diz isso — mas não é clicável, porque não há astro para onde ir. Um botão
+que parece funcionar e não faz nada é pior que a ausência dele.
+
 A régua é `spatia.favoritos()`, e o que a rocha em foco está de fato vestindo sai em
 `spatia.planet().morfologica` — `escolha` (o arquivo declarado) ao lado de `textura` (o que a pele
 pegou).
