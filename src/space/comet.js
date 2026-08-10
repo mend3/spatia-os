@@ -27,6 +27,19 @@
  * Núcleo real de cometa tem albedo ~0,04 (mais escuro que carvão): o que se vê da Terra é a coma,
  * não o corpo. Por isso o núcleo aqui é pequeno e opaco e o brilho todo está no gás.
  *
+ * ## A APARÊNCIA escolhida veste o NÚCLEO, e o quanto dela se vê é a atividade
+ *
+ * `contextoDe()` põe o cometa em `CONTEXTO.ROCHOSO` junto com o asteroide — os dois são o mesmo
+ * corpo em estados diferentes, e a marca vale para o núcleo, que é o que não expira.
+ *
+ * ⚠️ **Mas a coma ENGOLE o núcleo, e isso é aritmética das constantes deste módulo:** a coma vive
+ * entre 0,9 e 2,4 raios e o núcleo entre 0,14 e 0,30 — de **3× a 17×** —, e ela é aditiva. Num
+ * cometa saturado (`churn ≥ 27`) a pele escolhida existe e **não se vê**. Conforme a atividade cai,
+ * o núcleo aparece e a marca com ele.
+ *
+ * ⭑ Isso não é defeito a consertar: é a mesma física que faz o cometa ler como cometa, e ela vale
+ * mais que a marca. Quem quiser ver a pele de um cometa ativo está pedindo para a atividade mentir.
+ *
  * ⚠️ Nada aqui é geometria de volume: a coma é billboard aditivo e a cauda é `THREE.Points`. Cauda
  * real é rarefeita a ponto de ser transparente em qualquer direção; uma malha sólida daria a ela
  * uma borda, e borda é o que o `envelope()` do remanescente foi reescrito duas vezes para não ter.
@@ -240,10 +253,19 @@ function esculpirNucleo(seed) {
 
 const NUCLEUS_VERTEX = /* glsl */ `
   varying vec3 vNormal;
+  varying vec3 vSphere;
   void main(){
     // Normal em MUNDO: a luz vem do nucleo da cena e o corpo gira, entao a conta tem de acontecer
     // num referencial que nenhum dos dois arrasta junto.
     vNormal = normalize(mat3(modelMatrix) * normal);
+    /*
+     * A DIRECAO na esfera unitaria, para a UV da aparencia — e ela nao precisa de atributo.
+     *
+     * esculpirNucleo() desloca RADIALMENTE (v * r), entao normalizar a posicao devolve a direcao
+     * original exata. E ela e do MODELO, nao do mundo: assim a pele gira JUNTO com o corpo, em vez
+     * de ficar presa no espaco enquanto a rocha passa por baixo.
+     */
+    vSphere = normalize(position);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -252,7 +274,10 @@ const NUCLEUS_FRAGMENT = /* glsl */ `
   precision highp float;
   uniform vec3 uLight;
   uniform vec3 uRock;
+  uniform sampler2D uMapa;
+  uniform float uUsaMapa;
   varying vec3 vNormal;
+  varying vec3 vSphere;
   void main(){
     /*
      * ALBEDO 0,04 — mais escuro que carvao, e e o dado que manda no desenho.
@@ -262,8 +287,26 @@ const NUCLEUS_FRAGMENT = /* glsl */ `
      * escura quase preta e o limbo iluminado aparece como um crescente fino — a imagem que a
      * Giotto trouxe do Halley e a Rosetta do 67P.
      */
+    /*
+     * APARENCIA NOMEADA — a MARCA do operador, e ela substitui SO o albedo.
+     *
+     * A UV e equiretangular derivada da DIRECAO, como no planeta: funcao de vSphere, sem atributo
+     * novo e sem costura de triangulo — a descontinuidade de atan cai entre dois pixels, nunca
+     * entre dois vertices.
+     *
+     * ☠️ O termo de luz fica FORA do mix de proposito. A marca troca a cor da rocha; o crescente
+     * fino e o terminador continuam saindo da mesma conta, porque eles sao o que diz que aquilo e
+     * um corpo SOLIDO — e isso e fato sobre o astro, nao escolha de ninguem.
+     *
+     * uUsaMapa e 0 quando ninguem marcou, e com 0 o mix devolve uRock BIT A BIT: cometa nao
+     * marcado desenha exatamente como desenhava. E a REGRA DA FISICA — composicao nao altera a
+     * simulacao.
+     */
+    vec3 n = normalize(vSphere);
+    vec2 uvMapa = vec2(atan(n.z, n.x) / 6.2831853 + 0.5, asin(clamp(n.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+    vec3 rocha = mix(uRock, texture2D(uMapa, uvMapa).rgb, uUsaMapa);
     float lambert = max(dot(vNormal, uLight), 0.0);
-    gl_FragColor = vec4(uRock * (0.05 + 0.95 * lambert), 1.0);
+    gl_FragColor = vec4(rocha * (0.05 + 0.95 * lambert), 1.0);
   }
 `;
 
@@ -427,6 +470,15 @@ export function createComet() {
       // Cinza-escuro neutro, e ele NÃO é a cor do `kind`: o núcleo é rocha, e pintá-lo da cor do
       // conhecimento diria que a matéria dele muda com o tipo do arquivo. O gás é que carrega a cor.
       uRock: { value: new THREE.Color(0x6b6a72) },
+      /*
+       * A aparência nomeada. `uUsaMapa` em 0 devolve `uRock` bit a bit — ver o fragmento.
+       *
+       * ⚠️ **A marca veste o NÚCLEO, nunca o gás.** Coma e cauda são emissão de material que o corpo
+       * perdeu; pintá-las com uma foto de superfície afirmaria que o gás tem a cara da rocha, o que
+       * é falso mesmo nos cometas reais — a coma é do íon e da poeira, e a cor dela já sai do `kind`.
+       */
+      uMapa: { value: null },
+      uUsaMapa: { value: 0 },
     },
     vertexShader: NUCLEUS_VERTEX,
     fragmentShader: NUCLEUS_FRAGMENT,
@@ -604,6 +656,13 @@ export function createComet() {
       PARA_FONTE.copy(fonte).sub(position).normalize();
       if (PARA_FONTE.lengthSq() < 1e-6) PARA_FONTE.set(1, 0, 0);
       nucleoMat.uniforms.uLight.value.copy(PARA_FONTE);
+      /*
+       * ⚠️ **Sem mapa, `uUsaMapa` é 0 e o fragmento devolve `uRock` BIT A BIT** — cometa não marcado
+       * desenha exatamente como desenhava. `params.mapa` é opcional de propósito: quem monta a pele
+       * sem aparência nenhuma (a bancada, um chamador antigo) não precisa saber que ela existe.
+       */
+      nucleoMat.uniforms.uMapa.value = params.mapa ?? null;
+      nucleoMat.uniforms.uUsaMapa.value = params.mapa ? 1 : 0;
 
       comaMat.uniforms.uColor.value.set(params.color);
       comaMat.uniforms.uAmount.value = params.amount * level;

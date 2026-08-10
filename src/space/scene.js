@@ -405,7 +405,11 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       pool: poolCometa,
       criar: createComet,
       far: COMETA_FAR,
-      params: (node) => cometParams(node, graph.kindColor(node.kind)),
+      // A aparência entra pelo MESMO canal do planeta e da rocha — `aparenciaDe`, um dono só.
+      params: (node) => ({
+        ...cometParams(node, graph.kindColor(node.kind)),
+        mapa: texturaDeAparencia(node.source),
+      }),
       desenhar: (pele, base, c, elapsed) => {
         // ⚠️ `estrelaDoSistema` PRIMEIRO: é ela que preenche `FONTE_DA_CAUDA`. Sem esta linha a
         // cauda usaria a fonte do corpo anterior — um erro que só aparece com dois cometas na tela.
@@ -2595,7 +2599,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         morphSource = chaveDaPele;
         morphParams = {
           [SUPERFICIE.ESTACAO]: () => stationParams(pouso.node, cor),
-          [SUPERFICIE.COMETA]: () => cometParams(pouso.node, cor),
+          /*
+           * O núcleo do cometa veste a aparência escolhida; a coma e a cauda seguem com a cor do
+           * `kind`. Gás não tem a cara da rocha, e a marca não afirma nada sobre o que ele emite.
+           */
+          [SUPERFICIE.COMETA]: () => ({
+            ...cometParams(pouso.node, cor),
+            mapa: texturaDeAparencia(pouso.node.source),
+          }),
           [SUPERFICIE.PULSAR]: () => pulsarParams(pouso.node, cor),
           [SUPERFICIE.NEBULOSA]: () => nebulaParams(pouso.node, cor),
           /*

@@ -33,6 +33,17 @@ import {
   LOD_FAR_PX as STATION_FAR,
   LOD_NEAR_PX as STATION_NEAR,
 } from '../space/station.js';
+import { APARENCIAS, CONTEXTO } from '../space/favoritos.js';
+
+/**
+ * As aparências que o cometa pode vestir, LIDAS do catálogo — `nenhuma` é o modo procedural.
+ *
+ * ☠️ **Objeto com dois modos precisa dos DOIS na bancada**, senão o caminho onde o defeito mora não
+ * é desenhável. O núcleo tem o modo rocha (`uRock`) e o modo pele (`uMapa`), e é justamente na
+ * troca que o `uUsaMapa` pode ficar preso — um defeito que a cena esconde, porque lá quase nenhum
+ * corpo está marcado.
+ */
+const PELES_DO_NUCLEO = ['nenhuma', ...Object.keys(APARENCIAS[CONTEXTO.ROCHOSO])];
 
 /**
  * O nó mínimo que os três `*Params` leem, com os DOIS fatos que o censo achou parados abertos ao
@@ -100,8 +111,12 @@ export const COMET_SPEC = {
      */
     { key: 'angulo', label: 'ÂNGULO DA FONTE', type: 'range', min: 0, max: 6.28, step: 0.01, value: 0 },
     { key: 'reduzido', label: 'MOVIMENTO REDUZIDO', type: 'bool', value: false },
+    { key: 'pele', label: 'APARÊNCIA DO NÚCLEO', type: 'enum', options: PELES_DO_NUCLEO, value: 'nenhuma' },
   ],
   watch: [
+    'APARÊNCIA volta a `nenhuma`: a rocha tem de voltar EXATAMENTE ao cinza — se sobrar tinta da pele, `uUsaMapa` ficou preso',
+    'com pele, o CRESCENTE continua lá: a marca troca a cor da rocha, nunca o terminador — é ele que diz que aquilo é sólido',
+    'gire o corpo com a pele ligada: a textura acompanha a rocha. Presa no espaço = a UV saiu do mundo em vez do modelo',
     'as DUAS caudas saem para o MESMO lado, longe da fonte — íon ciano e reta, poeira amarela e arqueada',
     'gire o ÂNGULO DA FONTE: as caudas acompanham. Presas a um lado da tela = eixo de câmera',
     'com o tempo CORRENDO as duas escoam em ritmos diferentes (íon 2,2s, poeira 4,6s)',
@@ -133,12 +148,33 @@ export const COMET_SPEC = {
     const ORBITA = 3;
     const posicao = new THREE.Vector3();
 
+    /*
+     * As texturas por NOME, carregadas sob demanda e guardadas — a bancada troca de pele a cada
+     * clique, e recarregar o JPEG a cada troca mediria a rede em vez do shader.
+     */
+    const texturas = new Map();
+    const texturaDe = (nome) => {
+      if (nome === 'nenhuma') return null;
+      if (!texturas.has(nome)) {
+        const t = new THREE.TextureLoader().load(`/${APARENCIAS[CONTEXTO.ROCHOSO][nome].arquivo}`);
+        // O JPEG está em sRGB e o shader calcula em linear — o mesmo conserto da cena.
+        t.colorSpace = THREE.SRGBColorSpace;
+        texturas.set(nome, t);
+      }
+      return texturas.get(nome);
+    };
+
+    /** A uniform que o shader de fato lê, achada por QUEM a declara. */
+    const usaMapa = () =>
+      comet.object.children.find((n) => n.material?.uniforms?.uUsaMapa)?.material.uniforms.uUsaMapa
+        .value;
+
     return {
       object: grupo,
       update(values, camera, clock) {
         const cor = KIND_COLORS[values.tipo] ?? KIND_COLORS.other;
         const base = cometParams(noFalso(values), cor);
-        const params = { ...base, tail: base.tail * values.cauda };
+        const params = { ...base, tail: base.tail * values.cauda, mapa: texturaDe(values.pele) };
 
         posicao.set(Math.cos(values.angulo) * ORBITA, 0, Math.sin(values.angulo) * ORBITA);
         comet.object.position.copy(posicao);
@@ -156,12 +192,19 @@ export const COMET_SPEC = {
           coma: `${base.coma.toFixed(2)} raios`,
           cauda: `${params.tail.toFixed(2)} raios`,
           núcleo: `${base.nucleus.toFixed(3)} raios`,
+          // `uUsaMapa` sai do PIXEL, não do controle: é a uniform que o shader lê, e é ela que fica
+          // presa quando a troca de modo falha. Repetir o controle aqui não provaria nada.
+          // ⚠️ Procurado por QUEM DECLARA a uniform, nunca por índice: `children[0]` vira outra peça
+          // no dia em que a ordem de montagem mudar, e a sonda passa a medir o gás.
+          pele: `${values.pele} · uUsaMapa ${usaMapa() ?? '—'}`,
           pixels: px.toFixed(0),
           nível: `${nivel.toFixed(2)} · ${nivelDe(px, COMET_FAR, COMET_NEAR)}`,
         });
       },
       dispose() {
         comet.dispose?.();
+        for (const t of texturas.values()) t.dispose();
+        texturas.clear();
         fonte.geometry.dispose();
         fonte.material.dispose();
       },
