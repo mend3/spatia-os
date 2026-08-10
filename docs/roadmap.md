@@ -63,7 +63,7 @@ operador a não ler a tela (`ambient.py` recusa por escrito). O que a Regra dos 
 
 | KR | medida | hoje |
 |---|---|---|
-| KR2.1 | **estado de tela** tem dono único | ⭑ `core/tela.js` — camada · cena · rota num objeto só, `spatia.tela()`. ⚠️ `session.route` sobrevive **sem leitor** (T-64) |
+| KR2.1 | **estado de tela** tem dono único | ⭑ `core/tela.js` — camada · cena · rota num objeto só, `spatia.tela()`. ⭑ a segunda rota **saiu** (T-64), e `lei-tela.mjs` §7 recusa o retorno dela |
 | KR2.2 | **pose da câmera** tem nome próprio | ⭑ `escalaLocal()` · `porteLocal()` · `orbit.distance`, provado na tela |
 | KR2.3 | **cena** é definição declarativa registrada, não `if` em `setMode` | ⭑ `CENAS` em `scene.js` |
 | KR2.4 | oráculo prova que trocar de cena **não muda classe, física nem pele** de nenhum corpo | ⭑ `lei-cena.mjs` sai 0 (fixture, 09/08: 72 corpos · 7 call sites · 1.080 perturbações), e a §5 varre o FONTE: uma decisão de pele só, sem ramo por cena |
@@ -197,7 +197,7 @@ com ou sem produtor.
 | **T-61** | Texturas: asteroide, cometa, anel — pedregulho, poeira, colisão eventual | `todo` | T-34 | — | — |
 | **T-62** | Camada externa do BURACO NEGRO — poeira, detritos, profundidade e volume | `todo` | — | — | — |
 | **T-63** | `orbital-zones.js` empresta nome de FÍSICA a metáfora — é DECISÃO, não renomeação | `todo` | decisão do usuário | — | KR3.2 |
-| **T-64** | `session.route` sobrevive **sem leitor** — apagá-lo ou dar-lhe um leitor | `todo` | — | — | KR2.1 |
+| **T-64** | `session.route` — ⭑ **DECIDIDO: apagado.** A medida da divergência virou LEI | `done` | — | — | KR2.1 |
 | **T-65** | Levar a REDE à cena AGENTE — o dado e o desenho já existem; falta decidir | `blocked` | decisão do usuário | — | — |
 | **T-66** | O sistema APERTADO — 38 arquivos numa pasta dão planetas de 0,10 unidade | `todo` | — | — | — |
 | **T-67** | Segunda textura de estrela (K/M, fria), escolhida pela TEMPERATURA | `todo` | — | — | — |
@@ -207,7 +207,7 @@ com ou sem produtor.
 | **T-85** | A BANDA em faixas largas no gradiente claro — é quantização de SAÍDA, e o grão nunca a alcançava | `done` | — | — | — |
 | **T-86** | O BARICENTRO — sistema duplo com dois corpos, ambos `f(t)` em torno do centro de massa | `todo` | — | — | KR3.2 |
 | **T-87** | Acoplamento entre agentes como VÍNCULO, nunca como trajetória | `blocked` | T-23 | — | — |
-| **T-88** | Varrer os consumidores de influência — quem mais deveria ler `centrality`/`usage` e não lê | `todo` | — | — | KR3.4 |
+| **T-88** | Consumidores de influência — ☠️ **JÁ ESTAVA RESPONDIDA** neste arquivo quando foi aberta | `archived` | — | — | KR3.4 |
 
 - **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
   foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
@@ -493,12 +493,13 @@ fato).
   física com unidade. É o caminho curto e calado que a FRONTEIRA proíbe. **Não é renomeação:** ou os
   nomes deixam de ser físicos, ou a razão vira adimensional como no `astrofisica.js`.
   ⭑ `hillRadius` está ABSOLVIDO — `∛(m/3M)` é razão de massas, o mesmo argumento que salva o `R_s/R`.
-- **T-64** — **duas verdades sobre a mesma rota, e a segunda não tem leitor.** `core/tela.js` guarda a
-  rota que o kernel resolveu; `core/session.js` continua lendo o hash CRU. **Divergem em 7 de 12
-  endereços**, medido recortando os dois decodificadores do próprio código: sub-rota, app inexistente,
-  caixa e escape. ⚠️ **Unificar MUDA valor observável** — `route` sai `''` na raiz pela `session` e
-  `core` pela `tela`. Hoje o campo **não tem nenhum leitor** além de `spatia.session()` (`grep` em
-  `src/` devolve 0): a decisão é apagá-lo ou dar-lhe leitor, e ela é de quem opera.
+- **T-64 FECHADA — a segunda rota saiu, e a MEDIDA que a descrevia virou LEI.** `core/session.js`
+  guardava um `route` lido do hash CRU enquanto `core/tela.js` guarda a que o kernel resolveu; o
+  oráculo CONTAVA a divergência (**7 de 12 endereços**) e a deixava existir. Contagem não é guarda.
+  ⭑ Apagado o campo, `lei-tela.mjs` §7 passou a RECUSAR o retorno dele — visto caindo por mutação.
+  ☠️ **Havia um leitor, e não era código de produto: era o próprio oráculo**, que recortava o
+  `readHash` do fonte para medir. *"Zero leitores em `src/`"* e *"zero leitores"* não são a mesma
+  frase, e a diferença derruba o portão na hora de apagar.
 - **T-65** — hoje só o UNIVERSO desenha os quatro tipos. O dado é o mesmo (`/api/vizinhanca`) e o
   desenho é o mesmo (`links.js`); falta decidir se as duas cenas devem afirmar a mesma coisa —
   **isso é produto, não engenharia**.
@@ -831,14 +832,15 @@ mesmo fato).
   **brilho, espessura do arco, partículas**, e nunca a órbita de nenhum dos dois.
   ⚠️ `blocked` por T-23, e não por engenharia: enquanto agente for **estação orbital, não nave**
   (recusa escrita em `modelo-de-renderizacao.md:462`), não há dois corpos a acoplar.
-- **T-88 · Os consumidores de influência.** É o CENSO que fecha a REGRA DA COORDENADA pelo lado
-  positivo: decidido que influência governa apresentação, **quem mais deveria lê-la e não lê?** Hoje
-  o único consumidor é `universe.js:brilhoDe` (`centrality` 0,9 · `usage` 0,45 atrás do portão de
-  evidência); `connectivity` é materializada e **não tem um leitor visual sequer**.
-  ⚠️ **A pergunta é do corolário da REGRA DO CATÁLOGO, e o veredito pode ser NÃO:** dimensão sem
-  superfície que a torne observável não ganha campo — some-se ao caso do `steering`, que fora de
-  foco não tem onde ser desenhado. Ligar `connectivity` a um pixel só porque ela existe é a sexta
-  ocorrência do defeito que a base já pagou cinco vezes.
+- **T-88 ARQUIVADA — ela já estava respondida NESTE arquivo quando foi aberta.** A resposta é a
+  linha *"parados por DECISÃO"* acima: `connectivity` no pixel seria **segunda codificação do mesmo
+  fato** — o alcance é o número que os arcos já desenham. E `usage` no brilho, que a tarefa dava
+  como pendente, foi entregue desde então (`universe.js:brilhoDe`, peso 0,45 atrás do portão de
+  evidência).
+  ☠️ **O modo de falha é o que vale guardar: a tarefa foi aberta sem varrer o próprio roadmap.** Um
+  documento de 1.200 linhas responde perguntas que ninguém procura nele, e reabrir uma decisão
+  escrita custa mais que a decisão. **Antes de abrir tarefa, o `grep` é no roadmap** — a seção *"o
+  que já está PRONTO"* e a *"o que está REFUTADO"* existem para isso.
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
   está**, então ela responde uma pergunta que ele não pode ter. Depois de marcar, ele precisa fazer
@@ -1245,7 +1247,7 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `entrevista-usuario.md` | T-09, T-16, T-07 | ⚠️ as três estão `done` e ele **não morre**: 923 linhas, 15 expectativas, e só três tinham tarefa. Reler para extrair as próximas — **e sem confundir emitir com afirmar** (handoff §7-B) |
 | `black-hole-router.md` | — | ⚠️ o item favorito do autor (`cogload` → `setLoad`) **já existe ponta a ponta** |
 | `gravidade-entrelacamento.md` | T-12, T-22 | ⚠️ **T-22 decidida (09/08)** — falta só T-12 entregue |
-| `dinamica-de-entidades.md` | T-86, T-87, T-88 | ⭑ **nasce TRIADO** (09/08): a tese central já está refutada por medida dentro dele, e o que sobrou são as três tarefas. Morre quando T-86 e T-88 tiverem veredito — T-87 depende de T-23 e pode morrer `won't` |
+| `dinamica-de-entidades.md` | T-86, ~~T-87~~, ~~T-88~~ | ⭑ **nasce TRIADO** (09/08). ⚠️ **T-88 saiu arquivada — já estava respondida no roadmap** quando o briefing a propôs; T-87 depende de T-23. Morre quando **T-86** tiver veredito |
 | `orbita-eliptica.md` | T-11 | ⚠️ a órbita elíptica **já está feita e medida** (área varrida máx/mín 1,0008) — resta o TRAÇO |
 | `quasar-enhance.md` | — | ⚠️ pede sete coisas e **quatro já existem** — conferir antes de implementar |
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |

@@ -32,8 +32,7 @@
 import { emit, on } from './bus.js';
 
 const INITIAL = Object.freeze({
-  /** Rota ativa (o app aberto), ou `''` na raiz. */
-  route: '',
+  /* ⚠️ **`route` NÃO entra aqui** — quem guarda a rota é `core/tela.js`. Ver o bloco em `install`. */
   /** Corpo orbital em foco, quando dentro de um app. */
   focusedBody: null,
   /** Painéis abertos, do mais antigo ao mais recente — a MESMA ordem LIFO do `hud/surface.js`. */
@@ -94,15 +93,16 @@ export function install() {
     window.addEventListener(kind, (event) => mark(kind === 'pointerdown' ? 'click' : kind, event), true);
   }
 
-  on('ui.open-app', ({ id }) => commit({ route: id, focusedBody: id }));
   /*
-   * A rota também muda pelo HASH — dock, atalho numérico, link colado, botão de voltar. Escutar
-   * só o `ui.open-app` (que é o clique num corpo) deixava o contexto afirmando rota vazia
-   * enquanto um app estava aberto na tela.
+   * ☠️ **A ROTA NÃO MORA AQUI, e a segunda cópia dela era pior que a ausência.**
+   *
+   * Este módulo guardava um `route` lido do HASH CRU, enquanto `core/tela.js` guarda a que o
+   * KERNEL resolveu — e as duas **divergiam em 7 de 12 endereços** (sub-rota, app inexistente,
+   * caixa e escape), medido recortando os dois decodificadores. O campo não tinha um único leitor
+   * em `src/`: quem o lesse por engano acertaria em 5 endereços e erraria nos outros 7, sem nada
+   * acusar. Quem responde *"que rota está aberta"* é `spatia.tela()`.
    */
-  const readHash = () => commit({ route: (location.hash || '').replace(/^#\/?/, '') });
-  window.addEventListener('hashchange', readHash);
-  readHash();
+  on('ui.open-app', ({ id }) => commit({ focusedBody: id }));
   on('ui.state-changed', () => commit({}));
 }
 

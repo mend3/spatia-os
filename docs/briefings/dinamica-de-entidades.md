@@ -149,15 +149,19 @@ nenhum dos dois.
 ⚠️ `blocked` por T-23, e não por engenharia: enquanto agente for **estação orbital, não nave**, não
 há dois corpos a acoplar.
 
-### T-88 · Os consumidores de influência
+### ~~T-88 · Os consumidores de influência~~ — ARQUIVADA, já estava respondida
 
-O censo que fecha a decisão pelo lado positivo: decidido que influência governa apresentação,
-**quem mais deveria lê-la e não lê?** Hoje o único consumidor é `universe.js:brilhoDe`;
-`connectivity` é materializada e não tem **um leitor visual sequer**.
+☠️ **Esta tarefa não devia ter sido aberta, e o motivo interessa mais que ela.** O `roadmap.md` já
+trazia a resposta escrita quando o briefing a propôs: `connectivity` no pixel seria **segunda
+codificação do mesmo fato** — o alcance é o número que os arcos já desenham. E `usage` no brilho,
+que ela dava como pendente, foi entregue desde então.
 
-⚠️ **O veredito pode ser NÃO, e isso é uma resposta legítima** — dimensão sem superfície que a torne
-observável não ganha campo (§3). Ligar `connectivity` a um pixel só porque ela existe seria a sexta
-ocorrência do defeito.
+⭑ **A lição fica:** um roadmap de 1.200 linhas responde perguntas que ninguém procura nele. Antes de
+abrir tarefa, o `grep` é no roadmap — as seções *"o que já está PRONTO"* e *"o que está REFUTADO"*
+existem exatamente para isso.
+
+⚠️ O princípio que a motivava continua valendo e está no §3: dimensão sem superfície que a torne
+observável não ganha campo.
 
 ---
 

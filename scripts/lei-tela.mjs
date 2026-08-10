@@ -16,6 +16,8 @@ import { readFileSync, readdirSync } from 'node:fs';
  */
 const RAIZ = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const src = (p) => readFileSync(`${RAIZ}/${p}`, 'utf8');
+/** Sem a prosa: o comentário que EXPLICA por que a rota não mora ali satisfaria a lei que o proíbe. */
+const semComentarios = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 const falhas = [];
 const ok = [];
@@ -155,13 +157,8 @@ const parse = new Function('window', 'hasApp', 'ROUTE_ROOT',
   `${corte(routerSrc, 'const decodeArg =', ".join('/');")}
    ${corte(routerSrc, '  function parse() {', '\n  }')}
    return parse;`)(janela, (id) => APPS.includes(id), ROUTE_ROOT);
-const exprSession = corte(src('src/core/session.js'), '  const readHash = () =>', ');')
-  .match(/commit\(\{ route: (.+) \}\)/)[1];
-const rotaSession = new Function('location', `return ${exprSession};`);
-
 const CORPUS = ['', '#/', '#/files', '#/files/docs/EVENTS.md', '#/journal/run-2026-08-09-01',
   '#/journal', '#/bogus', '#/bogus/x', '#/files/nome%20com%20espaco', '#/files/%zz', '#files', '#/FILES'];
-let divergem = 0;
 let telaBate = 0;
 for (const hash of CORPUS) {
   janela.location.hash = hash;
@@ -170,12 +167,24 @@ for (const hash of CORPUS) {
   bus.emit({ t: 'ui.route', route: p.app, app, arg: p.arg });
   const t = tela.estado().rota;
   if (t.id === p.app && t.app === app && t.arg === p.arg) telaBate += 1;
-  const s = rotaSession({ hash });
-  if (s !== (p.app === ROUTE_ROOT && !hash.replace(/^#\/?/, '') ? '' : p.app)) divergem += 1;
 }
 conferir('§7 tela repete o decodificador do kernel em todo endereço',
   telaBate === CORPUS.length, `${telaBate}/${CORPUS.length}`);
-console.log(`\n[medida] session.route diverge do router.parse em ${divergem}/${CORPUS.length} endereços`);
+
+/*
+ * ☠️ **A SEGUNDA VERDADE SOBRE A ROTA NÃO PODE VOLTAR, e aqui havia uma MEDIDA onde agora há lei.**
+ *
+ * `core/session.js` guardava um `route` lido do HASH CRU, e este bloco contava quantos endereços
+ * ele decodificava diferente do kernel: **7 de 12** (sub-rota, app inexistente, caixa, escape). Era
+ * número, não guarda — ele reportava a divergência e deixava-a existir. O campo não tinha leitor em
+ * `src/`, então quem o lesse por engano acertaria em 5 endereços e erraria nos outros 7 em silêncio.
+ *
+ * Apagado o campo, a contagem perde sujeito. O que fica é a proibição: um decodificador de rota é
+ * uma superfície de divergência, e esta base já tem UM.
+ */
+conferir('§7 session.js não guarda uma segunda rota',
+  !/\broute\b/.test(semComentarios(src('src/core/session.js'))),
+  'core/session.js menciona `route` fora de comentário');
 
 /** Todo `.js` sob um diretório, relativo à RAIZ — o que separa varredura de lista branca. */
 function varrer(dir) {
