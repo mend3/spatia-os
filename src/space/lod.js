@@ -55,6 +55,11 @@ import {
 import { LOD_FAR_PX as COMET_FAR, LOD_NEAR_PX as COMET_NEAR, BODY_SPAN as COMET_BODY } from './comet.js';
 import { LOD_FAR_PX as PULSAR_FAR, LOD_NEAR_PX as PULSAR_NEAR, BODY_SPAN as PULSAR_BODY } from './pulsar.js';
 import { LOD_FAR_PX as NEBULA_FAR, LOD_NEAR_PX as NEBULA_NEAR, BODY_SPAN as NEBULA_BODY } from './nebula.js';
+import {
+  LOD_FAR_PX as ASTEROIDE_FAR,
+  LOD_NEAR_PX as ASTEROIDE_NEAR,
+  BODY_SPAN as ASTEROIDE_BODY,
+} from './asteroide.js';
 import { SUPERFICIE } from './superficies.js';
 
 /**
@@ -180,6 +185,7 @@ const THRESHOLD = Object.freeze({
   [SUPERFICIE.COMETA]: { far: COMET_FAR, near: COMET_NEAR },
   [SUPERFICIE.PULSAR]: { far: PULSAR_FAR, near: PULSAR_NEAR },
   [SUPERFICIE.NEBULOSA]: { far: NEBULA_FAR, near: NEBULA_NEAR },
+  [SUPERFICIE.ASTEROIDE]: { far: ASTEROIDE_FAR, near: ASTEROIDE_NEAR },
 });
 
 /**
@@ -198,6 +204,8 @@ export const BODY_SPAN = Object.freeze({
   [SUPERFICIE.COMETA]: COMET_BODY,
   [SUPERFICIE.PULSAR]: PULSAR_BODY,
   [SUPERFICIE.NEBULOSA]: NEBULA_BODY,
+  // A rocha recua 1 (`SKIN_EXTENT` não a lista): ela não extrapola o corpo como cauda ou vento.
+  [SUPERFICIE.ASTEROIDE]: ASTEROIDE_BODY,
 });
 
 /**

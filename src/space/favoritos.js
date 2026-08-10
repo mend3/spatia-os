@@ -205,12 +205,17 @@ export const SEM_APARENCIA = Object.freeze({
 export function contextoDe(classe, pele) {
   if (pele === SUPERFICIE.PLANETA) return CONTEXTO.PLANETARIO;
   /*
-   * Só o ASTEROIDE, e não toda pele ausente: `none` também é o que a ESTRUTURA recebe (um diretório
-   * não tem corpo, e dar-lhe crosta afirmaria um objeto que não há). Ler `none` como um balde só
-   * juntaria os dois no mesmo contexto — que é classificar por exclusão, o defeito que fazia uma lua
-   * em foco resolver como galáxia.
+   * ⭑ **O contexto rochoso sai da PELE, como o planetário — e não da ausência dela.**
+   *
+   * Enquanto o asteroide não tinha pele, a única maneira de reconhecê-lo aqui era `none` MAIS o
+   * tipo — e `none` é dois casos, porque a ESTRUTURA também o recebe (um diretório não tem corpo, e
+   * dar-lhe crosta afirmaria um objeto que não há). Aquilo era classificar por exclusão com um
+   * remendo em cima, que é o defeito que fazia uma lua em foco resolver como galáxia.
+   *
+   * Com `SUPERFICIE.ASTEROIDE` existindo, o teste vira positivo e a linha fica igual à de cima: a
+   * pele decide o contexto, e `classe` deixa de ser consultada.
    */
-  if (pele === SUPERFICIE.NENHUMA && classe?.tipo === 'asteroide') return CONTEXTO.ROCHOSO;
+  if (pele === SUPERFICIE.ASTEROIDE) return CONTEXTO.ROCHOSO;
   return CONTEXTO.NENHUM;
 }
 

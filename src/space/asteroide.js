@@ -174,3 +174,63 @@ export function criarAsteroide(params, raio = 1) {
 
   return { objeto: grupo, info };
 }
+
+/** Onde a rocha começa a aparecer e onde satura, em pixels de raio. A régua das outras peles. */
+export const LOD_FAR_PX = 26;
+export const LOD_NEAR_PX = 110;
+
+/**
+ * Quanto do raio de referência a rocha preenche com CORPO.
+ *
+ * ⭑ **1 porque a malha é NORMALIZADA na meia-diagonal** (`malha-de-autor.js`): a esfera de raio 1
+ * circunscreve a caixa, então o corpo não ultrapassa o raio de referência em pose nenhuma. Medido
+ * no Hubble pela mesma normalização, o vértice mais distante fica a 0,793 — a rocha preenche menos
+ * que o raio, e nunca mais.
+ */
+export const BODY_SPAN = 1;
+
+/**
+ * A pele de CENA — mesmo contrato das outras quatro morfológicas: `{ object, update(...) → nível }`.
+ *
+ * ☠️ **Esta é a única pele cuja geometria chega DEPOIS.** As outras quatro são procedurais e existem
+ * no primeiro quadro; esta é arquivo, e a rede não tem prazo. Enquanto não chega, `update` devolve
+ * **0** e o grupo fica invisível — e é isso que faz o sprite do corpo continuar respondendo por ele,
+ * em vez de o astro sumir enquanto carrega.
+ *
+ * ⚠️ **O nível NÃO é `1` antes da malha existir.** Devolver nível cheio faria o `haloOf` do sprite
+ * ceder para uma pele que ainda não desenha — o corpo apagaria e nada tomaria o lugar dele.
+ */
+export function createAsteroide() {
+  const group = new THREE.Group();
+  group.visible = false;
+
+  let assinatura = null;
+  let montado = null;
+
+  return {
+    object: group,
+    update(params, px, elapsed) {
+      const nivel = THREE.MathUtils.clamp((px - LOD_FAR_PX) / (LOD_NEAR_PX - LOD_FAR_PX), 0, 1);
+
+      const chave = `${params.malha.id}|${params.pele}|${params.giro.toFixed(3)}`;
+      if (chave !== assinatura) {
+        assinatura = chave;
+        if (montado) group.remove(montado.objeto);
+        montado = criarAsteroide(params, 1);
+        group.add(montado.objeto);
+      }
+
+      // Sem malha ainda: nível ZERO, e o sprite continua respondendo pelo corpo.
+      const pronto = Boolean(montado?.info.malha);
+      group.visible = pronto && nivel > 0.002;
+      if (!group.visible) return 0;
+
+      /*
+       * O giro é LENTO e do corpo, não do relógio de quem olha: uma rocha girando rápido lê como
+       * detrito em queda. `hash` já deu a fase, então dois asteroides nunca estão no mesmo ângulo.
+       */
+      group.rotation.y = params.giro + elapsed * 0.06;
+      return nivel;
+    },
+  };
+}

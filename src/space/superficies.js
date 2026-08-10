@@ -56,6 +56,7 @@ export const SUPERFICIE = Object.freeze({
   ESTACAO: 'station',
   PULSAR: 'pulsar',
   NEBULOSA: 'nebula',
+  ASTEROIDE: 'asteroid',
 });
 
 /**
@@ -81,6 +82,7 @@ export const NOME_DA_SUPERFICIE = Object.freeze({
   [SUPERFICIE.ESTACAO]: 'ESTAÇÃO',
   [SUPERFICIE.PULSAR]: 'PULSAR',
   [SUPERFICIE.NEBULOSA]: 'NEBULOSA',
+  [SUPERFICIE.ASTEROIDE]: 'ASTEROIDE',
 });
 
 /**
@@ -166,15 +168,18 @@ export function superficieDe(classe, fisica, fenomenosAtivos = []) {
     case 'lua':
       return ativoAoExtremo ? SUPERFICIE.COMETA : SUPERFICIE.PLANETA;
     /*
-     * ⚠️ ASTEROIDE só ganha pele quando está em atividade extrema — e aí ele é um COMETA, o que não
-     * é licença poética: *"cometa que esgotou os voláteis é dormente e indistinguível de um
-     * asteroide"* (§2.3). Os dois são o mesmo corpo em estados diferentes, e é a atividade que os
-     * separa. Parado, ele fica sem pele, e isso é decisão: o catálogo define asteroide como corpo
-     * pequeno e IRREGULAR, e nenhuma das seis peles desenha irregularidade — `planet.js` monta uma
-     * esfera com crosta, que afirmaria um mundo onde há uma pedra.
+     * ⚠️ ASTEROIDE ativo ao extremo é um COMETA, e não é licença poética: *"cometa que esgotou os
+     * voláteis é dormente e indistinguível de um asteroide"* (§2.3). Os dois são o mesmo corpo em
+     * estados diferentes, e é a atividade que os separa.
+     *
+     * ⭑ **Parado, ele tem pele PRÓPRIA — e ela existe porque a condição que a negava caiu.** A
+     * recusa anterior era precisa: o catálogo define asteroide como corpo pequeno e IRREGULAR, e
+     * nenhuma pele desenhava irregularidade (`planet.js` monta uma esfera com crosta, que afirmaria
+     * um mundo onde há uma pedra). `space/asteroide.js` desenha oito formas de LEVANTAMENTO real,
+     * que é irregularidade que nenhum procedimental produz de graça.
      */
     case 'asteroide':
-      return ativoAoExtremo ? SUPERFICIE.COMETA : SUPERFICIE.NENHUMA;
+      return ativoAoExtremo ? SUPERFICIE.COMETA : SUPERFICIE.ASTEROIDE;
     default:
       return SUPERFICIE.NENHUMA;
   }

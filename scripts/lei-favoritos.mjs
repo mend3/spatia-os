@@ -199,7 +199,12 @@ conferir(
  * `nenhum` sem motivo — a versão desta base do "resto que não é diagnóstico".
  */
 const semDesfecho = Object.values(SUPERFICIE).filter((pele) => {
-  const classe = { tipo: pele === SUPERFICIE.NENHUMA ? 'asteroide' : 'planeta' };
+  /*
+   * ⚠️ `none` é da ESTRUTURA, e só dela. O asteroide tinha de ser reconhecido aqui por `tipo` porque
+   * não tinha pele; com `SUPERFICIE.ASTEROIDE` existindo, `contextoDe` decide pela pele e a classe
+   * deixou de participar — então a varredura não precisa mais fabricar um tipo por pele.
+   */
+  const classe = { tipo: pele === SUPERFICIE.NENHUMA ? 'sistema' : 'planeta' };
   if (F.contextoDe(classe, pele) !== F.CONTEXTO.NENHUM) return false;
   return !F.casoSemAparencia(classe, pele);
 });
@@ -208,10 +213,23 @@ conferir(
   semDesfecho.length === 0,
   `sem desfecho: ${semDesfecho.join(', ')}`
 );
+/*
+ * ⭑ **A separação entre ESTRUTURA e ASTEROIDE ficou mais forte, e por isso a asserção mudou.**
+ *
+ * Antes os dois compartilhavam `none` e só o `tipo` os separava — classificar por exclusão com um
+ * remendo em cima. Agora cada um tem a própria pele, e a pergunta é a mesma feita ao vocabulário
+ * certo: estrutura cai no caso `estrutura`, e o asteroide não cai em caso nenhum porque ABRE
+ * contexto.
+ *
+ * ⚠️ A combinação `{tipo: 'asteroide', pele: none}` deixou de ser alcançável (`superficieDe`
+ * devolve `ASTEROIDE` ou `COMETA` para esse tipo), e afirmar sobre o inalcançável é como um oráculo
+ * atesta comportamento que não existe.
+ */
 conferir(
-  '§1 estrutura tem caso próprio, separada do asteroide',
+  '§1 estrutura tem caso próprio, e o asteroide abre contexto em vez de cair nele',
   F.casoSemAparencia({ tipo: 'sistema' }, SUPERFICIE.NENHUMA)?.caso === 'estrutura' &&
-    F.casoSemAparencia({ tipo: 'asteroide' }, SUPERFICIE.NENHUMA) === null
+    F.casoSemAparencia({ tipo: 'asteroide' }, SUPERFICIE.ASTEROIDE) === null &&
+    F.contextoDe({ tipo: 'asteroide' }, SUPERFICIE.ASTEROIDE) === F.CONTEXTO.ROCHOSO
 );
 
 // A POPULAÇÃO de cada contexto no céu servido — nenhum contexto pode nascer vazio sem motivo escrito.

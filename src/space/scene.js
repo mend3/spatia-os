@@ -55,6 +55,7 @@ import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } fro
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
 import { createStation, stationParams } from './station.js';
+import { createAsteroide, asteroideParams } from './asteroide.js';
 import { createComet, cometParams, LOD_FAR_PX as COMETA_FAR } from './comet.js';
 import { createPulsar, pulsarParams, LOD_FAR_PX as PULSAR_FAR } from './pulsar.js';
 import { createNebula, nebulaParams } from './nebula.js';
@@ -485,6 +486,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * varrendo, filamento sem borda — porque a queixa que as motivou foi de FORMA repetida.
    */
   const station = createStation();
+  const asteroide = createAsteroide();
   const comet = createComet();
   const pulsar = createPulsar();
   const nebula = createNebula();
@@ -1608,8 +1610,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       /*
        * TRAVAR NUM CORPO ADOTA O SISTEMA DELE — e é este o gesto de viagem, sem inventar entrada
        * nova. A distância não sai daqui (ver a nota acima); quem enquadra é o `fitPending`.
+       *
+       * ☠️ **E ele precisa ser LIGADO aqui, o que esta linha não fazia.** `fitPending = true` existia
+       * num lugar só — o `aoEntrar` da cena AGENTE —, então no UNIVERSO a nota acima prometia um
+       * mecanismo que nunca disparava: o alvo de distância ficava no `HOME_UNIVERSO` que enquadra o
+       * universo INTEIRO, e o corpo pedido ficava com 1 a 7 px.
+       *
+       * ⚠️ **O sintoma não se parece com "falta enquadramento":** nenhuma pele alcança o piso de LOD
+       * nesses pixels, então o corpo fica um ponto sem superfície — e quem olha lê *"o objeto está
+       * opaco e o zoom não funciona"*, que é uma queixa sobre outra coisa.
        */
       adotarSistema(universe.sistemaDe(source));
+      fitPending = true;
     } else {
       /*
        * SOLTAR O FOCO deixa a câmera NO SISTEMA, e não de volta ao vazio da origem. Sem sistema
@@ -2421,6 +2433,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       guarda: guardBit,
       raioDaCamera: +camera.position.length().toFixed(2),
       alvo: pouso ? +pouso.position.length().toFixed(2) : null,
+      // Reescrita no bloco das morfológicas quando há uma. `null` é "não é pele morfológica",
+      // que é diferente de "é e não desenhou" — este último sai com `montado: false`.
+      morfologica: null,
     };
 
     /*
@@ -2509,7 +2524,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * isso o ponto aditivo somaria brilho por cima da peça e apagaria o contorno, que é justamente
      * o que distingue estas quatro.
      */
-    const MORFOLOGICAS = [SUPERFICIE.ESTACAO, SUPERFICIE.COMETA, SUPERFICIE.PULSAR, SUPERFICIE.NEBULOSA];
+    const MORFOLOGICAS = [SUPERFICIE.ESTACAO, SUPERFICIE.COMETA, SUPERFICIE.PULSAR, SUPERFICIE.NEBULOSA, SUPERFICIE.ASTEROIDE];
     if (pouso && MORFOLOGICAS.includes(decisao.surface)) {
       const cor = graph.kindColor(pouso.node.kind);
       if (focusedNode !== morphSource) {
@@ -2519,15 +2534,35 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           [SUPERFICIE.COMETA]: () => cometParams(pouso.node, cor),
           [SUPERFICIE.PULSAR]: () => pulsarParams(pouso.node, cor),
           [SUPERFICIE.NEBULOSA]: () => nebulaParams(pouso.node, cor),
+          // A rocha não usa COR do kind: a pele dela é textura, e a cor viria por cima dela.
+          [SUPERFICIE.ASTEROIDE]: () => asteroideParams(pouso.node.id, hash01),
         }[decisao.surface]();
       }
-      for (const pele of [station.object, comet.object, pulsar.object, nebula.object]) {
+      for (const pele of [station.object, comet.object, pulsar.object, nebula.object, asteroide.object]) {
         pele.position.copy(pouso.position);
         pele.scale.setScalar(pouso.radius);
       }
       let level = 0;
       if (decisao.surface === SUPERFICIE.ESTACAO) level = station.update(morphParams, pouso.px, elapsed);
       else station.object.visible = false;
+      if (decisao.surface === SUPERFICIE.ASTEROIDE) level = asteroide.update(morphParams, pouso.px, elapsed);
+      else asteroide.object.visible = false;
+      /*
+       * ☠️ **A SONDA das peles MORFOLÓGICAS, e ela não existia.** `spatia.pele()` responde só pela
+       * pele de PLANETA (`casca`/`limbo` são termos do shader dela), então "a estação montou?" ou
+       * "a rocha desenhou?" não tinham como ser respondidas sem olhar a tela e adivinhar.
+       *
+       * ⚠️ **`montado` é o que o OLHO veria, não o que o código pediu:** ele lê `object.visible`
+       * depois do `update`, então a pele que decidiu não desenhar — por LOD, ou por a malha de
+       * arquivo ainda não ter chegado — sai como `false`. É a diferença entre "está na cena" e
+       * "está no quadro".
+       */
+      probe.morfologica = {
+        pele: decisao.surface,
+        nivel: Number(level.toFixed(3)),
+        px: Number(pouso.px.toFixed(1)),
+        montado: [station, comet, pulsar, nebula, asteroide].some((p) => p.object.visible),
+      };
       if (decisao.surface === SUPERFICIE.COMETA) {
         level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());
       } else comet.object.visible = false;
