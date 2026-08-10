@@ -192,6 +192,54 @@ console.log(`\n${C.forte}§5  A ÂNCORA NÃO FOGE${C.fim}  ${C.fraco}mesma câme
   checar('§5b', todosIguais, 'e nenhum quadro do meio se desvia — fuga que volta sozinha ainda é fuga');
 }
 
+// ─────────────────────────────────────────── §6b · A FAIXA: o leitor não cobre os trilhos
+
+console.log(
+  `\n${C.forte}§6b  O LEITOR NÃO ENCOSTA SOBRE OS TRILHOS${C.fim}  ${C.fraco}a faixa é o PALCO, não a janela${C.fim}`
+);
+{
+  /*
+   * ☠️ **`.surface` tem `pointer-events: auto` e `z-index: 8`.** Encostando sobre o trilho, o leitor
+   * não só tapa o painel de CONTEXTO: ele ROUBA o clique dos botões de marca. A queixa foi "impede
+   * o uso", que é de outra ordem que "atrapalha a leitura" — e é por isso que a faixa é lei e não
+   * afinação.
+   *
+   * ⚠️ **Os trilhos são MEDIDOS pelo chamador, nunca presumidos pelo módulo.** Abaixo de 900 px
+   * eles somem por media query, e um recuo cravado comeria palco onde não há trilho — por isso a
+   * régua é injetada (`medirPor`) e o padrão é a janela inteira.
+   */
+  const TRILHO = 317;
+  const faixa = () => ({ inicio: TRILHO, fim: JANELA.largura - TRILHO });
+  let forasDaFaixa = 0;
+  let dentroDaJanelaSemFaixa = 0;
+  for (const x of [-9, -1.2, -0.4, 0, 0.4, 1.2, 9]) {
+    for (const px of [4, 60, 172.8, 400]) {
+      const p = painelDeMentira();
+      const a = criarAncoraDeDocumento(() => p);
+      a.medirPor(faixa);
+      a.atualizar(ctx({ ndc: { x, y: 0, z: 0.5 }, px }));
+      const e = a.estado();
+      const esq = JANELA.largura / 2 + e.dx - CAIXA.largura / 2;
+      const dir = esq + CAIXA.largura;
+      if (esq < TRILHO - 0.05 || dir > JANELA.largura - TRILHO + 0.05) forasDaFaixa += 1;
+
+      /* Sem régua injetada, a faixa é a janela — e o painel volta a poder encostar na borda. */
+      const p2 = painelDeMentira();
+      const a2 = criarAncoraDeDocumento(() => p2);
+      a2.atualizar(ctx({ ndc: { x, y: 0, z: 0.5 }, px }));
+      const e2 = a2.estado();
+      const esq2 = JANELA.largura / 2 + e2.dx - CAIXA.largura / 2;
+      if (esq2 >= -0.05 && esq2 + CAIXA.largura <= JANELA.largura + 0.05) dentroDaJanelaSemFaixa += 1;
+    }
+  }
+  checar('§6b', forasDaFaixa === 0, `a caixa fica dentro da faixa em 28 enquadramentos (${forasDaFaixa} fora)`);
+  checar(
+    '§6b',
+    dentroDaJanelaSemFaixa === 28,
+    `sem régua injetada o padrão é a JANELA, e ela continua contendo (${dentroDaJanelaSemFaixa}/28)`
+  );
+}
+
 // ───────────────────────────────────────────────────────────────── §6 · O TETO: não perder o texto
 
 console.log(

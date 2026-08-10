@@ -48,6 +48,12 @@ const FOLGA_MINIMA_PX = 24;
 const MARGEM_PX = 12;
 
 /**
+ * A faixa padrão: a janela inteira. É o que vale quando ninguém mede trilho — e é o certo, porque
+ * sem trilho na tela não há o que evitar.
+ */
+const FAIXA_CHEIA = (larguraPx) => ({ inicio: 0, fim: larguraPx });
+
+/**
  * Quanto a luz precisa andar sobre o painel para valer reescrever o gradiente, em px CSS.
  *
  * `transform` é composto e sai de graça; `radial-gradient` é PINTURA, e repintar uma caixa de
@@ -88,10 +94,14 @@ const MOTIVOS = Object.freeze({
 });
 
 /**
+ * @param {(larguraPx:number) => ({inicio:number, fim:number})} [medirFaixa]  a faixa em que o painel
+ *   pode encostar. ⚠️ **Injetada pelo mesmo motivo que `acharPainel`:** os trilhos são estrutura da
+ *   HUD, e este módulo não importa a interface. O padrão é a janela inteira.
  * @param {() => (Element|null)} acharPainel  o nó do painel, procurado a cada quadro — ele monta e
  *   desmonta com a rota, e guardar a referência deixaria o módulo escrevendo num nó órfão
  */
-export function criarAncoraDeDocumento(acharPainel) {
+export function criarAncoraDeDocumento(acharPainel, medirFaixa = FAIXA_CHEIA) {
+  let medir = medirFaixa;
   let ultimo = { motivo: MOTIVOS.SEM_CORPO, x: null, y: null, px: 0, lado: null };
   let painelAnterior = null;
   /** A última luz ESCRITA no nó, para o limiar de repintura comparar contra ela. */
@@ -114,6 +124,16 @@ export function criarAncoraDeDocumento(acharPainel) {
   };
 
   return {
+    /**
+     * Troca a régua da faixa depois de construído — quem tem o DOM da HUD liga aqui.
+     *
+     * ⚠️ `null` volta para a janela inteira, e não desliga a âncora: a degradação é perder o recuo
+     * dos trilhos, nunca perder o documento.
+     */
+    medirPor(fn) {
+      medir = typeof fn === 'function' ? fn : FAIXA_CHEIA;
+    },
+
     /**
      * @param {object} ctx
      * @param {{x:number, y:number, z:number}} ctx.ndc   o corpo em foco já projetado (NDC)
@@ -166,13 +186,26 @@ export function criarAncoraDeDocumento(acharPainel) {
        * `clamp` inverteria: o `Math.min` externo garante que o limite inferior nunca ultrapasse o
        * superior, e o painel simplesmente encosta na borda esquerda/superior.
        */
-      const prender = (alvo, extensao, janela) => {
-        const menor = MARGEM_PX + extensao / 2;
-        const maior = Math.max(menor, janela - MARGEM_PX - extensao / 2);
+      const prender = (alvo, extensao, inicio, fim) => {
+        const menor = inicio + MARGEM_PX + extensao / 2;
+        const maior = Math.max(menor, fim - MARGEM_PX - extensao / 2);
         return Math.max(menor, Math.min(maior, alvo));
       };
-      const presoX = prender(alvoX, caixa.width, ctx.larguraPx);
-      const presoY = prender(cy, caixa.height, ctx.alturaPx);
+      /*
+       * ☠️ **A FAIXA é o PALCO, e não a janela — os trilhos são residentes e o leitor os cobria.**
+       *
+       * Preso à janela inteira, o painel encostava sobre o trilho direito e ficava por cima do
+       * CONTEXTO: `.surface` tem `pointer-events: auto` e `z-index: 8`, então ele não só tapava
+       * como ROUBAVA o clique dos botões de marca — a queixa foi "impede o uso", que é pior que
+       * "atrapalha a leitura".
+       *
+       * ⚠️ **Os trilhos são MEDIDOS, nunca presumidos:** abaixo de 900 px eles somem por media
+       * query, e um recuo cravado comeria palco onde não há trilho nenhum. Sem trilho na tela, a
+       * faixa volta a ser a janela por construção.
+       */
+      const faixa = medir(ctx.larguraPx) || FAIXA_CHEIA(ctx.larguraPx);
+      const presoX = prender(alvoX, caixa.width, faixa.inicio, faixa.fim);
+      const presoY = prender(cy, caixa.height, 0, ctx.alturaPx);
       const dx = presoX - baseX;
       const dy = presoY - baseY;
 
