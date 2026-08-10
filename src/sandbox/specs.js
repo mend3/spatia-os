@@ -32,6 +32,7 @@ import { QUASAR_SPEC } from './quasar-rig.js';
 import { PULSAR_SPEC } from './pulsar-rig.js';
 import { CROWN_SPEC } from './crown-rig.js';
 import { COMET_SPEC, NEBULA_SPEC, STATION_SPEC } from './skin-rigs.js';
+import { SONDA_SPEC } from './sonda-rig.js';
 import { REMNANT_SPEC, LINKS_SPEC } from './field-rigs.js';
 import { SYSTEM_SPEC } from './system-rig.js';
 import { UNIVERSE_SPEC } from './universe-rig.js';
@@ -679,6 +680,7 @@ export const SPECS = [
   COMET_SPEC,
   NEBULA_SPEC,
   STATION_SPEC,
+  SONDA_SPEC,
   /*
    * E os dois objetos que não são corpo: um só existe acima de um piso de churn que quase ninguém
    * cruza, o outro só enquanto o cursor está sobre um astro. Ver o cabeçalho de `field-rigs.js`.
