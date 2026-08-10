@@ -50,7 +50,15 @@ import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody } from './solver.js';
 import * as sistemas from './sistemas.js';
-import { SKIN_EXTENT, FOCUS_FIT_PX, FOCUS_FLOOR_RADII, budget, keepsCrown, BODY_SPAN } from './lod.js';
+import {
+  SKIN_EXTENT,
+  FOCUS_FIT_PX,
+  FOCUS_FLOOR_RADII,
+  budget,
+  keepsCrown,
+  BODY_SPAN,
+  cessaoDoBrilho,
+} from './lod.js';
 import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } from './photosphere.js';
 import { createRemnant } from './remnant.js';
 import { createMoonOrbits } from './moon-orbits.js';
@@ -666,6 +674,23 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const lensing = createLensingPass();
   lensing.setDepth(profundidadeDaCena, CAMERA.near, CAMERA.far);
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.58, 0.32, 0.72);
+
+  /**
+   * O BRILHO TEM UM DONO SÓ, e três fatores.
+   *
+   * ☠️ Ele já tinha DOIS escritores — a afinação e o modo cinema —, e o terceiro (a cessão por
+   * aproximação, que muda por quadro) faria o último a escrever ganhar. O sintoma seria o brilho
+   * voltando ao normal ao mexer num controle do painel, sem erro nenhum.
+   *
+   * ⚠️ `tune` pode não existir no primeiro quadro: a afinação chega por `subscribe`, e a cena
+   * desenha antes. O `??` devolve o valor com que o passe nasceu em vez de `NaN`, que apagaria o
+   * bloom inteiro em silêncio.
+   */
+  let cessaoDoBloom = 1;
+  const aplicarBloom = () => {
+    bloom.strength = (tune?.bloomStrength ?? 0.58) * (cinematic ? 1.45 : 1) * cessaoDoBloom;
+  };
+
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(lensing.pass);
   composer.addPass(bloom);
@@ -1195,7 +1220,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     graph.tune(values);
     moonOrbits.tune(values);
     lensing.tune(values);
-    bloom.strength = values.bloomStrength;
+    aplicarBloom();
     bloom.threshold = values.bloomThreshold;
     bloom.radius = values.bloomRadius;
     if (camera.fov !== values.fov) {
@@ -1423,7 +1448,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // Offset sobre o valor afinado, não constante fixa: entrar e sair do modo cinema não
     // pode descartar o que o operador ajustou no painel.
     lensing.setCinematic(enabled, tune);
-    bloom.strength = tune.bloomStrength * (enabled ? 1.45 : 1);
+    aplicarBloom();
   });
 
   // ---------------------------------------------------------------- interação
@@ -2503,6 +2528,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       // Reescrita no bloco das morfológicas quando há uma. `null` é "não é pele morfológica",
       // que é diferente de "é e não desenhou" — este último sai com `montado: false`.
       morfologica: null,
+      // Quanto do bloom sobrou, e a força que ele de fato tem. Escrita depois das peles, porque
+      // depende do `level` que elas devolvem. Declarada aqui pelo mesmo motivo que a de cima.
+      brilho: null,
     };
 
     /*
@@ -2755,6 +2783,24 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       graph.haloOf(null, 0);
       planetSource = null;
     }
+
+    /*
+     * ☠️ **O BRILHO CEDE conforme a superfície SÓLIDA assume** — a mesma ideia do `haloOf`, um
+     * nível acima: ali quem cede é o ponto, aqui é o florescimento.
+     *
+     * Ele fica DEPOIS de todas as peles porque `probe.level` só está escrito no fim — e é ele o
+     * mesmo número que o sprite usa, e não uma segunda régua de aproximação.
+     *
+     * ⚠️ Só reescreve quando MUDA: `bloom.strength` é uma escrita barata, mas passar por
+     * `aplicarBloom` por quadro faria o dono único parecer um laço, e a próxima pessoa moveria a
+     * chamada para dentro de outro bloco. Quem decide é `lod.js`.
+     */
+    const cessao = cessaoDoBrilho(decisao?.surface ?? null, probe.level ?? 0);
+    if (cessao !== cessaoDoBloom) {
+      cessaoDoBloom = cessao;
+      aplicarBloom();
+    }
+    probe.brilho = { cessao: +cessao.toFixed(3), forca: +bloom.strength.toFixed(3) };
 
     /*
      * A NEBULOSIDADE do remanescente troca de desenho junto com o corpo, e pelo mesmo fator.

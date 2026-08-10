@@ -32,13 +32,17 @@
  * `contextoDe()` põe o cometa em `CONTEXTO.ROCHOSO` junto com o asteroide — os dois são o mesmo
  * corpo em estados diferentes, e a marca vale para o núcleo, que é o que não expira.
  *
- * ⚠️ **Mas a coma ENGOLE o núcleo, e isso é aritmética das constantes deste módulo:** a coma vive
- * entre 0,9 e 2,4 raios e o núcleo entre 0,14 e 0,30 — de **3× a 17×** —, e ela é aditiva. Num
- * cometa saturado (`churn ≥ 27`) a pele escolhida existe e **não se vê**. Conforme a atividade cai,
- * o núcleo aparece e a marca com ele.
+ * ☠️ **REFUTADO: «a coma engole o núcleo» NÃO é a causa de a pele sumir.** A coma é 3× a 17× o
+ * núcleo em RAIO — 0,9–2,4 contra 0,14–0,30 —, e a aritmética convence; mas ela é falsa como
+ * diagnóstico. A bancada não tem pós-processamento, e nela o núcleo com atividade SATURADA
+ * (`churn` 27) desenha a textura inteira, com a coma como névoa fraca.
  *
- * ⭑ Isso não é defeito a consertar: é a mesma física que faz o cometa ler como cometa, e ela vale
- * mais que a marca. Quem quiser ver a pele de um cometa ativo está pedindo para a atividade mentir.
+ * ⭑ **Quem apaga a pele é o BLOOM**, que floresce a partir do miolo da coma e devolve um disco
+ * saturado por cima do corpo. A saída está em `lod.js` (`CEDE_O_BRILHO`): o florescimento cede
+ * conforme a superfície sólida assume, como o sprite já cede pelo `haloOf`.
+ *
+ * ⚠️ A lição vale além daqui: **medir na bancada separa o que a PELE faz do que o PÓS faz**, e as
+ * duas coisas produzem a mesma imagem na cena cheia.
  *
  * ⚠️ Nada aqui é geometria de volume: a coma é billboard aditivo e a cauda é `THREE.Points`. Cauda
  * real é rarefeita a ponto de ser transparente em qualquer direção; uma malha sólida daria a ela

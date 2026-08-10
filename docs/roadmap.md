@@ -1139,10 +1139,12 @@ mesmo fato).
   astro, não escolha de ninguém. Com `uUsaMapa = 0` o `mix` devolve `uRock` bit a bit.
   ⚠️ **A marca veste o NÚCLEO, nunca o gás:** coma e cauda são emissão do material que o corpo
   perdeu, e a cor delas sai do `kind`.
-  ☠️ **E há um TETO que é aritmética, não defeito:** a coma vive entre 0,9 e 2,4 raios contra 0,14–
-  0,30 do núcleo — de **3× a 17×**, e aditiva. Num cometa saturado (`churn ≥ 27`) a pele existe e
-  **não se vê**; ela aparece conforme a atividade cai. É a mesma física que faz o cometa ler como
-  cometa, e ela vale mais que a marca.
+  ☠️ **REFUTADO — «a coma engole o núcleo» não é a causa.** A aritmética (coma 3× a 17× o núcleo)
+  convence e é falsa como diagnóstico: a BANCADA não tem pós-processamento, e nela o núcleo com
+  atividade saturada desenha a textura inteira. Quem apaga a pele é o **BLOOM**, e a saída é
+  `lod.js:CEDE_O_BRILHO` — o florescimento cede conforme a superfície sólida assume.
+  ⚠️ **A lição vale além daqui: medir na bancada separa o que a PELE faz do que o PÓS faz**, e as
+  duas coisas produzem a mesma imagem na cena cheia.
   ⭑ O ANEL já é campo procedural com pedregulho no canal `G` de `ring-rock.js`; o que falta ali é a
   ESCOLHA de granulação, que tem linha própria (**T-26**) e um número que ainda não foi medido.
 

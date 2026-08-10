@@ -342,10 +342,13 @@ operadores veem marcas diferentes sobre a mesma topologia, e é exatamente isso 
 estrela, supernova e núcleo de quasar recebem as gasosas. Corpo sem contexto de aparência **diz por
 quê** em vez de oferecer uma lista vazia.
 
-⚠️ **No cometa a marca veste o NÚCLEO, e quanto dela você vê depende da atividade.** Coma e cauda são
-gás que o corpo perdeu — pintá-las com uma foto de superfície seria falso. E a coma é de 3 a 17 vezes
-o núcleo: num script muito mexido ela cobre a rocha, e a pele escolhida vai aparecendo conforme a
-atividade cai. É a mesma física que faz um cometa parecer um cometa.
+⚠️ **No cometa a marca veste o NÚCLEO.** Coma e cauda são gás que o corpo perdeu — pintá-las com uma
+foto de superfície seria falso.
+
+⭑ **E o BRILHO cede quando você chega perto de um corpo sólido.** Planeta, rocha, núcleo de cometa e
+estação não emitem luz: o florescimento que os envolve some gradualmente conforme a superfície
+aparece, para você poder ver o corpo em vez de um estouro branco. Em quem É emissão — estrela,
+pulsar, nebulosa — nada cede, porque ali o brilho é o próprio corpo.
 
 ⚠️ **Marca cuja classe mudou não some — ela ANUNCIA.** *"Não marquei"* e *"marquei e não vale mais
 aqui"* são fatos diferentes, e a escolha fica guardada esperando o corpo voltar.
