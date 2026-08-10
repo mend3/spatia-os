@@ -242,15 +242,23 @@ const CROWN_FLOOR = 0.8;
 export const keepsCrown = (surface) => (BODY_SPAN[surface] ?? 0) >= CROWN_FLOOR;
 
 /**
- * AS PELES CUJO CORPO É SÓLIDO E NÃO EMITE — nelas o BRILHO cede conforme a superfície assume.
+ * AS PELES CUJO CORPO É SÓLIDO E NÃO EMITE — nelas a ENVOLTÓRIA cede conforme a superfície assume.
+ *
+ * «Envoltória» é tudo o que embrulha o corpo sem ser o corpo: o florescimento do bloom e, no
+ * cometa, a própria COMA. Os dois leem esta mesma lei — duas rampas para a mesma aproximação
+ * divergiriam na primeira vez que alguém mexesse numa.
  *
  * ## Por que isto existe, e por que a causa NÃO é o que parecia
  *
  * Com a marca do operador no núcleo de um cometa, a pele escolhida some num estouro branco. A
- * hipótese natural — *"a coma engole o núcleo"* — está REFUTADA por medida: a bancada não tem
- * pós-processamento, e nela o núcleo com atividade SATURADA (`churn` 27) desenha a textura inteira,
- * com a coma como uma névoa fraca. Quem apaga a pele é o BLOOM, que floresce a partir do miolo da
- * coma e devolve um disco saturado por cima do corpo.
+ * causa foi medida em DUAS etapas, e a primeira resposta estava incompleta:
+ *
+ * 1. o BLOOM florescia a partir do miolo da coma e devolvia um estouro branco sobre o corpo;
+ * 2. cedido o bloom, o disco CONTINUOU — medido com `spatia.bloom({strength: 0})` na cena viva.
+ *    Quem o desenha é a própria COMA, que a 2,4 raios cobre 64× a área do núcleo.
+ *
+ * ☠️ **Cada uma sozinha explica a imagem, e por isso a primeira convenceu.** Só desligar um dos dois
+ * separa os dois.
  *
  * ⭑ **É a mesma ideia que `keepsCrown` já aplica ao sprite:** o que envolve o corpo cede quando há
  * SUPERFÍCIE embaixo para ler. Ali quem cede é o ponto; aqui é o florescimento.
@@ -263,7 +271,7 @@ export const keepsCrown = (surface) => (BODY_SPAN[surface] ?? 0) >= CROWN_FLOOR;
  * por completo apagaria o disco do buraco negro e o campo estelar ao fundo junto — por isso o piso
  * abaixo, e por isso ele é MEDIDO na tela, não escolhido.
  */
-export const CEDE_O_BRILHO = Object.freeze({
+export const CEDE_A_ENVOLTORIA = Object.freeze({
   [SUPERFICIE.PLANETA]: 'crosta sólida, iluminada pela estrela do sistema — não emite',
   [SUPERFICIE.ASTEROIDE]: 'rocha nua sobre malha de levantamento; a pele é textura, não emissão',
   [SUPERFICIE.COMETA]: 'o NÚCLEO é sólido; coma e cauda são gás que ele perdeu, e ficam',
@@ -271,15 +279,16 @@ export const CEDE_O_BRILHO = Object.freeze({
 });
 
 /**
- * O PISO da cessão: quanto do bloom sobra quando a superfície está em detalhe pleno.
+ * O PISO da cessão: quanto da envoltória sobra quando a superfície está em detalhe pleno.
  *
- * ⚠️ **MEDIDO na cena viva, não escolhido** — ver o comentário de `cessaoDoBrilho`. Zero apagaria o
- * quadro inteiro (o passe é global); 1 é o comportamento de antes.
+ * ⚠️ **Zero é proibido nos DOIS consumidores, por motivos diferentes.** O bloom é um passe GLOBAL —
+ * zerá-lo apagaria o disco do buraco negro e o campo estelar ao fundo. E uma coma zerada faria o
+ * cometa em foco virar uma rocha nua, perdendo a única feição que o distingue do asteroide.
  */
-const BRILHO_PISO = 0.22;
+const ENVOLTORIA_PISO = 0.22;
 
 /**
- * Quanto do bloom sobra, dado o corpo em foco e o quanto a pele dele já assumiu.
+ * Quanto da ENVOLTÓRIA sobra, dado o corpo em foco e o quanto a pele dele já assumiu.
  *
  * A rampa é o PRÓPRIO `level` da pele — o mesmo número que abre o detalhe e que faz o sprite ceder.
  * Um segundo limiar em pixels seria uma terceira régua para a mesma aproximação, e as três
@@ -287,15 +296,31 @@ const BRILHO_PISO = 0.22;
  *
  * @param {string|null} surface  a pele do corpo em foco, ou `null` quando não há corpo travado
  * @param {number} level         0 na chegada, 1 em detalhe pleno
- * @returns {number} multiplicador em [`BRILHO_PISO`, 1]
+ * @returns {number} multiplicador em [`ENVOLTORIA_PISO`, 1]
  */
-export function cessaoDoBrilho(surface, level = 0) {
-  if (!surface || !Object.hasOwn(CEDE_O_BRILHO, surface)) return 1;
-  const t = Math.min(Math.max(level, 0), 1);
-  return 1 - (1 - BRILHO_PISO) * t;
+/**
+ * O NÍVEL de detalhe de uma pele no tamanho aparente `px` — a mesma rampa que ela usa por dentro.
+ *
+ * ⭑ **Isto não é uma segunda régua, e não pode divergir:** `THRESHOLD` é MONTADO a partir dos
+ * `LOD_FAR_PX`/`LOD_NEAR_PX` que cada módulo exporta, então a conta aqui e a de lá leem os mesmos
+ * dois números. Quem precisa do nível ANTES de a pele desenhar — a cessão da envoltória — pergunta
+ * aqui em vez de esperar o retorno do `update` e ficar um quadro atrasado.
+ *
+ * @returns {number} 0 abaixo do `far`, 1 acima do `near`
+ */
+export function nivelDe(surface, px) {
+  const t = THRESHOLD[surface];
+  if (!t) return 0;
+  return Math.min(Math.max((px - t.far) / (t.near - t.far), 0), 1);
 }
 
-export { BRILHO_PISO };
+export function cessaoDaEnvoltoria(surface, level = 0) {
+  if (!surface || !Object.hasOwn(CEDE_A_ENVOLTORIA, surface)) return 1;
+  const t = Math.min(Math.max(level, 0), 1);
+  return 1 - (1 - ENVOLTORIA_PISO) * t;
+}
+
+export { ENVOLTORIA_PISO };
 
 /** `k` da projeção: quantos pixels de framebuffer vale um raio de mundo a uma unidade de distância. */
 const projectionK = (fov, framebufferHeight) => framebufferHeight / (2 * Math.tan((fov * Math.PI) / 360));

@@ -57,7 +57,8 @@ import {
   budget,
   keepsCrown,
   BODY_SPAN,
-  cessaoDoBrilho,
+  cessaoDaEnvoltoria,
+  nivelDe,
 } from './lod.js';
 import { createPhotosphere, photosphereParams, LOD_FAR_PX as FOTOSFERA_FAR } from './photosphere.js';
 import { createRemnant } from './remnant.js';
@@ -2619,6 +2620,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * isso o ponto aditivo somaria brilho por cima da peça e apagaria o contorno, que é justamente
      * o que distingue estas quatro.
      */
+    /*
+     * A CESSÃO é calculada ANTES das peles, e do `px` — nunca do `level` que elas devolvem.
+     *
+     * ☠️ Esperar o retorno do `update` deixaria a coma um quadro atrasada em relação ao corpo, e o
+     * atraso aparece: no zoom rápido o gás persegue a superfície. `lod.js:nivelDe` lê os MESMOS
+     * `LOD_FAR_PX`/`LOD_NEAR_PX` que a pele usa por dentro — a tabela é montada a partir deles —,
+     * então não há duas réguas a divergir.
+     */
+    const cessaoDoQuadro = pouso
+      ? cessaoDaEnvoltoria(decisao?.surface ?? null, nivelDe(decisao?.surface ?? null, pouso.px))
+      : 1;
+
     const MORFOLOGICAS = [SUPERFICIE.ESTACAO, SUPERFICIE.COMETA, SUPERFICIE.PULSAR, SUPERFICIE.NEBULOSA, SUPERFICIE.ASTEROIDE];
     if (pouso && MORFOLOGICAS.includes(decisao.surface)) {
       const cor = graph.kindColor(pouso.node.kind);
@@ -2709,7 +2722,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
           : {}),
       };
       if (decisao.surface === SUPERFICIE.COMETA) {
-        level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());
+        level = comet.update(
+          morphParams,
+          pouso.position,
+          camera,
+          pouso.px,
+          elapsed,
+          motion.isReduced(),
+          undefined,
+          cessaoDoQuadro
+        );
       } else comet.object.visible = false;
       if (decisao.surface === SUPERFICIE.PULSAR) {
         level = pulsar.update(morphParams, pouso.px, elapsed, motion.isReduced(), camera);
@@ -2785,22 +2807,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     }
 
     /*
-     * ☠️ **O BRILHO CEDE conforme a superfície SÓLIDA assume** — a mesma ideia do `haloOf`, um
-     * nível acima: ali quem cede é o ponto, aqui é o florescimento.
+     * ☠️ **A ENVOLTÓRIA CEDE conforme a superfície SÓLIDA assume** — a mesma ideia do `haloOf`, um
+     * nível acima: ali quem cede é o ponto, aqui é o florescimento e o gás.
      *
-     * Ele fica DEPOIS de todas as peles porque `probe.level` só está escrito no fim — e é ele o
-     * mesmo número que o sprite usa, e não uma segunda régua de aproximação.
-     *
-     * ⚠️ Só reescreve quando MUDA: `bloom.strength` é uma escrita barata, mas passar por
+     * ⚠️ Só reescreve o bloom quando MUDA: `bloom.strength` é escrita barata, mas passar por
      * `aplicarBloom` por quadro faria o dono único parecer um laço, e a próxima pessoa moveria a
      * chamada para dentro de outro bloco. Quem decide é `lod.js`.
      */
-    const cessao = cessaoDoBrilho(decisao?.surface ?? null, probe.level ?? 0);
-    if (cessao !== cessaoDoBloom) {
-      cessaoDoBloom = cessao;
+    if (cessaoDoQuadro !== cessaoDoBloom) {
+      cessaoDoBloom = cessaoDoQuadro;
       aplicarBloom();
     }
-    probe.brilho = { cessao: +cessao.toFixed(3), forca: +bloom.strength.toFixed(3) };
+    probe.brilho = { cessao: +cessaoDoQuadro.toFixed(3), forca: +bloom.strength.toFixed(3) };
 
     /*
      * A NEBULOSIDADE do remanescente troca de desenho junto com o corpo, e pelo mesmo fator.

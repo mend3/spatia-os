@@ -38,7 +38,7 @@
  * (`churn` 27) desenha a textura inteira, com a coma como névoa fraca.
  *
  * ⭑ **Quem apaga a pele é o BLOOM**, que floresce a partir do miolo da coma e devolve um disco
- * saturado por cima do corpo. A saída está em `lod.js` (`CEDE_O_BRILHO`): o florescimento cede
+ * saturado por cima do corpo. A saída está em `lod.js` (`CEDE_A_ENVOLTORIA`): o que envolve o corpo cede
  * conforme a superfície sólida assume, como o sprite já cede pelo `haloOf`.
  *
  * ⚠️ A lição vale além daqui: **medir na bancada separa o que a PELE faz do que o PÓS faz**, e as
@@ -626,7 +626,12 @@ export function createComet() {
      * O padrão `ORIGEM` reproduz o comportamento anterior EXATAMENTE: `normalize(0 − position)` é
      * `−normalize(position)`. Nenhum chamador antigo muda de imagem.
      */
-    update(params, position, camera, px, elapsed, reduced = false, fonte = ORIGEM) {
+    /**
+     * @param {number} [cessao]  quanto da ENVOLTÓRIA sobra — 1 é o gás cheio. Decidido por
+     *   `lod.js:cessaoDaEnvoltoria` e passado pela cena; o padrão preserva o chamador antigo
+     *   (a bancada) sem que ele precise conhecer a lei.
+     */
+    update(params, position, camera, px, elapsed, reduced = false, fonte = ORIGEM, cessao = 1) {
       /*
        * O MESMO PORTÃO DA GERAÇÃO PROCEDURAL vale para o escoamento, e ele já está aqui.
        *
@@ -669,7 +674,19 @@ export function createComet() {
       nucleoMat.uniforms.uUsaMapa.value = params.mapa ? 1 : 0;
 
       comaMat.uniforms.uColor.value.set(params.color);
-      comaMat.uniforms.uAmount.value = params.amount * level;
+      /*
+       * ☠️ **A COMA CEDE conforme a superfície assume**, e quem decide é `lod.js`
+       * (`CEDE_A_ENVOLTORIA`) — a cena passa o fator, este módulo obedece. A alternativa seria
+       * importar `lod.js` aqui, e isso é CICLO: `lod.js` importa este arquivo pelo `BODY_SPAN`.
+       *
+       * ⚠️ **Ela não vem em `params`**: aquele objeto é cacheado por corpo e a cessão muda por
+       * quadro. Guardá-la ali congelaria a cessão do quadro em que o foco travou.
+       *
+       * ⭑ O produto `level × cessão` põe o pico da coma no MEIO da aproximação, que é onde ela
+       * responde *"isto é um cometa"*. De perto o operador está DENTRO dela, e o que ele foi ver é
+       * o núcleo.
+       */
+      comaMat.uniforms.uAmount.value = params.amount * level * cessao;
       // Raio do corpo em unidades da coma: é onde o gás para de ser somado (ver COMA_FRAGMENT).
       comaMat.uniforms.uCore.value = params.nucleus / Math.max(params.coma, 1e-4);
       coma.scale.setScalar(params.coma);
