@@ -27,6 +27,7 @@
  */
 import * as THREE from 'three';
 import { carregarSTL, normalizar, medir } from './malha-de-autor.js';
+import { APARENCIAS, CONTEXTO } from './favoritos.js';
 
 /**
  * As oito formas, com o PESO medido em cada arquivo.
@@ -46,22 +47,18 @@ export const MALHAS = Object.freeze([
 ]);
 
 /**
- * As peles emprestadas dos planetas.
+ * As peles que a rocha pode vestir — **LIDAS do catálogo de favoritos**, nunca repetidas aqui.
  *
- * ⚠️ **A Terra fica fora por decisão do operador**, e o Sol fica fora por outro motivo: ele é
- * ESTRELA, e uma rocha vestindo a superfície de uma estrela afirmaria emissão que ela não tem —
- * o céu já usa `sun.jpg` para o corpo que de fato emite.
+ * ☠️ **Uma segunda lista era o defeito.** A pele que a rocha veste por HASH e a que o operador
+ * ESCOLHE são a mesma pergunta; com duas tabelas, a primeira edição as separa — e o sintoma é o
+ * painel oferecendo uma opção enquanto o céu desenha outra.
+ *
+ * ⚠️ `APARENCIAS[ROCHOSO]` é quem decide o conjunto, e o motivo de cada exclusão mora lá: os quatro
+ * gigantes GASOSOS ficam fora porque mapa de atmosfera numa rocha lê como listra pintada.
  */
-export const PELES = Object.freeze([
-  'ceres.jpg',
-  'mercury.jpg',
-  'mars.jpg',
-  'venus_surface.jpg',
-  'jupiter.jpg',
-  'saturn.jpg',
-  'uranus.jpg',
-  'neptune.jpg',
-]);
+export const PELES = Object.freeze(
+  Object.values(APARENCIAS[CONTEXTO.ROCHOSO]).map((a) => a.arquivo.replace('assets/textures/', ''))
+);
 
 const BASE_MALHA = '/assets/3d/';
 const BASE_TEXTURA = '/assets/textures/';

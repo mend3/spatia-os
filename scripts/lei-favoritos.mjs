@@ -177,10 +177,29 @@ conferir(
     .map((a) => a.nome)
     .join(', ')
 );
-conferir(
-  '§1 nenhum arquivo serve a duas aparências',
-  new Set(todas.map((a) => a.arquivo)).size === todas.length
-);
+/*
+ * ☠️ **A unicidade é DENTRO do contexto, e não entre contextos — e a diferença é o que o modelo
+ * grava.** `marca.aparencias` é um objeto chaveado por CONTEXTO (`favoritos.js`: `aparencias[
+ * contexto] = nome`), então "mercúrio num corpo ROCHOSO" e "mercúrio num PLANETA" são dois
+ * registros distintos, e nenhuma leitura os confunde.
+ *
+ * A regra anterior exigia arquivo único no catálogo INTEIRO, e o motivo escrito era a ambiguidade
+ * da escolha — que o armazenamento por contexto já impedia. O que continua valendo, e é o que esta
+ * asserção guarda: **duas aparências do MESMO contexto não podem apontar para o mesmo arquivo**,
+ * porque aí a escolha do operador de fato deixaria de dizer qual delas ele quis.
+ *
+ * ⚠️ Compartilhar arquivo entre contextos é aceitável, não desejável: textura dedicada a corpo
+ * rochoso (Vesta, Eros, a Lua) diria mais que um mapa de planeta emprestado. É trabalho de asset,
+ * não de modelo.
+ */
+for (const c of contextosDeclarados) {
+  const arquivos = Object.values(F.APARENCIAS[c]).map((a) => a.arquivo);
+  conferir(
+    `§1 em \`${c}\` nenhum arquivo serve a duas aparências`,
+    new Set(arquivos).size === arquivos.length,
+    arquivos.join(', ')
+  );
+}
 
 // A proibição em campo próprio, e ela precisa de LEITOR — senão é tabela declarada e não implementada.
 const casos = Object.keys(F.SEM_APARENCIA);

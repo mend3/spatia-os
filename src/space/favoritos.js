@@ -134,21 +134,31 @@ export const APARENCIAS = Object.freeze({
     ])
   ),
   /*
-   * ⭑ **O asteroide é o único caso em que textura ACRESCENTA em vez de substituir** — é a única
-   * classe sem pele nenhuma (`superficies.js`: parado ele fica sem pele, e isso é decisão).
+   * As quatro superfícies ROCHOSAS. `space/asteroide.js` LÊ esta lista — a pele que a rocha veste
+   * por hash e a que o operador escolhe são a MESMA tabela, e uma segunda lista em qualquer um dos
+   * dois lados divergiria na primeira edição.
    *
-   * Ceres, e não Mercúrio, porque Ceres é um asteroide de verdade — `CREDITS.md` chama a diferença
-   * de "o mais defensável". Mercúrio já está no contexto planetário; repeti-lo aqui faria o mesmo
-   * arquivo servir a dois contextos e a escolha deixaria de dizer qual dos dois o operador quis.
+   * ☠️ **Os quatro gigantes GASOSOS ficam de fora, e o motivo é o que a pele afirma.** `jupiter`,
+   * `saturn`, `uranus` e `neptune` são mapas de ATMOSFERA: numa rocha eles leem como listras
+   * pintadas, não como superfície. Visto na bancada ao lado de `mercury` na mesma malha — a
+   * diferença não é de gosto, é de o que o corpo passa a dizer que é.
+   *
+   * ⚠️ **Mercúrio SERVE aos dois contextos, e isso deixou de ser ambíguo** desde que o asteroide
+   * ganhou pele própria: a marca grava o CONTEXTO junto da aparência, então "mercúrio num corpo
+   * rochoso" e "mercúrio num planeta" são registros distintos. A recusa anterior valia quando o
+   * asteroide não tinha pele e a textura ACRESCENTAVA em vez de vestir.
+   *
+   * ⭑ Ceres continua primeiro na lista por ser o único que é um asteroide DE VERDADE — `CREDITS.md`
+   * chama a diferença de "o mais defensável".
    */
-  [CONTEXTO.ROCHOSO]: Object.freeze({
-    ceres: Object.freeze({
-      rotulo: 'CERES',
-      arquivo: 'assets/textures/ceres.jpg',
-      origem: 'https://www.solarsystemscope.com/textures/',
-      licenca: CC_BY_4,
-    }),
-  }),
+  [CONTEXTO.ROCHOSO]: Object.freeze(
+    Object.fromEntries([
+      planetario('ceres', 'CERES', 'ceres'),
+      planetario('mercurio', 'MERCÚRIO', 'mercury'),
+      planetario('marte', 'MARTE', 'mars'),
+      planetario('venus', 'VÊNUS', 'venus_surface'),
+    ])
+  ),
   [CONTEXTO.NENHUM]: Object.freeze({}),
 });
 
