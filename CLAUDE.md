@@ -417,7 +417,7 @@ astro — em `journal` é a execução sob leitura, em `metrics` é o gráfico, 
 **Aplicar a regra só ao céu é consertar a tela menos quebrada.**
 
 ☠️ **"DOMINAR" É ADJETIVO ATÉ ALGUÉM DIZER DE QUE GRANDEZA SE FALA** — e são três, medidas em
-`bancada-hud.html`: **texto** (glifo disputando o olho), **tinta** (superfície cobrindo o céu) e
+`hud.html`: **texto** (glifo disputando o olho), **tinta** (superfície cobrindo o céu) e
 **ponteiro** (`spatia.hud()`, onde o gesto de órbita morre). Elas não se substituem: `metrics`
 reivindica **33,1%** ao ponteiro com apenas **10,3%** de glifo. Quem afirmar que algo "domina" diz
 em qual das três, ou não afirmou nada.

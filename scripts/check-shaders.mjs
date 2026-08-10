@@ -17,7 +17,7 @@
  * autoaplicando. A ironia é real e é a melhor demonstração de por que a guarda existe.
  *
  * O que ele NÃO faz: compilar o GLSL. Não há validador na máquina, e é por isso que a bancada
- * (`sandbox.html`) continua sendo o único lugar que prova que um shader roda — foi ela que
+ * (`canvas.html`) continua sendo o único lugar que prova que um shader roda — foi ela que
  * pegou `snoise` vs `simplex3`, que nenhuma checagem de texto acharia.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';

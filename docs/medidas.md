@@ -280,7 +280,7 @@ magnitude não. Quem reconferir uma tabela antiga confere contra 74, não contra
 
 ## INVENTÁRIO DA HUD POR ROTA — as 10 rotas do menu, medidas na TELA (09/08)
 
-Varrido por `bancada-hud.html` (`bancada.rotas()`), que monta o `index.html` de verdade num
+Varrido por `hud.html` (`bancada.rotas()`), que monta o `index.html` de verdade num
 `<iframe>` e percorre os endereços. Janela **1426×712**, grade de 12 px, **7 021 pontos** por rota,
 corpus `espatial_fixture`, corpo `bloco-04.md` travado.
 

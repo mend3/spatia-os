@@ -289,7 +289,7 @@ com ou sem produtor.
   tabela declarativa, `RESIDENTES` (`apps/residentes.js`) já declara o que cada rota monta COM o
   motivo, e `spatia.hud().widgets` já separa `recolhidos` de `naoMontados` de `ausentes` — o
   `uiBudget` que a proposta pede é `RESIDENTES` com uma coluna de PERMANÊNCIA a mais.
-  ⭑ **A MEDIDA existe, e a bancada monta o APP DE VERDADE** (`bancada-hud.html`, `index.html` num
+  ⭑ **A MEDIDA existe, e a bancada monta o APP DE VERDADE** (`hud.html`, `index.html` num
   `<iframe>`): painéis reais, conteúdo real, recolhimento real (`data-collapsed`). `HOJE` não aplica
   override nenhum — o controle É a tela. As outras mexem em três coisas: a GRADE do `#hud`, quais
   painéis recolhem, e o que vira alça.

@@ -130,7 +130,7 @@ Nada aqui é decoração. **Cada feição visual é um fato do corpus**, e a reg
 é uma só: a **forma** diz o que o arquivo É, o que está **em volta** dele diz o que está
 ACONTECENDO com ele.
 
-As fotos abaixo saíram da bancada (`/sandbox.html`), que desenha um objeto por vez, com o tempo
+As fotos abaixo saíram da bancada (`/canvas.html`), que desenha um objeto por vez, com o tempo
 parado e sem pós-processamento — é lá que dá para conferir cada um isolado.
 
 ### Os corpos — o que o arquivo É
@@ -752,7 +752,7 @@ consome. O painel se constrói sozinho a partir da tabela. Se ele vale para a ce
 no grupo `GLOBAL` e o consumidor é um só: o relógio dos objetos (`space/scene.js`) ou o passe de
 gradação (`space/lensing.js`).
 
-**Um objeto 3D novo** = o módulo em `space/` + um espécime na bancada (`sandbox.html`). O espécime
+**Um objeto 3D novo** = o módulo em `space/` + um espécime na bancada (`canvas.html`). O espécime
 declara os próprios controles e o que OLHAR; a bancada os desenha sozinha. É a REGRA DA INSPEÇÃO:
 camada sem controle é camada que ninguém confere.
 

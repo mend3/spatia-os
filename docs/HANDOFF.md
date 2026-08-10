@@ -140,7 +140,7 @@ detector de quadro andando. Comando de shell rouba o foco de volta.
 
 ⭑ **A FRENTE DE UI/HUD sai de quatro briefings**, e o mapa briefing → tarefa está na tabela final do
 [`roadmap.md`](./roadmap.md) — não aqui, senão são duas listas divergindo.
-A ferramenta dela é **`bancada-hud.html`**, que monta o `index.html` DE VERDADE num `<iframe>`;
+A ferramenta dela é **`hud.html`**, que monta o `index.html` DE VERDADE num `<iframe>`;
 `bancada.rotas()` varre as dez rotas e o inventário está em [`medidas.md`](./medidas.md).
 ⚠️ **O que ela NÃO faz:** dirigir o app até documento aberto + resposta no palco. Ali ela sai
 `palco 0,0%` e o número de FOCUS fica subestimado. A composição com o documento aberto está medida
@@ -180,15 +180,15 @@ matemática precisa ser física, com as razões `R_s/R` adimensionais por classe
 **`sistemas.js`** (a CONTENÇÃO servida → quem domina cada sistema → a identidade de cada corpo).
 ⭑ **As duas cenas leem a pele dali, e nenhuma a deriva** — `sistemas.identidadeDe` é a porta.
 
-Bancadas — **duas, e a divisão é por dimensão**: `sandbox.html` para os objetos 3D e
-`bancada-hud.html` para as SUPERFÍCIES (painel, fenda, moldura, composição). A de superfícies
+Bancadas — **duas, e a divisão é por dimensão**: `canvas.html` para os objetos 3D e
+`hud.html` para as SUPERFÍCIES (painel, fenda, moldura, composição). A de superfícies
 **extrai o CSS real de `index.html` em runtime** e recusa desenhar se o recorte falhar; ela mede
 TEXTO e TINTA, que são grandezas diferentes do PONTEIRO de `spatia.hud()`.
 ☠️ **`elementFromPoint` não serve para medir composição aqui:** `#hud` é `pointer-events: none`, e
 hit-test pula quem não recebe ponteiro — a medida certa colhe as caixas de linha com
 `Range.getClientRects()`.
 
-`sandbox.html` — um objeto por vez, sem pós-processamento; todo espécime **importa** o
+`canvas.html` — um objeto por vez, sem pós-processamento; todo espécime **importa** o
 módulo real, e o campo `watch` nomeia o defeito que ele pega.
 
 Outros docs vivos: `catalogo-celeste.md` · `modelo-de-renderizacao.md` · `OS-SCREENS.md` ·

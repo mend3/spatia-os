@@ -581,4 +581,4 @@ gravado, em silêncio — ver a tabela de `docs/identidade.md`).
 - **Como a cena é desenhada** — [`modelo-de-renderizacao.md`](./modelo-de-renderizacao.md).
 - **Os fenômenos, um a um** — [`EVENTS.md`](./EVENTS.md), que é o contrato de onde eles nascem.
 - **A cena que consome as estruturas** — [`briefings/multi-scene.md`](./briefings/multi-scene.md).
-- **A bancada, um objeto por vez, sem pós-processamento** — `sandbox.html`.
+- **A bancada, um objeto por vez, sem pós-processamento** — `canvas.html`.

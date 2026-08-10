@@ -177,7 +177,7 @@ Alternativas: `spatia.sh`, `spatia.io`, `getspatia.com`, `usespatia.com`.
 | lugar | o que carrega |
 |---|---|
 | `index.html` | `<title>SpatIA</title>`, `<h1 class="marca">SpatIA</h1>` e o posicionamento na tela de boot |
-| `sandbox.html` | `SpatIA · bancada 3D` |
+| `canvas.html` | `SpatIA · bancada 3D` |
 | `README.md` (raiz) | o manifesto abrindo o documento, antes de qualquer instrução |
 | `window.spatia` | a janela de depuração — era `window.espatial` |
 | `docs/catalogo-celeste.md` | o céu é "o céu do SpatIA" |

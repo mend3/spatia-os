@@ -90,7 +90,7 @@
  * ## Cost — MEASURED for ONE body, and the whole-sky case is still open
  *
  * Method, so the numbers can be argued with: `EXT_disjoint_timer_query_webgl2` bracketing
- * EXACTLY this module's `drawElementsInstanced` on the bench (one instance, `sandbox.html`,
+ * EXACTLY this module's `drawElementsInstanced` on the bench (one instance, `canvas.html`,
  * 3024x1484 framebuffer at DPR 2, no post chain), 350 frames per size. **Minima are quoted,
  * because the medians came out non-monotonic with area — the queries are heavily contended and
  * the median is measuring the contention, not the shader.** The reference is the project's own

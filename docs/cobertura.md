@@ -13,7 +13,7 @@ pulsar não aparecem lá por construção).
 | **Fixture** (`scripts/fixture.py`) | *o código desenha este tipo?* | todo corpo e todo modificador renderiza sem erro, e todo estado do git tem representante |
 | **Fixture paramétrico** | *o shader aguenta a faixa inteira?* | cada parâmetro relevante aparece em mínimo, mediano e máximo pelo menos uma vez |
 | **Corpus real** | *o universo parece vivo?* | a diversidade emerge da distribuição do conhecimento, sem ninguém plantar |
-| **Bancada** (`sandbox.html`) | *este parâmetro faz o que diz?* | cada eixo tem slider, e o `watch` do espécime nomeia o defeito que ele pega |
+| **Bancada** (`canvas.html`) | *este parâmetro faz o que diz?* | cada eixo tem slider, e o `watch` do espécime nomeia o defeito que ele pega |
 
 Todo objeto do `space/` tem espécime na bancada, e cada um declara os próprios controles na spec
 (`src/sandbox/specs.js` e os `*-rig.js`/`*-rigs.js` que ela agrega). A cena da bancada tem os seus

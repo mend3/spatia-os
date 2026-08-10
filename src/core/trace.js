@@ -11,7 +11,7 @@
  * módulo tornam o console inútil justo quando alguém precisa dele. Aqui o traço nasce DESLIGADO e
  * liga em dois lugares onde ele é a ferramenta, não ruído:
  *
- * - a **bancada** (`sandbox.html`), que existe para observar um objeto por vez;
+ * - a **bancada** (`canvas.html`), que existe para observar um objeto por vez;
  * - qualquer página com `localStorage.setItem('espatial.trace', '1')`, para depurar a cena viva.
  *
  * ## Por que com vazão limitada
@@ -25,7 +25,7 @@ const MIN_MS = 1000;
 
 const ligado = (() => {
   try {
-    if (location.pathname.endsWith('sandbox.html')) return true;
+    if (location.pathname.endsWith('canvas.html')) return true;
     return localStorage.getItem('espatial.trace') === '1';
   } catch {
     // Modo privado: sem traço, e nada quebra por isso.
