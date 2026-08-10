@@ -204,7 +204,7 @@ com ou sem produtor.
 | **T-68** | Passo 2 — feição no SPRITE, e **não** aro no corpo: é lá que os corpos vivem | `todo` | — | — | — |
 | **T-83** | `lei-residentes.mjs` guarda a ROTA e não a TABELA — tirar um residente de `RESIDENTES` sai 0 | `todo` | — | — | KR2.4 |
 | **T-84** | O disco atravessava o que NÃO É SÓLIDO — oclusor macio por ÂNGULO, e a geodésica que era truncada | `done` | — | T-85 | KR2.4 |
-| **T-85** | A BANDA em faixas largas no gradiente claro — causa não encontrada; duas descartadas por medida | `todo` | — | — | — |
+| **T-85** | A BANDA em faixas largas no gradiente claro — é quantização de SAÍDA, e o grão nunca a alcançava | `done` | — | — | — |
 
 - **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
   foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
@@ -782,18 +782,33 @@ mesmo fato).
   justamente o que o oclusor evita ao importar `SPAN` e `SKIN_EXTENT` em vez de escolher.
   ⚠️ **Sem oráculo ainda**, e o que ele precisaria provar está nomeado: que a emissão fecha e que a
   deflexão e a sombra NÃO.
-- **T-85** — ☠️ **DUAS CAUSAS DESCARTADAS POR MEDIDA, e é isso que a torna barata para quem pegar.**
-  Não é o truncamento da geodésica (0,2% dos pontos na pose do relato) e **não é quantização de 8
-  bits**: o dither de saída está vivo (ganho 1 muda 8,0% dos pontos; controle positivo em 96,5%) e
-  **não move a largura dos platôs**. Logo o platô largo do claro é **sinal saturado**, não degrau —
-  dither não quebra o que não é gradiente.
-  ⭑ **A pista, e ela é observação de MESMO QUADRO:** com `bloom.strength` em 0 uma aresta reta
-  vertical some do halo claro. `UnrealBloomPass` compõe mips em resolução reduzida, e degrau largo
-  em gradiente claro é o artefato da forma certa. ⚠️ Não localizada em varredura — os maiores saltos
-  da linha eram estrelas, que é bloom em fonte pontual e não costura.
-  ⚠️ **Antes de medir de novo, `armadilhas.md` §A:** esta caça pagou três armadilhas novas —
-  `readPixels` fora de `rAF` aninhado devolve zero, o recorte central cai dentro da SOMBRA, e duas
-  fotos separadas por segundos atribuem animação ao tratamento.
+- **T-85 FECHADA — é quantização de SAÍDA, e o grão nunca alcançava o claro.** Números em
+  [`medidas.md`](./medidas.md); o conserto é `space/dither-de-saida.js`, portão `lei-dither.mjs`.
+  ⭑ **A causa é ONDE o grão entra**, não a falta dele: `uGrain` mora em `lensing.js`, em luz LINEAR,
+  antes do ACES — e o tone mapping comprime as altas luzes, então a amplitude dele encolhe abaixo de
+  1/255 justamente na faixa em que a banda aparece. Nas médias e baixas ele chega, e por isso só o
+  claro tinha degrau. O `scanline` é multiplicativo no mesmo lugar e some pelo mesmo motivo (−0,16%
+  medido no claro contra os −2,5% que ele declara).
+  ⭑ **A fonte NÃO está quantizada antes:** 143 códigos de 143 presentes, zero lacunas, passo modal
+  1 LSB. Fosse banda vinda de cima, dither nenhum a consertaria.
+  ☠️ **BLOOM REFUTADO, e era a pista que parecia mais forte.** A contribuição dele isolada (mesmo
+  quadro, com menos sem — o grão cancela) é LISA: concentração de fase da segunda derivada 1,03 a
+  1,08 nos períodos de mip, ou seja indistinguível de uniforme, e nenhuma estrutura em bloco na
+  imagem amplificada ×6. Os mips são /2 … /32 (medidos: 1291×742 a 81×47, 31,9 px por texel do mais
+  grosso), então a assinatura existiria se a causa fosse ele.
+  ☠️ **E a «aresta reta vertical» que motivou a pista era ARTEFATO DA MEDIDA, não da cena:** os dois
+  recortes foram centrados em centroides calculados SEPARADAMENTE para cada tratamento, então eram
+  regiões diferentes da tela. Comparação de recorte exige o mesmo retângulo, não o mesmo critério.
+  ☠️ **A MÉTRICA quase escreveu a refutação errada, e essa é a lição cara desta tarefa.** A primeira
+  medida do dither deu NULO **com controle fechado** — varria a faixa 200–252 inteira sem filtrar
+  por gradiente RASO, e ali a maior parte é saturada, onde platô largo é sinal chato. A cauda que é
+  o defeito ficava diluída. Filtrando por passo local ≤ 2 LSB: p99 **21 → 11** e máx **160 → 42**,
+  com a faixa média inalterada (1,09 → 1,10) como controle. **Métrica que não isola o regime do
+  defeito devolve nulo do jeito mais convincente que existe.**
+  ⚠️ **Antes de medir de novo, `armadilhas.md` §A:** esta caça pagou quatro armadilhas —
+  `readPixels` fora de `rAF` aninhado devolve zero, o recorte central cai dentro da SOMBRA, duas
+  fotos separadas por segundos atribuem animação ao tratamento, e passa-alta ×16 mostra contorno em
+  QUALQUER gradiente de 8 bits (é o piso do formato, não defeito).
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
   está**, então ela responde uma pergunta que ele não pode ter. Depois de marcar, ele precisa fazer
@@ -1116,7 +1131,8 @@ que já está salvo, e a afinação do operador evapora em silêncio.
 | as ZONAS por razão de massa como classificação graduada (T-28) | a terceira zona é vazia por aritmética, a do meio leva **81,8% dos sistemas**, e a cena desenha a mesma imagem nas três. Quem tem leitor é o fato BINÁRIO (`dominanteDe`); a zona exigiria um segundo corpo em 81,8% dos sistemas — pipeline, não limiar |
 | atenuar a emissão do disco pela LUZ que a cena já pôs no pixel (T-84) | um pixel aceso **não diz de que lado veio**. Com `cobrem: 0` — nada na frente, onde o certo é não mudar nada — o termo mudou **12,5% da tela**, e a perda cresce com o brilho do FUNDO (0,24 no quintil escuro, 4,36 no claro). Quem separa os lados é a PROFUNDIDADE, e os aditivos não a escrevem |
 | alvo de profundidade para os oclusores transparentes (T-84) | a galáxia é billboard **instanciado** com os vértices calculados no vertex shader — `overrideMaterial`/`MeshDepthMaterial` desenha outra geometria. Exigiria variante de depth em nove módulos. E fazer os aditivos escreverem depth oclui o campo de estrelas e tudo atrás |
-| dither de saída para curar a banda do claro (T-85) | ele está VIVO (ganho 1 muda 8,0% dos pontos; controle positivo em 96,5%) e **não move a largura dos platôs**: p90 2 · p99 5 · máx 16 sem ele contra p90 2 · p99 6 · máx 12 com ele. O platô largo do claro é **sinal saturado**, e dither não quebra o que não é gradiente |
+| o BLOOM como causa da banda do claro (T-85) | a contribuição dele isolada no mesmo quadro é LISA — concentração de fase da segunda derivada **1,03 a 1,08** nos períodos de mip (que são /2 … /32, 31,9 px por texel do mais grosso), e nenhuma estrutura em bloco sob amplificação ×6. A «aresta reta» que motivou a pista era artefato da medida: recortes centrados em centroides diferentes |
+| o SCANLINE como causa da banda do claro (T-85) | ele declara 2,5% mas entrega **−0,16%** no claro, porque é multiplicativo em luz LINEAR e o ACES o comprime nas altas luzes — exatamente o que acontece com o `uGrain`, e o motivo de os dois não alcançarem a faixa onde a banda mora |
 
 ---
 

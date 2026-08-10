@@ -8,34 +8,39 @@
  * e só o último passo — o canvas — tem 8 bits. Um gradiente suave e largo é o pior caso possível
  * para um quantizador.
  *
- * `lensing.js` já soma grão (`uGrain`), e ele funciona: MEDIDO no mesmo quadro, a largura dos platôs
- * de valor 8 bits fica em **1 px de mediana** no médio (90–140) e no escuro (20–60). No claro
- * (200–250) a mediana também é 1, mas o **p90 é 3 px e o máximo 82 px** — as faixas que ele viu.
+ * ⭑ **E a fonte não está quantizada antes:** no recorte com os contornos, os 143 códigos do intervalo
+ * estão TODOS presentes (zero lacunas) e o passo modal é 1 LSB. Fosse banda vinda de cima, o
+ * histograma teria buracos e dither nenhum a consertaria.
  *
- * A causa é ONDE o grão entra: em luz LINEAR, antes do ACES. O tone mapping comprime as altas luzes,
- * então ali `d(saída)/d(linear)` é pequeno e a amplitude do grão encolhe abaixo de 1/255 — ela não
- * alcança o quantizador exatamente na faixa em que a banda aparece. Nas médias e baixas ela alcança,
- * e é por isso que só o claro tem degrau.
+ * `lensing.js` já soma grão (`uGrain`) e ele NÃO alcança o claro. A causa é ONDE ele entra: em luz
+ * LINEAR, antes do ACES. O tone mapping comprime as altas luzes, então ali `d(saída)/d(linear)` é
+ * pequeno e a amplitude do grão encolhe abaixo de 1/255 — ela não chega ao quantizador exatamente
+ * na faixa em que a banda aparece. Nas médias e baixas ela chega, e é por isso que só o claro tem
+ * degrau. Vale igual para o `scanline`, que é multiplicativo no mesmo lugar (−0,16% medido no
+ * claro, contra os −2,5% que ele declara).
  *
- * ## ☠️ O que este módulo NÃO conserta, e a medida que refutou a expectativa
+ * ## O que ele consegue, medido — e ☠️ a MÉTRICA que quase o condenou
  *
- * **Ele está vivo e é do tamanho certo**, e isso é medido com controle positivo: em A/B no mesmo
- * quadro, ganho 1 muda **8,0% dos pontos** da tela com diferença média 0,08 (ou seja, 8% dos pixels
- * estavam exatamente sobre uma fronteira de quantização), e ganho 60 muda 96,5% — sem esse segundo
- * número, "não mudou nada" seria indistinguível de "a injeção não chegou ao shader".
+ * A/B no mesmo quadro, controle fechado (as leituras sem dither saem idênticas ao dígito), faixa
+ * clara 190–252, **restrita aos gradientes RASOS** (passo local ≤ 2 LSB, que é onde banda mora):
  *
- * **E mesmo assim ele NÃO move a largura dos platôs no claro.** A/B no mesmo quadro, controle
- * fechado (as duas leituras sem dither saem idênticas ao dígito): sem ele a faixa 200–250 dá
- * p90 2 · p99 5 · máx 16; com ele, p90 2 · p99 6 · máx 12. Nulo.
+ * | | média | p90 | p99 | máx |
+ * |---|---|---|---|---|
+ * | sem dither | 2,43 px | 4 | **21** | **160** |
+ * | com dither | 2,11 px | 4 | **11** | **42** |
  *
- * A conclusão que sai daí, e ela é o que impede a próxima sessão de repetir a caçada: **os platôs
- * largos do claro não são degraus de quantização — são sinal genuinamente chato**, região saturada,
- * e dither não quebra o que não é gradiente. A banda que o operador relata tem outra causa, ainda
- * NÃO encontrada. Já descartados por medida: o truncamento da geodésica (0,2% dos pontos na pose
- * dele) e a quantização de 8 bits (isto aqui).
+ * **Banda é CAUDA, não centro** — e é por isso que o p90 não se move enquanto p99 e máximo desabam.
+ * O controle é a faixa média (1,09 → 1,10 px, inalterada): lá o grão já ditherava e não havia o que
+ * ganhar.
  *
- * O que fica valendo é o que foi provado: a correção de quantização existe, é correta e custa ~0.
- * O que não se pode afirmar é que ela conserta o relato.
+ * ☠️ **Uma primeira medida deu NULO e a conclusão errada quase foi escrita como refutação.** Ela
+ * varria a faixa 200–250 inteira, sem filtrar por gradiente raso — e ali a maior parte é SATURADA,
+ * onde platô largo é sinal chato e não degrau. A cauda que é o defeito ficava diluída em dezenas de
+ * milhares de platôs de 1 px. **Métrica que não isola o regime do defeito devolve nulo com controle
+ * fechado**, que é a forma mais convincente de estar errado.
+ *
+ * ⭑ E que ele CHEGA ao quadro é medido à parte, sem depender de A/B: no claro, a correlação entre o
+ * resíduo local e o padrão que estas quatro linhas PREVEEM é **0,60**. Ele domina o resíduo.
  *
  * ## ⚠️ Isto NÃO é um segundo dono do grão
  *

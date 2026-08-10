@@ -549,22 +549,42 @@ Custo de abortar, replicando o integrador em JS, em **pixels de deslocamento do 
 câmera a 12; com ela longe, **27 pontos** — porém com **189,7** de diferença neles. Poucos pixels
 muito errados. Custo do conserto (5 réplicas alternadas, mediana do pós): **15,04 → 15,18 ms**.
 
-### A BANDA DO GRADIENTE CLARO — causa NÃO encontrada, e duas descartadas
+### A BANDA DO GRADIENTE CLARO — é quantização de SAÍDA (T-85)
 
-Largura dos platôs de valor 8 bits por faixa de brilho (canal verde), câmera a 12:
+☠️ **A fonte não está quantizada antes:** no recorte com os contornos, **143 códigos de 143
+presentes, zero lacunas**, passo modal **1 LSB**. Banda vinda de cima teria buraco no histograma.
 
-| faixa | mediana | p90 | p99 | máx |
+Largura dos platôs **restrita aos gradientes RASOS** (passo local ≤ 2 LSB — o regime em que banda
+vive), A/B no mesmo quadro, controle fechado ao dígito:
+
+| faixa clara 190–252 | média | p90 | p99 | máx |
 |---|---|---|---|---|
-| claro 200–250 | 1 px | 2 px | 5 px | **16 px** |
-| médio 90–140 | 1 px | 1 px | 2 px | 4 px |
-| escuro 20–60 | 1 px | 1 px | 2 px | 4 px |
+| sem dither | 2,43 px | 4 | **21** | **160** |
+| com dither | 2,11 px | 4 | **11** | **42** |
 
-☠️ **O dither de saída NÃO move esses números** (com ele: p90 2 · p99 6 · máx 12), e ele está VIVO —
-controle positivo: ganho 1 muda **8,0% dos pontos**, ganho 60 muda **96,5%**. Logo os platôs largos
-do claro **não são degraus de quantização; são sinal saturado**, e dither não quebra o que não é
-gradiente. ⚠️ Um primeiro "máx 82 px" foi medido numa pose com `n` 10× maior e é da mesma família:
-área saturada, não banda.
+Controle: a faixa média (90–140) fica em **1,09 → 1,10 px**, inalterada — lá o `uGrain` já
+ditherava. ⭑ E que o dither CHEGA ao quadro é medido à parte: no claro, a correlação entre o resíduo
+local e o padrão que o shader PREVÊ é **0,60**.
 
-⭑ **A pista que sobra, e ela é observação de MESMO QUADRO, não medida:** com o bloom em 0 uma aresta
-reta vertical some do halo claro. `UnrealBloomPass` compõe mips em resolução reduzida, que é o
-artefato da forma certa. Não localizada em varredura — os maiores saltos da linha eram estrelas.
+☠️ **A PRIMEIRA MEDIDA DEU NULO COM CONTROLE FECHADO, e a conclusão errada quase virou refutação
+escrita.** Ela varria 200–250 inteira sem filtrar por gradiente raso; ali a maior parte é SATURADA,
+onde platô largo é sinal chato e não degrau, e a cauda que é o defeito ficava diluída em dezenas de
+milhares de platôs de 1 px. **A métrica é parte da hipótese.**
+
+⚠️ **Passa-alta ×16 mostra contorno em QUALQUER gradiente de 8 bits** — é o piso do formato. Ele
+serve para ACHAR a região, nunca para julgar se sobrou defeito.
+
+### As duas causas REFUTADAS da banda, com número
+
+**BLOOM.** Mips medidos em `renderTargetsVertical`: 1291×742 · 646×371 · 323×186 · 162×93 · 81×47 —
+/2 a /32, **31,9 px por texel** do mais grosso. A contribuição do bloom isolada (mesmo quadro, com
+menos sem; o grão cancela) tem concentração de fase da segunda derivada **1,010 · 1,032 · 1,078 ·
+1,175** em P = 8 · 16 · 32 · 64 — indistinguível de uniforme —, e a imagem amplificada ×6 é lisa,
+sem bloco e sem costura.
+☠️ A «aresta reta vertical» que motivou esta pista era **artefato da medida**: os dois recortes
+foram centrados em centroides calculados separadamente por tratamento, logo eram regiões diferentes
+da tela. Recorte comparado exige o mesmo retângulo, não o mesmo critério.
+
+**SCANLINE.** `1.0 - 0.025 * step(0.5, fract(vUv.y * 420.0))` declara 2,5% e entrega **−0,16%** no
+claro (médio −0,09%, escuro +0,43%). Ele é multiplicativo em luz LINEAR, antes do ACES — some nas
+altas luzes pelo mesmo motivo que o `uGrain`.

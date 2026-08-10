@@ -55,8 +55,23 @@ não é comparação.
 
 ☠️ **CONTROLE POSITIVO É OBRIGATÓRIO NUM A/B QUE SAI NULO** — senão *"não mudou nada"* e *"o
 interruptor não chegou ao shader"* são a mesma leitura. Medido no dither de saída: ganho 1 muda 8,0%
-dos pontos e o resultado da lei é nulo; ganho 60 muda 96,5%, e é esse segundo número que autoriza
-concluir *"o termo está vivo e não é a causa"* em vez de *"a injeção falhou"*.
+dos pontos, ganho 60 muda 96,5%.
+
+☠️ **E ELE NÃO BASTA: A MÉTRICA É PARTE DA HIPÓTESE.** O mesmo dither saiu **nulo com controle
+fechado** e a refutação errada quase foi escrita. A medida varria a faixa clara INTEIRA sem isolar o
+regime em que o defeito vive — gradiente RASO —, e ali a maior parte é saturada, onde platô largo é
+sinal chato e não degrau; a cauda ficava diluída em dezenas de milhares de platôs de 1 px. Isolado o
+regime (passo local ≤ 2 LSB), o mesmo A/B dá p99 **21 → 11** e máx **160 → 42**.
+> **Antes de aceitar um nulo, pergunte se a métrica ALCANÇA o defeito.** Nulo com controle fechado é
+> a forma mais convincente de estar errado — ele traz junto a prova de que o instrumento funciona.
+
+☠️ **RECORTE COMPARADO EXIGE O MESMO RETÂNGULO, nunca o mesmo CRITÉRIO.** Dois recortes centrados
+por "centroide da área clara" caem em lugares diferentes quando o tratamento muda a área clara — e a
+diferença de conteúdo lê como artefato. Foi assim que uma "aresta reta" virou pista de bloom por uma
+sessão inteira.
+
+⚠️ **Passa-alta amplificado mostra contorno em QUALQUER gradiente de 8 bits** — é o piso do formato,
+não defeito. Ele serve para ACHAR onde a banda mora, nunca para julgar se ainda há banda.
 
 ⚠️ **A aba do MCP costuma ser uma aba de FUNDO** — `document.hidden` fica `true` mesmo com o Chrome em
 foco, e `renderCost`/`pixels()` devolvem zeros do nascimento. Pior: **cada `Bash` que você roda tira o
