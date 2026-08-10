@@ -220,6 +220,26 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const ancoraDoDocumento = criarAncoraDeDocumento(() =>
     document.querySelector('.widget[data-panel-surface][data-widget="fs-content"]')
   );
+  /*
+   * ☠️ **A faixa é o PALCO, não a janela — e os trilhos são MEDIDOS a cada quadro.**
+   *
+   * Preso à janela inteira, o leitor encostava sobre o trilho direito e ficava por cima do
+   * CONTEXTO. `.surface` tem `pointer-events: auto` e `z-index: 8`, então ele não só tapava: ROUBAVA
+   * o clique dos botões de marca — "impede o uso", que é pior que "atrapalha a leitura".
+   *
+   * ⚠️ Medido, nunca presumido: abaixo de 900 px os trilhos somem por media query, e um recuo
+   * cravado comeria palco onde não há trilho. Sem trilho, a faixa volta a ser a janela.
+   */
+  ancoraDoDocumento.medirPor((larguraPx) => {
+    const caixa = (lado) => {
+      const n = document.querySelector(`[data-slot="${lado}"]`);
+      const r = n?.getBoundingClientRect();
+      return r && r.width > 0 ? r : null;
+    };
+    const e = caixa('left');
+    const d = caixa('right');
+    return { inicio: e ? e.right : 0, fim: d ? d.left : larguraPx };
+  });
   /* Reusados por quadro — alocar `Vector3` no laço é lixo por quadro, como o resto da cena faz. */
   const ndcDoFoco = new THREE.Vector3();
   const limboDoHorizonte = new THREE.Vector3();
@@ -487,6 +507,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    */
   const station = createStation();
   const asteroide = createAsteroide();
+
+  /*
+   * ☠️ **A MARCA chega à cena INJETADA, e é a lei de dependência que obriga.** O estado dela vive no
+   * `prefs` que a HUD instala, e *"a seta é de mão única — nada em `space/` importa a interface"*.
+   * Então `main.js` entrega a consulta, e este módulo só a chama.
+   *
+   * ⚠️ **A VERSÃO existe porque o parâmetro da pele é CACHEADO por corpo em foco.** Sem ela, marcar
+   * um corpo que já está travado não trocaria nada na tela até o operador sair e voltar — a escolha
+   * valeria e a tela não diria.
+   */
+  let consultarMarca = () => null;
+  let versaoDaMarca = 0;
   const comet = createComet();
   const pulsar = createPulsar();
   const nebula = createNebula();
@@ -2548,15 +2580,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const MORFOLOGICAS = [SUPERFICIE.ESTACAO, SUPERFICIE.COMETA, SUPERFICIE.PULSAR, SUPERFICIE.NEBULOSA, SUPERFICIE.ASTEROIDE];
     if (pouso && MORFOLOGICAS.includes(decisao.surface)) {
       const cor = graph.kindColor(pouso.node.kind);
-      if (focusedNode !== morphSource) {
-        morphSource = focusedNode;
+      const chaveDaPele = `${focusedNode}|${versaoDaMarca}`;
+      if (chaveDaPele !== morphSource) {
+        morphSource = chaveDaPele;
         morphParams = {
           [SUPERFICIE.ESTACAO]: () => stationParams(pouso.node, cor),
           [SUPERFICIE.COMETA]: () => cometParams(pouso.node, cor),
           [SUPERFICIE.PULSAR]: () => pulsarParams(pouso.node, cor),
           [SUPERFICIE.NEBULOSA]: () => nebulaParams(pouso.node, cor),
           // A rocha não usa COR do kind: a pele dela é textura, e a cor viria por cima dela.
-          [SUPERFICIE.ASTEROIDE]: () => asteroideParams(pouso.node.id, hash01),
+          [SUPERFICIE.ASTEROIDE]: () => asteroideParams(pouso.node.id, hash01, consultarMarca(pouso.node)),
         }[decisao.surface]();
       }
       for (const pele of [station.object, comet.object, pulsar.object, nebula.object, asteroide.object]) {
@@ -3639,6 +3672,21 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * candidatos a autor — o fresnel na superfície e a casca aditiva — são cortados pelo MESMO
      * `params.atmosphere`. Sem separá-los, "é a atmosfera" é tudo o que se consegue dizer.
      */
+    /**
+     * Liga a consulta da MARCA — `(node) => arquivoDeTextura | null`.
+     *
+     * ⭑ Chamada de novo a cada mudança de marca: cada chamada BUMPA a versão, e é ela que invalida
+     * o parâmetro cacheado do corpo em foco. Sem isso, marcar um corpo já travado não trocaria a
+     * pele até o operador sair e voltar.
+     *
+     * ⚠️ `null` religa o padrão (o hash), e não apaga a pele: um céu sem guardador de favoritos
+     * continua desenhando rocha, só que sem escolha de ninguém.
+     */
+    declararMarcas(consultar) {
+      consultarMarca = typeof consultar === 'function' ? consultar : () => null;
+      versaoDaMarca += 1;
+    },
+
     skinTerms: (ajuste) => planet.termos(ajuste),
 
     /**

@@ -69,9 +69,23 @@ const BASE_TEXTURA = '/assets/textures/';
  * @param {string} id       identidade estável do corpo (`node.id` ou `source`)
  * @param {(t:string,s?:number)=>number} hash  o MESMO `hash01` do resto da cena
  */
-export function asteroideParams(id, hash) {
+export function asteroideParams(id, hash, arquivoEscolhido = null) {
   const malha = MALHAS[Math.floor(hash(id, 91) * MALHAS.length) % MALHAS.length];
-  const pele = PELES[Math.floor(hash(id, 97) * PELES.length) % PELES.length];
+  /*
+   * ⭑ **A ESCOLHA do operador vence o hash, e o hash é o PADRÃO — nunca o contrário.**
+   *
+   * O hash existe para o céu ter variedade sem ninguém decidir nada; a marca existe para alguém
+   * decidir. Quando as duas respondem, quem decidiu ganha — é a mesma precedência de `pedirFoco`
+   * (pedido vence memória).
+   *
+   * ⚠️ **A escolha é CONFERIDA contra o catálogo**, e não aceita crua: `PELES` é derivada de
+   * `APARENCIAS[ROCHOSO]`, então um arquivo de fora dela seria uma pele que este contexto não
+   * aceita chegando pela porta dos fundos. Fora do catálogo, o hash responde.
+   */
+  const pedida = arquivoEscolhido ? arquivoEscolhido.replace('assets/textures/', '') : null;
+  const pele = pedida && PELES.includes(pedida)
+    ? pedida
+    : PELES[Math.floor(hash(id, 97) * PELES.length) % PELES.length];
   return {
     malha,
     pele,

@@ -650,6 +650,21 @@ async function main() {
    * ninguém está olhando para descobrir o motivo.
    */
   favoritos.instalarFavoritos(prefs);
+
+  /*
+   * ⭑ **A MARCA chegando ao PIXEL, e este é o único lugar em que os dois lados se encontram.**
+   *
+   * O estado da escolha vive no `prefs` que a HUD acabou de instalar; a cena desenha. A lei de
+   * dependência diz que *"a seta é de mão única — nada em `space/` importa a interface"*, então
+   * quem liga um no outro é aqui, injetando a consulta em vez de a cena buscá-la.
+   *
+   * ⚠️ **Religar a cada mudança não é redundância**: `declararMarcas` bumpa a versão que invalida o
+   * parâmetro cacheado do corpo em foco. Sem a religação, marcar um corpo já travado valeria no
+   * modelo e não trocaria um pixel — a escolha existiria sem a tela dizer.
+   */
+  const ligarMarcas = () => scene.declararMarcas((node) => favoritos.peleEscolhida(node));
+  ligarMarcas();
+  favoritos.aoMudar(ligarMarcas);
   const cenaSwitch = createCenaSwitch(hud, {
     scene,
     onChange: (modo) => {

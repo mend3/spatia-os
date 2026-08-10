@@ -152,6 +152,22 @@ export function leitura(node) {
   });
 }
 
+/**
+ * O ARQUIVO de textura que o operador escolheu para este corpo, ou `null`.
+ *
+ * ⭑ **É por aqui que a marca alcança o PIXEL.** Antes disto a escolha era gravada e nunca desenhada
+ * — parâmetro sem leitor, que é o defeito que esta base mais paga.
+ *
+ * ☠️ **Só `MARCADA` devolve arquivo, e `DEGRADADA` não.** Degradada é o caso em que a escolha vale
+ * mas o arquivo NÃO está em disco: devolver o caminho ali faria a cena pedir uma textura ausente e
+ * desenhar preto, quando o certo é a pele procedural seguir no lugar — que é o que o próprio motivo
+ * da degradação promete ao operador.
+ */
+export function peleEscolhida(node) {
+  const l = leitura(node);
+  return l?.estado === ESTADO.MARCADA ? l.arquivo : null;
+}
+
 /** MARCA ou DESMARCA. Devolve `{ok, erro}` — a recusa do modelo é texto de tela, não exceção solta. */
 export function alternar(node) {
   const atual = leitura(node);
