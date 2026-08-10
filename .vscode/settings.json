@@ -2,7 +2,7 @@
 //
 // ☠️ **O conflito NÃO é prettier × tsc** — o `tsc` deste repo roda com `noEmit` e não escreve uma
 // linha. É prettier × o formatador EMBUTIDO do VS Code, que também formata JS e disputa o mesmo
-// `onSave`. Por isso `javascript.format.enable` é `false`: existe UM formatador.
+// `onSave`. Por isso `js/ts.format.enable` é `false`: existe UM formatador.
 //
 // ☠️ **E `formatOnSave` inteiro reformataria arquivo inteiro no primeiro toque.** Medido: prettier
 // mudaria **78 dos 111** arquivos de `src/`, então salvar um ajuste de uma linha produziria um diff
@@ -21,9 +21,11 @@
   // save é risco sem ganho.
   "[html]": { "editor.formatOnSave": false },
 
-  // Os formatadores embutidos, desligados — é o que impede dois donos do mesmo save.
-  "javascript.format.enable": false,
-  "typescript.format.enable": false,
+  // O formatador embutido, desligado — é o que impede dois donos do mesmo save.
+  // ⚠️ Chave `js/ts.*`: as antigas `javascript.format.enable`/`typescript.format.enable` estão
+  // DEPRECIADAS e as duas foram fundidas nesta. Manter as velhas deixaria o aviso do editor de pé
+  // sobre uma configuração que ainda funciona — ruído que ensina a ignorar aviso.
+  "js/ts.format.enable": false,
   // Só formata onde há `.prettierrc`; sem isto o prettier aplica os padrões dele em qualquer
   // arquivo aberto, inclusive fora deste repo.
   "prettier.requireConfig": true,
@@ -31,8 +33,8 @@
   // ─────────────────────────────────────────────────────────────── tipos: só DIAGNÓSTICO
   // O `tsconfig.json` já liga `checkJs`; isto vale para arquivo aberto fora dele.
   "js/ts.implicitProjectConfig.checkJs": true,
-  "javascript.preferences.quoteStyle": "single",
-  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  "js/ts.preferences.quoteStyle": "single",
+  "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
 
   // ⚠️ `endOfLine: "lf"` no `.prettierrc` só vale para o que o prettier escreve; isto vale para
   // arquivo NOVO, e as duas discordando é como um `\r\n` entra num repo de `\n`.
