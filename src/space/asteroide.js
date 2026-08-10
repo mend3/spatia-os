@@ -151,11 +151,25 @@ export function criarAsteroide(params, raio = 1) {
 
   geometriaDe(params.malha.arquivo)
     .then((geometria) => {
+      /*
+       * ☠️ **`DoubleSide`, e é a CONCAVIDADE que obriga.** Estas são formas de levantamento real, e
+       * várias são profundamente côncavas — `216-kleopatra` é um binário de CONTATO, um osso com
+       * cintura estreita. Com face única, a linha de visada entra pela cintura e sai do outro lado:
+       * a parede interna oposta é traseira, é descartada, e o que aparece é o FUNDO. Lê-se como
+       * "estou vendo dentro do asteroide", e o ângulo decide quando acontece.
+       *
+       * ⚠️ **Não é corte do plano near** — medido no corpo travado: raio de mundo 0,1432, câmera a
+       * 0,4869, folga de 0,3437. A câmera está fora, e bem fora.
+       *
+       * ⚠️ O custo é desenhar as faces internas quando elas aparecem; numa malha opaca e fechada
+       * elas quase nunca ficam visíveis, e onde ficam é precisamente onde a face única falhava.
+       */
       const material = new THREE.MeshStandardMaterial({
         map: texturaDe(params.pele),
         roughness: params.aspereza,
         metalness: 0.04,
         flatShading: true,
+        side: THREE.DoubleSide,
       });
       const malha = new THREE.Mesh(geometria, material);
       const { grupo: normalizado, raioOriginal, fator } = normalizar(malha, raio);
@@ -180,29 +194,32 @@ export const LOD_FAR_PX = 26;
 export const LOD_NEAR_PX = 110;
 
 /**
- * Quanto do raio de referência a rocha preenche com CORPO — **o MÍNIMO das oito, medido.**
+ * ☠️ **ZERO — porque nenhuma ESFERA representa um corpo irregular.**
  *
- * A normalização põe a esfera de raio 1 circunscrevendo a CAIXA, então nenhuma malha ultrapassa o
- * raio; o quanto ela preenche varia com a forma. Medido em 2026-08-10, vértice mais distante sobre
- * o raio de referência:
+ * `BODY_SPAN` tem dois leitores, e os dois pedem a mesma resposta aqui:
  *
- * | malha | preenche | | malha | preenche |
+ * 1. `keepsCrown` (`lod.js`) decide se o sprite mantém a coroa. Zero < `CROWN_FLOOR` (0,8), então
+ *    o sprite **cede inteiro** e a rocha fica sozinha — que é o certo: ela é opaca e completa.
+ * 2. `universe.cederParaVarios` usa este número como o raio do NÚCLEO — a esfera que fica sob a
+ *    pele desenhada. Zero **some com a esfera**, e é a mesma saída da nebulosa.
+ *
+ * ⚠️ **O motivo é outro, e é medido.** A nebulosa zera porque não desenha corpo; a rocha desenha, e
+ * mesmo assim nenhuma esfera cabe sob ela. O raio INSCRITO das oito malhas (2026-08-10, maior
+ * esfera que cabe dentro, sobre o raio de referência):
+ *
+ * | malha | inscrito | | malha | inscrito |
  * |---|---|---|---|---|
- * | `101955-bennu` | **0,601** | | `4179-toutatis` | 0,851 |
- * | `6489-golevka` | 0,792 | | `1620-geographos` | 0,863 |
- * | `25143-itokawa` | 0,823 | | `8567-1996-hw1` | 0,868 |
- * | `4486-mithra` | 0,828 | | `216-kleopatra` | 0,877 |
+ * | `216-kleopatra` | **0,124** | | `4179-toutatis` | 0,245 |
+ * | `25143-itokawa` | 0,144 | | `6489-golevka` | 0,339 |
+ * | `8567-1996-hw1` | 0,184 | | `101955-bennu` | **0,475** |
+ * | `4486-mithra` | 0,196 | | `1620-geographos` | 0,213 |
  *
- * ☠️ **É o MÍNIMO, e não a média, porque `keepsCrown` é um degrau em `CROWN_FLOOR = 0,8`.** Com a
- * média (0,813) o sprite cederia para umas malhas e não para outras — o mesmo corpo mudaria de
- * composição conforme o hash, que é surpresa pura. O mínimo nunca super-declara: `BODY_SPAN` é por
- * PELE, e uma pele cujo corpo varia responde pelo menor que ela desenha.
- *
- * ⚠️ **E é isto que faz o sprite CEDER** (`0,601 < 0,8`). Declarado 1, ele mantinha a coroa e o halo
- * aditivo desenhava por cima da rocha — o corpo montava, a sonda dizia `montado: true`, e a tela
- * mostrava um brilho azul no lugar da pedra.
+ * ☠️ **Um `span` do raio MÁXIMO (0,601) fura a rocha nas partes finas** — visto na tela: a esfera
+ * azul do `universe` atravessando o meio da pedra, com a rocha aparecendo só nas bordas. E um
+ * `span` do menor inscrito (0,124) seria uma bolinha inútil. Não há valor que sirva: **uma esfera
+ * é a forma errada para descrever isto**, e a resposta honesta é não desenhar nenhuma.
  */
-export const BODY_SPAN = 0.601;
+export const BODY_SPAN = 0;
 
 /**
  * A pele de CENA — mesmo contrato das outras quatro morfológicas: `{ object, update(...) → nível }`.
