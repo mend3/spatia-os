@@ -176,7 +176,7 @@ com ou sem produtor.
 | **T-40** | A marca não tem CONSUMIDOR — nada no céu nem em lista sabe o que foi marcado | `todo` | — | — | KR2.1 |
 | **T-41** | A aferição data CINCO pontos e só TRÊS são aferidos | `todo` | — | — | KR3.1 |
 | **T-42** | `sys-about` é um segundo dono de `/api/health`, com o dobro da cadência | `todo` | — | — | KR2.1 |
-| **T-43** | A repintura da marca (`context.js`) é invariante DECLARADA sem oráculo | `todo` | — | — | KR2.4 |
+| **T-43** | A repintura da marca — ⭑ virou `lei-favoritos-ui.mjs` §11: notifica, e SOLTA | `done` | — | — | KR2.4 |
 | **T-44** | A seção FAVORITO empurra VÍNCULOS para baixo da dobra — a ordem já corrigida OLHANDO | `todo` | — | — | — |
 | **T-45** | Tom emitido sem regra que o pinte — ⚠️ eram **3 em `.row` + 2 em `.unit`**, não os «4» declarados | `done` | — | — | KR2.4 |
 | **T-46** | `spatia.hud()` — ⭑ **rodada nas 10 rotas**; as estimativas do briefing viraram medida | `done` | — | — | KR2.1 |
@@ -986,8 +986,11 @@ mesmo fato).
   do painel nomeava `bloco-04.md · PLANETA · TRAVADO` enquanto a seção FAVORITO ainda desenhava o
   texto do AGREGADO, e o `F` daquele instante marcou um `dir:`. **Reproduzido com eventos de ponteiro
   SINTÉTICOS**, que não são o gesto do operador — então isto é indício, não defeito medido. Se
-  confirmar-se com gesto real, é exatamente o que **T-43** prevê: a repintura da seção segue um sinal
-  diferente do cabeçalho, e as duas podem discordar por um quadro.
+  confirmar-se com gesto real, é a DIVERGÊNCIA ENTRE DOIS SINAIS: o cabeçalho pinta do payload de
+  `ui.links` e a seção da marca pinta de `attention.snapshot()`, e os dois podem apontar corpos
+  diferentes entre quadros.
+  ⚠️ **`lei-favoritos-ui.mjs` §11 NÃO cobre isto** — ela prova que a marca notifica e solta, que é
+  outra pergunta. Guardar a concordância exigiria uma lei sobre `attention` × `ui.links`.
   ⚠️ **Nada da marca alcança o pixel do CÉU** — a escolha é registrada e `emDisco` é `null` porque
   ninguém mediu o disco. Quem transformar `null` em medida é o carregador de textura de T-34, por
   `declararEmDisco()`.

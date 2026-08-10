@@ -87,6 +87,7 @@ export function registerContextWidget() {
        * operador clicaria em MARCAR e o painel continuaria oferecendo MARCAR: a tela contradizendo
        * um gesto que já aconteceu, que é o mesmo defeito do leitor que pedia um gesto já feito.
        * A repintura sai do `prefs`, então vale também para escrita vinda do console numa medida.
+       * `scripts/lei-favoritos-ui.mjs` §11 guarda os dois lados — o registro e o cancelamento.
        */
       const offMarca = aoMudar(() => pintar(attention.snapshot()));
 

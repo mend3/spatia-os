@@ -2,7 +2,7 @@
 /**
  * A LEI DA INTERFACE DO FAVORITO — a TELA diz que é escolha, e diz qual dos quatro estados é.
  *
- *     node scripts/lei-favoritos-ui.mjs        # sai 0 quando as nove leis valem
+ *     node scripts/lei-favoritos-ui.mjs        # sai 0 quando as onze leis valem
  *
  * A fase 1 provou o MODELO (`scripts/lei-favoritos.mjs`, 51 leis): a marca não entra em
  * `classificar()` e mora no operador. Ficou de fora a terceira condição, porque ela não é do modelo:
@@ -10,7 +10,7 @@
  * > ☠️ **um corpo com cara de Júpiter sem dizer *"você marcou"* é a única forma de isto virar
  * > mentira.** O resto da HUD publica procedência de tudo; a marca não pode ser a exceção.
  *
- * As nove leis, e o que cada uma impede:
+ * As onze leis, e o que cada uma impede:
  *
  * | § | a lei | o que ela impede |
  * |---|---|---|
@@ -23,6 +23,8 @@
  * | 7 | a tecla é única e a colisão falha no REGISTRO | atalho que existe e nunca dispara |
  * | 8 | a marca não muda a ontologia de ninguém | a condição 1, agora com a HUD no caminho |
  * | 9 | toda proibição do catálogo tem LEITOR no pixel | tabela de motivos que ninguém consulta |
+ * | 10 | marca sem carimbo de corpus é RECUSADA, com o conserto no motivo | marca que não sabe de que céu veio |
+ * | 11 | a marca REPINTA quem a desenha, e SOLTA quando ele some | o painel oferecendo MARCAR depois de marcar · ouvinte de widget destruído |
  *
  * ## Por que a RAIZ sai de `import.meta.url` e só dela
  *
@@ -542,6 +544,72 @@ const semCeu = UI.alternar(alvo);
 conferir('§10 marca sem carimbo de corpus é recusada com o conserto no motivo',
   semCeu.ok === false && String(semCeu.erro).includes('/api/graph'), JSON.stringify(semCeu));
 UI.carregarTopologia(graph);
+limpar();
+
+// ─────────────────────────────────── §11 · a marca REPINTA quem a desenha, e SOLTA quando some
+
+/*
+ * Marcar não muda o que está sob atenção: nenhum `ui.links` sai do gesto. Sem uma notificação
+ * própria, o operador clica em MARCAR e o painel continua oferecendo MARCAR — a tela contradizendo
+ * um gesto que já aconteceu.
+ *
+ * ⭑ **O caminho é UM só, e é essa a lei:** toda escrita passa por `prefs`, e `instalarFavoritos`
+ * escuta a chave. Um segundo caminho de notificação seria livre para discordar do primeiro, e o
+ * lado que não fosse chamado desenharia o estado velho sem nada acusar.
+ *
+ * ⚠️ Por isso a §11b não usa o gesto: escrita vinda do CONSOLE durante uma medida tem de repintar
+ * igual. É o caso que um evento emitido dentro de `alternar()` deixaria de fora.
+ */
+const repintou = [];
+const soltar = UI.aoMudar(() => repintou.push(1));
+const corpoDaMarca = um('planetario') || um('rochoso') || um('fotosfera');
+conferir('§11 há corpo marcável no corpus servido', Boolean(corpoDaMarca));
+
+repintou.length = 0;
+UI.alternar(corpoDaMarca);
+conferir('§11 o GESTO de marcar repinta quem desenha a marca', repintou.length === 1, `${repintou.length}`);
+
+repintou.length = 0;
+prefsFake.set(F.CHAVE_PREFS, { v: F.VERSAO, marcas: {} });
+conferir('§11 escrita EXTERNA na chave repinta igual', repintou.length === 1, `${repintou.length}`);
+
+repintou.length = 0;
+prefsFake.set('espatial.nao-e-favorito.v1', 1);
+conferir('§11 chave alheia NÃO repinta', repintou.length === 0, `${repintou.length}`);
+
+/* `null` é o `prefs` inteiro trocado — limpeza, importação, restauração. A marca some junto. */
+repintou.length = 0;
+prefsFake.set(null, null);
+conferir('§11 troca do prefs inteiro repinta', repintou.length === 1, `${repintou.length}`);
+
+/*
+ * ☠️ **O cancelamento é metade da lei, e é a metade que vaza calada.** Um widget destruído que
+ * continue na lista repinta um DOM que saiu da árvore: sem erro, sem sintoma, e a cada rota mais um.
+ */
+soltar();
+repintou.length = 0;
+prefsFake.set(F.CHAVE_PREFS, { v: F.VERSAO, marcas: {} });
+conferir('§11 o cancelamento de `aoMudar` solta o ouvinte', repintou.length === 0, `${repintou.length}`);
+
+/*
+ * A fiação do lado de quem desenha, por VARREDURA: o painel de contexto não é montável aqui (a
+ * cadeia de import dele alcança `three`), então o que se confere é que ele registra a repintura e
+ * chama o cancelamento que recebeu.
+ *
+ * ⚠️ **O nome do cancelamento sai do FONTE**, nunca cravado aqui: procurar `offMarca()` casaria o
+ * nome e não a ligação, e renomear a variável deixaria a lei verde sobre um `destroy` que não solta.
+ */
+const ctx = semProsa(src('src/apps/context.js'));
+const ligacao = ctx.match(/const\s+(\w+)\s*=\s*aoMudar\(/);
+conferir('§11 o painel de contexto registra a repintura por `aoMudar`', Boolean(ligacao),
+  'nenhum `const X = aoMudar(` em apps/context.js');
+if (ligacao) {
+  const destroy = ctx.match(/destroy:\s*\(\)\s*=>\s*\{([\s\S]*?)\}/);
+  conferir('§11 e o `destroy` chama o cancelamento que recebeu',
+    Boolean(destroy) && new RegExp(`\\b${ligacao[1]}\\(\\)`).test(destroy[1]),
+    `destroy: ${destroy ? destroy[1].trim() : 'ausente'}`);
+}
+
 limpar();
 
 // ───────────────────────────────────────────────────────── veredito
