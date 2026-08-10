@@ -105,7 +105,8 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 |---|---|
 | Os nós do céu | os arquivos agregados da coleção vetorial, com peso = nº de chunks (medido em 2026-08-07: 1.634 arquivos, 1.862 nós, 20.303 chunks) |
 | As luas | as seções de um arquivo, quando a massa dele as segura — 279 luas em 40 corpos, pela janela Roche→Hill (`src/space/orbital-zones.js`) |
-| A posição de cada nó | hash determinístico do id → órbita fixa. O mesmo conhecimento cai sempre no mesmo lugar |
+| A posição de cada nó | **raio = recência** (posto da data do último commit: recente junto ao núcleo, antigo à deriva); ângulo, inclinação e fase saem de hash determinístico do id. O mesmo conhecimento cai sempre no mesmo lugar — **nada a move**, e um oráculo prova isso perturbando o grafo |
+| O brilho de um corpo | quantos se parecem com ele (`centrality`) e quantas execuções o abriram (`usage`, com peso metade e só quando a evidência passa do piso). Sem o Neo4j materializado ele cai para a atividade sozinha, nunca para zero — apagar um corpo afirmaria periferia sobre um fato que ninguém mediu |
 | A recuperação | busca híbrida densa+BM25 fundida por RRF, ~8ms |
 | As chamadas de ferramenta | `tool_use` reais do agente, com argumentos e duração medida |
 | As citações `[n]` | apontam para o arquivo que entrou no prompt; citação sem fonte aparece riscada. Clicar numa rola a lista de fontes até a linha dela |

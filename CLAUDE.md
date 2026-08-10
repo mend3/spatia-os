@@ -359,10 +359,42 @@ escala sem `G`, sem `c`, sem quilograma. Basta a razão da CLASSE. O buraco negr
 `R_s` É a propriedade definidora dele; o pulsar porque `0,4` é o fato de uma estrela de nêutrons.
 O portão é `scripts/lente-estelar.mjs`. Detalhe e tabela: §11.2 do `replanejamento-celeste.md`.
 
-**As duas leis do Neo4j:** (1) ele muda o **BRILHO, nunca a CLASSE** — se `centrality` decidisse
-classe, um container caindo faria corpos trocarem de identidade; (2) ele **nunca está no caminho do
-quadro** (materialização → snapshot → servidor anexa → renderer lê pronto). E **`null` ≠ `0`**:
-`null` é "não medi", `0` é "medi e é periférico".
+**As duas leis do Neo4j:** (1) ele muda o **BRILHO, nunca a CLASSE nem o LUGAR** — se `centrality`
+decidisse classe, um container caindo faria corpos trocarem de identidade; (2) ele **nunca está no
+caminho do quadro** (materialização → snapshot → servidor anexa → renderer lê pronto). E
+**`null` ≠ `0`**: `null` é "não medi", `0` é "medi e é periférico".
+
+**A REGRA DA COORDENADA** — *Fenômeno pode variar a APRESENTAÇÃO; nunca a coordenada canônica de uma
+entidade.* Escrita em 09/08, e ela decide o que a metáfora astronômica pode e não pode importar.
+
+O céu tem **duas grandezas com nomes parecidos e naturezas opostas**: a POSIÇÃO CANÔNICA (`space/
+posicao-canonica.js`, módulo PURO — raio = recência, ângulo/inclinação/fase = `hash(id)`) e a POSE
+do instante, que é `f(t)`. A primeira é endereço e não muda; a segunda é o corpo percorrendo a
+órbita dela. Influência, uso, atividade e centralidade governam **brilho, ênfase, arco, emissão** —
+`universe.js:brilhoDe` é onde isso já acontece, com `centrality` a 0,9 e `usage` a 0,45 atrás do
+portão de evidência.
+
+⭑ **O que a lei protege é uma promessa de PRODUTO, não uma preferência de física:** o `README.md`
+promete *"o mesmo conhecimento cai sempre no mesmo lugar"*. Determinismo no tempo não basta — um
+corpo errante é sempre calculável e **nunca está no mesmo lugar**, e achar um arquivo onde você o
+deixou deixa de valer. Influência que desloca órbita põe o mesmo arquivo em X às 10h e em Y às 15h.
+
+☠️ **DINÂMICA ≠ INTEGRAÇÃO, e confundir as duas é o caminho curto para violar isto.** Velocidade
+variável, aceleração aparente, precessão e pulsação **já existem sem um integrador**: a lua roda a
+equação do centro truncada em `e²` (área varrida máx/mín **1,0008**), fechada no relógio da cena. A
+forma proibida é `posição[t+1] = posição[t] + v·dt`, não a física. `motion-catalog.js` diz a regra:
+*"no integration, no accumulated velocity, no internal state"*.
+
+⚠️ **Dimensão só entra no contrato de uma entidade com SUPERFÍCIE que a torne observável** — é a
+REGRA DO CATÁLOGO aplicada ao movimento. Fora de foco o céu é ponto e billboard: orientação e
+`steering` não têm onde ser desenhados, e a tentação de mostrá-los vira deslocamento, que é o item
+proibido acima.
+
+O portão é `scripts/lei-neo4j.mjs` §2 e §3 — perturbação nas três dimensões do grafo exigindo as
+seis grandezas idênticas, mais a varredura de quem as recalcularia por fora.
+☠️ **A §3 nasceu casando a MENÇÃO e passou verde sob mutação:** arrancada a chamada de dentro do
+`makeOrbit`, a linha de `import` ainda dizia o nome e o oráculo aprovou um módulo morto. **Guarda
+que casa nome atesta que o módulo é conhecido, nunca que ele é chamado.**
 
 **A REGRA DO FOCO** — *Nada deve competir com o objeto que está em foco.* Escrita em 09/08.
 A superfície não é fixa: ela segue o que o operador está FAZENDO.

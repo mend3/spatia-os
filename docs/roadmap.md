@@ -77,7 +77,7 @@ operador a não ler a tela (`ambient.py` recusa por escrito). O que a Regra dos 
 | KR3.1 | overlay recusa snapshot de outro corpus, com motivo | ⭑ **feito** (09/08) |
 | KR3.2 | grandeza que descreve corpo de uma classe é razão ancorada em limiar FIXO | ⭑ **feito no pulsar**; varrer o resto |
 | KR3.3 | nenhuma pele roteada nasce vazia | ⭑ `censo-superficies.mjs` sai 0 |
-| KR3.4 | nenhuma dimensão do grafo altera classe | ⭑ `lei-neo4j.mjs` sai 0 |
+| KR3.4 | nenhuma dimensão do grafo altera classe **nem coordenada** | ⭑ `lei-neo4j.mjs` sai 0 — §1 classe, §2 as seis grandezas de `posicao-canonica.js`, §3 o recálculo por fora |
 
 ### O4 — O que já está gravado chega à tela
 
@@ -144,7 +144,7 @@ com ou sem produtor.
 | **T-19** | Quebrar a dependência de `M_total` nas luas — RISCO DE EXPIRAÇÃO, não defeito vivo | `postponed` | — | — | — |
 | **T-20** | De onde vem a luz de um corpo em foco | `blocked` | decisão do usuário | — | — |
 | **T-21** | Marketplace × segurança — ⭑ **DECIDIDA em duas metades: LER sim, INSTALAR não** | `todo` | — | T-76, T-77 | — |
-| **T-22** | Gravidade cognitiva (uso movendo órbita) | `blocked` | decisão do usuário | — | — |
+| **T-22** | Gravidade cognitiva — ⭑ **DECIDIDA: influência governa BRILHO e ênfase, nunca a coordenada.** A metade que existia virou lei com guarda; a metade que movia órbita está RECUSADA | `done` | — | — | KR3.4 |
 | **T-23** | Agente como corpo (a ESTAÇÃO) | `blocked` | decisão do usuário | — | — |
 | **T-24** | Passo 3 — distância × pixel contra o corpus real | `todo` | — | — | — |
 | **T-25** | Licença de `assets/textures/sun.jpg` | `done` | — | — | — |
@@ -1038,6 +1038,10 @@ mesmo fato).
   portão medido em 9,7%. O `quasar-enhance` pede sete coisas e **quatro já existem**.
 - **`anexar` já é meia nave**: prende a câmera a um corpo que viaja com ele, e `scene.js` já declara
   por escrito o destino *"uma sonda 3D representando o operador"*.
+- **A influência cognitiva JÁ governa o brilho** — `universe.js:brilhoDe`, `centrality` a 0,9 e
+  `usage` a 0,45 atrás do portão de evidência, com `null` caindo para a atividade sozinha em vez de
+  para zero. Toda proposta de *"gravidade cognitiva"* / *"campo de influência"* deve começar por
+  aqui: o canal existe, e o que está RECUSADO é só o que mexe em coordenada (REGRA DA COORDENADA).
 
 ---
 
@@ -1142,8 +1146,17 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 
 1. **T-21 · Marketplace × segurança.** `OS-SCREENS.md` recusou por escrito (*"instalar app de
    terceiro nisso é entregar a máquina"*) e o `/api/health` confirma a premissa. É binário.
-2. **T-22 · Gravidade cognitiva.** Colide com a 1ª lei do Neo4j, com a FRONTEIRA, e com as **0
-   sobreposições em 17.578 pares** que uma coordenada nova pode destruir.
+2. **T-22 · Gravidade cognitiva — DECIDIDA E FECHADA (09/08): brilho e ênfase sim, coordenada não.**
+   ⭑ A metade aprovada **já existia** — `universe.js:brilhoDe` lê `centrality` a 0,9 e `usage` a
+   0,45 atrás do portão de evidência. O que a decisão acrescentou foi o GUARDA, porque a metade
+   recusada só era verdade por construção: `lei-neo4j.mjs` §2 perturba as três dimensões do grafo
+   pela `posicao-canonica.js` exigindo as seis grandezas idênticas, e a §3 fecha o recálculo por
+   fora. A regra está no `CLAUDE.md` como **A REGRA DA COORDENADA**.
+   ☠️ **A recusa não é de física, é de PRODUTO** — e o argumento que a fechou vale para toda
+   proposta futura de "dinâmica": velocidade variável e aceleração aparente **já existem sem
+   integrador** (a lua, área varrida 1,0008). Quem propuser movimento acumulativo está propondo
+   revogar *"o mesmo conhecimento cai sempre no mesmo lugar"*, e isso é uma decisão de escopo, não
+   uma consequência da astronomia.
 3. **T-23 · Agente como corpo.** É **pipeline novo, não limiar** — e há recusa por escrito em
    `modelo-de-renderizacao.md:462`: *"estação orbital, não nave"*.
 4. **T-53 · O que sobe para o MUNDO — DECIDIDA E ENTREGUE. A linha fica pelo ESCOPO**, que continua
@@ -1185,7 +1198,7 @@ Elas não são `blocked` por engenharia e **nenhum agente deve resolvê-las sozi
 | `menu-iniciar.md` | T-14, T-74, T-78 | ⚠️ o `Space` dele COLIDE com a voz (decidido: `Ctrl+K`), e o "Action Ring" é T-78, não T-14 |
 | `entrevista-usuario.md` | T-09, T-16, T-07 | ⚠️ as três estão `done` e ele **não morre**: 923 linhas, 15 expectativas, e só três tinham tarefa. Reler para extrair as próximas — **e sem confundir emitir com afirmar** (handoff §7-B) |
 | `black-hole-router.md` | — | ⚠️ o item favorito do autor (`cogload` → `setLoad`) **já existe ponta a ponta** |
-| `gravidade-entrelacamento.md` | T-12, T-22 | T-12 entregue e T-22 decidida |
+| `gravidade-entrelacamento.md` | T-12, T-22 | ⚠️ **T-22 decidida (09/08)** — falta só T-12 entregue |
 | `orbita-eliptica.md` | T-11 | ⚠️ a órbita elíptica **já está feita e medida** (área varrida máx/mín 1,0008) — resta o TRAÇO |
 | `quasar-enhance.md` | — | ⚠️ pede sete coisas e **quatro já existem** — conferir antes de implementar |
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |

@@ -137,6 +137,10 @@ no APP, à mão, em [`medidas.md`](./medidas.md).
 
 ⚠️ **As decisões que são do usuário não são `blocked` por engenharia e nenhum agente as resolve
 sozinho** — estão nomeadas no fim do `roadmap.md`.
+⭑ **Uma delas caiu em 09/08 e o resultado virou lei: a REGRA DA COORDENADA** (`CLAUDE.md`).
+Proposta de *"dinâmica de entidades"*, *"campo de influência"* ou *"gravidade cognitiva"* chega
+aqui com frequência e é meia-recusa: o canal de BRILHO já existe (`universe.js:brilhoDe`), o de
+COORDENADA está fechado com guarda. Confira a linha do T-22 antes de abrir tarefa nova.
 
 ---
 

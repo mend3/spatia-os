@@ -25,7 +25,8 @@ import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
 import { resolveBody, MODIFIER } from './solver.js';
 import { moonsOf, physicalRadius } from './orbital-zones.js';
-import { MOTION, meanMotion, rateOf } from './motion-catalog.js';
+import { MOTION, rateOf } from './motion-catalog.js';
+import { posicaoCanonica } from './posicao-canonica.js';
 import { glslFloat } from './glsl.js';
 
 const PULSE = MOTION.pulse;
@@ -60,7 +61,6 @@ export const KIND_COLORS = {
   repo: 0xffab54,
 };
 
-const SHELLS = { repo: [11, 17], dir: [19, 33], file: [26, 62] };
 const IGNITION_DECAY = 0.55;
 
 /*
@@ -924,41 +924,15 @@ export function createGraph() {
     byPath.set(source.slice(slash + 1), i);
   }
 
+  /*
+   * A posição sai de um módulo PURO, e essa é a condição de ela ser guardada.
+   *
+   * Enquanto a derivação vivia aqui dentro, "nenhum fato do grafo move um corpo" só podia ser LIDA
+   * — closure não é alcançável por oráculo. `posicao-canonica.js` a expõe, e `lei-neo4j.mjs` §2 a
+   * perturba nas três dimensões do grafo exigindo saída idêntica.
+   */
   function makeOrbit(node, i) {
-    const [min, max] = SHELLS[node.type] || SHELLS.file;
-
-    /*
-     * O RAIO É A RECÊNCIA. Recente perto do núcleo, antigo na periferia.
-     *
-     * Era hash do id: estável, e arbitrário — a geometria não dizia nada. Agora o servidor
-     * manda `recency` (posição no ranking da data do último commit) e a distância ao centro
-     * passa a informar quanto conhecimento é mais novo que aquele.
-     *
-     * A direção não é escolha estética: o briefing define que memória nova CAI em direção ao
-     * buraco negro. Recente junto ao fogo, antigo à deriva.
-     *
-     * O hash continua governando ângulo e inclinação, que é o que mantém a posição estável
-     * entre sessões e espalhada no anel.
-     */
-    const recency = typeof node.recency === 'number' ? node.recency : 0.5;
-    const radius = min + (1 - recency) * (max - min);
-    return {
-      ...node,
-      // Grava a recência RESOLVIDA (com o fallback já aplicado) no nó, e é ela que alimenta o
-      // atributo do shader. Recalcular o fallback num segundo lugar é como raio e janela
-      // passariam a discordar sem que nada acusasse.
-      recency,
-      radius,
-      // Inclinação enviesada para o plano do disco: céu esférico perfeito perde a leitura
-      // de "galáxia", que é o que a referência mostra.
-      inclination: (hash01(node.id, 2) - 0.5) * Math.PI * 0.55,
-      phase: hash01(node.id, 3) * Math.PI * 2,
-      // `sqrt(GM/r³)` — a mesma função que dá o movimento médio das luas, com o mesmo `GM`. Era
-      // `(r/26)^-1.5 · 0.16` aqui e `0.16² · 26³` lá, duas escritas da mesma constante.
-      speed: meanMotion(radius),
-      wobble: hash01(node.id, 4),
-      i,
-    };
+    return { ...node, ...posicaoCanonica(node, hash01), i };
   }
 
   function advance(elapsed) {
