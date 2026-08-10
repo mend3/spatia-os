@@ -214,6 +214,25 @@ com ou sem produtor.
 | **T-92** | A roda lia o SINAL do `deltaY` e descartava a magnitude — passo por EVENTO, não por gesto | `done` | — | T-93 | KR2.2 |
 | **T-93** | O fundo era quad em espaço de RECORTE — imune ao zoom por construção | `done` | T-92 | T-94 | KR2.2 |
 | **T-94** | O fundo vira UM toggle, e a casca ganha o mapa estelar com névoa | `done` | T-93 | — | KR2.2 |
+| **T-95** | Varrer os 25 guardas que leem fonte: quais afirmam COMPORTAMENTO e quais afirmam GRAFIA | `todo` | — | — | KR2.4 |
+
+- **T-95** — ☠️ **GUARDA QUE CASA GRAFIA ATESTA TEXTO, e falha para os DOIS lados.** A §1 de
+  `lei-fundo.mjs` exigia `projectionMatrix * modelViewMatrix` literal e **reprovou código certo** no
+  instante em que o vértice passou a guardar a posição de vista numa variável — que era exatamente o
+  que a névoa precisava. O falso positivo é o barato: ele acusa e alguém olha. ⚠️ **O caro é o falso
+  NEGATIVO** — a mesma fragilidade aprova comportamento trocado desde que a grafia sobreviva, e aí o
+  guarda é teste verde.
+  ⭑ **O denominador está medido:** **274 casamentos de fonte** (`.test` · `.match` · `.exec`) em
+  **25 guardas** que leem fonte, contados em 2026-08-10 por
+  `grep -ohE '\.test\(|\.match\(|\.exec\(' scripts/*.mjs`. A varredura NÃO é reescrever os 274:
+  é classificar cada um em CHAMADA/VALOR (afirma comportamento) ou EXPRESSÃO/ARRANJO (afirma texto),
+  e só o segundo grupo pede conserto.
+  ⚠️ **A régua já existe nesta base e é a mesma da armadilha do módulo morto:** a linha de `import`
+  sobrevive à remoção da chamada. Casar NOME atesta que o módulo é conhecido, nunca que ele é
+  chamado — e casar EXPRESSÃO atesta que o autor escreveu daquele jeito, nunca que a conta é aquela.
+  ⭑ **Cada correção se prova do mesmo modo que a encontrou: MUTAÇÃO.** Reescreva o trecho guardado
+  preservando o comportamento e mudando a grafia; guarda que reprovar ali é o que esta tarefa
+  procura.
 
 - **T-94** — ⭑ **UM CONTROLE, e o resto do fundo virou geometria.** Rotação entre placas, tempo no
   ar, fusão cruzada e resolução eram quatro perguntas para uma decisão de duas respostas: com fundo,
@@ -251,11 +270,10 @@ com ou sem produtor.
   ⚠️ **O RAIO é a AMPLITUDE, nunca a ordem de desenho:** `depthTest: false` + `renderOrder` mínimo já
   garantem que tudo tapa as cascas, o que libera o raio para ser escolhido pela paralaxe.
   ⚠️ **E o limite da degradação se mede contra o alcance REAL da câmera** — `ZOOM_RANGE.max` (260)
-  MAIS a âncora dos sistemas (o universo cabe em ±41,6) dá ~302, e o limite é 342. Ler só o 260
-  faria as cascas escorregarem dentro do gesto normal, matando o efeito onde ele é mais forte.
-  ⭑ Cada imagem na projeção que ela É: as placas do Webb são fotos 16:9 e vão numa JANELA de
-  longitude/latitude com borda dissolvida (esticá-las na esfera borraria os polos); `stars.jpg` é
-  2048×1024, razão 2:1 — equirretangular, e vai na esfera inteira.
+  MAIS a âncora dos sistemas (o universo cabe em ±41,6) dá ~302. Ler só o 260 faz a casca escorregar
+  dentro do gesto normal, matando o efeito onde ele é mais forte.
+  ⭑ **Cada imagem entra na projeção que ela É** — mapa equirretangular (razão 2:1) cobre a esfera
+  inteira; foto 16:9 exige janela de longitude/latitude, porque esticá-la na esfera borra os polos.
   **Custo medido em 2026-08-10** (UNIVERSO, mesma pose, 3 repetições por versão): o passe de cena vai
   de **0,475 ms** para **0,651 ms**; o quadro com a cadeia não piora, porque o pós é por PIXEL e
   casca não muda contagem de pixel. O guarda é `scripts/lei-fundo.mjs`.

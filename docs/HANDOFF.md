@@ -83,8 +83,8 @@ exige rodar o script de novo**. `make conceitos` fica de fora: é inferência, n
 
 ☠️ **`sky.backdrop` nasce `false`** (`core/prefs.js`), então num perfil novo o céu não tem fundo e
 qualquer medida sobre ele mede o preto — a foto disso é idêntica à de um fundo quebrado. A
-testemunha é de REDE (`stars.jpg` **e** a placa do momento em `getEntriesByType('resource')`), e o
-resto da armadilha está em [`armadilhas.md`](./armadilhas.md) §A.
+testemunha é de REDE (`stars.jpg` em `getEntriesByType('resource')`), e o resto da armadilha está em
+[`armadilhas.md`](./armadilhas.md) §A.
 
 ☠️ **Antes de medir qualquer coisa na tela, leia
 [`armadilhas.md`](./armadilhas.md) §A.** As duas guardas de ambiente (`document.hidden` **e**
@@ -99,15 +99,20 @@ falso nesta base.
 **Branch `main`.** Status de tarefa vive no [`roadmap.md`](./roadmap.md); esta seção é só a ORDEM, e
 ela é por dívida de MODELO, não por tamanho.
 
-1. **T-71** — a REGRA DO FOCO no pixel. A régua de altura já existe (T-72), e a ordem por ganho tem
+1. **T-95** — a varredura de GRAFIA nos guardas, e ela vem primeiro por ser dívida de
+   INSTRUMENTO. Todo número que este arquivo manda medir sai de um guarda; um que afirme sobre
+   texto em vez de comportamento aprova comportamento trocado desde que a grafia sobreviva, e aí
+   ele é teste verde. **274 casamentos de fonte em 25 guardas** — o trabalho é classificar, não
+   reescrever. ⭑ É barata e destrava confiança em tudo o que vem depois.
+2. **T-71** — a REGRA DO FOCO no pixel. A régua de altura já existe (T-72), e a ordem por ganho tem
    dois apoios que concordam: `journal` é a rota mais pesada em GLIFO **e** a fenda mais pressionada
    em ALTURA.
-2. **T-14, o launcher** — a medida que faltava está feita: ele leva vidro de **CSS**, e vidro 3D
+3. **T-14, o launcher** — a medida que faltava está feita: ele leva vidro de **CSS**, e vidro 3D
    está recusado por aritmética sobre o orçamento do quadro. A tecla é `Ctrl+K` (decidida — `Space`
    já é da voz), e a camada `launcher` só precisa ser registrada em `core/tela.js`.
-3. **T-80** — o inspector tem três estados e ganha AÇÕES. ⚠️ Quais ações existem depende de T-78,
+4. **T-80** — o inspector tem três estados e ganha AÇÕES. ⚠️ Quais ações existem depende de T-78,
    que é decisão sua; os TRÊS ESTADOS não dependem.
-4. **T-26** — a granulação do anel: as quatro candidatas estão prontas em `sandbox/ring-variants.js`
+5. **T-26** — a granulação do anel: as quatro candidatas estão prontas em `sandbox/ring-variants.js`
    e **falta o número** — a comparação a 25 px foi feita a olho, sem timer de GPU.
 
 ⚠️ **T-90 e T-91 (o cometa) estão FORA da ordem acima e nascem triadas** — o briefing
