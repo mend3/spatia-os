@@ -32,7 +32,6 @@
 import { emit, on } from './bus.js';
 
 const INITIAL = Object.freeze({
-  /* ⚠️ **`route` NÃO entra aqui** — quem guarda a rota é `core/tela.js`. Ver o bloco em `install`. */
   /** Corpo orbital em foco, quando dentro de um app. */
   focusedBody: null,
   /** Painéis abertos, do mais antigo ao mais recente — a MESMA ordem LIFO do `hud/surface.js`. */
@@ -94,13 +93,9 @@ export function install() {
   }
 
   /*
-   * ☠️ **A ROTA NÃO MORA AQUI, e a segunda cópia dela era pior que a ausência.**
-   *
-   * Este módulo guardava um `route` lido do HASH CRU, enquanto `core/tela.js` guarda a que o
-   * KERNEL resolveu — e as duas **divergiam em 7 de 12 endereços** (sub-rota, app inexistente,
-   * caixa e escape), medido recortando os dois decodificadores. O campo não tinha um único leitor
-   * em `src/`: quem o lesse por engano acertaria em 5 endereços e erraria nos outros 7, sem nada
-   * acusar. Quem responde *"que rota está aberta"* é `spatia.tela()`.
+   * A rota não entra neste estado: quem a decodifica é o kernel e quem a guarda é `core/tela.js`.
+   * Um segundo decodificador aqui leria o hash CRU e discordaria dele em sub-rota, app inexistente,
+   * caixa e escape. `scripts/lei-tela.mjs` §7 recusa.
    */
   on('ui.open-app', ({ id }) => commit({ focusedBody: id }));
   on('ui.state-changed', () => commit({}));

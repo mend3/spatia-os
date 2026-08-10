@@ -9,12 +9,12 @@
  *
  * ## Por que ela é um módulo, e não quinze linhas dentro do `makeOrbit`
  *
- * A garantia do `README.md` é *"o mesmo conhecimento cai sempre no mesmo lugar"*, e o
- * `modelo-de-renderizacao.md` explica por que ela é mais forte que determinismo no tempo: um corpo
- * errante é sempre calculável e **nunca está no mesmo lugar**, então achar um arquivo onde você o
- * deixou deixa de valer. Enquanto a derivação morava numa closure, essa garantia não tinha como ser
- * PROVADA — só lida. Declarar uma invariante não a implementa, e esta base já pagou cinco vezes
- * por isso.
+ * A garantia do `README.md` é *"o mesmo conhecimento cai sempre no mesmo lugar"*, e ela é mais
+ * forte que determinismo no tempo: um corpo errante é sempre calculável e **nunca está no mesmo
+ * lugar**, então achar um arquivo onde você o deixou deixa de valer.
+ *
+ * Derivação dentro de uma closure é legível e não é PROVÁVEL — nenhum oráculo a alcança. Exposta
+ * aqui, ela é perturbável, e declarar a invariante passa a implementá-la.
  *
  * ## O que entra aqui, e o que é recusa por construção
  *

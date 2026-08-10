@@ -6,24 +6,18 @@
  *
  * ## Por que ele existe
  *
- * Tom é um par: alguém EMITE e alguma regra PINTA. Enquanto as duas metades viviam separadas — o
- * emissor no `main.js`, a regra no `index.html` — elas puderam divergir sem que nada acusasse, e
- * divergiram: `streams.note(…, 'warn')` desenhava `class="row warn"` e **não havia `.row.warn` no
- * CSS**. A linha saía na cor padrão, indistinguível de uma linha comum.
+ * Tom é um PAR: alguém emite e alguma regra pinta. Com o emissor no JS e a regra no CSS, as duas
+ * metades divergem sem que nada acuse — e a divergência não é um erro. Nada quebra, nada avisa: a
+ * tela apenas DEIXA DE AFIRMAR o que o código afirmou, na cor de uma linha comum.
  *
- * ☠️ **O que torna esse defeito invisível é ele não ser um erro:** nada quebra, nada avisa, e a
- * tela apenas DEIXA DE AFIRMAR o que o código acha que afirmou. É o modo de falha característico
- * desta base.
- *
- * ⭑ **A prova de que era assimetria, e não gosto:** `anunciar()` (`main.js`) manda o MESMO texto e
- * o MESMO tom para duas superfícies — `boot.disco` e `streams.note`. O boot tinha
- * `.boot-line.warn`; a timeline não tinha `.row.warn`. Mesmo fato, mesma palavra, uma superfície
- * pintando e a outra não.
+ * ⚠️ **Um tom vale para TODA superfície que o aceita.** `anunciar()` (`main.js`) manda o mesmo
+ * texto e o mesmo tom para `boot.disco` e `streams.note`: família que não o pinte faz o mesmo fato
+ * aparecer numa tela e sumir na outra.
  *
  * ## Como se acrescenta um tom
  *
- * Entrada nova aqui **e** regra no CSS de toda família que o aceita. O oráculo recusa os dois
- * sentidos: tom declarado sem regra (a tela cala) e regra sem tom declarado (CSS morto).
+ * Entrada nova aqui **e** regra no CSS de toda família que o aceita. `scripts/lei-tom.mjs` recusa
+ * os dois sentidos: tom declarado sem regra (a tela cala) e regra sem tom declarado (CSS morto).
  */
 
 /**

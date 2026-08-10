@@ -392,9 +392,9 @@ proibido acima.
 
 O portão é `scripts/lei-neo4j.mjs` §2 e §3 — perturbação nas três dimensões do grafo exigindo as
 seis grandezas idênticas, mais a varredura de quem as recalcularia por fora.
-☠️ **A §3 nasceu casando a MENÇÃO e passou verde sob mutação:** arrancada a chamada de dentro do
-`makeOrbit`, a linha de `import` ainda dizia o nome e o oráculo aprovou um módulo morto. **Guarda
-que casa nome atesta que o módulo é conhecido, nunca que ele é chamado.**
+☠️ **Guarda que casa NOME atesta que o módulo é conhecido, nunca que ele é chamado** — a linha de
+`import` sobrevive à remoção da chamada, e o oráculo aprova um módulo morto. Vale para todo guarda
+que varre fonte: a régua é a CHAMADA, e as importações saem antes da varredura.
 
 **A REGRA DO FOCO** — *Nada deve competir com o objeto que está em foco.* Escrita em 09/08.
 A superfície não é fixa: ela segue o que o operador está FAZENDO.

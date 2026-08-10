@@ -181,11 +181,8 @@ console.log(`\x1b[32m✓ a coordenada é surda ao grafo\x1b[0m  as seis grandeza
  *
  * São três perguntas, e as três falham para o lado seguro.
  *
- * ☠️ **A primeira nasceu casando a MENÇÃO, e a mutação a passou verde.** Arrancado o
- * `posicaoCanonica(node, hash01)` de dentro do `makeOrbit` e trocado por seis literais, o oráculo
- * continuou aprovando: a linha de `import` ainda dizia o nome. Guarda que casa nome atesta que o
- * módulo é CONHECIDO, nunca que ele é CHAMADO — e o módulo morto era exatamente o cenário. As
- * linhas de importação saem antes da varredura, e a régua é a CHAMADA.
+ * ☠️ **A régua é a CHAMADA, nunca a menção.** A linha de `import` cita `posicaoCanonica` mesmo com
+ * o `makeOrbit` trocado por seis literais, então as importações saem antes da varredura.
  *
  * ⚠️ **A segunda é o outro lado da mesma fuga:** delegar E recalcular ao lado. As cinco grandezas
  * DERIVADAS não podem ser escritas como chave de objeto no dono. `recency` fica fora da lista de

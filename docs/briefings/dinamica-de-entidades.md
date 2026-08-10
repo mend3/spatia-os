@@ -110,10 +110,8 @@ A decisão do usuário (09/08) fechou **T-22** em duas metades:
 O que foi construído é o guarda, e a regra virou **A REGRA DA COORDENADA** no `CLAUDE.md`:
 `space/posicao-canonica.js` (puro) + `lei-neo4j.mjs` §2 e §3.
 
-⚠️ **A refutação que fica, porque custa caro reaprendê-la:** a §3 nasceu casando a MENÇÃO de
-`posicaoCanonica` e passou VERDE sob mutação — arrancada a chamada, a linha de `import` ainda dizia
-o nome e o oráculo aprovou um módulo morto. Guarda que casa nome atesta que o módulo é CONHECIDO,
-nunca que ele é CHAMADO.
+⚠️ A armadilha que escrever esse guarda revelou vale para todo oráculo que varre fonte, e mora no
+`CLAUDE.md` junto da regra.
 
 ---
 
@@ -151,14 +149,12 @@ há dois corpos a acoplar.
 
 ### ~~T-88 · Os consumidores de influência~~ — ARQUIVADA, já estava respondida
 
-☠️ **Esta tarefa não devia ter sido aberta, e o motivo interessa mais que ela.** O `roadmap.md` já
-trazia a resposta escrita quando o briefing a propôs: `connectivity` no pixel seria **segunda
-codificação do mesmo fato** — o alcance é o número que os arcos já desenham. E `usage` no brilho,
-que ela dava como pendente, foi entregue desde então.
+O `roadmap.md` já traz a resposta: `connectivity` no pixel é **segunda codificação do mesmo fato** —
+o alcance é o número que os arcos desenham. E `usage` no brilho, que esta linha dava como pendente,
+tem consumidor (`universe.js:brilhoDe`).
 
-⭑ **A lição fica:** um roadmap de 1.200 linhas responde perguntas que ninguém procura nele. Antes de
-abrir tarefa, o `grep` é no roadmap — as seções *"o que já está PRONTO"* e *"o que está REFUTADO"*
-existem exatamente para isso.
+☠️ **Antes de abrir tarefa a partir deste briefing, o `grep` é no roadmap** — *"o que já está
+PRONTO"* e *"o que está REFUTADO"* respondem sozinhas boa parte do que ele propõe.
 
 ⚠️ O princípio que a motivava continua valendo e está no §3: dimensão sem superfície que a torne
 observável não ganha campo.

@@ -925,11 +925,9 @@ export function createGraph() {
   }
 
   /*
-   * A posição sai de um módulo PURO, e essa é a condição de ela ser guardada.
-   *
-   * Enquanto a derivação vivia aqui dentro, "nenhum fato do grafo move um corpo" só podia ser LIDA
-   * — closure não é alcançável por oráculo. `posicao-canonica.js` a expõe, e `lei-neo4j.mjs` §2 a
-   * perturba nas três dimensões do grafo exigindo saída idêntica.
+   * A posição mora num módulo PURO porque derivação em closure não é alcançável por oráculo:
+   * `lei-neo4j.mjs` §2 perturba `posicaoCanonica` nas três dimensões do grafo e exige saída
+   * idêntica, o que exige poder chamá-la de fora da cena.
    */
   function makeOrbit(node, i) {
     return { ...node, ...posicaoCanonica(node, hash01), i };

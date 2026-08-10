@@ -6,13 +6,11 @@
  *
  * ## Por que ele existe
  *
- * `streams.note(…, 'warn')` desenhava `class="row warn"` e **não havia `.row.warn` no CSS**. A
- * linha saía na cor padrão — três emissores afirmando "isto degradou" numa tela que não dizia nada.
+ * Tom emitido sem regra que o pinte não levanta erro nem aviso: a linha sai na cor de corpo e a
+ * tela apenas DEIXA DE AFIRMAR o que o código afirmou. Sem executável, a metade que falta não é a
+ * que alguém procura.
  *
- * ☠️ **Nada quebrava.** Sem erro, sem aviso: a tela apenas DEIXAVA DE AFIRMAR. É o modo de falha
- * característico desta base, e é por isso que a metade que falta nunca é a que alguém procura.
- *
- * ## As duas perguntas, e por que são duas
+ * ## As três perguntas
  *
  * | § | a pergunta | o que a ausência significa |
  * |---|---|---|
@@ -22,12 +20,9 @@
  * ⚠️ **A §2 não é simetria decorativa.** Regra sem emissor é exatamente como um leitor conclui que
  * uma feição está implementada: ele vê o seletor no CSS e para de procurar.
  *
- * ## §3 — e o tom que ninguém declarou
+ * | 3 | algum literal de tom foge do vocabulário? | tom inventado num call site — as §§1 e 2 não o veem, porque não há regra a faltar quando não há tom declarado |
  *
- * O vocabulário mora em `src/hud/tons.js`. A §3 varre o `src/` atrás de literal de tom que não
- * conste dele: um `note(…, 'urgente')` inventado num call site passaria pelas duas primeiras
- * perguntas — não há regra a faltar porque não há tom declarado — e sairia na cor padrão pelo
- * mesmo caminho do defeito original.
+ * O vocabulário mora em `src/hud/tons.js`.
  */
 import { readFile } from 'node:fs/promises';
 import { readdir } from 'node:fs/promises';
@@ -104,8 +99,11 @@ if (mortas.length) {
 // ───────────────────────────────────────────────────────────── §3 · o tom que ninguém declarou
 console.log(`\n${C.forte}§3 — nenhum tom fora do vocabulário${C.fim}`);
 /*
- * Os três portões por onde um tom chega a uma linha. `note` é a porta pública (`main.js` a usa em
- * dez lugares); `tone:`/`tom:` são as chaves com que `stamp` e `pintarFio` o recebem.
+ * Os portões por onde um tom chega a uma linha: `note` é a porta pública, e `tone:`/`tom:` são as
+ * chaves com que `stamp` e `pintarFio` o recebem.
+ *
+ * ⚠️ **`note` leva o tom como argumento POSICIONAL**, não como chave — varrer só `tone:` devolve
+ * zero e faz a lei atestar um vocabulário que ninguém usa por essa porta.
  */
 const PORTOES = [/\bnote\([\s\S]{0,240}?,\s*'([a-z-]*)'\s*\)/g, /\b(?:tone|tom):\s*'([a-z-]*)'/g];
 const intrusos = new Map();
@@ -119,7 +117,7 @@ for (const [nome, fonte] of arquivos) {
 if (intrusos.size) {
   console.log(`\n${C.erro}✗ ${intrusos.size} tom(ns) fora de src/hud/tons.js${C.fim}`);
   for (const k of [...intrusos.keys()].slice(0, 8)) console.log(`  ${k}`);
-  console.log(`  ${C.aviso}Sai na cor padrão pelo mesmo caminho do defeito original.${C.fim}`);
+  console.log(`  ${C.aviso}Nenhuma regra o alcança: a linha sai na cor de corpo.${C.fim}`);
   falhou = true;
 } else {
   console.log(`${C.ok}✓ ${Object.keys(TONS).length} tons declarados${C.fim}  ${C.fraco}${arquivos.length} arquivos varridos${C.fim}`);

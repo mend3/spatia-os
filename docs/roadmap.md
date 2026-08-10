@@ -837,10 +837,9 @@ mesmo fato).
   fato** — o alcance é o número que os arcos já desenham. E `usage` no brilho, que a tarefa dava
   como pendente, foi entregue desde então (`universe.js:brilhoDe`, peso 0,45 atrás do portão de
   evidência).
-  ☠️ **O modo de falha é o que vale guardar: a tarefa foi aberta sem varrer o próprio roadmap.** Um
-  documento de 1.200 linhas responde perguntas que ninguém procura nele, e reabrir uma decisão
-  escrita custa mais que a decisão. **Antes de abrir tarefa, o `grep` é no roadmap** — a seção *"o
-  que já está PRONTO"* e a *"o que está REFUTADO"* existem para isso.
+  ☠️ **Antes de abrir tarefa, o `grep` é NESTE arquivo.** Um roadmap deste tamanho responde
+  perguntas que ninguém procura nele, e reabrir uma decisão escrita custa mais que tomá-la — as
+  seções *"o que já está PRONTO"* e *"o que está REFUTADO"* existem para essa varredura.
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
   está**, então ela responde uma pergunta que ele não pode ter. Depois de marcar, ele precisa fazer
