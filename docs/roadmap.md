@@ -194,7 +194,7 @@ com ou sem produtor.
 | **T-58** | Deeplink de FOCO — o endereço PEDIDO vence o último visitado | `done` | — | — | KR4.1 |
 | **T-59** | Melhorar o visual do QUASAR (`briefings/quasar-enhance.md`) | `todo` | — | — | — |
 | **T-60** | Melhorar o visual do PULSAR — luz FLAT (devia expandir em 360°) e nuvem estática | `todo` | — | — | — |
-| **T-61** | O COMETA não consome a pele que o catálogo já lhe oferece — ⭑ asteroide entregue, anel é T-26 | `todo` | — | — | KR2.4 |
+| **T-61** | O COMETA veste no NÚCLEO a pele que o catálogo lhe oferece — ⚠️ a coma a engole em corpo ATIVO, por aritmética | `done` | — | — | KR2.4 |
 | **T-62** | Camada externa do BURACO NEGRO — poeira, detritos, profundidade e volume | `todo` | — | — | — |
 | **T-63** | `orbital-zones.js` emprestava nome de FÍSICA a metáfora — ⭑ **DECIDIDO: os nomes deixam de afirmar física** | `done` | — | — | KR3.2 |
 | **T-64** | `session.route` — ⭑ **DECIDIDO: apagado.** A medida da divergência virou LEI | `done` | — | — | KR2.1 |
@@ -1128,18 +1128,23 @@ mesmo fato).
   a bancada (`sandbox/sonda-rig.js`) a importa. Isso é T-15, não T-34, e é "declarado sem leitor" na
   forma que esta base mais paga.
 
-- **T-61** — ⭑ **o ASTEROIDE veste textura de arquivo** (peles do catálogo, UV gerada), e o ANEL já é
-  campo procedural com pedregulho no canal `G` de `ring-rock.js`, gasto só no LOD de perto. O que
-  falta no anel é a ESCOLHA de granulação, que tem linha própria (**T-26**) e um número que ainda não
-  foi medido.
-  ☠️ **O que sobra é o COMETA, e ele é «declarado sem leitor» com o painel no caminho:**
-  `contextoDe()` põe `SUPERFICIE.COMETA` em `CONTEXTO.ROCHOSO`, então a tela OFERECE as oito peles
-  para um cometa — e `scene.js` chama `cometParams(node, cor)` sem a aparência, com o núcleo em
-  `ShaderMaterial` cuja rocha é uma COR (`uRock`), não um mapa.
-  ⚠️ **É exatamente o sintoma que T-38 (`done`) diz ter fechado** — *"o favorito oferece aparência
-  que a cena não sabe aplicar"* —, e a diferença é que lá a pele não aceitava mapa nenhum. Aqui ela
-  aceitaria: o trabalho é passar `aparenciaDe` ao `cometParams` e dar `map` ao núcleo, o que é
-  mexida de SHADER e não de roteamento. Antes disso, `check-shaders.mjs`.
+- **T-61 FECHADA — o cometa consome a pele, no NÚCLEO.** A aparência entra pelo mesmo canal do
+  planeta e da rocha (`aparenciaDe`), nas duas rotas — pool e corpo em foco.
+  ⭑ **A UV é derivada da DIREÇÃO no fragmento**, como no planeta: `esculpirNucleo` desloca
+  RADIALMENTE, então `normalize(position)` devolve a direção original exata. Sem atributo novo e sem
+  costura de triângulo — a descontinuidade de `atan` cai entre dois pixels. E ela é do MODELO, não do
+  mundo: a pele gira junto com a rocha.
+  ☠️ **O termo de luz fica FORA do `mix`.** A marca troca a cor da rocha; o crescente e o terminador
+  continuam saindo da mesma conta, porque eles são o que diz que aquilo é SÓLIDO — fato sobre o
+  astro, não escolha de ninguém. Com `uUsaMapa = 0` o `mix` devolve `uRock` bit a bit.
+  ⚠️ **A marca veste o NÚCLEO, nunca o gás:** coma e cauda são emissão do material que o corpo
+  perdeu, e a cor delas sai do `kind`.
+  ☠️ **E há um TETO que é aritmética, não defeito:** a coma vive entre 0,9 e 2,4 raios contra 0,14–
+  0,30 do núcleo — de **3× a 17×**, e aditiva. Num cometa saturado (`churn ≥ 27`) a pele existe e
+  **não se vê**; ela aparece conforme a atividade cai. É a mesma física que faz o cometa ler como
+  cometa, e ela vale mais que a marca.
+  ⭑ O ANEL já é campo procedural com pedregulho no canal `G` de `ring-rock.js`; o que falta ali é a
+  ESCOLHA de granulação, que tem linha própria (**T-26**) e um número que ainda não foi medido.
 
 - **T-13** — a camada `splash` está no working tree e **25 leis saem 0 sem navegador** (a pilha
   `mundo > splash > boot`, a entrega sem ninguém nomear o de baixo, `null` de topologia que não

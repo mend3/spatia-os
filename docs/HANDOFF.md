@@ -102,8 +102,8 @@ ela é por dívida de MODELO, não por tamanho.
    já é da voz), e a camada `launcher` só precisa ser registrada em `core/tela.js`.
 3. **T-80** — o inspector tem três estados e ganha AÇÕES. ⚠️ Quais ações existem depende de T-78,
    que é decisão sua; os TRÊS ESTADOS não dependem.
-4. **T-61** — o COMETA não consome a pele que o catálogo já lhe oferece. ⚠️ É mexida de SHADER (o
-   núcleo tem `uRock` como COR, não mapa), não de roteamento — `check-shaders.mjs` antes.
+4. **T-26** — a granulação do anel: as quatro candidatas estão prontas em `sandbox/ring-variants.js`
+   e **falta o número** — a comparação a 25 px foi feita a olho, sem timer de GPU.
 
 ⚠️ **A métrica é parte da hipótese, e T-85 pagou isso caro.** Uma medida com controle FECHADO deu
 nulo e quase virou refutação escrita: ela varria a faixa clara inteira sem isolar o regime em que o
