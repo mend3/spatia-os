@@ -114,6 +114,37 @@ const FRAGMENT = /* glsl */ `
    */
   uniform vec3 uLensPos;
   uniform float uLensRs;
+  /*
+   * O OCLUSOR MACIO — o corpo NAO-SOLIDO que cobre o buraco negro e esta na frente dele.
+   *
+   * ☠️ O teste de profundidade so enxerga superficie OPACA, e nesta cena quase nada e opaco: de dez
+   * objetos, so a superficie solida do planeta escreve profundidade. Galaxia, fotosfera, cometa,
+   * pulsar, nebulosa, estacao, anel, campo de estrelas e casca de atmosfera sao todos aditivos com
+   * depthWrite: false — onde eles estao, o buffer guarda o que esta ATRAS, e atrasDaMassa sai 1.
+   * O disco entao e somado com forca total por cima de uma galaxia que esta na frente dele.
+   *
+   * Ele chega como DISCO EM MUNDO (centro e raio) porque um alvo de profundidade exigiria variante
+   * de depth em nove modulos — a galaxia e billboard instanciado com vertices calculados no proprio
+   * vertex shader, e nenhum override material reproduz aquela geometria. Centro e raio, qualquer um
+   * dos nove sabe informar. uOclusorRaio em 0 desliga.
+   */
+  uniform vec3 uOclusorPos;
+  uniform float uOclusorRaio;
+  /*
+   * ☠️ ATENUAR A EMISSAO PELA LUZ QUE A CENA JA POS NO PIXEL esteve aqui e esta REFUTADO POR MEDIDA.
+   *
+   * A ideia resolvia a escala: o oclusor acima e um DISCO e herda o tamanho do objeto (a maior
+   * galaxia do fixture cobre ~14% do raio do disco de acrecao), enquanto uma razao por pixel
+   * Ld/(Ld+Lc) nao tem escala nenhuma e valeria para os nove aditivos de uma vez.
+   *
+   * O que a medida disse: um pixel aceso NAO DIZ DE QUE LADO VEIO. Numa leitura com cobrem: 0 —
+   * nada cobrindo o buraco negro, onde o certo e nao mudar NADA — ligar o termo mudou 12,5% dos
+   * pontos da tela, e a perda cresce monotonica com o brilho do fundo (0,24 no quintil escuro,
+   * 4,36 no claro). A luz de TRAS atenua exatamente como a da frente.
+   *
+   * Quem separa os dois lados e a PROFUNDIDADE, e os aditivos nao escrevem nela — reabrir isto
+   * custa uma medida que contradiga aqueles numeros, nao um argumento.
+   */
   varying vec2 vUv;
 
   ${GLSL_GEODESIC}
@@ -180,6 +211,44 @@ const FRAGMENT = /* glsl */ `
       uBhDist + uDiskOuter * 0.25,
       profundidade
     ), uHasDepth);
+
+    /*
+     * O OCLUSOR MACIO, em ANGULO — e nao em profundidade, porque ele nao esta no buffer.
+     *
+     * O parametro de impacto do raio contra o disco do oclusor: b < raio e "dentro da silhueta
+     * dele". A borda e rampa e nao corte, pelo mesmo motivo de atrasDaMassa — um corte duro poria
+     * uma costura visivel onde o gas nao tem nenhuma.
+     *
+     * ⚠️ cosOcl > 0 e obrigatorio: sem ele um oclusor ATRAS da camera produz o mesmo b de um na
+     * frente, e o disco sumiria olhando para o lado oposto. Falha silenciosa e simetrica.
+     */
+    float atrasDoOclusor = 1.0;
+    if (uOclusorRaio > 0.0) {
+      vec3 aoOclusor = uOclusorPos - uCamPos;
+      float distOclusor = length(aoOclusor);
+      vec3 versorOcl = aoOclusor / max(distOclusor, 1e-4);
+      float cosOcl = dot(dir, versorOcl);
+      if (cosOcl > 0.0) {
+        float b = distOclusor * sqrt(max(1.0 - cosOcl * cosOcl, 0.0));
+        /*
+         * ☠️ A RAMPA FECHA DENTRO DO DISCO E ABRE FORA DELE — e a primeira versao a pos meia volta
+         * cedo, comecando em 0,45 do raio e terminando NO raio.
+         *
+         * Medido pela sonda com a galaxia raiz cobrindo o buraco: b 4,11 contra raio 5,43, ou seja
+         * b/raio 0,757 — dentro do disco desenhado, e mesmo assim a rampa devolvia 0,588. A oclusao
+         * ficava em 41%, e o disco continuava passando.
+         *
+         * ⚠️ E era isso que fazia a VELOCIDADE decidir se o defeito aparecia: parado, o lobo
+         * brilhante do disco calha de cair onde a atenuacao e forte; com a galaxia orbitando, b muda
+         * por pixel e o lobo varre a faixa mal atenuada. O sintoma dependia do relogio, e a causa
+         * nao tinha nada de temporal.
+         *
+         * Dentro do disco o gas e denso e esconde: atrasDoOclusor vai a 0. Fora dele a rampa sobe
+         * ate 1 na borda do halo. Corte duro poria uma costura circular onde o gas nao tem nenhuma.
+         */
+        atrasDoOclusor = smoothstep(uOclusorRaio, uOclusorRaio * 1.8, b);
+      }
+    }
 
     vec3 dirFinal = dir;
     vec4 tracado = tracarGeodesica(uCamPos, dir, dirFinal);
@@ -337,8 +406,26 @@ const FRAGMENT = /* glsl */ `
      */
     float aparente = (uRs / max(length(uCamPos - uBhPos), 1e-3)) / max(uTanHalfFov, 1e-3);
     float poeira = smoothstep(0.02, 0.22, aparente);
+    /*
+     * ⚠️ O OCLUSOR MACIO FECHA SO A EMISSAO. Nem a deflexao, nem a sombra.
+     *
+     * DEFLEXAO fica: a luz de TRAS atravessa o gas difuso da galaxia e chega deformada. Ver a
+     * galaxia sendo distorcida esta certo, e e o efeito aprovado.
+     *
+     * ☠️ SOMBRA FICA, e fecha-la foi um defeito meu com refutacao ja escrita neste arquivo: *"a
+     * sombra nao entra: ela e o objeto, e um buraco negro longe continua sendo um buraco. Atenua-la
+     * o faria desaparecer do ceu"*. Com atrasDoOclusor aqui, 1.0 - 0 da 1, a sombra para de
+     * escurecer, e o vazio enche com a luz da galaxia — o nucleo fica OPACO e perde a unica coisa
+     * que o define. Fotografado pelo usuario.
+     *
+     * O raciocinio que me levou ao erro — *"a luz da galaxia na frente nunca passou pelo buraco,
+     * apagar recortaria a galaxia"* — e verdade sobre um gas difuso e FALSO sobre o que a cena
+     * precisa afirmar: a sombra E o objeto. Um buraco negro sem vazio nao e um buraco negro.
+     *
+     * O que nao pode atravessar e so a MATERIA LUMINOSA do disco, que emite de um lugar atras dela.
+     */
     color *= 1.0 - tracado.a * atrasDaMassa;
-    color += tracado.rgb * atrasDaMassa * poeira;
+    color += tracado.rgb * atrasDaMassa * atrasDoOclusor * poeira;
 
     float vignette = mix(1.0, smoothstep(1.25, 0.35, length(vUv - 0.5) * 1.6), uVignette);
     color *= vignette;
@@ -396,6 +483,9 @@ export function createLensingPass() {
       /** A segunda massa: posição e raio de Schwarzschild do corpo em foco. `uLensRs` 0 desliga. */
       uLensPos: { value: new THREE.Vector3() },
       uLensRs: { value: 0 },
+      /** O oclusor macio: disco em MUNDO do não-sólido que cobre o buraco negro. Raio 0 desliga. */
+      uOclusorPos: { value: new THREE.Vector3() },
+      uOclusorRaio: { value: 0 },
       uDiskInner: { value: 4 },
       uDiskOuter: { value: 39 },
       uDiskSpin: { value: 0.18 },
@@ -432,7 +522,7 @@ export function createLensingPass() {
      * Projeta o horizonte para coordenadas de tela a cada quadro. Fixar o centro em (0.5,
      * 0.5) quebraria assim que a câmera orbitasse: a lente descolaria do objeto.
      */
-    sync(camera, blackHole, size, { glitch = 0, lente = null } = {}) {
+    sync(camera, blackHole, size, { glitch = 0, lente = null, oclusor = null } = {}) {
       const uniforms = pass.uniforms;
 
       /*
@@ -469,6 +559,12 @@ export function createLensingPass() {
       // A segunda massa é ligada por quem sabe o que está em foco (`scene.js`), não por aqui.
       uniforms.uLensRs.value = lente ? lente.rs : 0;
       if (lente) uniforms.uLensPos.value.copy(lente.center);
+      /*
+       * O oclusor também é ligado por quem sabe o que está desenhado (`scene.js`): este passe não
+       * conhece a topologia, e adivinhar aqui seria uma segunda fonte sobre o que está na cena.
+       */
+      uniforms.uOclusorRaio.value = oclusor ? oclusor.radius : 0;
+      if (oclusor) uniforms.uOclusorPos.value.copy(oclusor.center);
       uniforms.uDiskInner.value = bh.inner;
       uniforms.uDiskOuter.value = bh.outer;
       uniforms.uDiskSpin.value = bh.spin;

@@ -103,6 +103,8 @@ ela é por dívida de MODELO, não por tamanho.
    já é da voz), e a camada `launcher` só precisa ser registrada em `core/tela.js`.
 4. **T-80** — o inspector tem três estados e ganha AÇÕES. ⚠️ Quais ações existem depende de T-78,
    que é decisão sua; os TRÊS ESTADOS não dependem.
+5. **T-85** — a banda em faixas largas no gradiente claro. Ela entra aqui **porque duas causas já
+   estão descartadas por medida** e a terceira tem pista: o bloom. Quem pegar não repete a caça.
 
 ⭑ **T-41 · T-42 · T-43 · T-45 · T-64 são um CLUSTER, não cinco tarefas soltas:** todas são
 *"declarado sem leitor"* ou *"dois donos para um estado"*. O corolário da REGRA DO CATÁLOGO

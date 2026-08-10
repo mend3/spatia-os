@@ -15,6 +15,7 @@ import { EffectComposer } from '../../vendor/jsm/postprocessing/EffectComposer.j
 import { RenderPass } from '../../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../../vendor/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../../vendor/jsm/postprocessing/OutputPass.js';
+import { comDither } from './dither-de-saida.js';
 
 import { on, ui } from '../core/bus.js';
 import * as tuning from '../core/tuning.js';
@@ -36,7 +37,7 @@ import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams, LOD_FAR_PX as PLANETA_FAR } from './planet.js';
 import { RS_POR_RAIO } from './astrofisica.js';
 import { createLinks } from './links.js';
-import { createGalaxy, galaxyParams, diskPx, LOD_ARM_PX, LOD_FULL_PX } from './galaxy.js';
+import { createGalaxy, galaxyParams, diskPx, SPAN as SPAN_DA_GALAXIA, LOD_ARM_PX, LOD_FULL_PX } from './galaxy.js';
 import { createQuasars, quasarParams } from './quasar.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
@@ -199,6 +200,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   const particles = createParticles();
   const satellites = createSatellites();
   const wormholes = createWormholes();
+  /** O último veredito do oclusor macio, para a sonda. Ver o bloco em `lensing.js`. */
+  let oclusorProbe = { escolhido: null, candidatos: [], cobrem: 0, considerados: 0 };
   const bodies = createBodies(labelLayer || document.body);
   /*
    * O DOCUMENTO DO CORPO EM FOCO ganha endereço no mundo — T-53/T-82.
@@ -587,7 +590,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(lensing.pass);
   composer.addPass(bloom);
-  composer.addPass(new OutputPass());
+  /*
+   * O ÚLTIMO PASSO É O ÚNICO DE 8 BITS DA CADEIA, e é lá que a banda nasce.
+   *
+   * O dither entra por INJEÇÃO no shader vendorizado em vez de um passe novo: um passe a mais custa
+   * uma cópia de framebuffer inteira, e o orçamento do pós já é ~15 ms. Ver `dither-de-saida.js`
+   * para a medida que o motivou e para por que ele não é um segundo dono do `uGrain`.
+   */
+  const passeDeSaida = new OutputPass();
+  passeDeSaida.material.fragmentShader = comDither(passeDeSaida.material.fragmentShader);
+  composer.addPass(passeDeSaida);
 
   /**
    * DESENHAR UM QUADRO — e o par de buffers é FIXADO antes, todo quadro.
@@ -2663,6 +2675,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * nessa unidade, e passar a altura CSS dividiria por dois todo número de pixel que o shader
      * vê. Foi o defeito que a bancada escondeu por um DPR inteiro.
      */
+    let oclusorMacio = null;
+    /*
+     * A SONDA DO OCLUSOR — «o disco voltou a aparecer» tem quatro causas que a tela não separa:
+     * não há candidato, o candidato está ATRÁS do buraco negro, ele não o COBRE, ou ele cobre e é
+     * pequeno demais para adiantar. Sem isto, escolher entre elas é palpite.
+     */
+    const candidatosAoOclusor = [];
     if (hubs.length) {
       const lote = [];
       /*
@@ -2688,11 +2707,58 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * outra galáxia, calada.
        */
       let focadaNoLote = -1;
+      /*
+       * O OCLUSOR MACIO DO BURACO NEGRO — a galáxia que o cobre na tela e está NA FRENTE dele.
+       *
+       * ☠️ **O teste de profundidade da lente só enxerga superfície OPACA**, e de dez objetos desta
+       * cena só a superfície sólida do planeta escreve profundidade. Onde uma galáxia está, o
+       * buffer guarda o que está ATRÁS dela — então a emissão do disco era somada com força total
+       * por cima de uma galáxia que está na frente, e o disco lia como o objeto mais próximo.
+       *
+       * ⭑ Sai DESTE laço, e não de uma varredura própria, pelo mesmo motivo que o quasar sai daqui:
+       * uma segunda passagem poderia divergir da primeira sobre quais hubs existem neste quadro, e
+       * a âncora tem de ser a mesma, no mesmo quadro.
+       */
+      const aoBuraco = blackHole.geometry().center.clone().sub(camera.position);
+      const distBuraco = Math.max(aoBuraco.length(), 1e-4);
+      const versorBuraco = aoBuraco.clone().divideScalar(distBuraco);
+      const doHubAoRaio = new THREE.Vector3();
       for (const hub of hubs) {
         const ancora = graph.planetAnchor(hub.id, camera, canvas.height, elapsed);
         if (!ancora) continue;
         if (hub.id === focusedNode) focadaNoLote = lote.length;
         lote.push({ params: hub.params, position: ancora.position, radius: ancora.radius });
+        /*
+         * Ela cobre o buraco negro? `b` é o parâmetro de impacto do centro dele contra o disco
+         * desta galáxia — a mesma grandeza que o shader usa, para os dois não discordarem.
+         *
+         * ⚠️ **Só quem está NA FRENTE conta.** Uma galáxia atrás produz o mesmo `b` e apagaria o
+         * disco quando a câmera olhasse para o lado oposto — falha simétrica e silenciosa.
+         */
+        doHubAoRaio.copy(ancora.position).sub(camera.position);
+        const distHub = doHubAoRaio.length();
+        if (distHub < distBuraco) {
+          const b = doHubAoRaio
+            .sub(versorBuraco.clone().multiplyScalar(doHubAoRaio.dot(versorBuraco)))
+            .length();
+          /*
+           * O raio DESENHADO, e ele é IMPORTADO — `galaxy.js` declara que o disco vale
+           * `planetAnchor().radius * SPAN`. Um número escolhido aqui seria uma segunda régua para
+           * o mesmo objeto, livre para divergir do que a tela mostra.
+           */
+          const raioDesenhado = ancora.radius * SPAN_DA_GALAXIA;
+          candidatosAoOclusor.push({
+            quem: hub.id, tipo: 'galaxia', raio: +raioDesenhado.toFixed(2),
+            b: +b.toFixed(2), dist: +distHub.toFixed(2), cobre: b <= raioDesenhado,
+          });
+          // ⚠️ A régua é o ÂNGULO — quanta tela ele cobre —, e não a distância. Ver o bloco do
+          // corpo em foco, onde escolher por distância produziu uma regressão medida.
+          const anguloDoHub = raioDesenhado / Math.max(distHub, 1e-4);
+          const anguloAtual = oclusorMacio ? oclusorMacio.radius / Math.max(oclusorMacio.dist, 1e-4) : 0;
+          if (b <= raioDesenhado && anguloDoHub > anguloAtual) {
+            oclusorMacio = { center: ancora.position.clone(), radius: raioDesenhado, dist: distHub };
+          }
+        }
         const nucleo = quasarParams(hub.params);
         if (nucleo) {
           nucleos.push({ params: nucleo, position: ancora.position, radius: ancora.radius });
@@ -2797,7 +2863,98 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     const corpoDaLente = pouso && decisao?.surface === SUPERFICIE.PULSAR
       ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SUPERFICIE.PULSAR] * RS_POR_RAIO.pulsar }
       : null;
-    lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente });
+
+    /*
+     * O CORPO EM FOCO TAMBEM OCLUI — e ele cobre QUATRO das seis peles, nao as seis.
+     *
+     * ☠️ Nenhuma delas escreve profundidade inteira: as aditivas nao escrevem nada, e a de
+     * superficie solida escreve so o solido — a casca de atmosfera dela nao. Onde a pele desenha e
+     * o solido nao esta, o buffer guarda o que esta ATRAS, e a emissao do disco atravessava a
+     * coroa, a coma e o vento.
+     *
+     * ⭑ `SKIN_EXTENT` e a MESMA regua que enquadra o corpo em foco, e por isso ela e a certa aqui:
+     * ela ja diz quantos raios cada pele ocupa alem do corpo. Escolher um numero proprio criaria
+     * uma segunda medida do mesmo objeto, livre para divergir do desenho.
+     *
+     * ☠️ **E e por isso que este ramo tem BURACO, e ele e a QUINTA causa de «o disco voltou a
+     * aparecer»: pele DESENHADA sem regua de extensao.** `SKIN_EXTENT` declara quatro entradas e
+     * `BODY_SPAN` declara seis — as duas que faltam sao justamente as que ficam PARADAS no lugar do
+     * corpo, entao ninguem sentiu falta do recuo e a tabela ficou curta sem sintoma. Uma delas e a
+     * segunda pele mais comum do ceu. **Inventar aqui o numero que falta la e fabricar a segunda
+     * regua que o paragrafo acima proibe** — o caminho por objeto pede uma regua por objeto, e essa
+     * e a razao de existir a oclusao por LUZ, que nao pede nenhuma.
+     *
+     * O buraco NAO fica calado: ele sai nomeado na sonda, em vez de o candidato desaparecer.
+     *
+     * ⚠️ Ele DISPUTA com a galaxia em vez de substitui-la, e quem vence e o maior ANGULO aparente.
+     * E so entra se estiver na FRENTE do buraco negro, pelo mesmo motivo de sempre.
+     */
+    /*
+     * ⚠️ "TEM PELE DESENHADA" sai de `BODY_SPAN`, que declara as seis; a EXTENSAO sai de
+     * `SKIN_EXTENT`, que declara quatro. Separar as duas perguntas e o que permite a segunda falhar
+     * COM NOME em vez de virar um `0` indistinguivel de "nao ha corpo em foco".
+     * ⚠️ E nenhuma pele pode ser NOMEADA aqui, nem em prosa: `lente-estelar.mjs` varre deste
+     * ponto até o `sync` atrás de quem ALIMENTA A LENTE, e o faz COM os comentários — um nome
+     * citado no texto o leva a exigir uma razão `R_s/R` para ela. Este bloco oclui EMISSÃO, e
+     * emissão não dobra luz.
+     */
+    const peleEmFoco = pouso ? decisao?.surface : null;
+    const peleDesenhada = peleEmFoco != null && peleEmFoco in BODY_SPAN;
+    const extensaoDaPele = peleDesenhada ? SKIN_EXTENT[peleEmFoco] ?? 0 : 0;
+    if (peleDesenhada && extensaoDaPele === 0) {
+      candidatosAoOclusor.push({
+        quem: focusedNode, tipo: 'pele', pele: peleEmFoco, raio: 0, b: null,
+        dist: +pouso.position.distanceTo(camera.position).toFixed(2), cobre: false,
+        motivo: 'pele desenhada sem régua de extensão em SKIN_EXTENT',
+      });
+    }
+    if (extensaoDaPele > 0) {
+      const doCorpo = pouso.position.clone().sub(camera.position);
+      const distCorpo = doCorpo.length();
+      const centroBh = blackHole.geometry().center;
+      const aoBh = centroBh.clone().sub(camera.position);
+      const distBh = Math.max(aoBh.length(), 1e-4);
+      if (distCorpo < distBh) {
+        const versorBh = aoBh.divideScalar(distBh);
+        const b = doCorpo.clone().sub(versorBh.clone().multiplyScalar(doCorpo.dot(versorBh))).length();
+        const raioDaPele = pouso.radius * extensaoDaPele;
+        candidatosAoOclusor.push({
+          quem: focusedNode, tipo: 'pele', pele: peleEmFoco, raio: +raioDaPele.toFixed(2),
+          b: +b.toFixed(2), dist: +distCorpo.toFixed(2), cobre: b <= raioDaPele,
+        });
+        /*
+         * ☠️ **VENCE O MAIOR RAIO APARENTE, não o mais próximo.** «O mais próximo oclui os outros»
+         * é verdade sobre OPACOS e falsa aqui: o corpo em foco quase sempre é o mais próximo, e o
+         * raio da pele dele é uma fração do disco de uma galáxia. Escolhendo por distância, ele
+         * ROUBA a vaga e a oclusão encolhe para a silhueta dele — o disco reaparece em toda a volta,
+         * que é a regressão que o usuário fotografou.
+         *
+         * O ângulo é a grandeza certa porque é ele que decide quanta TELA o oclusor cobre, e é de
+         * tela que esta composição fala.
+         */
+        const anguloDaPele = raioDaPele / Math.max(distCorpo, 1e-4);
+        const anguloAtual = oclusorMacio ? oclusorMacio.radius / Math.max(oclusorMacio.dist, 1e-4) : 0;
+        if (b <= raioDaPele && anguloDaPele > anguloAtual) {
+          oclusorMacio = { center: pouso.position.clone(), radius: raioDaPele, dist: distCorpo };
+        }
+      }
+    }
+    lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente, oclusor: oclusorMacio });
+    oclusorProbe = {
+      escolhido: oclusorMacio
+        ? { raio: +oclusorMacio.radius.toFixed(2), dist: +oclusorMacio.dist.toFixed(2),
+            anguloAparente: +(oclusorMacio.radius / oclusorMacio.dist).toFixed(4) }
+        : null,
+      candidatos: candidatosAoOclusor.sort((a, b) => (b.raio / b.dist) - (a.raio / a.dist)).slice(0, 6),
+      cobrem: candidatosAoOclusor.filter((c) => c.cobre).length,
+      considerados: candidatosAoOclusor.length,
+      /*
+       * ⚠️ Candidato que existe e **não tem régua** sai em caixa própria, e não somado aos outros:
+       * «0 candidatos» e «o candidato está lá e a tabela não sabe o tamanho dele» levam a consertos
+       * diferentes, e a soma dos dois não leva a nenhum.
+       */
+      semRegua: candidatosAoOclusor.filter((c) => c.motivo).map((c) => ({ quem: c.quem, pele: c.pele })),
+    };
     lensing.setTime(elapsed);
 
     desenharQuadro();
@@ -2822,6 +2979,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * separa por nome, e `noTeto` diz quando o painel parou de seguir para não sair do quadro.
      */
     ancoraDoDocumento: () => ancoraDoDocumento.estado(),
+    /**
+     * Quem está ocluindo a EMISSÃO do buraco negro, e quem competiu pela vaga.
+     *
+     * ☠️ «o disco voltou a aparecer» tem quatro causas com a mesma imagem: não há candidato, o
+     * candidato está ATRÁS do buraco, ele não o COBRE, ou ele cobre e o ângulo aparente dele é
+     * menor que o de outro. Cada uma sai por número — e a QUINTA, `semRegua`, sai por nome.
+     */
+    oclusor: () => oclusorProbe,
     focusedBody: () => focusedBody,
     /**
      * O que a galáxia está REALMENTE recebendo — tempo, taxa e quantas instâncias.

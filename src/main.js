@@ -823,6 +823,8 @@ async function main() {
     planet: () => scene.planetProbe(),
     /** Onde o DOCUMENTO do corpo em foco está ancorado, e por quê. Ver `space/ancora-de-documento.js`. */
     ancora: () => scene.ancoraDoDocumento(),
+    /** Quem oclui a emissão do buraco negro neste quadro, e quem competiu. */
+    oclusor: () => scene.oclusor(),
     /** Tempo, taxa e instâncias que o campo de galáxias está de fato recebendo. */
     galaxy: () => scene.galaxyProbe(),
     /** Recuo × piso de detalhe de cada pele, com a tela de verdade. Ver `space/lod.js`. */

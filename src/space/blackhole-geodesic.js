@@ -76,8 +76,14 @@ export const GEODESIC_STEPS = 64;
  * O bloco GLSL. Expõe `vec4 tracarGeodesica(vec3 origem, vec3 direcao, out vec3 dirFinal)`.
  *
  * Devolve `vec4(cor, alfa)` do que o RAIO encontrou (disco + captura) e escreve em `dirFinal` a
- * direção com que ele saiu — é ela que reamostra o fundo. Alfa 1 significa "não passa luz do
- * fundo": ou o raio caiu no horizonte, ou o disco ficou opticamente espesso na frente dele.
+ * direção com que ele saiu — é ela que reamostra o fundo.
+ *
+ * ☠️ **O alfa que SAI é só a captura.** Este parágrafo dizia *"ou o raio caiu no horizonte, ou o
+ * disco ficou opticamente espesso na frente dele"*, e a segunda metade nunca foi verdade: a última
+ * linha da função devolve `capturado ? 1.0 : 0.0`, porque o disco desta cena SOMA em vez de tapar.
+ * O alfa do disco existe e serve, mas só DENTRO do laço, para um cruzamento atenuar o seguinte.
+ * A frase errada não ficou inerte — foi ela que autorizou um atalho a abortar a marcha quando o
+ * disco saturava, truncando a geodésica que ainda ia reamostrar o fundo.
  */
 export const GLSL_GEODESIC = /* glsl */ `
   uniform vec3 uBhPos;        // centro do buraco negro, em MUNDO
@@ -441,7 +447,29 @@ export const GLSL_GEODESIC = /* glsl */ `
       if (r < uRs) break;
       // Escapou da esfera de influencia: para de integrar e entrega a direcao de saida.
       if (r > R && i > 0) break;
-      if (alfa > 0.99) break;
+      /*
+       * ☠️ AQUI HAVIA UM if (alfa > 0.99) break;, e a PREMISSA DELE ERA FALSA.
+       *
+       * O atalho supunha que disco opticamente espesso torna irrelevante o que vem depois. Mas o
+       * alfa que esta funcao DEVOLVE e capturado ? 1 : 0 — o alfa do disco e descartado de
+       * proposito, porque o disco desta cena SOMA em vez de tapar (o bloco do fim explica por que,
+       * e a decisao e do usuario). Entao o fundo continua sendo lido atraves do disco saturado, e
+       * quem o le e dirFinal — que o break entregava tirado do MEIO DO VOO.
+       *
+       * O custo de abortar, medido replicando este integrador em JS (camera a 60): parar no passo
+       * 16 com b/R = 0,25 desloca o fundo em **382 px** de tela; no passo 24, 276 px. O pixel
+       * vizinho que nao aborta le o lugar certo, entao a diferenca vira RASGO, nao borrao.
+       *
+       * ⚠️ **E o efeito na tela e PEQUENO, e isso fica escrito para ninguem o remedir esperando
+       * muito:** medido em A/B no mesmo quadro, com a camera a 12 (o buraco negro grande) sao
+       * **0,2% dos pontos e 1,2 de luma no maximo**; com ela longe, 27 pontos — porem com **189,7
+       * de diferenca** neles. E defeito de poucos pixels muito errados, nunca de imagem inteira.
+       *
+       * O que fica e a ECONOMIA, que era o unico ganho legitimo do atalho: o caro aqui e
+       * emissaoDoDisco (duas amostras de tres oitavas por CRUZAMENTO), nao o passo de leapfrog.
+       * Entao o corte desceu para o cruzamento (alfa <= 0.99, abaixo) e a marcha segue inteira.
+       * Custo medido, 5 replicas alternadas: pos 15,04 -> 15,18 ms de mediana.
+       */
       // O ORCAMENTO DA ESCADA. O teto do for continua constante (o GLSL exige), e quem manda no
       // custo real e este corte — com o passo crescendo junto (uStepScale), menos passos ainda
       // atravessam a esfera de influencia inteira, so que mais grosso.
@@ -589,7 +617,7 @@ export const GLSL_GEODESIC = /* glsl */ `
           // puxado para o branco-azulado.
           cor += mix(uHot, vec3(0.86, 0.93, 1.0), 0.45) * (nevoa * 0.14 * caminhoPlano * uDiskIntensity);
         }
-        if (rd > uDiskInner && rd < uDiskOuter) {
+        if (rd > uDiskInner && rd < uDiskOuter && alfa <= 0.99) {
           vec4 amostra = emissaoDoDisco(hit, v);
           /*
            * ESPESSURA SEM CUSTO DE AMOSTRA — item #3 do brief, e a lei ja existia neste projeto.

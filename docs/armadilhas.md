@@ -37,6 +37,27 @@ três vezes seguidas e se foi caçar defeito na câmera; o valor era de um voo a
 > 1,5 s**. Na AGENTE o detector é contar `requestAnimationFrame` à mão:
 > `let n=0; const t=()=>{n++;requestAnimationFrame(t)}; requestAnimationFrame(t)`.
 
+☠️ **`readPixels` FORA de um `rAF` aninhado devolve o buffer INTEIRO ZERADO** — não erro, não exceção:
+zero. Basta um `await`/`setTimeout` entre o desenho e a leitura para o compositor já ter apresentado
+o quadro. O sintoma é uma medida perfeitamente formada afirmando tela preta sobre uma cena que
+desenha, e ela é indistinguível de defeito real. ⭑ Dentro do `ler` de `mesmoQuadro` o problema não
+existe — ela roda com o desenho ainda no buffer, e é por isso que ela é síncrona.
+
+☠️ **LER O CENTRO DA TELA PARA DETECTAR "TELA PRETA" CAI DENTRO DA SOMBRA.** Um recorte central de
+256×256 na cena AGENTE com o buraco negro enquadrado dá luma **0 exato** — e está certo, o horizonte
+é preto de verdade. *"Tela preta"* se responde por `spatia.cena().composicao`, nunca por um recorte
+que o objeto mais escuro do céu ocupa de propósito.
+
+☠️ **DUAS FOTOS SEPARADAS POR SEGUNDOS ATRIBUEM ANIMAÇÃO AO TRATAMENTO.** Medido: dois quadros a 8 s
+de distância sugeriram um efeito enorme de um termo que, no MESMO quadro, é sutil. A cena anda
+sozinha — deriva de câmera, órbita, advecção do disco. Comparação de aparência é `mesmoQuadro` ou
+não é comparação.
+
+☠️ **CONTROLE POSITIVO É OBRIGATÓRIO NUM A/B QUE SAI NULO** — senão *"não mudou nada"* e *"o
+interruptor não chegou ao shader"* são a mesma leitura. Medido no dither de saída: ganho 1 muda 8,0%
+dos pontos e o resultado da lei é nulo; ganho 60 muda 96,5%, e é esse segundo número que autoriza
+concluir *"o termo está vivo e não é a causa"* em vez de *"a injeção falhou"*.
+
 ⚠️ **A aba do MCP costuma ser uma aba de FUNDO** — `document.hidden` fica `true` mesmo com o Chrome em
 foco, e `renderCost`/`pixels()` devolvem zeros do nascimento. Pior: **cada `Bash` que você roda tira o
 foco de novo.** A receita que funciona é agendar a ativação para acontecer **durante** a chamada de

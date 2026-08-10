@@ -514,3 +514,57 @@ transforma metade dos gestos de câmera em custo zero.
 parada sobre a caixa e não há profundidade a revelar. É o mesmo mecanismo, não um segundo.
 
 ---
+
+## O DISCO ATRAVESSANDO O QUE NÃO É SÓLIDO — e a caça à banda do claro (fixture, 09/08)
+
+Cena AGENTE, aba visível e em foco, framebuffer 2582×1484 (dpr 2), leituras em `mesmoQuadro` com
+controle fechado — as amostras repetidas da mesma condição saem **idênticas ao dígito** em todas as
+tabelas abaixo. Sem isso nenhuma diferença é atribuível.
+
+### Atenuar a emissão pela LUZ da cena — REFUTADO
+
+A saída (a) do oclusor: fração do disco que sobrevive `Ld/(Ld+Lc)`, adimensional, sem limiar. Numa
+leitura com **`cobrem: 0`** — nada cobrindo o buraco negro, onde o certo é não mudar NADA — ligar o
+termo mudou **12,5% dos 239.666 pontos**. A perda cresce monótona com o brilho do FUNDO:
+
+| quintil de brilho do controle | 0–6,1 | 6,1–21,6 | 21,6–42,9 | 42,9–82,9 | 82,9+ |
+|---|---|---|---|---|---|
+| perda média (luma) | 0,24 | 1,44 | 2,59 | 3,64 | **4,36** |
+
+☠️ Um pixel aceso não diz de que lado veio, e quem separa os lados é a PROFUNDIDADE — que os
+aditivos não escrevem. Se escrevessem, o oclusor inteiro não precisaria existir.
+
+### A marcha truncada da geodésica — defeito real, efeito pequeno
+
+`if (alfa > 0.99) break` abortava o laço sobre premissa falsa (o alfa devolvido é `capturado ? 1 : 0`).
+Custo de abortar, replicando o integrador em JS, em **pixels de deslocamento do fundo**:
+
+| b/R | k=8 | k=16 | k=24 | k=32 |
+|---|---|---|---|---|
+| 0,25 (câmera a 60) | 406 | **382** | 276 | 112 |
+| 0,35 (câmera a 60) | 254 | 211 | 107 | 26 |
+| 0,25 (câmera a 14) | 123 | 31 | 5 | 0,3 |
+
+⚠️ **Na tela é pouco:** A/B no mesmo quadro dá **0,2% dos pontos e 1,2 de luma no máximo** com a
+câmera a 12; com ela longe, **27 pontos** — porém com **189,7** de diferença neles. Poucos pixels
+muito errados. Custo do conserto (5 réplicas alternadas, mediana do pós): **15,04 → 15,18 ms**.
+
+### A BANDA DO GRADIENTE CLARO — causa NÃO encontrada, e duas descartadas
+
+Largura dos platôs de valor 8 bits por faixa de brilho (canal verde), câmera a 12:
+
+| faixa | mediana | p90 | p99 | máx |
+|---|---|---|---|---|
+| claro 200–250 | 1 px | 2 px | 5 px | **16 px** |
+| médio 90–140 | 1 px | 1 px | 2 px | 4 px |
+| escuro 20–60 | 1 px | 1 px | 2 px | 4 px |
+
+☠️ **O dither de saída NÃO move esses números** (com ele: p90 2 · p99 6 · máx 12), e ele está VIVO —
+controle positivo: ganho 1 muda **8,0% dos pontos**, ganho 60 muda **96,5%**. Logo os platôs largos
+do claro **não são degraus de quantização; são sinal saturado**, e dither não quebra o que não é
+gradiente. ⚠️ Um primeiro "máx 82 px" foi medido numa pose com `n` 10× maior e é da mesma família:
+área saturada, não banda.
+
+⭑ **A pista que sobra, e ela é observação de MESMO QUADRO, não medida:** com o bloom em 0 uma aresta
+reta vertical some do halo claro. `UnrealBloomPass` compõe mips em resolução reduzida, que é o
+artefato da forma certa. Não localizada em varredura — os maiores saltos da linha eram estrelas.

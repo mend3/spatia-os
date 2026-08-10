@@ -203,6 +203,8 @@ com ou sem produtor.
 | **T-67** | Segunda textura de estrela (K/M, fria), escolhida pela TEMPERATURA | `todo` | — | — | — |
 | **T-68** | Passo 2 — feição no SPRITE, e **não** aro no corpo: é lá que os corpos vivem | `todo` | — | — | — |
 | **T-83** | `lei-residentes.mjs` guarda a ROTA e não a TABELA — tirar um residente de `RESIDENTES` sai 0 | `todo` | — | — | KR2.4 |
+| **T-84** | O disco atravessava o que NÃO É SÓLIDO — oclusor macio por ÂNGULO, e a geodésica que era truncada | `done` | — | T-85 | KR2.4 |
+| **T-85** | A BANDA em faixas largas no gradiente claro — causa não encontrada; duas descartadas por medida | `todo` | — | — | — |
 
 - **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
   foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
@@ -749,6 +751,49 @@ mesmo fato).
   num `listWidget({…})` some na desestruturação antes do registro, e só a auditoria da declaração
   acusa. A contagem do dia sai de `node scripts/lei-catalogo.mjs`, nunca deste parágrafo.
 
+- **T-84 FECHADA — o disco parou de atravessar o que não é sólido, e a régua é o ÂNGULO.** Os
+  números estão em [`medidas.md`](./medidas.md).
+  ☠️ **A causa nunca foi «o passe não lê profundidade» — ele lê.** É que de dez objetos da cena **só
+  a superfície sólida do planeta escreve** nela: galáxia, fotosfera, cometa, pulsar, nebulosa,
+  estação, anel, campo de estrelas e casca de atmosfera são aditivos com `depthWrite: false`. Onde
+  eles estão o buffer guarda o que está ATRÁS, `atrasDaMassa` sai 1 e a emissão entra com força
+  total. **Um review externo afirmou a premissa errada; o código a contradiz.**
+  ⭑ **O oclusor chega como DISCO EM MUNDO** (centro e raio) porque alvo de profundidade para
+  transparente exigiria variante de depth em nove módulos — a galáxia é billboard INSTANCIADO com os
+  vértices calculados no próprio vertex shader, e nenhum `overrideMaterial` reproduz aquela
+  geometria. Centro e raio, qualquer um dos nove sabe informar.
+  ☠️ **A vaga é do maior ÂNGULO APARENTE, nunca do mais próximo.** *"O mais próximo oclui os
+  outros"* é verdade sobre opacos e falsa aqui: o corpo em foco é quase sempre o mais próximo e tem
+  raio uma fração do de uma galáxia — escolhendo por distância ele ROUBA a vaga e o disco reaparece
+  em toda a volta. Regressão medida e fotografada.
+  ☠️ **A SOMBRA não entra, e fechá-la foi defeito com refutação já escrita:** *"a sombra é o objeto;
+  atenuá-la o faz desaparecer do céu"*. Com o oclusor sobre ela o vazio enche com a luz da galáxia e
+  o núcleo fica OPACO. A DEFLEXÃO também fica — ver a galáxia distorcida está certo. Só a EMISSÃO
+  fecha.
+  ⭑ **E a geodésica deixou de ser truncada:** `if (alfa > 0.99) break` abortava a marcha inteira
+  supondo que disco opaco torna o resto irrelevante — mas o alfa devolvido é `capturado ? 1 : 0`,
+  porque o disco SOMA em vez de tapar. O fundo continuava sendo lido através dele, por um `dirFinal`
+  tirado do meio do voo. O corte desceu para o cruzamento; a economia real era `emissaoDoDisco`, não
+  o leapfrog.
+  ⚠️ **A quinta causa de «o disco voltou a aparecer» sai por NOME e não foi consertada:**
+  `spatia.oclusor().semRegua`. `SKIN_EXTENT` declara **4** peles e `BODY_SPAN` declara **6** — as
+  duas que faltam nunca pediram recuo de enquadramento, e uma delas é a segunda pele mais comum do
+  céu. **Inventar aqui o número que falta lá fabricaria a segunda régua do mesmo objeto**, que é
+  justamente o que o oclusor evita ao importar `SPAN` e `SKIN_EXTENT` em vez de escolher.
+  ⚠️ **Sem oráculo ainda**, e o que ele precisaria provar está nomeado: que a emissão fecha e que a
+  deflexão e a sombra NÃO.
+- **T-85** — ☠️ **DUAS CAUSAS DESCARTADAS POR MEDIDA, e é isso que a torna barata para quem pegar.**
+  Não é o truncamento da geodésica (0,2% dos pontos na pose do relato) e **não é quantização de 8
+  bits**: o dither de saída está vivo (ganho 1 muda 8,0% dos pontos; controle positivo em 96,5%) e
+  **não move a largura dos platôs**. Logo o platô largo do claro é **sinal saturado**, não degrau —
+  dither não quebra o que não é gradiente.
+  ⭑ **A pista, e ela é observação de MESMO QUADRO:** com `bloom.strength` em 0 uma aresta reta
+  vertical some do halo claro. `UnrealBloomPass` compõe mips em resolução reduzida, e degrau largo
+  em gradiente claro é o artefato da forma certa. ⚠️ Não localizada em varredura — os maiores saltos
+  da linha eram estrelas, que é bloom em fonte pontual e não costura.
+  ⚠️ **Antes de medir de novo, `armadilhas.md` §A:** esta caça pagou três armadilhas novas —
+  `readPixels` fora de `rAF` aninhado devolve zero, o recorte central cai dentro da SOMBRA, e duas
+  fotos separadas por segundos atribuem animação ao tratamento.
 - **T-40 … T-45** — achados por dois revisores adversariais sobre as entregas de T-35 fase 2 e
   T-16, e **T-40 é o mais grave**: a marca só aparece no painel do corpo em que o operador **já
   está**, então ela responde uma pergunta que ele não pode ter. Depois de marcar, ele precisa fazer
@@ -1069,6 +1114,9 @@ que já está salvo, e a afinação do operador evapora em silêncio.
 | a massa mover o `core` do pulsar (T-29) | os 60% da faixa não têm leitor visual (as duas ampliações do miolo saem idênticas) **e** o corpo variável punha o `R_s/R` da lente em 0,640 contra os 0,400 do fato de classe. Subir o ganho até ele agir é pior: a 0,40 de âncora o corpo engole o lobo (87 px contra 89–165) e o `R_s` da lente cresce junto |
 | renderizar duas vezes na troca de cena para curar o preto (T-54) | esconde a PARIDADE em vez de removê-la, e ela volta no primeiro passe que alguém acrescentar. O que remove é fixar o par de buffers no começo do quadro, e a conferência é `lei-paridade.mjs` |
 | as ZONAS por razão de massa como classificação graduada (T-28) | a terceira zona é vazia por aritmética, a do meio leva **81,8% dos sistemas**, e a cena desenha a mesma imagem nas três. Quem tem leitor é o fato BINÁRIO (`dominanteDe`); a zona exigiria um segundo corpo em 81,8% dos sistemas — pipeline, não limiar |
+| atenuar a emissão do disco pela LUZ que a cena já pôs no pixel (T-84) | um pixel aceso **não diz de que lado veio**. Com `cobrem: 0` — nada na frente, onde o certo é não mudar nada — o termo mudou **12,5% da tela**, e a perda cresce com o brilho do FUNDO (0,24 no quintil escuro, 4,36 no claro). Quem separa os lados é a PROFUNDIDADE, e os aditivos não a escrevem |
+| alvo de profundidade para os oclusores transparentes (T-84) | a galáxia é billboard **instanciado** com os vértices calculados no vertex shader — `overrideMaterial`/`MeshDepthMaterial` desenha outra geometria. Exigiria variante de depth em nove módulos. E fazer os aditivos escreverem depth oclui o campo de estrelas e tudo atrás |
+| dither de saída para curar a banda do claro (T-85) | ele está VIVO (ganho 1 muda 8,0% dos pontos; controle positivo em 96,5%) e **não move a largura dos platôs**: p90 2 · p99 5 · máx 16 sem ele contra p90 2 · p99 6 · máx 12 com ele. O platô largo do claro é **sinal saturado**, e dither não quebra o que não é gradiente |
 
 ---
 
