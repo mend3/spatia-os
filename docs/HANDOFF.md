@@ -105,6 +105,13 @@ ela é por dívida de MODELO, não por tamanho.
 4. **T-26** — a granulação do anel: as quatro candidatas estão prontas em `sandbox/ring-variants.js`
    e **falta o número** — a comparação a 25 px foi feita a olho, sem timer de GPU.
 
+⚠️ **T-90 e T-91 (o cometa) estão FORA da ordem acima e nascem triadas** — o briefing
+[`briefings/cometa-realista.md`](./briefings/cometa-realista.md) já separou o que existe do que
+falta, e **quatro** dos itens de prioridade máxima do relato original já estavam no código. Quem
+pegar uma delas começa pelo briefing, e leva junto o número que decide o escopo: a lente custa
+**3,8–5,1 ms** contra 0,31–0,35 ms do céu inteiro, então *"volumétrico"* no sentido de marchar raio
+não cabe sem medida antes.
+
 ⚠️ **A métrica é parte da hipótese, e T-85 pagou isso caro.** Uma medida com controle FECHADO deu
 nulo e quase virou refutação escrita: ela varria a faixa clara inteira sem isolar o regime em que o
 defeito vive (gradiente raso), e ali a maior parte é saturada. Isolado o regime, o mesmo A/B mostra

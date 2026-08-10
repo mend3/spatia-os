@@ -206,6 +206,8 @@ com ou sem produtor.
 | **T-84** | O disco atravessava o que NÃO É SÓLIDO — oclusor macio por ÂNGULO, e a geodésica que era truncada | `done` | — | T-85 | KR2.4 |
 | **T-85** | A BANDA em faixas largas no gradiente claro — é quantização de SAÍDA, e o grão nunca a alcançava | `done` | — | — | — |
 | **T-86** | O BARICENTRO — sistema duplo com dois corpos, ambos `f(t)` em torno do centro de massa | `todo` | — | — | KR3.2 |
+| **T-90** | A CAUDA do cometa é fila de pontos — a partícula tem de ser o DETALHE, não a estrutura | `todo` | — | — | — |
+| **T-91** | O cometa não tem JATOS — e a rotação que os liga e desliga já existe (`params.spin`) | `todo` | T-90 | — | — |
 | **T-87** | Acoplamento entre agentes como VÍNCULO, nunca como trajetória | `blocked` | T-23 (ENTREGA, não mais decisão) | — | — |
 | **T-88** | Consumidores de influência — ☠️ **JÁ ESTAVA RESPONDIDA** neste arquivo quando foi aberta | `archived` | — | — | KR3.4 |
 | **T-89** | Atenção com DUAS fontes — o painel pintava do payload, a tecla lia o store | `done` | — | — | KR2.2 |
@@ -1393,6 +1395,7 @@ nenhum lado**, e é a que fica marcada para reabrir primeiro.
 | `orbita-eliptica.md` | T-11 | ⚠️ a órbita elíptica **já está feita e medida** (área varrida máx/mín 1,0008) — resta o TRAÇO |
 | `quasar-enhance.md` | — | ⚠️ pede sete coisas e **quatro já existem** — conferir antes de implementar |
 | `ship-navigator.md` | T-15, T-08, T-17 | ⚠️ cita "arquitetura existente de agentes como drones e naves" e **a arquitetura citada é outro briefing não implementado** |
+| `cometa-realista.md` | T-90, T-91 | ⭑ **nasce TRIADO** (10/08): **quatro** dos itens de prioridade máxima do relato já estavam no código — duas caudas distintas e a direção pela FONTE. Morre quando T-90 e T-91 tiverem veredito |
 | `integracao-organica.md` | T-23, **T-79** | ⚠️ T-23 é UMA tabela dele; o corpo é a arquitetura evento→fenômeno, e a PONTE não existe (`grep notice src/space/` = 0) |
 | `features-widgets.md` | T-21, **T-76, T-77, T-78** | ⚠️ T-21 era só a §5 dele. ☠️ `capabilities.py` é HOMÔNIMO — permissão, não registry |
 | `hud-e-canvas.md` | T-46 … T-53 | ⭑ sonda (T-46), teto com corte publicado (T-47), residentes com portão (T-48), zona morta do palco (T-51) e a referência que aponta em vez de repetir (T-52) estão entregues; e T-53 fechou com o DOCUMENTO ancorado no corpo (T-82, a âncora). T-72 (a régua de altura), T-74 e T-75 (as duas medidas) também fecharam. Falta **T-73**, que é decisão sua |
