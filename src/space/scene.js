@@ -2577,11 +2577,23 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * arquivo ainda não ter chegado — sai como `false`. É a diferença entre "está na cena" e
        * "está no quadro".
        */
+      /*
+       * ☠️ **`montado` é da pele NOMEADA, nunca "alguma das cinco".** A primeira versão fazia
+       * `.some()` sobre as cinco e podia devolver `pele: asteroid · montado: true` com a visível
+       * sendo o COMETA — sonda que afirma sobre a coisa errada é pior que sonda ausente.
+       */
+      const PELE_OBJETO = {
+        [SUPERFICIE.ESTACAO]: station,
+        [SUPERFICIE.COMETA]: comet,
+        [SUPERFICIE.PULSAR]: pulsar,
+        [SUPERFICIE.NEBULOSA]: nebula,
+        [SUPERFICIE.ASTEROIDE]: asteroide,
+      };
       probe.morfologica = {
         pele: decisao.surface,
         nivel: Number(level.toFixed(3)),
         px: Number(pouso.px.toFixed(1)),
-        montado: [station, comet, pulsar, nebula, asteroide].some((p) => p.object.visible),
+        montado: Boolean(PELE_OBJETO[decisao.surface]?.object.visible),
       };
       if (decisao.surface === SUPERFICIE.COMETA) {
         level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());

@@ -180,14 +180,29 @@ export const LOD_FAR_PX = 26;
 export const LOD_NEAR_PX = 110;
 
 /**
- * Quanto do raio de referência a rocha preenche com CORPO.
+ * Quanto do raio de referência a rocha preenche com CORPO — **o MÍNIMO das oito, medido.**
  *
- * ⭑ **1 porque a malha é NORMALIZADA na meia-diagonal** (`malha-de-autor.js`): a esfera de raio 1
- * circunscreve a caixa, então o corpo não ultrapassa o raio de referência em pose nenhuma. Medido
- * no Hubble pela mesma normalização, o vértice mais distante fica a 0,793 — a rocha preenche menos
- * que o raio, e nunca mais.
+ * A normalização põe a esfera de raio 1 circunscrevendo a CAIXA, então nenhuma malha ultrapassa o
+ * raio; o quanto ela preenche varia com a forma. Medido em 2026-08-10, vértice mais distante sobre
+ * o raio de referência:
+ *
+ * | malha | preenche | | malha | preenche |
+ * |---|---|---|---|---|
+ * | `101955-bennu` | **0,601** | | `4179-toutatis` | 0,851 |
+ * | `6489-golevka` | 0,792 | | `1620-geographos` | 0,863 |
+ * | `25143-itokawa` | 0,823 | | `8567-1996-hw1` | 0,868 |
+ * | `4486-mithra` | 0,828 | | `216-kleopatra` | 0,877 |
+ *
+ * ☠️ **É o MÍNIMO, e não a média, porque `keepsCrown` é um degrau em `CROWN_FLOOR = 0,8`.** Com a
+ * média (0,813) o sprite cederia para umas malhas e não para outras — o mesmo corpo mudaria de
+ * composição conforme o hash, que é surpresa pura. O mínimo nunca super-declara: `BODY_SPAN` é por
+ * PELE, e uma pele cujo corpo varia responde pelo menor que ela desenha.
+ *
+ * ⚠️ **E é isto que faz o sprite CEDER** (`0,601 < 0,8`). Declarado 1, ele mantinha a coroa e o halo
+ * aditivo desenhava por cima da rocha — o corpo montava, a sonda dizia `montado: true`, e a tela
+ * mostrava um brilho azul no lugar da pedra.
  */
-export const BODY_SPAN = 1;
+export const BODY_SPAN = 0.601;
 
 /**
  * A pele de CENA — mesmo contrato das outras quatro morfológicas: `{ object, update(...) → nível }`.
@@ -204,6 +219,36 @@ export function createAsteroide() {
   const group = new THREE.Group();
   group.visible = false;
 
+  /*
+   * ☠️ **A CENA NÃO TEM UMA LUZ SEQUER**, e é isto que decide o material desta pele.
+   *
+   * Medido: nenhum `DirectionalLight`/`AmbientLight`/`PointLight` em `src/space/`. Um
+   * `MeshStandardMaterial` ali renderiza PRETO — o corpo monta, fica visível, e desenha uma
+   * silhueta escura. `station.js` já tinha batido nisso e escolheu `MeshBasicMaterial` por causa
+   * disso; a rocha não pode fazer o mesmo, porque é a SOMBRA que carrega a forma dela (sem
+   * sombreamento, a malha de levantamento vira um adesivo).
+   *
+   * ⭑ Então a luz vem JUNTO com a pele, e some com ela. A direção é a convenção já escrita da
+   * cena: **o núcleo é o único corpo emissivo**, então ela vem do lado da origem.
+   *
+   * ⚠️ A ambiente é fraca de propósito: no vácuo o lado escuro é escuro, e o que ela evita é o
+   * lado oposto virar recorte preto — que se lê como buraco, não como sombra.
+   */
+  const solar = new THREE.DirectionalLight(0xfff4e2, 2.8);
+  solar.position.set(0.6, 0.5, 1);
+  const ambiente = new THREE.AmbientLight(0x5a6a86, 0.4);
+  group.add(solar, ambiente);
+
+  /*
+   * ⚠️ **O GIRO é do pivô, não do grupo — e é isso que mantém a luz parada.**
+   *
+   * Girando o grupo inteiro, a luz gira junto e o lado aceso fica colado na rocha: ela roda e o
+   * sombreamento não muda, que é a leitura de adesivo. Com o pivô por dentro, a pedra passa sob
+   * uma luz fixa e o relevo aparece — que é a única razão de esta pele ter material iluminado.
+   */
+  const pivo = new THREE.Group();
+  group.add(pivo);
+
   let assinatura = null;
   let montado = null;
 
@@ -215,9 +260,9 @@ export function createAsteroide() {
       const chave = `${params.malha.id}|${params.pele}|${params.giro.toFixed(3)}`;
       if (chave !== assinatura) {
         assinatura = chave;
-        if (montado) group.remove(montado.objeto);
+        if (montado) pivo.remove(montado.objeto);
         montado = criarAsteroide(params, 1);
-        group.add(montado.objeto);
+        pivo.add(montado.objeto);
       }
 
       // Sem malha ainda: nível ZERO, e o sprite continua respondendo pelo corpo.
@@ -229,7 +274,7 @@ export function createAsteroide() {
        * O giro é LENTO e do corpo, não do relógio de quem olha: uma rocha girando rápido lê como
        * detrito em queda. `hash` já deu a fase, então dois asteroides nunca estão no mesmo ângulo.
        */
-      group.rotation.y = params.giro + elapsed * 0.06;
+      pivo.rotation.y = params.giro + elapsed * 0.06;
       return nivel;
     },
   };
