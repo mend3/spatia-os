@@ -512,6 +512,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     comet.object,
     pulsar.object,
     nebula.object,
+    asteroide.object,
     /*
      * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
      * as entradas vêm de `planetAnchor`, que já multiplicou posição e raio pela escala do grupo.
@@ -2589,11 +2590,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         [SUPERFICIE.NEBULOSA]: nebula,
         [SUPERFICIE.ASTEROIDE]: asteroide,
       };
+      /*
+       * ☠️ **`visible` NÃO é "está no quadro", e esta sonda já mentiu por isso.** Um objeto fora do
+       * grafo da cena nunca desenha, com `visible` verdadeiro o tempo todo — foi assim que ela
+       * respondeu `montado: true` sobre uma pele que ninguém tinha adicionado ao `scene.add`.
+       * `parent` é a metade que faltava.
+       */
+      const objeto = PELE_OBJETO[decisao.surface]?.object;
       probe.morfologica = {
         pele: decisao.surface,
         nivel: Number(level.toFixed(3)),
         px: Number(pouso.px.toFixed(1)),
-        montado: Boolean(PELE_OBJETO[decisao.surface]?.object.visible),
+        montado: Boolean(objeto?.visible && objeto.parent),
+        naCena: Boolean(objeto?.parent),
       };
       if (decisao.surface === SUPERFICIE.COMETA) {
         level = comet.update(morphParams, pouso.position, camera, pouso.px, elapsed, motion.isReduced());
@@ -2617,7 +2626,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       probe.dist = camera.position.distanceTo(pouso.position);
       probe.desenhado = level > 0.002;
     } else if (morphSource) {
-      for (const pele of [station, comet, pulsar, nebula]) pele.object.visible = false;
+      for (const pele of [station, comet, pulsar, nebula, asteroide]) pele.object.visible = false;
       graph.haloOf(null, 0);
       morphSource = null;
       morphParams = null;
