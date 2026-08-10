@@ -5,7 +5,7 @@
  * Complementa `censo-morfologias.mjs`, que mede o que o céu DESENHA. Este mede o que o corpus É, e
  * existe por causa de um padrão que mordeu três vezes em 2026-08-07: **constante calibrada contra
  * um corpus e aplicada depois que ele mudou de tamanho ou de escopo**, degradando em silêncio.
- * `SPAN` (71 → 228 hubs), `DENSITY_K` (3 644 → 20 308 chunks, 297 luas viraram 0) e o piso do
+ * `SPAN` (71 → 228 hubs), `K_RAIO` (3 644 → 20 308 chunks, 297 luas viraram 0) e o piso do
  * pulsar (medido no git, aplicado no índice, 0 corpos). O relatório completo, com o que foi
  * refutado e por quê, está em `docs/medicoes-2026-08-07.md`.
  *
@@ -131,7 +131,7 @@ for (const k of [0.7, 0.5]) {
   const frac = Math.max(0, Math.min(1, (A_MAX - corte) / (A_MAX - A_MIN)));
   const flag = corte >= A_MAX ? ' \x1b[31m← NENHUMA LUA\x1b[0m' : '';
   console.log(
-    `  DENSITY_K ${k.toFixed(2)} → a_corte ${corte.toFixed(1)} (raio máx ${A_MAX})  ${(frac * 100).toFixed(0)}% dos elegíveis${flag}`
+    `  K_RAIO ${k.toFixed(2)} → a_corte ${corte.toFixed(1)} (raio máx ${A_MAX})  ${(frac * 100).toFixed(0)}% dos elegíveis${flag}`
   );
 }
 const size = (c) => 1.5 + Math.log2(1 + (c || 0)) * 0.3;

@@ -196,7 +196,7 @@ com ou sem produtor.
 | **T-60** | Melhorar o visual do PULSAR — luz FLAT (devia expandir em 360°) e nuvem estática | `todo` | — | — | — |
 | **T-61** | Texturas: asteroide, cometa, anel — pedregulho, poeira, colisão eventual | `todo` | T-34 | — | — |
 | **T-62** | Camada externa do BURACO NEGRO — poeira, detritos, profundidade e volume | `todo` | — | — | — |
-| **T-63** | `orbital-zones.js` empresta nome de FÍSICA a metáfora — é DECISÃO, não renomeação | `todo` | decisão do usuário | — | KR3.2 |
+| **T-63** | `orbital-zones.js` emprestava nome de FÍSICA a metáfora — ⭑ **DECIDIDO: os nomes deixam de afirmar física** | `done` | — | — | KR3.2 |
 | **T-64** | `session.route` — ⭑ **DECIDIDO: apagado.** A medida da divergência virou LEI | `done` | — | — | KR2.1 |
 | **T-65** | Levar a REDE à cena AGENTE — o dado e o desenho já existem; falta decidir | `blocked` | decisão do usuário | — | — |
 | **T-66** | O sistema APERTADO — 38 arquivos numa pasta dão planetas de 0,10 unidade | `todo` | — | — | — |
@@ -478,22 +478,26 @@ com ou sem produtor.
 - **T-24** — a borda do planalto anda com a pose (**3 px a 260 un · 4 a 150 e 116 · 4,5 a 58**): a
   FORMA da conclusão sobrevive, a magnitude não. Mais sistemas no mesmo `OCUPACAO` dão envelopes
   menores, e é por isso que o `PISO` não se congela contra o fixture.
-- **T-19** — ⭑ **a expiração, escrita como conta:** `slack = a_pai / (2,44 · DENSITY_K · ∛(3M))`.
-  `inner` escala com `DENSITY_K` e `outer` (Hill) **não** — é essa assimetria que fecha a janela.
+- **T-19** — ⭑ **a expiração, escrita como conta:** `slack = a_pai / (2,44 · K_RAIO · ∛(3M))`.
+  `inner` escala com `K_RAIO` e `outer` (Hill) **não** — é essa assimetria que fecha a janela.
 
 **As quatro dimensões do grafo têm dono, e duas foram RECUSADAS por escrito:** `centrality` ✅ ·
 `usage` ✅ · `connectivity` ✅ (como **ALCANCE**, porque o grau repetia a centralidade) · `density`
 **adiada** (é bytes por chunk; conserta-se no indexador) · `importance` **recusada** (é juízo, não
 fato).
 
-- **T-63** — ☠️ **É o TERCEIRO `mass`, e o pior dos três.** Os dois primeiros caíram por renomeação
-  (`mass` → `chunks`, `planetParams.mass` → `chunksNorm`), mas em `orbital-zones.js` o
-  `const mass = node.chunks || 0` alimenta `physicalRadius`, `rocheLimit` e `hillRadius` — nomes que
-  **são** físicos, e uma função chamada `rocheLimit` afirma um limite de maré. `DENSITY_K` é
-  constante CALIBRADA (já degradou uma vez: corpus 5,6× maior, **297 luas viraram 0**), não constante
-  física com unidade. É o caminho curto e calado que a FRONTEIRA proíbe. **Não é renomeação:** ou os
-  nomes deixam de ser físicos, ou a razão vira adimensional como no `astrofisica.js`.
-  ⭑ `hillRadius` está ABSOLVIDO — `∛(m/3M)` é razão de massas, o mesmo argumento que salva o `R_s/R`.
+- **T-63 FECHADA — os nomes deixam de afirmar física, e a aritmética é IDÊNTICA.** A entrada é
+  `chunks`, e a FRONTEIRA proíbe grandeza física derivada daí sem unidade e constante explícitas.
+  ⭑ **A decisão foi SEPARAR, não renomear em bloco** — dois dos cinco nomes eram legítimos, pelo
+  mesmo argumento que salva o `R_s/R` do pulsar: `ROCHE_FLUID = 2,44` é razão adimensional COM
+  FONTE, e `hillRadius` (`∛(m/3M)`) é razão de MASSAS, onde o quilograma se cancela. Um `sed` sobre
+  os cinco teria apagado a distinção que dá sentido aos outros três.
+  ⭑ Os três que afirmavam: `DENSITY_K` (nomeava densidade, é coeficiente de cena calibrado — e
+  expira: com corpus 5,6× maior, 297 luas viraram 0) → `K_RAIO`; `physicalRadius` → `raioDeCorpo`;
+  `rocheLimit` → `orbitaMinima`. A tabela com o veredito de cada um vive no cabeçalho do módulo.
+  ⚠️ **Paridade conferida**: 16 massas × 2 funções, 0 divergências contra a transcrição de HEAD.
+  ☠️ **Decidida POR AGENTE sob autorização de 09/08** — a linha original dizia que nenhum agente
+  deve resolvê-la sozinho, e a procedência da decisão fica registrada como o que é.
 - **T-64 FECHADA — a segunda rota saiu, e a MEDIDA que a descrevia virou LEI.** `core/session.js`
   guardava um `route` lido do hash CRU enquanto `core/tela.js` guarda a que o kernel resolveu; o
   oráculo CONTAVA a divergência (**7 de 12 endereços**) e a deixava existir. Contagem não é guarda.
@@ -1075,7 +1079,7 @@ mesmo fato).
 
 - **T-19** — `a_corte` 23,9 (fixture) e 26,3 (real) contra o raio orbital máximo 62, **zero janelas
   fechadas**: expiração, não defeito, e só morde se `M_total` crescer ~13×. ☠️ **A saída óbvia é
-  falsa** — `rocheLimit(mass)` já É `2,44·R`, e a constante mora em `physicalRadius`.
+  falsa** — `orbitaMinima(mass)` já É `2,44·R`, e a constante mora em `raioDeCorpo`.
 - **T-26** — as quatro candidatas estão prontas em `src/sandbox/ring-variants.js` com a pesquisa em
   `catalogo-celeste.md`. **Falta o número:** a comparação a 25 px foi feita a olho, sem timer de
   GPU, e as quatro custam coisas diferentes. ⚠️ O anel **não aparece no corpus real** (a varredura
@@ -1208,7 +1212,7 @@ que já está salvo, e a afinação do operador evapora em silêncio.
 | "PRESS ANY KEY TO START" substituindo o boot | o boot atual responde uma pergunta **com duas respostas legítimas** (som), e mostra diagnóstico REAL. *"Uma sequência falsa de SISTEMAS OK ensinaria o operador a não ler a tela"* |
 | tirar as "linhas orbitais artificiais" do quasar | diagnóstico errado de objeto: os braços já são densidade; as curvas laranja são os **arcos de vínculo** |
 | amarrar a chegada num sistema ao piso da pele | a tangência NUNCA existiu: o maior corpo chega entre **19,8 e 69,9 px** (mediana 48,5) e **0 de 21 sistemas** alcançam o piso de 90. Amarrar não afina `irPara` — transforma-a em `anexar`, e o resto do sistema sai do quadro |
-| `rocheLimit(raio)` para apagar o `DENSITY_K` (item 0c) | `rocheLimit(mass)` **já é** `2,44·R`; a constante mora em `physicalRadius`, e o outro raio da cena está na régua do SPRITE, que não é conversível |
+| `orbitaMinima(raio)` para apagar o `K_RAIO` (item 0c) | `orbitaMinima(mass)` **já é** `2,44·R`; a constante mora em `raioDeCorpo`, e o outro raio da cena está na régua do SPRITE, que não é conversível |
 | normalizar a massa do pulsar DENTRO da faixa gigante (item 0d) | é a mesma família do defeito — faria o período de um corpo depender de quem mais está no céu, e com população 1 é degenerada |
 | a massa mover o `core` do pulsar (T-29) | os 60% da faixa não têm leitor visual (as duas ampliações do miolo saem idênticas) **e** o corpo variável punha o `R_s/R` da lente em 0,640 contra os 0,400 do fato de classe. Subir o ganho até ele agir é pior: a 0,40 de âncora o corpo engole o lobo (87 px contra 89–165) e o `R_s` da lente cresce junto |
 | renderizar duas vezes na troca de cena para curar o preto (T-54) | esconde a PARIDADE em vez de removê-la, e ela volta no primeiro passe que alguém acrescentar. O que remove é fixar o par de buffers no começo do quadro, e a conferência é `lei-paridade.mjs` |

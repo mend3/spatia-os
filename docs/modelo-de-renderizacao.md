@@ -173,7 +173,7 @@ de propósito, e o orbital não é — medido, `R/a ≈ 0,022…0,087` aqui cont
 corpos são ~1500× maiores que as próprias órbitas. Derivar uma fronteira de cada régua e comparar
 as duas não significa nada, e o sintoma foi silencioso: a janela entre elas vinha com no máximo 21%
 de largura, e com o fator de estabilidade progrado real (0,5 r_H) **0 de 136** arquivos seguravam
-lua. A correção é usar o raio FÍSICO implicado pela massa (`physicalRadius`) para mecânica, e
+lua. A correção é usar o raio FÍSICO implicado pela massa (`raioDeCorpo`) para mecânica, e
 reservar o log só para pixel.
 
 Cai daí um resultado melhor que o pedido: na razão Hill/Roche o `m^(1/3)` **cancela**, então quem

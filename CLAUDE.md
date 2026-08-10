@@ -491,8 +491,8 @@ Marcadores quase infalíveis — passado sobre o **próprio código ou o própri
 | *"o handoff morava em `.cache/` e agora está em `docs/`"* | (nada — o arquivo está onde está) |
 | *"a regra já foi ignorada uma vez"* | a regra, no imperativo |
 
-⚠️ **Uma exceção, e é só uma: a REFUTAÇÃO MEDIDA fica.** *"`rocheLimit(raio)` não dispensa
-`DENSITY_K` — a constante mora em `physicalRadius`"* está no passado e **não é história**: é o que
+⚠️ **Uma exceção, e é só uma: a REFUTAÇÃO MEDIDA fica.** *"`orbitaMinima(raio)` não dispensa
+`K_RAIO` — a constante mora em `raioDeCorpo`"* está no passado e **não é história**: é o que
 impede a próxima sessão de reimplementar o erro. A diferença é o tempo verbal do EFEITO — história
 descreve o que mudou, refutação descreve o que continua verdade sobre o futuro. Se apagar a linha
 faz alguém refazer um trabalho já pago, ela fica.
@@ -764,7 +764,7 @@ jeito só: a tecla presa não tem sintoma além do movimento que não para (arma
 | `lei-cena.mjs` | ⚠️ **É ORÁCULO, e roda após tocar em `CENAS`/`aplicarCena`, `entity-physics.js`, `superficies.js` ou `solver.js`.** A cena é uma LENTE: ela decide o que ACENDE e de onde se OLHA, nunca o que um corpo É. Audita o vocabulário da tabela, os argumentos de todo call site dos três em `src/`, a pureza dos módulos, e perturba enfiando a cena por todo canal exposto. **A §5 guarda o VOCABULÁRIO DE PELE**: `resolveBody` não pode devolver valor de pele (conferido por VALOR, nunca por nome de chave) e só `superficies.js` o declara — homônimo entra em `VOCABULARIO_ALHEIO` com o motivo |
 
 O `censo-corpus` existe por causa de três constantes que degradaram sem erro nenhum: `SPAN` (calibrada
-com 71 hubs, aplicada em 228), `DENSITY_K` (corpus 5,6× maior, **297 luas viraram 0**) e o piso do
+com 71 hubs, aplicada em 228), `K_RAIO` (corpus 5,6× maior, **297 luas viraram 0**) e o piso do
 pulsar (medido no git, aplicado no índice, **0 corpos**). Ele acusa em vermelho a classe que ficou
 sem população.
 

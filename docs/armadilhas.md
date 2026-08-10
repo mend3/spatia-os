@@ -338,7 +338,7 @@ exato, o resto não vale.**
     pulsar lia `node.massRank` (posto de `chunks` no céu inteiro) para descrever um corpo que só
     nasce da cauda de cima. Resultado: 16,9% do eixo num corpus de 72, **0,36% num de 276** — os
     mesmos poucos gigantes dividindo um céu maior. ⚠️ **Não confunda com constante degradada**
-    (`SPAN`, `DENSITY_K`): aquelas funcionaram e expiraram; esta **nunca varreu nada**, e piora
+    (`SPAN`, `K_RAIO`): aquelas funcionaram e expiraram; esta **nunca varreu nada**, e piora
     sozinha. ⭑ **A guarda:** grandeza que descreve corpo de uma CLASSE tem de ser razão ancorada num
     limiar FIXO (`chunks / GIGANTE`), nunca posto de população. É a forma que a REGRA DA FRONTEIRA
     já abençoa no `R_s/R`. ⚠️ E normalizar *dentro* da classe é a mesma família de erro — com

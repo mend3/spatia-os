@@ -24,7 +24,7 @@ import { isSkyNode } from '../core/corpus.js';
 import * as motion from '../core/motion.js';
 import { createRings, VISIBLE_CORE } from './rings.js';
 import { resolveBody, MODIFIER } from './solver.js';
-import { moonsOf, physicalRadius } from './orbital-zones.js';
+import { moonsOf, raioDeCorpo } from './orbital-zones.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { posicaoCanonica } from './posicao-canonica.js';
 import { glslFloat } from './glsl.js';
@@ -395,7 +395,7 @@ export const starSeed = (node) => hash01(node.source ?? String(node.i ?? 0), 7);
  * que mostra o sistema — 18× menor que a própria banda paga. É a mesma armadilha que o cabeçalho
  * do `orbital-zones.js` abre avisando, aplicada ao tamanho da lua em vez da órbita dela.
  *
- * A conversão certa é por RAZÃO, ancorada no pai: `drawRadius / physicalRadius(massa do pai)` é a
+ * A conversão certa é por RAZÃO, ancorada no pai: `drawRadius / raioDeCorpo(massa do pai)` é a
  * proporção lua/pai na régua da mecânica, e multiplicá-la pelo sprite do pai a traz para a régua
  * do sprite sem inventar fator de vista nenhum.
  *
@@ -444,7 +444,7 @@ const MOON_DRAW_GAIN = 2.1;
 /** Sprite da lua, na régua do pai. Ver `MOON_DRAW_GAIN` para as duas réguas envolvidas. */
 export function moonSpriteSize(moon, parent) {
   const parentSprite = 0.55 + Math.log2(1 + (parent?.chunks || 1)) * 0.42;
-  const parentPhysical = physicalRadius(parent?.chunks || 1);
+  const parentPhysical = raioDeCorpo(parent?.chunks || 1);
   if (parentPhysical <= 0) return moon.drawRadius;
   return parentSprite * (moon.drawRadius / parentPhysical) * MOON_DRAW_GAIN;
 }

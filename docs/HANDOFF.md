@@ -146,8 +146,10 @@ A ferramenta dela é **`hud.html`**, que monta o `index.html` DE VERDADE num `<i
 `palco 0,0%` e o número de FOCUS fica subestimado. A composição com o documento aberto está medida
 no APP, à mão, em [`medidas.md`](./medidas.md).
 
-⚠️ **As decisões que são do usuário não são `blocked` por engenharia e nenhum agente as resolve
-sozinho** — estão nomeadas no fim do `roadmap.md`.
+⚠️ **As decisões que são do usuário estão nomeadas no fim do `roadmap.md`.**
+☠️ **Sete delas foram resolvidas POR AGENTE em 09/08, sob autorização explícita do operador** — e
+cada uma diz isso na própria linha. A regra continua valendo para as próximas: a autorização foi
+daquele dia e daquelas sete, não um cheque em branco.
 ⭑ **Uma delas caiu em 09/08 e o resultado virou lei: a REGRA DA COORDENADA** (`CLAUDE.md`).
 Proposta de *"dinâmica de entidades"*, *"campo de influência"* ou *"gravidade cognitiva"* chega
 aqui com frequência e é meia-recusa: o canal de BRILHO já existe (`universe.js:brilhoDe`), o de

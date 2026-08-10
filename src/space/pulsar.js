@@ -107,7 +107,7 @@ const SPIN_PERIOD = { fast: 0.9, slow: 4.2 };
  * idênticos a três casas. A metade RÁPIDA do `SPIN_PERIOD`, que é a
  * razão declarada de o período ser inverso da massa (*"o de milissegundo é o velho reciclado por
  * acreção"*), era **inalcançável por construção**. Não é constante degradada como `SPAN` ou
- * `DENSITY_K` — aquelas funcionaram e expiraram; esta nunca varreu nada.
+ * `K_RAIO` — aquelas funcionaram e expiraram; esta nunca varreu nada.
  *
  * ## A saída, e por que é esta
  *

@@ -34,7 +34,7 @@
  * diferentes, e o resultado não significa nada.
  *
  * A correção: **órbita usa o raio FÍSICO implicado pela massa a uma densidade comum**, não o raio
- * desenhado. São grandezas distintas e continuam distintas — `physicalRadius` para mecânica,
+ * desenhado. São grandezas distintas e continuam distintas — `raioDeCorpo` para mecânica,
  * `0.55 + log2(...)` para pixel.
  *
  * E aí cai um resultado que paga o trabalho sozinho: como o Roche fica `∝ m^(1/3)` e o Hill
@@ -117,7 +117,7 @@ const ROCHE_FLUID = 2.44;
  * fechada logo acima — quem reindexar um corpus muito maior refaz `a_corte` e confere contra 62,
  * ou as luas somem outra vez sem erro nenhum.
  */
-const DENSITY_K = 0.5;
+const K_RAIO = 0.5;
 
 /**
  * Largura de uma banda orbital, em RAIOS de lua. Substituiu o antigo `SPACING_SAFETY`.
@@ -125,7 +125,7 @@ const DENSITY_K = 0.5;
  * 4 é o orçamento da banda: metade dela é a lua (diâmetro `2·r`), um quarto é a excursão que a
  * elipse pode usar, e o quarto restante é folga vazia — `B/8` de cada lado. Baixar este número
  * engorda a lua e aperta a folga; subir afina tudo. **É o ajuste barato de aparência do sistema de
- * luas**, o mesmo papel que o `SPACING_SAFETY` tinha, e não o `DENSITY_K`.
+ * luas**, o mesmo papel que o `SPACING_SAFETY` tinha, e não o `K_RAIO`.
  */
 const BAND_MOONS = 4;
 
@@ -204,13 +204,13 @@ const INCLINATION_SPREAD = 0.35;
  * leitor é o fato BINÁRIO, `dominanteDe`.
  *
  * O que sustenta o corte aqui é o caso degenerado, e ele é aritmética deste arquivo: o teto do raio
- * da lua é `physicalRadius(massa/N)/physicalRadius(massa) = N^(-1/3)` do raio do pai — **1,000 com
+ * da lua é `raioDeCorpo(massa/N)/raioDeCorpo(massa) = N^(-1/3)` do raio do pai — **1,000 com
  * uma seção**, 0,794 com duas, 0,585 com cinco. Uma "lua" do tamanho do pai é um binário.
  *
  * ⚠️ **O valor 5 em si não está medido NESTA grandeza** — ele veio da tabela apagada. Ele custa 9
  * dos 72 corpos do fixture (12,5%) e é o único portão da faixa: os 63 corpos com `μ ≥ 5` têm TODOS
  * a janela Roche→Hill aberta (0 janelas fechadas nos dois corpora), então nada mais recusa depois
- * dele. Quem for remedi-lo mede o raio DESENHADO (`min(physicalRadius(m/N), band/4)`), que é quem
+ * dele. Quem for remedi-lo mede o raio DESENHADO (`min(raioDeCorpo(m/N), band/4)`), que é quem
  * de fato limita — o teto `N^(-1/3)` quase nunca morde.
  */
 const MU_MIN = 5;
@@ -227,11 +227,30 @@ const MU_MIN = 5;
  */
 const MU_CORE = MOTION.keplerOrbit.gravitationalParameter;
 
-/** Raio físico implicado pela massa, a densidade comum. NÃO é o raio desenhado. */
-export const physicalRadius = (mass) => DENSITY_K * Math.cbrt(Math.max(mass, 0));
+/*
+ * ─────────────────────────── O QUE AQUI É FÍSICA, E O QUE SÓ USA A FORMA DELA
+ *
+ * A entrada destas funções é `chunks` — contagem de conhecimento, não quilograma. Pela FRONTEIRA
+ * FÍSICA × COGNITIVA, nenhuma grandeza física pode ser derivada daí sem unidade e constante
+ * explícitas, e a saída legítima é RAZÃO ADIMENSIONAL. Isso divide os nomes deste módulo em dois:
+ *
+ * | nome | veredito |
+ * |---|---|
+ * | `ROCHE_FLUID` = 2,44 | ⭑ **é física** — razão adimensional com fonte (para densidades iguais o limite de Roche fica em ~2,5 raios). Atravessa qualquer escala, como o `R_s/R` do pulsar |
+ * | `hillRadius` | ⭑ **é física** — `∛(m/3M)` é razão de MASSAS, e o quilograma se cancela |
+ * | `K_RAIO` | coeficiente de cena CALIBRADO, não densidade. **Expira**: com corpus 5,6× maior, 297 luas viraram 0 |
+ * | `raioDeCorpo` | raio em unidades de MUNDO implicado pelos chunks. Não afirma raio físico de nada |
+ * | `orbitaMinima` | a borda interna da faixa. A aritmética é a de Roche; a afirmação de maré, não |
+ *
+ * ⚠️ **Nada de comportamento mudou** — a aritmética é idêntica. O que sai é a afirmação embutida no
+ * nome, que é o caminho curto e calado que a FRONTEIRA existe para fechar.
+ */
 
-/** Limite de Roche: abaixo dele o satélite vira anel. Em unidades de mundo. */
-export const rocheLimit = (mass) => ROCHE_FLUID * physicalRadius(mass);
+/** O raio de um corpo em unidades de mundo, implicado pelos chunks. NÃO é o raio desenhado. */
+export const raioDeCorpo = (chunks) => K_RAIO * Math.cbrt(Math.max(chunks, 0));
+
+/** A borda INTERNA da faixa de luas: abaixo dela o satélite vira anel. Em unidades de mundo. */
+export const orbitaMinima = (chunks) => ROCHE_FLUID * raioDeCorpo(chunks);
 
 /**
  * Esfera de Hill: acima dela o pai não segura mais o satélite. Em unidades de mundo.
@@ -251,7 +270,7 @@ export const hillRadius = (orbitalRadius, mass, centralMass) =>
  *   significa que a janela fechou e o corpo perdeu as luas sem nada mais ter acontecido com ele.
  */
 export function moonZone(mass, orbitalRadius, centralMass) {
-  const inner = rocheLimit(mass);
+  const inner = orbitaMinima(mass);
   const outer = hillRadius(orbitalRadius, mass, centralMass);
   return { inner, outer, ok: outer > inner, slack: inner > 0 ? outer / inner : 0 };
 }
@@ -330,7 +349,7 @@ export function moonsOf(node, centralMass, hash, { minRadiusOverOuter = MOON_MIN
    * do PAI, que continua sendo o eixo do tempo), mas deixou de aparecer duas vezes.
    */
   const mu = MU_CORE * (mass / Math.max(centralMass, 1));
-  const parentPhysical = physicalRadius(mass);
+  const parentPhysical = raioDeCorpo(mass);
   const window = zone.outer - zone.inner;
 
   /*
@@ -354,13 +373,13 @@ export function moonsOf(node, centralMass, hash, { minRadiusOverOuter = MOON_MIN
   /*
    * O raio DESENHADO é o que a banda paga, limitado pelo que a massa permite.
    *
-   * `physicalRadius(massa/N)` continua sendo o teto: uma lua não pode ser desenhada maior do que a
+   * `raioDeCorpo(massa/N)` continua sendo o teto: uma lua não pode ser desenhada maior do que a
    * massa dela implica. Mas ela pode ser menor, e quase sempre é — essa é a compressão declarada
    * desta cena, do mesmo tipo que a escala log dos tamanhos do céu. Sem ela, órbita própria não
    * cabe em corpo nenhum.
    */
   const moonMass = mass / count;
-  const moonRadius = Math.min(physicalRadius(moonMass), band / BAND_MOONS);
+  const moonRadius = Math.min(raioDeCorpo(moonMass), band / BAND_MOONS);
   // Excursão radial que sobra depois da lua: metade para cada lado do semieixo.
   const wiggle = band / 2 - moonRadius - band / 8;
   // Plano médio do sistema. Cada lua se afasta dele, mas não tanto que o sistema deixe de ler
@@ -415,7 +434,7 @@ export function moonsOf(node, centralMass, hash, { minRadiusOverOuter = MOON_MIN
 
 export const ZONE_CONSTANTS = Object.freeze({
   ROCHE_FLUID,
-  DENSITY_K,
+  K_RAIO,
   MU_MIN,
   MU_CORE,
   MOON_MIN_OVER_OUTER,

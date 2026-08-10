@@ -32,7 +32,7 @@
  */
 import * as THREE from 'three';
 import { createPointMaterial, hash01, KIND_COLORS, moonOffset, moonSpriteSize } from '../space/graph.js';
-import { moonsOf, physicalRadius } from '../space/orbital-zones.js';
+import { moonsOf, raioDeCorpo } from '../space/orbital-zones.js';
 import { createMoonOrbits } from '../space/moon-orbits.js';
 
 /**
@@ -75,8 +75,8 @@ const raioDoPai = (chunks) => 0.55 + Math.log2(1 + chunks) * 0.42;
  * porque é o que ele significa na cena — raio orbital é recência.
  */
 function corpo(secoes, chunks, idade, massaCentral) {
-  // `a_corte = ROCHE_FLUID · DENSITY_K · (3·M)^(1/3)`, invertido para o slider falar em folga.
-  const corte = 2.44 * physicalRadius(3 * massaCentral);
+  // `a_corte = ROCHE_FLUID · K_RAIO · (3·M)^(1/3)`, invertido para o slider falar em folga.
+  const corte = 2.44 * raioDeCorpo(3 * massaCentral);
   return {
     id: `bancada/lua-${secoes}-${chunks}`,
     sections: Array.from({ length: secoes }, (_, i) => `§ seção ${i + 1}`),
