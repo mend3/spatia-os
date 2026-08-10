@@ -269,7 +269,6 @@ export function createTerminal(root, { audio }) {
     analyser = null;
   }
 
-
   // ---------------------------------------------------------------- fala
 
   // A fala é do `hud/voice.js`. Aqui só o som do sistema reagindo — havia um `speak()` neste
@@ -314,12 +313,7 @@ export function createTerminal(root, { audio }) {
       const value = Math.max(levels[i], 0.02);
       const barHeight = value * height * 0.9;
       context.fillStyle = `rgba(255, ${170 + value * 70}, ${110 + value * 90}, ${0.35 + value * 0.6})`;
-      context.fillRect(
-        i * barWidth + barWidth * 0.22,
-        (height - barHeight) / 2,
-        barWidth * 0.56,
-        barHeight
-      );
+      context.fillRect(i * barWidth + barWidth * 0.22, (height - barHeight) / 2, barWidth * 0.56, barHeight);
     }
     requestAnimationFrame(draw);
   }
@@ -333,7 +327,9 @@ export function createTerminal(root, { audio }) {
     setLevel(value) {
       external = value > 0.001 ? value : null;
     },
-    clearInput: () => { input.value = ''; },
+    clearInput: () => {
+      input.value = '';
+    },
     focus: () => input.focus(),
     submit,
     resize() {

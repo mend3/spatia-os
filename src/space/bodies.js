@@ -164,11 +164,13 @@ export function createBodies(labelLayer) {
       label.dataset.app = app.id;
       label.innerHTML = '';
       if (app.key) {
-        label.append(Object.assign(document.createElement('span'),
-          { className: 'body-key', textContent: app.key }));
+        label.append(
+          Object.assign(document.createElement('span'), { className: 'body-key', textContent: app.key })
+        );
       }
-      label.append(Object.assign(document.createElement('span'),
-        { className: 'body-name', textContent: app.name }));
+      label.append(
+        Object.assign(document.createElement('span'), { className: 'body-name', textContent: app.name })
+      );
       label.style.setProperty('--body-color', `#${color.getHexString()}`);
       labelLayer.append(label);
 
@@ -260,8 +262,7 @@ export function createBodies(labelLayer) {
         const visible = !behind && !eclipsed && distance < LABEL_FADE_DISTANCE;
         body.label.style.visibility = visible ? 'visible' : 'hidden';
         if (visible) {
-          body.label.style.transform =
-            `translate(-50%, -50%) translate(${((projected.x + 1) / 2) * 100}vw, ${((1 - projected.y) / 2) * 100}vh)`;
+          body.label.style.transform = `translate(-50%, -50%) translate(${((projected.x + 1) / 2) * 100}vw, ${((1 - projected.y) / 2) * 100}vh)`;
           body.label.style.opacity = String(
             0.45 + body.hover * 0.35 + body.active * 0.55 - Math.max(0, distance - 60) / 140
           );

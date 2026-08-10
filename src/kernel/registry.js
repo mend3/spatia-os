@@ -188,7 +188,9 @@ export function registerWidget(contract) {
     );
   }
   if (!SLOTS.includes(contract.slot)) {
-    throw new Error(`widget ${contract.id}: fenda inválida "${contract.slot}" — as fendas são ${SLOTS.join(', ')}`);
+    throw new Error(
+      `widget ${contract.id}: fenda inválida "${contract.slot}" — as fendas são ${SLOTS.join(', ')}`
+    );
   }
   if (typeof contract.mount !== 'function') {
     throw new Error(`widget ${contract.id}: mount não é função`);

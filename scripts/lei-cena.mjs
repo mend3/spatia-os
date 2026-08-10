@@ -296,12 +296,16 @@ for (const { chave, cena } of cenas) {
   const intrusas = declaradas.filter((k) => !Object.hasOwn(VOCABULARIO_DA_CENA, k));
   const faltando = OBRIGATORIAS.filter((k) => !declaradas.includes(k));
   if (intrusas.length) {
-    nota('§1', `a cena \`${chave}\` declara ${intrusas.map((k) => `\`${k}\``).join(', ')} — fora do vocabulário`);
+    nota(
+      '§1',
+      `a cena \`${chave}\` declara ${intrusas.map((k) => `\`${k}\``).join(', ')} — fora do vocabulário`
+    );
   }
   if (faltando.length) {
     nota('§1', `a cena \`${chave}\` não declara ${faltando.map((k) => `\`${k}\``).join(', ')}`);
   }
-  if (!Object.isFrozen(cena)) nota('§1', `a cena \`${chave}\` não está congelada — a tabela é mutável em runtime`);
+  if (!Object.isFrozen(cena))
+    nota('§1', `a cena \`${chave}\` não está congelada — a tabela é mutável em runtime`);
   const marca = intrusas.length || faltando.length ? '\x1b[31m✗\x1b[0m' : '\x1b[32m✓\x1b[0m';
   console.log(
     `  ${marca} ${String(chave).padEnd(10)} ${declaradas.join(', ')}` +
@@ -416,9 +420,12 @@ for (const arquivo of PUROS) {
   const globais = ['window', 'document', 'globalThis', 'localStorage'].filter((g) =>
     new RegExp(`(^|[^\\w.'\`])${g}\\s*[.[]`, 'm').test(texto)
   );
-  if (globais.length) nota('§3', `${nomeCurto} lê ${globais.join(', ')} — a cena pode chegar por fora do argumento`);
+  if (globais.length)
+    nota('§3', `${nomeCurto} lê ${globais.join(', ')} — a cena pode chegar por fora do argumento`);
   const marca = proibidos.length || globais.length ? '\x1b[31m✗\x1b[0m' : '\x1b[32m✓\x1b[0m';
-  console.log(`  ${marca} ${nomeCurto.padEnd(28)} imports: ${imports.length ? imports.join(', ') : '\x1b[2mnenhum\x1b[0m'}`);
+  console.log(
+    `  ${marca} ${nomeCurto.padEnd(28)} imports: ${imports.length ? imports.join(', ') : '\x1b[2mnenhum\x1b[0m'}`
+  );
 }
 
 // ─────────────────────────────────────────── §5 · AS DUAS CENAS OLHAM PELA MESMA ONTOLOGIA?
@@ -455,9 +462,14 @@ function semComentarios(texto) {
   for (let i = 0; i < texto.length; i++) {
     const dois = texto.slice(i, i + 2);
     if (dois === '//' || dois === '/*') {
-      const fim = dois === '//'
-        ? (texto.indexOf('\n', i) < 0 ? texto.length : texto.indexOf('\n', i))
-        : (texto.indexOf('*/', i + 2) < 0 ? texto.length : texto.indexOf('*/', i + 2) + 2);
+      const fim =
+        dois === '//'
+          ? texto.indexOf('\n', i) < 0
+            ? texto.length
+            : texto.indexOf('\n', i)
+          : texto.indexOf('*/', i + 2) < 0
+            ? texto.length
+            : texto.indexOf('*/', i + 2) + 2;
       saida.push(' '.repeat(fim - i));
       i = fim - 1;
       continue;
@@ -491,8 +503,11 @@ const usaPeleDoSolver = todosOsFontes(path.join(RAIZ, 'src'))
   .filter((f) => /resolveBody\s*\([\s\S]{0,200}?\)\s*\.\s*surface/.test(soCodigo(fs.readFileSync(f, 'utf8'))))
   .map((f) => path.relative(RAIZ, f));
 if (usaPeleDoSolver.length) {
-  nota('§5', `${usaPeleDoSolver.join(', ')} lê \`resolveBody().surface\` — a taxonomia por \`kind\` `
-    + 'que a Fase B refutou voltou a decidir pele. A pele sai de `superficies.js`, via `sistemas.js`');
+  nota(
+    '§5',
+    `${usaPeleDoSolver.join(', ')} lê \`resolveBody().surface\` — a taxonomia por \`kind\` ` +
+      'que a Fase B refutou voltou a decidir pele. A pele sai de `superficies.js`, via `sistemas.js`'
+  );
 }
 
 /* A decisão de pele não pode ser escolhida pela cena — nem por `modo`, nem por `cena`, nem por id. */
@@ -504,8 +519,11 @@ const corpoDaDecisao = params ? recorteEquilibrado(sceneSemProsa, params.fim + 1
 if (!corpoDaDecisao) {
   nota('§5', 'não achei `decisaoOntologica` em scene.js — quem decide a pele do corpo em foco agora?');
 } else if (/\bmodo\s*===|\bcena\s*===|universo\s*\?/.test(corpoDaDecisao.texto)) {
-  nota('§5', 'a decisão de pele voltou a olhar para a CENA — foi assim que as duas taxonomias '
-    + 'conviveram por 32 de 72 corpos');
+  nota(
+    '§5',
+    'a decisão de pele voltou a olhar para a CENA — foi assim que as duas taxonomias ' +
+      'conviveram por 32 de 72 corpos'
+  );
 }
 
 /*
@@ -542,10 +560,13 @@ for (const node of corpos) {
 }
 if (peleNoSolver.size) {
   const campos = [...peleNoSolver].map(([c, v]) => `\`${c}\` = ${v}`).join(', ');
-  nota('§5', `\`resolveBody\` voltou a devolver PELE — ${campos}. O vocabulário de pele é `
-    + '`SUPERFICIE` (`superficies.js`) e a decisão é `superficieDe`, via `sistemas.identidadeDe`. '
-    + 'Uma segunda tabela de pele no solver é o `kind` que a Fase B refutou voltando pela porta '
-    + 'de trás — e ela não precisa ter leitor para fazer estrago: basta estar lá para ser lida.');
+  nota(
+    '§5',
+    `\`resolveBody\` voltou a devolver PELE — ${campos}. O vocabulário de pele é ` +
+      '`SUPERFICIE` (`superficies.js`) e a decisão é `superficieDe`, via `sistemas.identidadeDe`. ' +
+      'Uma segunda tabela de pele no solver é o `kind` que a Fase B refutou voltando pela porta ' +
+      'de trás — e ela não precisa ter leitor para fazer estrago: basta estar lá para ser lida.'
+  );
 }
 
 /*
@@ -567,8 +588,9 @@ if (peleNoSolver.size) {
  */
 const VOCABULARIO_ALHEIO = Object.freeze({
   'src/space/superficies.js': 'é A declaração — a fonte única do vocabulário de pele',
-  'src/space/motion-catalog.js': 'os `allowed` nomeiam ATORES de animação, não peles: `file`, '
-    + '`moon`, `ring` e `ignition` estão na MESMA lista. Homônimo — ver `docs/identidade.md`',
+  'src/space/motion-catalog.js':
+    'os `allowed` nomeiam ATORES de animação, não peles: `file`, ' +
+    '`moon`, `ring` e `ignition` estão na MESMA lista. Homônimo — ver `docs/identidade.md`',
 });
 const segundasTabelas = [];
 for (const f of todosOsFontes(path.join(RAIZ, 'src'))) {
@@ -579,9 +601,12 @@ for (const f of todosOsFontes(path.join(RAIZ, 'src'))) {
 }
 if (segundasTabelas.length) {
   for (const { rel, achadas } of segundasTabelas) {
-    nota('§5', `${rel} declara ${achadas.length} valores de pele como LITERAL (${achadas.join(', ')}) `
-      + '— é uma segunda tabela do mesmo vocabulário. Importe `SUPERFICIE` de `superficies.js`, ou, '
-      + 'se for HOMÔNIMO, declare-o em `VOCABULARIO_ALHEIO` com o motivo.');
+    nota(
+      '§5',
+      `${rel} declara ${achadas.length} valores de pele como LITERAL (${achadas.join(', ')}) ` +
+        '— é uma segunda tabela do mesmo vocabulário. Importe `SUPERFICIE` de `superficies.js`, ou, ' +
+        'se for HOMÔNIMO, declare-o em `VOCABULARIO_ALHEIO` com o motivo.'
+    );
   }
 }
 /* Entrada que não casa mais nada é tabela velha — a mesma recusa que `lei-palco.mjs` faz. */
@@ -593,10 +618,14 @@ for (const rel of Object.keys(VOCABULARIO_ALHEIO)) {
 
 console.log(`\n\x1b[1m§5 AS DUAS CENAS\x1b[0m  a mesma lente para o mesmo corpo?`);
 console.log(`  \x1b[32m✓\x1b[0m a pele do corpo em foco sai de \`sistemas.identidadeDe\` nas DUAS cenas`);
-console.log(`  \x1b[32m✓\x1b[0m \`resolveBody\` não devolve pele  \x1b[2m(${corpos.length} corpos × 2 estados de git, `
-  + `${VALORES_DE_PELE.size} valores proibidos, por VALOR e não por nome de chave)\x1b[0m`);
-console.log(`  \x1b[32m✓\x1b[0m um vocabulário de pele no \`src/\`  \x1b[2m(\`SUPERFICIE\`, `
-  + `${Object.keys(SUPERFICIE).length} chaves; ${Object.keys(VOCABULARIO_ALHEIO).length - 1} homônimo declarado)\x1b[0m`);
+console.log(
+  `  \x1b[32m✓\x1b[0m \`resolveBody\` não devolve pele  \x1b[2m(${corpos.length} corpos × 2 estados de git, ` +
+    `${VALORES_DE_PELE.size} valores proibidos, por VALOR e não por nome de chave)\x1b[0m`
+);
+console.log(
+  `  \x1b[32m✓\x1b[0m um vocabulário de pele no \`src/\`  \x1b[2m(\`SUPERFICIE\`, ` +
+    `${Object.keys(SUPERFICIE).length} chaves; ${Object.keys(VOCABULARIO_ALHEIO).length - 1} homônimo declarado)\x1b[0m`
+);
 
 // ───────────────────── §4 a perturbação: se a cena chegar, ela não muda o que o corpo É
 
@@ -636,7 +665,7 @@ const canaisDaCena = (cena) => [
   ['contexto.camadas', { ctx: { camadas: cena.camadas, passes: cena.passes } }],
   ['node.cena', { no: { cena, modo: cena.id, scene: cena.id } }],
   ['node.camadas', { no: { camadas: cena.camadas, passes: cena.passes } }],
-  ['argumento posicional', { pos: [cena] } ],
+  ['argumento posicional', { pos: [cena] }],
 ];
 
 const violacoes = [];
@@ -666,7 +695,11 @@ for (const node of corpos) {
 }
 
 console.log(`\n\x1b[1m§4 A PERTURBAÇÃO\x1b[0m  a cena enfiada nos três módulos por todo canal exposto`);
-console.log(`  canais: ${canaisDaCena(cenas[0].cena).map(([n]) => n).join(' · ')} · ida e volta`);
+console.log(
+  `  canais: ${canaisDaCena(cenas[0].cena)
+    .map(([n]) => n)
+    .join(' · ')} · ida e volta`
+);
 console.log(`  combinações testadas: ${provas}  (${corpos.length} corpos × ${cenas.length} cenas)`);
 
 for (const v of violacoes.slice(0, 8)) {

@@ -81,8 +81,9 @@ const arquivos = readdirSync(`${RAIZ}/scripts`)
  */
 const mutaCompartilhado = (nome) => {
   const src = readFileSync(`${RAIZ}/scripts/${nome}`, 'utf8');
-  const emCache = /writeFileSync\(\s*(SAIDA|CACHE|['"`][^'"`]*\.cache\/)/.test(src)
-    || /['"`]\.cache\/[^'"`]*['"`][^\n]*writeFileSync/.test(src);
+  const emCache =
+    /writeFileSync\(\s*(SAIDA|CACHE|['"`][^'"`]*\.cache\/)/.test(src) ||
+    /['"`]\.cache\/[^'"`]*['"`][^\n]*writeFileSync/.test(src);
   const noGrafo = /\b(MERGE|CREATE|SET)\s/.test(src) && /cypher|neo4j/i.test(src);
   const apagaCorpus = /rmtree|--limpar/.test(src);
   return emCache || noGrafo || apagaCorpus;
@@ -109,15 +110,20 @@ if (SO_LISTAR) {
   process.exit(0);
 }
 
-const rodar = (nome) => new Promise((res) => {
-  const py = nome.endsWith('.py');
-  const t0 = Date.now();
-  const p = spawn(py ? 'python3' : 'node', [`${RAIZ}/scripts/${nome}`], { cwd: RAIZ });
-  let saida = '';
-  p.stdout.on('data', (d) => { saida += d; });
-  p.stderr.on('data', (d) => { saida += d; });
-  p.on('close', (code) => res({ nome, code, ms: Date.now() - t0, saida }));
-});
+const rodar = (nome) =>
+  new Promise((res) => {
+    const py = nome.endsWith('.py');
+    const t0 = Date.now();
+    const p = spawn(py ? 'python3' : 'node', [`${RAIZ}/scripts/${nome}`], { cwd: RAIZ });
+    let saida = '';
+    p.stdout.on('data', (d) => {
+      saida += d;
+    });
+    p.stderr.on('data', (d) => {
+      saida += d;
+    });
+    p.on('close', (code) => res({ nome, code, ms: Date.now() - t0, saida }));
+  });
 
 // Serial de propósito: vários leem o mesmo `/api/graph`, e paralelo transformaria uma falha do
 // servidor em N falhas parecendo N defeitos. 2 s no total — não há o que otimizar.

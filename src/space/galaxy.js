@@ -400,7 +400,7 @@ const SALT_AXIS_AZ = 109;
  * `a = +0.30, c = -0.30` gives `b = -0.0589`; the residual is -5.3e-6, i.e. zero to the precision the constant is
  * written at.
  */
-const W_AXIS = Object.freeze([0.300, -0.0589, -0.300]);
+const W_AXIS = Object.freeze([0.3, -0.0589, -0.3]);
 
 /*
  * Star-formation knots, tier 2 only. `K_SF` is how far the knots move along the same warm/cool
@@ -416,7 +416,7 @@ const SF_AMOUNT = 0.42;
  * `detail` rather than only at the endpoints — which is what makes the colour invariant below
  * provable instead of eyeballed.
  */
-const MEAN_P3 = 0.312500;
+const MEAN_P3 = 0.3125;
 const MEAN_P9 = 0.185471;
 const MEAN_P10 = 0.176197;
 
@@ -1061,7 +1061,8 @@ export function galaxyParams(node = {}, children = [], overrideClassId = null) {
 
   const auto = classForConcentration(concentration);
   const klass = overrideClassId
-    ? GALAXY_CLASSES.find((entry) => entry.id === overrideClassId || entry.label === overrideClassId) ?? auto
+    ? (GALAXY_CLASSES.find((entry) => entry.id === overrideClassId || entry.label === overrideClassId) ??
+      auto)
     : auto;
 
   // The class proposes the arm count and the file count caps it: an arm is a GROUP of files, so
@@ -1077,7 +1078,7 @@ export function galaxyParams(node = {}, children = [], overrideClassId = null) {
   // with no error anywhere.
   if (arms > 0) {
     for (const child of sources) {
-      counts[armOf(typeof child === 'string' ? child : child?.source ?? String(child), arms)] += 1;
+      counts[armOf(typeof child === 'string' ? child : (child?.source ?? String(child)), arms)] += 1;
     }
   }
   const peak = Math.max(1, ...counts);
@@ -1108,11 +1109,7 @@ export function galaxyParams(node = {}, children = [], overrideClassId = null) {
   const zAxis = hash01(path, SALT_AXIS_Z) * 2 - 1;
   const azAxis = hash01(path, SALT_AXIS_AZ) * TAU;
   const rAxis = Math.sqrt(Math.max(0, 1 - zAxis * zAxis));
-  const axisWorld = new THREE.Vector3(
-    rAxis * Math.cos(azAxis),
-    rAxis * Math.sin(azAxis),
-    zAxis
-  );
+  const axisWorld = new THREE.Vector3(rAxis * Math.cos(azAxis), rAxis * Math.sin(azAxis), zAxis);
   const e1 = new THREE.Vector3()
     .copy(axisWorld)
     .cross(Math.abs(axisWorld.z) < 0.9 ? UP_REF : SIDE_REF)
@@ -1477,12 +1474,7 @@ export function createGalaxy(capacity = 96) {
         // scene root, so there is nothing left to scale. `starRadius`'s `spread` factor
         // (`graph.js:319`) has no counterpart here on purpose: `planetAnchor` applied it.
         const radius = entry.radius * SPAN;
-        const px = diskPx(
-          radius,
-          camera.position.distanceTo(entry.position),
-          viewportHeight,
-          camera.fov
-        );
+        const px = diskPx(radius, camera.position.distanceTo(entry.position), viewportHeight, camera.fov);
 
         center[i * 3] = entry.position.x;
         center[i * 3 + 1] = entry.position.y;

@@ -44,7 +44,13 @@ const graph = await (await fetch(`${BASE}/api/graph`)).json();
 const dirty = await (await fetch(`${BASE}/api/dirty`)).json();
 const sujos = new Map(Object.entries(dirty.files || {}));
 // O `source` do céu tem a raiz do repo na frente; o `git status` não.
-const estadoDe = (source) => sujos.get(String(source ?? '').split('/').slice(1).join('/'));
+const estadoDe = (source) =>
+  sujos.get(
+    String(source ?? '')
+      .split('/')
+      .slice(1)
+      .join('/')
+  );
 
 const conta = (mapa, chave) => mapa.set(chave, (mapa.get(chave) || 0) + 1);
 const tabela = (titulo, mapa, total) => {
@@ -52,7 +58,9 @@ const tabela = (titulo, mapa, total) => {
   const linhas = [...mapa].sort((a, b) => b[1] - a[1]);
   for (const [chave, n] of linhas) {
     const pct = ((n / total) * 100).toFixed(1).padStart(5);
-    console.log(`  ${String(chave).padEnd(16)} ${String(n).padStart(5)}  ${pct}%  ${'█'.repeat(Math.round((n / total) * 40))}`);
+    console.log(
+      `  ${String(chave).padEnd(16)} ${String(n).padStart(5)}  ${pct}%  ${'█'.repeat(Math.round((n / total) * 40))}`
+    );
   }
 };
 
@@ -78,7 +86,8 @@ for (const node of graph.nodes) {
   const pele = indice.identidadeDe(node)?.pele ?? SUPERFICIE.NENHUMA;
   conta(classes, klass?.id ?? '(nenhuma)');
   conta(peles, pele);
-  if (node.type === 'file') conta(kinds, `${node.kind ?? 'other'} → ${MORPHOLOGY_BY_KIND[node.kind]?.body ?? 'estrela'}`);
+  if (node.type === 'file')
+    conta(kinds, `${node.kind ?? 'other'} → ${MORPHOLOGY_BY_KIND[node.kind]?.body ?? 'estrela'}`);
   for (const m of decisao?.modifiers ?? []) {
     conta(modificadores, m);
     if (m === MODIFIER.RING) conta(aneisPorFamilia, `${estado} → ${RING_BY_STATE[estado]?.family ?? '?'}`);
@@ -88,7 +97,9 @@ for (const node of graph.nodes) {
 }
 
 const total = graph.nodes.length;
-console.log(`corpus: ${total} nós · ${graph.stats?.files ?? '?'} arquivos · ${graph.stats?.chunks ?? '?'} chunks`);
+console.log(
+  `corpus: ${total} nós · ${graph.stats?.files ?? '?'} arquivos · ${graph.stats?.chunks ?? '?'} chunks`
+);
 console.log(`sujos no git (raiz ${dirty.root}): ${sujos.size}`);
 tabela('CLASSE — o que o corpo É (catalog.classify)', classes, total);
 tabela('PELE — o que ele desenha de perto (sistemas.identidadeDe)', peles, total);

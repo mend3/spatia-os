@@ -83,7 +83,8 @@ export function gauge(families, name) {
  */
 export function quantile(families, base, q, where = {}) {
   const matches = (sample) => Object.entries(where).every(([k, v]) => sample.labels[k] === v);
-  const total = (families.get(`${base}_count`)?.samples || []).filter(matches)
+  const total = (families.get(`${base}_count`)?.samples || [])
+    .filter(matches)
     .reduce((acc, sample) => acc + sample.value, 0);
   if (!total) return null;
 

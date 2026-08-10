@@ -73,7 +73,17 @@ export function registerApps() {
     tagline: 'saúde, custo, permissões, afinação',
     color: COLORS.system,
     key: '2',
-    widgets: ['context', 'sys-config', 'sys-about', 'sys-services', 'vitals', 'sys-quota', 'answer', 'sky-time', 'timeline'],
+    widgets: [
+      'context',
+      'sys-config',
+      'sys-about',
+      'sys-services',
+      'vitals',
+      'sys-quota',
+      'answer',
+      'sky-time',
+      'timeline',
+    ],
   });
 
   declararApp({
@@ -91,7 +101,16 @@ export function registerApps() {
     tagline: 'integrações, webhooks, MCP',
     color: COLORS.bridge,
     key: '4',
-    widgets: ['context', 'br-credentials', 'br-webhooks', 'br-mcp', 'br-deliveries', 'answer', 'sky-time', 'timeline'],
+    widgets: [
+      'context',
+      'br-credentials',
+      'br-webhooks',
+      'br-mcp',
+      'br-deliveries',
+      'answer',
+      'sky-time',
+      'timeline',
+    ],
   });
 
   /*
@@ -115,13 +134,19 @@ export function registerApps() {
  * deixaria justamente a rota inicial de fora. `declararVista` é o mesmo portão para ela.
  */
 export const SYSTEM_VIEW = declararVista(ROUTE_ROOT, [
-  'vitals', 'plan', 'timeline', 'answer',
+  'vitals',
+  'plan',
+  'timeline',
+  'answer',
   /*
    * O CONTEXTO abre o trilho da direita: é o widget de maior taxa de mudança da vista (troca a
    * cada movimento do cursor sobre o céu), e a fenda `right` é justamente a do que está
    * acontecendo AGORA. Abaixo dele fica o que só muda quando o núcleo responde.
    */
-  'context', 'memory', 'tools', 'web-results',
+  'context',
+  'memory',
+  'tools',
+  'web-results',
   'sky-time',
 ]);
 
@@ -334,7 +359,8 @@ function registerFilesWidgets() {
                 // está lá.
                 const forma = morphologyOf(kind);
                 const corpo = el('span', 'shape-body', forma.drawn ? forma.body : `${forma.body}°`);
-                if (!forma.drawn) corpo.title = `${forma.body} ainda não é desenhada — o corpo aparece como estrela`;
+                if (!forma.drawn)
+                  corpo.title = `${forma.body} ainda não é desenhada — o corpo aparece como estrela`;
                 linha.append(corpo);
 
                 const trilho = el('div', 'shape-track');
@@ -467,22 +493,37 @@ function registerFilesWidgets() {
       const abrir = (seletor) => () => document.querySelector(seletor)?.click();
       const SECTIONS = [
         { id: 'perfil', name: 'PERFIL', render: renderProfiles },
-        { id: 'fundo', name: 'FUNDO', render: renderBackdrop,
-          note: 'imagens reais do Webb por trás do sistema' },
+        {
+          id: 'fundo',
+          name: 'FUNDO',
+          render: renderBackdrop,
+          note: 'imagens reais do Webb por trás do sistema',
+        },
         { id: 'atalhos', name: 'ATALHOS', render: renderShortcuts },
-        { id: 'afinacao', name: 'AFINAÇÃO', open: abrir('[data-tune-toggle]'),
-          note: 'a cena inteira — núcleo, céu, grafo, câmera, lente, áudio' },
-        { id: 'permissoes', name: 'PERMISSÕES', open: abrir('[data-perms-toggle]'),
-          note: 'o que o agente pode fazer, e com quais ferramentas' },
-        { id: 'voz', name: 'VOZ', open: abrir('[data-speech-toggle]'),
-          note: 'motor, timbre e mistura da fala' },
+        {
+          id: 'afinacao',
+          name: 'AFINAÇÃO',
+          open: abrir('[data-tune-toggle]'),
+          note: 'a cena inteira — núcleo, céu, grafo, câmera, lente, áudio',
+        },
+        {
+          id: 'permissoes',
+          name: 'PERMISSÕES',
+          open: abrir('[data-perms-toggle]'),
+          note: 'o que o agente pode fazer, e com quais ferramentas',
+        },
+        {
+          id: 'voz',
+          name: 'VOZ',
+          open: abrir('[data-speech-toggle]'),
+          note: 'motor, timbre e mistura da fala',
+        },
       ];
 
       // Quem pediu uma seção específica ganha ela; o pedido é consumido para não repetir na
       // próxima abertura, que teria de voltar ao topo.
-      let active = pendingSection && SECTIONS.some((s) => s.id === pendingSection)
-        ? pendingSection
-        : SECTIONS[0].id;
+      let active =
+        pendingSection && SECTIONS.some((s) => s.id === pendingSection) ? pendingSection : SECTIONS[0].id;
       pendingSection = null;
 
       /**
@@ -555,13 +596,18 @@ function registerFilesWidgets() {
           // úteis, e um contínuo aqui convidaria a ajustar segundo a segundo algo que ninguém
           // percebe em menos de meio minuto de diferença.
           const tempos = [
-            [30, '30s'], [90, '1min30'], [300, '5min'], [900, '15min'],
+            [30, '30s'],
+            [90, '1min30'],
+            [300, '5min'],
+            [900, '15min'],
           ];
           const linhaTempo = el('div', 'config-profile config-row-choices');
           const grupoTempo = el('div', 'config-choices');
           for (const [valor, rotulo] of tempos) {
             const b = button({
-              variant: 'select', size: 'sm', on: prefs.get('sky.backdropSeconds') === valor,
+              variant: 'select',
+              size: 'sm',
+              on: prefs.get('sky.backdropSeconds') === valor,
             });
             b.textContent = rotulo;
             b.addEventListener('click', () => troca('sky.backdropSeconds', valor));
@@ -572,9 +618,14 @@ function registerFilesWidgets() {
 
           const linhaQ = el('div', 'config-profile config-row-choices');
           const grupoQ = el('div', 'config-choices');
-          for (const [valor, rotulo] of [['high', 'ALTA'], ['low', 'BAIXA']]) {
+          for (const [valor, rotulo] of [
+            ['high', 'ALTA'],
+            ['low', 'BAIXA'],
+          ]) {
             const b = button({
-              variant: 'select', size: 'sm', on: prefs.get('sky.backdropQuality') === valor,
+              variant: 'select',
+              size: 'sm',
+              on: prefs.get('sky.backdropQuality') === valor,
             });
             b.textContent = rotulo;
             b.addEventListener('click', () => troca('sky.backdropQuality', valor));
@@ -667,7 +718,11 @@ function registerFilesWidgets() {
       };
       // Sem o `destroy`, uma segunda montagem deixaria a primeira respondendo ao evento e
       // desenhando numa página que saiu do DOM.
-      return { destroy: () => { openSection = null; } };
+      return {
+        destroy: () => {
+          openSection = null;
+        },
+      };
     },
   });
 
@@ -824,7 +879,6 @@ function registerFilesWidgets() {
 // ---------------------------------------------------------------- SISTEMA
 
 function registerSystemWidgets() {
-
   listWidget({
     id: 'sys-about',
     title: 'SOBRE ESTE SISTEMA',
@@ -842,17 +896,24 @@ function registerSystemWidgets() {
         const { saude: health } = saudeStore.snapshot();
         if (!health) return view.empty('aguardando a primeira aferição');
         const rows = [
-          ['NÚCLEO', health.brain === 'claude' ? 'claude · subprocesso' : `ollama · ${health.ollama?.models?.[0] ?? '—'}`],
+          [
+            'NÚCLEO',
+            health.brain === 'claude'
+              ? 'claude · subprocesso'
+              : `ollama · ${health.ollama?.models?.[0] ?? '—'}`,
+          ],
           ['RAIZ DO AGENTE', health.agent_cwd],
           ['MEMÓRIA VETORIAL', `${(health.qdrant?.points ?? 0).toLocaleString('pt-BR')} chunks`],
           ['VETORIZADOR', health.embed_ready ? 'onnx · cpu · local' : 'carregando'],
           ['VOZ', health.tts?.online ? `${health.tts.voice} · ${health.tts.voices.length} vozes` : 'offline'],
         ];
-        view.set(rows.map(([label, value]) => {
-          const row = el('div', 'kv');
-          row.append(el('span', 'kv-label', label), el('span', 'kv-value', value));
-          return row;
-        }));
+        view.set(
+          rows.map(([label, value]) => {
+            const row = el('div', 'kv');
+            row.append(el('span', 'kv-label', label), el('span', 'kv-value', value));
+            return row;
+          })
+        );
       }
       draw();
       // Solta na destruição: ouvinte de painel destruído repinta um DOM fora da árvore.
@@ -891,9 +952,7 @@ function registerSystemWidgets() {
         if (data.missing.length) {
           // O que foi declarado NECESSÁRIO e não está lá é a primeira linha, não uma cor no meio
           // da lista: é o único estado em que a instalação não faz o que prometeu fazer.
-          blocks.push(
-            el('div', 'widget-error', `⚠ falta o que é obrigatório: ${data.missing.join(', ')}`)
-          );
+          blocks.push(el('div', 'widget-error', `⚠ falta o que é obrigatório: ${data.missing.join(', ')}`));
         }
 
         for (const unit of data.units) {
@@ -906,12 +965,16 @@ function registerSystemWidgets() {
             el(
               'span',
               'unit-detail',
-              desligado
-                ? 'desligado nesta instalação'
-                : `${unit.wanted} · ${unit.up ? 'no ar' : 'fora'}`
+              desligado ? 'desligado nesta instalação' : `${unit.wanted} · ${unit.up ? 'no ar' : 'fora'}`
             )
           );
-          row.querySelector('.dot').dataset.status = desligado ? 'off' : unit.up ? 'on' : ruim ? 'off' : 'busy';
+          row.querySelector('.dot').dataset.status = desligado
+            ? 'off'
+            : unit.up
+              ? 'on'
+              : ruim
+                ? 'off'
+                : 'busy';
           // A degradação só interessa quando ela está ACONTECENDO.
           if (!unit.up && !desligado && unit.degrades) {
             row.append(el('div', 'unit-sub', `perde-se: ${unit.degrades}`));
@@ -948,7 +1011,10 @@ function registerSystemWidgets() {
        */
       // O teto vem da AFERIÇÃO, não de um pedido próprio: `/api/health` tem um pollster só.
       let budget = saudeStore.snapshot().saude?.budget ?? null;
-      const soltarTeto = saudeStore.aoAferir((saude) => { budget = saude?.budget ?? null; draw(); });
+      const soltarTeto = saudeStore.aoAferir((saude) => {
+        budget = saude?.budget ?? null;
+        draw();
+      });
 
       function draw() {
         const store = snapshot();
@@ -978,15 +1044,22 @@ function registerSystemWidgets() {
             `${Math.floor(remaining / 3_600_000)}h${String(Math.floor((remaining % 3_600_000) / 60_000)).padStart(2, '0')}`,
           ]);
         }
-        view.set(rows.map(([label, value]) => {
-          const row = el('div', 'kv');
-          row.append(el('span', 'kv-label', label), el('span', 'kv-value', value));
-          return row;
-        }));
+        view.set(
+          rows.map(([label, value]) => {
+            const row = el('div', 'kv');
+            row.append(el('span', 'kv-label', label), el('span', 'kv-value', value));
+            return row;
+          })
+        );
       }
       draw();
       const timer = setInterval(draw, 1000);
-      return { destroy: () => { clearInterval(timer); soltarTeto(); } };
+      return {
+        destroy: () => {
+          clearInterval(timer);
+          soltarTeto();
+        },
+      };
     },
   });
 }
@@ -1032,13 +1105,15 @@ function registerWebWidgets() {
       async function draw() {
         try {
           const { providers } = await api.integrations();
-          view.set(providers.map((provider) => {
-            const row = el('div', `unit ${provider.online ? '' : 'down'}`);
-            row.append(el('i', 'dot'), el('span', 'unit-name', provider.label));
-            row.append(el('span', 'unit-detail', provider.online ? 'pronto' : provider.needs));
-            row.querySelector('.dot').dataset.status = provider.online ? 'on' : 'off';
-            return row;
-          }));
+          view.set(
+            providers.map((provider) => {
+              const row = el('div', `unit ${provider.online ? '' : 'down'}`);
+              row.append(el('i', 'dot'), el('span', 'unit-name', provider.label));
+              row.append(el('span', 'unit-detail', provider.online ? 'pronto' : provider.needs));
+              row.querySelector('.dot').dataset.status = provider.online ? 'on' : 'off';
+              return row;
+            })
+          );
         } catch (error) {
           view.empty(error.message);
         }
@@ -1090,7 +1165,15 @@ function registerBridgeWidgets() {
           const row = el('div', `unit ${ok ? '' : 'down'}`);
           row.append(el('i', 'dot'), el('span', 'unit-name', provider.label));
           row.append(
-            el('span', 'unit-detail', cred ? `${cred.state} · ${cred.fingerprint}` : provider.configured ? 'sem credencial' : provider.needs)
+            el(
+              'span',
+              'unit-detail',
+              cred
+                ? `${cred.state} · ${cred.fingerprint}`
+                : provider.configured
+                  ? 'sem credencial'
+                  : provider.needs
+            )
           );
           row.querySelector('.dot').dataset.status = ok ? 'on' : 'off';
           if (cred?.scopes?.length) row.append(el('div', 'unit-sub', cred.scopes.join(' ')));
@@ -1130,7 +1213,13 @@ function registerBridgeWidgets() {
           blocks.push(el('div', 'unit-sub', `${b.url} → ${b.base} · ${b.state}`));
         }
         // A regra completa, escrita onde ela é executada.
-        blocks.push(el('div', 'widget-hint', 'o agente fala com a ponte, não com o terceiro — o token não entra no contexto dele'));
+        blocks.push(
+          el(
+            'div',
+            'widget-hint',
+            'o agente fala com a ponte, não com o terceiro — o token não entra no contexto dele'
+          )
+        );
         view.set(blocks);
       }
       draw();
@@ -1147,16 +1236,19 @@ function registerBridgeWidgets() {
       async function draw() {
         try {
           const { webhooks } = await api.integrations();
-          view.set(webhooks.map((hook) => {
-            const row = el('div', classeDeLinha('unit', hook.verified ? '' : 'warn'));
-            row.append(el('i', 'dot'), el('span', 'unit-name', hook.label));
-            row.append(el('span', 'unit-detail', hook.verified ? 'HMAC ativo' : 'sem verificação'));
-            row.querySelector('.dot').dataset.status = hook.verified ? 'on' : 'busy';
-            const url = el('div', 'unit-sub', `POST ${hook.url}`);
-            row.append(url);
-            if (!hook.verified) row.append(el('div', 'unit-sub', `defina ${hook.needs} para exigir assinatura`));
-            return row;
-          }));
+          view.set(
+            webhooks.map((hook) => {
+              const row = el('div', classeDeLinha('unit', hook.verified ? '' : 'warn'));
+              row.append(el('i', 'dot'), el('span', 'unit-name', hook.label));
+              row.append(el('span', 'unit-detail', hook.verified ? 'HMAC ativo' : 'sem verificação'));
+              row.querySelector('.dot').dataset.status = hook.verified ? 'on' : 'busy';
+              const url = el('div', 'unit-sub', `POST ${hook.url}`);
+              row.append(url);
+              if (!hook.verified)
+                row.append(el('div', 'unit-sub', `defina ${hook.needs} para exigir assinatura`));
+              return row;
+            })
+          );
         } catch (error) {
           view.empty(error.message);
         }
@@ -1183,15 +1275,17 @@ function registerBridgeWidgets() {
           if (!history.length) {
             return view.empty('nenhuma entrega ainda — aponte um webhook para POST /hooks/<fonte>');
           }
-          view.set(history.map((item) => {
-            const row = el('div', 'delivery');
-            const when = new Date(item.at * 1000);
-            row.append(el('span', 'row-time', when.toTimeString().slice(0, 8)));
-            row.append(el('span', 'delivery-source', item.label));
-            row.append(el('span', 'delivery-summary', item.summary || '—'));
-            row.append(el('span', 'delivery-meta', item.verified ? 'verificada' : 'sem HMAC'));
-            return row;
-          }));
+          view.set(
+            history.map((item) => {
+              const row = el('div', 'delivery');
+              const when = new Date(item.at * 1000);
+              row.append(el('span', 'row-time', when.toTimeString().slice(0, 8)));
+              row.append(el('span', 'delivery-source', item.label));
+              row.append(el('span', 'delivery-summary', item.summary || '—'));
+              row.append(el('span', 'delivery-meta', item.verified ? 'verificada' : 'sem HMAC'));
+              return row;
+            })
+          );
         } catch (error) {
           view.empty(error.message);
         }
@@ -1292,7 +1386,11 @@ function registerBridgeWidgets() {
           const extra = (brain.mcp || []).filter((name) => !declared.has(name));
           if (extra.length) {
             blocks.push(
-              el('div', 'unit-sub', `${extra.length} não está em arquivo que este servidor leia (conector da conta)`)
+              el(
+                'div',
+                'unit-sub',
+                `${extra.length} não está em arquivo que este servidor leia (conector da conta)`
+              )
             );
           }
           const missing = [...declared].filter((name) => !(brain.mcp || []).includes(name));
@@ -1302,7 +1400,9 @@ function registerBridgeWidgets() {
         }
 
         // Honestidade explícita na própria tela: este servidor não é cliente MCP.
-        blocks.push(el('div', 'unit-sub', 'este servidor não fala MCP — quem alcança estes servidores é o agente'));
+        blocks.push(
+          el('div', 'unit-sub', 'este servidor não fala MCP — quem alcança estes servidores é o agente')
+        );
         view.set(blocks);
       }
 
@@ -1322,8 +1422,12 @@ function registerBridgeWidgets() {
       // Fonte de settings trocada no painel de permissões: o inventário de escopos muda com
       // ela, e reconsultar é o motivo declarado de esta rota existir separada da de permissões.
       const offPerms = on('ui.permissions-changed', refresh);
-      return { destroy: () => { offBrain(); offPerms(); } };
+      return {
+        destroy: () => {
+          offBrain();
+          offPerms();
+        },
+      };
     },
   });
 }
-

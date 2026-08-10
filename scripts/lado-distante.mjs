@@ -54,11 +54,7 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a, b) => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const len = (a) => Math.sqrt(dot(a, a));
 const norm = (a) => mul(a, 1 / len(a));
 
@@ -89,7 +85,7 @@ function cruzamentos(origem, direcao, eixo) {
     const passo = Math.min(r * STEP_SCALE, R * 0.08);
     const anterior = [...p];
     const r2 = r * r;
-    v = add(v, mul(p, (-1.5 * h2 * RS) / (r2 * r2 * r) * passo));
+    v = add(v, mul(p, ((-1.5 * h2 * RS) / (r2 * r2 * r)) * passo));
     p = add(p, mul(v, passo));
     if (anterior[1] * p[1] < 0) {
       const t = -anterior[1] / (p[1] - anterior[1]);
@@ -159,10 +155,15 @@ function compressao(linhas, perto) {
 }
 
 const linhas = varredura();
-console.log(`inclinação ${inclinacaoGraus}°  ·  disco ${(INNER / RS).toFixed(2)}–${(OUTER / RS).toFixed(2)} Rs  ·  sombra ${SOMBRA.toFixed(2)} Rs`);
+console.log(
+  `inclinação ${inclinacaoGraus}°  ·  disco ${(INNER / RS).toFixed(2)}–${(OUTER / RS).toFixed(2)} Rs  ·  sombra ${SOMBRA.toFixed(2)} Rs`
+);
 
 const lados = [];
-for (const [nome, perto] of [['frente', true], ['trás  ', false]]) {
+for (const [nome, perto] of [
+  ['frente', true],
+  ['trás  ', false],
+]) {
   const c = compressao(linhas, perto);
   if (!c) {
     console.log(`  lado ${nome}: NENHUMA amostra`);
@@ -183,9 +184,7 @@ if (!lados[0] || !lados[1]) {
 }
 
 const [frenteC, trasC] = lados;
-console.log(
-  `\nafunilamento — trás ${trasC.afunila.toFixed(2)}x  ·  frente ${frenteC.afunila.toFixed(2)}x`
-);
+console.log(`\nafunilamento — trás ${trasC.afunila.toFixed(2)}x  ·  frente ${frenteC.afunila.toFixed(2)}x`);
 if (trasC.afunila < 2) {
   console.log('✗ o arco de trás não afunila: a lente não está comprimindo o lado distante (#7)');
   process.exit(1);

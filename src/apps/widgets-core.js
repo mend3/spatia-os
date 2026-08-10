@@ -58,10 +58,36 @@ function adopt({ id, title, hint = '', slot, grow = 0, selector }) {
 export function registerCoreWidgets() {
   adopt({ id: 'vitals', title: 'SINAIS VITAIS', hint: 'SESSÃO', slot: 'left', selector: '[data-vitals]' });
   adopt({ id: 'plan', title: 'PLANO', hint: 'CICLO ATUAL', slot: 'left', selector: '[data-plan]' });
-  adopt({ id: 'timeline', title: 'TIMELINE', hint: 'PERFIL REAL', slot: 'left', grow: 1, selector: '[data-timeline]' });
-  adopt({ id: 'memory', title: 'MEMÓRIA RECUPERADA', hint: 'VETORIAL', slot: 'right', grow: 1, selector: '[data-memory]' });
-  adopt({ id: 'tools', title: 'FERRAMENTAS', hint: 'CHAMADAS REAIS', slot: 'right', selector: '[data-tools]' });
-  adopt({ id: 'web-results', title: 'SATÉLITES DE BUSCA', hint: 'WEB', slot: 'right', selector: '[data-web]' });
+  adopt({
+    id: 'timeline',
+    title: 'TIMELINE',
+    hint: 'PERFIL REAL',
+    slot: 'left',
+    grow: 1,
+    selector: '[data-timeline]',
+  });
+  adopt({
+    id: 'memory',
+    title: 'MEMÓRIA RECUPERADA',
+    hint: 'VETORIAL',
+    slot: 'right',
+    grow: 1,
+    selector: '[data-memory]',
+  });
+  adopt({
+    id: 'tools',
+    title: 'FERRAMENTAS',
+    hint: 'CHAMADAS REAIS',
+    slot: 'right',
+    selector: '[data-tools]',
+  });
+  adopt({
+    id: 'web-results',
+    title: 'SATÉLITES DE BUSCA',
+    hint: 'WEB',
+    slot: 'right',
+    selector: '[data-web]',
+  });
 
   // O palco: resposta + fontes + meta. Um widget só, porque as três partes são uma leitura.
   registerWidget({
@@ -91,7 +117,7 @@ export function registerCoreWidgets() {
  * que `br-deliveries` nasceu no palco sem moldura e o disco de acreção atravessou o texto.
  * Sem padrão, a ausência chega inteira ao registro e estoura no boot, com o nome do culpado.
  * `scripts/lei-catalogo.mjs` §4 acusa qualquer padrão para chave que alguma fenda exija.
- * 
+ *
  * ⚠️ **O tipo diz o que a FENDA diz, e não "obrigatória sempre".** Sem `surface` na desestruturação
  * ter padrão — que é o contrato acima —, a inferência a lê como exigida em toda fenda e acusa os
  * ~20 widgets de `left`/`right` que legitimamente não a declaram. A união discriminada põe a

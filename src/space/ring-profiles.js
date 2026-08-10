@@ -73,13 +73,13 @@ export const RING_FAMILIES = {
     // Gelo centimétrico: retroespalha. Ver `uForward` em `rings.js`.
     forward: 0,
     sheets: [
-      { from: 1.110, to: 1.236, density: 0.07 }, // anel D
+      { from: 1.11, to: 1.236, density: 0.07 }, // anel D
       { from: 1.239, to: 1.526, density: 0.24 }, // anel C ("crepe")
-      { from: 1.526, to: 1.950, density: 1.00 }, // anel B — o mais brilhante
+      { from: 1.526, to: 1.95, density: 1.0 }, // anel B — o mais brilhante
       { from: 2.026, to: 2.269, density: 0.62 }, // anel A
     ],
     bands: [
-      { at: 2.326, width: 0.010, density: 0.45 }, // anel F
+      { at: 2.326, width: 0.01, density: 0.45 }, // anel F
     ],
     // A Divisão de Cassini (1.950–2.026) não precisa ser escavada: ela é o intervalo VAZIO
     // entre as faixas B e A. Escavá-la duas vezes só apagaria as bordas das vizinhas.
@@ -90,23 +90,23 @@ export const RING_FAMILIES = {
 
   staged: {
     planeta: 'Urano',
-    reach: 2.20,
+    reach: 2.2,
     /** 97,77° — Urano rola deitado, então o anel dele fica quase de pé. É o dado, não um exagero. */
     obliquity: 1.7064,
     // Partículas grandes e muito escuras (albedo ~0.05): também retroespalham.
     forward: 0,
     sheets: [],
     bands: [
-      { at: 1.637, width: 0.010, density: 0.34 }, // 6
-      { at: 1.652, width: 0.010, density: 0.38 }, // 5
-      { at: 1.666, width: 0.010, density: 0.34 }, // 4
-      { at: 1.750, width: 0.013, density: 0.55 }, // α
+      { at: 1.637, width: 0.01, density: 0.34 }, // 6
+      { at: 1.652, width: 0.01, density: 0.38 }, // 5
+      { at: 1.666, width: 0.01, density: 0.34 }, // 4
+      { at: 1.75, width: 0.013, density: 0.55 }, // α
       { at: 1.786, width: 0.013, density: 0.55 }, // β
-      { at: 1.846, width: 0.009, density: 0.30 }, // η
-      { at: 1.863, width: 0.010, density: 0.45 }, // γ
-      { at: 1.890, width: 0.011, density: 0.45 }, // δ
+      { at: 1.846, width: 0.009, density: 0.3 }, // η
+      { at: 1.863, width: 0.01, density: 0.45 }, // γ
+      { at: 1.89, width: 0.011, density: 0.45 }, // δ
       { at: 1.957, width: 0.007, density: 0.16 }, // λ
-      { at: 2.001, width: 0.024, density: 1.00 }, // ε — o largo e brilhante
+      { at: 2.001, width: 0.024, density: 1.0 }, // ε — o largo e brilhante
     ],
     gaps: [],
   },
@@ -156,8 +156,8 @@ export const RING_FAMILIES = {
     // Poeira sub-micrométrica: lobo frontal dominante.
     forward: 1,
     sheets: [
-      { from: 1.750, to: 2.050, density: 1.00 }, // o cinturão
-      { from: 2.050, to: 2.380, density: 0.14 }, // halo de grãos soprados para fora
+      { from: 1.75, to: 2.05, density: 1.0 }, // o cinturão
+      { from: 2.05, to: 2.38, density: 0.14 }, // halo de grãos soprados para fora
     ],
     bands: [],
     gaps: [],
@@ -165,16 +165,16 @@ export const RING_FAMILIES = {
 
   untracked: {
     planeta: 'Júpiter',
-    reach: 3.20,
+    reach: 3.2,
     /** 3,13° — praticamente no plano orbital, e é o que faz o anel de Júpiter ser sempre de perfil. */
     obliquity: 0.0546,
     // Poeira sub-micrométrica: lobo frontal dominante — é assim que a Voyager 2 o descobriu.
     forward: 1,
     sheets: [
-      { from: 1.290, to: 1.710, density: 0.20 }, // halo, espesso e difuso
-      { from: 1.710, to: 1.806, density: 0.55 }, // anel principal
-      { from: 1.806, to: 2.550, density: 0.11 }, // gossamer de Amalteia
-      { from: 2.550, to: 3.160, density: 0.05 }, // gossamer de Tebe
+      { from: 1.29, to: 1.71, density: 0.2 }, // halo, espesso e difuso
+      { from: 1.71, to: 1.806, density: 0.55 }, // anel principal
+      { from: 1.806, to: 2.55, density: 0.11 }, // gossamer de Amalteia
+      { from: 2.55, to: 3.16, density: 0.05 }, // gossamer de Tebe
     ],
     bands: [],
     gaps: [],

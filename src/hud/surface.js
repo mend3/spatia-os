@@ -39,7 +39,9 @@ function restack() {
   });
   // O contexto da sessão é quem responde "o que está aberto". A pilha vive aqui porque é aqui
   // que a ordem se decide; publicá-la é o que impede um segundo registro de painéis abertos.
-  session.panelChanged(stack.map((entry) => entry.panel.dataset.panel || entry.panel.className.split(' ')[0]));
+  session.panelChanged(
+    stack.map((entry) => entry.panel.dataset.panel || entry.panel.className.split(' ')[0])
+  );
 }
 
 /**

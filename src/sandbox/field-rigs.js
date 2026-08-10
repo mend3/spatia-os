@@ -79,10 +79,10 @@ export const REMNANT_SPEC = {
         nucleo.scale.setScalar(values.raio);
         remnant.update(ORIGEM, values.raio, values.quantidade, values.semente, cor, camera);
         ctx.report({
-          'supernova': values.quantidade.toFixed(2),
-          'desenhando': remnant.object.visible ? 'sim' : 'não (< 0,004)',
-          'extensão': `${(2.1 / 0.6).toFixed(2)} raios do sprite · 2,03 do corpo`,
-          'oclusor': values.nucleo ? 'ligado' : 'desligado',
+          supernova: values.quantidade.toFixed(2),
+          desenhando: remnant.object.visible ? 'sim' : 'não (< 0,004)',
+          extensão: `${(2.1 / 0.6).toFixed(2)} raios do sprite · 2,03 do corpo`,
+          oclusor: values.nucleo ? 'ligado' : 'desligado',
         });
       },
       dispose() {
@@ -196,11 +196,11 @@ export const LINKS_SPEC = {
         links.update(posicoes, clock.delta, clock.elapsed, values.forca);
 
         ctx.report({
-          'nós': total,
-          'pedidos': pedidos,
-          'aceitos': `${aceitos}${pedidos > MAX_LINKS ? ` ⚠️ TETO ${MAX_LINKS}` : ''}`,
-          'força': values.forca.toFixed(2),
-          'órbita': values.orbita ? 'correndo' : 'parada',
+          nós: total,
+          pedidos: pedidos,
+          aceitos: `${aceitos}${pedidos > MAX_LINKS ? ` ⚠️ TETO ${MAX_LINKS}` : ''}`,
+          força: values.forca.toFixed(2),
+          órbita: values.orbita ? 'correndo' : 'parada',
         });
       },
       dispose() {

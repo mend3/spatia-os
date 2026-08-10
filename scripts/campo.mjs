@@ -66,21 +66,31 @@ function tracar(origem, direcao) {
   return { dir: vf, ramo: 'marcha', impacto, capturado };
 }
 
-const D = 150;                       // distância da câmera ao núcleo
-const k = 1416 / (2 * Math.tan((80 * Math.PI) / 360));   // px de framebuffer por radiano
+const D = 150; // distância da câmera ao núcleo
+const k = 1416 / (2 * Math.tan((80 * Math.PI) / 360)); // px de framebuffer por radiano
 const origem = [0, 0, D];
 
-console.log(`rs=${rs.toFixed(3)}  outer=${outer.toFixed(1)}  R=${R.toFixed(1)} (${(R / rs).toFixed(1)} rs)  passo=${stepScale.toFixed(4)}`);
+console.log(
+  `rs=${rs.toFixed(3)}  outer=${outer.toFixed(1)}  R=${R.toFixed(1)} (${(R / rs).toFixed(1)} rs)  passo=${stepScale.toFixed(4)}`
+);
 console.log('  b(mundo)   b/R    ramo      deflexão(rad)   na tela(px)   raio na tela(px)');
 
 const amostras = [];
 for (let i = 1; i <= 260; i++) {
-  const bAlvo = (i / 100) * R;                    // varre 0,01R … 2,6R
+  const bAlvo = (i / 100) * R; // varre 0,01R … 2,6R
   const theta = Math.asin(Math.min(bAlvo / D, 0.999));
   const dir = norm([Math.sin(theta), 0, -Math.cos(theta)]);
   const t = tracar(origem, dir);
   const desvio = Math.acos(Math.max(-1, Math.min(1, dot(dir, t.dir))));
-  amostras.push({ b: bAlvo, razao: bAlvo / R, ramo: t.ramo, desvio, px: desvio * k, raioTela: (k * bAlvo) / D, capturado: t.capturado });
+  amostras.push({
+    b: bAlvo,
+    razao: bAlvo / R,
+    ramo: t.ramo,
+    desvio,
+    px: desvio * k,
+    raioTela: (k * bAlvo) / D,
+    capturado: t.capturado,
+  });
 }
 
 const perto = amostras.filter((a) => a.razao > 0.88 && a.razao < 1.14);
@@ -92,9 +102,15 @@ for (const a of perto) {
 
 const dentro = amostras.filter((a) => a.ramo === 'marcha').at(-1);
 const fora = amostras.find((a) => a.ramo === 'fraco');
-console.log(`\nDEGRAU NA FRONTEIRA: ${dentro.px.toFixed(1)}px (último de dentro) → ${fora.px.toFixed(1)}px (primeiro de fora)`);
-console.log(`salto = ${(fora.px - dentro.px).toFixed(1)}px, na altura de ${fora.raioTela.toFixed(0)}px do centro na tela`);
+console.log(
+  `\nDEGRAU NA FRONTEIRA: ${dentro.px.toFixed(1)}px (último de dentro) → ${fora.px.toFixed(1)}px (primeiro de fora)`
+);
+console.log(
+  `salto = ${(fora.px - dentro.px).toFixed(1)}px, na altura de ${fora.raioTela.toFixed(0)}px do centro na tela`
+);
 console.log('\nperfil largo (a cada 0,2R):');
 for (const a of amostras.filter((_, i) => (i + 1) % 20 === 0)) {
-  console.log(`  b/R=${a.razao.toFixed(2)}  ${a.ramo.padEnd(8)}  ${a.px.toFixed(1).padStart(7)}px de deflexão   @ ${a.raioTela.toFixed(0)}px do centro`);
+  console.log(
+    `  b/R=${a.razao.toFixed(2)}  ${a.ramo.padEnd(8)}  ${a.px.toFixed(1).padStart(7)}px de deflexão   @ ${a.raioTela.toFixed(0)}px do centro`
+  );
 }

@@ -72,7 +72,9 @@ const cypher = async (statement) => {
  *
  * De onde vem o nome: do servidor, que é quem lê o `.env`. Ver `similares.mjs`.
  */
-const graph = await fetch(`${SPATIA}/api/graph`).then((r) => r.json()).catch(() => null);
+const graph = await fetch(`${SPATIA}/api/graph`)
+  .then((r) => r.json())
+  .catch(() => null);
 if (!graph?.corpus) {
   console.error(`sem \`corpus\` em ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
   process.exit(1);
@@ -99,7 +101,8 @@ const n = fontes.length;
 const saidaDe = new Array(n).fill(0);
 const chegam = Array.from({ length: n }, () => []);
 for (const e of arestas) {
-  const i = idx.get(e.a); const j = idx.get(e.b);
+  const i = idx.get(e.a);
+  const j = idx.get(e.b);
   if (i === undefined || j === undefined) continue;
   saidaDe[i]++;
   chegam[j].push(i);
@@ -124,10 +127,13 @@ function spearman(a, b) {
   const posto = (v) => {
     const ord = v.map((x, i) => [x, i]).sort((p, q) => p[0] - q[0]);
     const r = new Array(v.length);
-    ord.forEach(([, i], k) => { r[i] = k; });
+    ord.forEach(([, i], k) => {
+      r[i] = k;
+    });
     return r;
   };
-  const ra = posto(a); const rb = posto(b);
+  const ra = posto(a);
+  const rb = posto(b);
   const m = a.length;
   const md = (m * m - 1) / 12;
   const mA = (m - 1) / 2;
@@ -140,13 +146,19 @@ const vPR = fontes.map((s) => pr[idx.get(s)]);
 const rho = spearman(vGrau, vPR);
 
 const q = (v, p) => [...v].sort((a, b) => a - b)[Math.floor(p * v.length)];
-console.log(`\n\x1b[1mGRAU DE ENTRADA\x1b[0m  min ${q(vGrau, 0)} · MED ${q(vGrau, 0.5)} · P90 ${q(vGrau, 0.9)} · máx ${Math.max(...vGrau)}`);
-console.log(`\x1b[1mPAGERANK\x1b[0m        MED ${q(vPR, 0.5).toExponential(2)} · P90 ${q(vPR, 0.9).toExponential(2)} · máx ${Math.max(...vPR).toExponential(2)}`);
+console.log(
+  `\n\x1b[1mGRAU DE ENTRADA\x1b[0m  min ${q(vGrau, 0)} · MED ${q(vGrau, 0.5)} · P90 ${q(vGrau, 0.9)} · máx ${Math.max(...vGrau)}`
+);
+console.log(
+  `\x1b[1mPAGERANK\x1b[0m        MED ${q(vPR, 0.5).toExponential(2)} · P90 ${q(vPR, 0.9).toExponential(2)} · máx ${Math.max(...vPR).toExponential(2)}`
+);
 console.log(`\n  Spearman(grau, pagerank) = \x1b[1m${rho.toFixed(3)}\x1b[0m`);
 const escolha = rho >= 0.9 ? 'grau' : 'pagerank';
-console.log(rho >= 0.9
-  ? `  → concordam. Vale o GRAU: mais barato e explicável ("quantos me têm como vizinho").`
-  : `  → DISCORDAM. PageRank acrescenta informação que o grau não tem, e o custo se justifica.`);
+console.log(
+  rho >= 0.9
+    ? `  → concordam. Vale o GRAU: mais barato e explicável ("quantos me têm como vizinho").`
+    : `  → DISCORDAM. PageRank acrescenta informação que o grau não tem, e o custo se justifica.`
+);
 
 // ─────────────────────────────────────────────────────── 5. o snapshot
 /*
@@ -161,7 +173,9 @@ console.log(rho >= 0.9
 const bruto = escolha === 'grau' ? vGrau : vPR;
 const ordenado = fontes.map((s, i) => [s, bruto[i]]).sort((a, b) => a[1] - b[1]);
 const influencia = {};
-ordenado.forEach(([s], i) => { influencia[s] = Number((i / (ordenado.length - 1)).toFixed(4)); });
+ordenado.forEach(([s], i) => {
+  influencia[s] = Number((i / (ordenado.length - 1)).toFixed(4));
+});
 
 const snapshot = {
   as_of: new Date().toISOString(),
@@ -178,7 +192,12 @@ const snapshot = {
 };
 fs.mkdirSync('.cache', { recursive: true });
 fs.writeFileSync(SAIDA, JSON.stringify(snapshot));
-console.log(`\n\x1b[1mescrito\x1b[0m  ${SAIDA} · ${fontes.length} corpos · métrica "${escolha}" · normalizada por POSTO`);
+console.log(
+  `\n\x1b[1mescrito\x1b[0m  ${SAIDA} · ${fontes.length} corpos · métrica "${escolha}" · normalizada por POSTO`
+);
 
-const topo = ordenado.slice(-5).reverse().map(([s]) => s.split('/').slice(-2).join('/'));
+const topo = ordenado
+  .slice(-5)
+  .reverse()
+  .map(([s]) => s.split('/').slice(-2).join('/'));
 console.log(`  mais influentes: ${topo.join(' · ')}`);

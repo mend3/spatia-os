@@ -117,7 +117,7 @@ const ROCHE_FLUID = 2.44;
  * fechada logo acima — quem reindexar um corpus muito maior refaz `a_corte` e confere contra 62,
  * ou as luas somem outra vez sem erro nenhum.
  */
-const DENSITY_K = 0.50;
+const DENSITY_K = 0.5;
 
 /**
  * Largura de uma banda orbital, em RAIOS de lua. Substituiu o antigo `SPACING_SAFETY`.
@@ -348,10 +348,7 @@ export function moonsOf(node, centralMass, hash, { minRadiusOverOuter = MOON_MIN
     minRadiusOverOuter > 0
       ? Math.floor(window / (BAND_MOONS * minRadiusOverOuter * zone.outer))
       : Number.POSITIVE_INFINITY;
-  const count = Math.max(
-    1,
-    Math.min(sections.length, Math.floor(window / minBand), legibilityCap)
-  );
+  const count = Math.max(1, Math.min(sections.length, Math.floor(window / minBand), legibilityCap));
 
   const band = window / count;
   /*

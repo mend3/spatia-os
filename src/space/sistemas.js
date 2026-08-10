@@ -143,7 +143,7 @@ export function indexar(payload) {
      * ⭑ Medido no `espatial_fixture` de 2026-08-09: **0 luas sintetizadas em 72 arquivos** — o
      * caminho existe no código e hoje não tem população, então não há o que medir nele.
      */
-    identidadeDe: (node) => (node?.id ? identidades.get(node.id) ?? null : null),
+    identidadeDe: (node) => (node?.id ? (identidades.get(node.id) ?? null) : null),
     /**
      * A identidade por FONTE — o endereço com que a cena e a HUD falam de um corpo.
      *
@@ -151,7 +151,7 @@ export function indexar(payload) {
      * iguais para arquivo neste corpus, e apoiar-se nessa coincidência é como se compra um defeito
      * silencioso: no dia em que o indexador der `id` sintético, o rótulo do painel some sem erro.
      */
-    identidadeDaFonte: (source) => (source ? porFonte.get(source) ?? null : null),
+    identidadeDaFonte: (source) => (source ? (porFonte.get(source) ?? null) : null),
     /**
      * Todas as identidades, por `id`. Quem precisa do CONJUNTO — a sonda dos favoritos, um censo —
      * lê daqui em vez de refazer a varredura, senão volta a existir uma segunda derivação.

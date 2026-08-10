@@ -5,3 +5,12 @@ vendor/
 node_modules/
 .cache/
 assets/
+
+# ☠️ **MARKDOWN fica de fora, e não é por medo de quebrar oráculo** — testado: com os docs
+# formatados, `lei-tooling` e `lei-residentes` (os dois que LEEM doc) passam.
+#
+# O motivo é o diff FUTURO. Prettier alinha coluna de tabela por preenchimento, então trocar uma
+# palavra numa célula repagina a coluna inteira — e estes documentos são tabela de ponta a ponta.
+# Uma correção de uma linha passaria a chegar como quarenta. Medido no dia: 33 arquivos `.md`
+# reescritos só pelo realinhamento.
+*.md

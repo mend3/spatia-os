@@ -59,11 +59,13 @@ export const AUTORIA = Object.freeze({
 
 /** O que a autoria NÃO aceita, com o motivo — a proibição em campo próprio (REGRA DO CATÁLOGO). */
 export const AUTORIAS_RECUSADAS = Object.freeze({
-  derivada: 'marca derivada do dado é a afirmação que o favorito existe para não ser: quem escolhe '
-    + 'tem de ser gente. Se um dia houver um segundo autor legítimo (importação, sincronização '
-    + 'entre máquinas), ele entra em AUTORIA com nome próprio — nunca por aqui',
-  inferida: 'inferência não é escolha. `ABOUT` é a única dimensão desta base que não é fato, e ela '
-    + 'carrega `modelo` e `as_of` justamente para poder ser apagada de uma vez',
+  derivada:
+    'marca derivada do dado é a afirmação que o favorito existe para não ser: quem escolhe ' +
+    'tem de ser gente. Se um dia houver um segundo autor legítimo (importação, sincronização ' +
+    'entre máquinas), ele entra em AUTORIA com nome próprio — nunca por aqui',
+  inferida:
+    'inferência não é escolha. `ABOUT` é a única dimensão desta base que não é fato, e ela ' +
+    'carrega `modelo` e `as_of` justamente para poder ser apagada de uma vez',
 });
 
 // ─────────────────────────────────────────────────────────── o catálogo de aparências
@@ -100,12 +102,15 @@ export const CONTEXTO = Object.freeze({
  */
 const SSS = (nome) => `https://www.solarsystemscope.com/textures/download/2k_${nome}.jpg`;
 const CC_BY_4 = 'CC BY 4.0 · Solar System Scope (solarsystemscope.com)';
-const planetario = (chave, rotulo, nome) => [chave, Object.freeze({
-  rotulo,
-  arquivo: `assets/textures/${nome}.jpg`,
-  origem: SSS(nome),
-  licenca: CC_BY_4,
-})];
+const planetario = (chave, rotulo, nome) => [
+  chave,
+  Object.freeze({
+    rotulo,
+    arquivo: `assets/textures/${nome}.jpg`,
+    origem: SSS(nome),
+    licenca: CC_BY_4,
+  }),
+];
 
 export const APARENCIAS = Object.freeze({
   /*
@@ -116,16 +121,18 @@ export const APARENCIAS = Object.freeze({
    * ⚠️ Planeta e LUA compartilham a pele (`superficies.js`: a diferença entre eles é de porte, não
    * de natureza), então os dois caem neste contexto e a mesma escolha vale para os dois.
    */
-  [CONTEXTO.PLANETARIO]: Object.freeze(Object.fromEntries([
-    planetario('terra', 'TERRA', 'earth_daymap'),
-    planetario('marte', 'MARTE', 'mars'),
-    planetario('jupiter', 'JÚPITER', 'jupiter'),
-    planetario('saturno', 'SATURNO', 'saturn'),
-    planetario('venus', 'VÊNUS', 'venus_surface'),
-    planetario('mercurio', 'MERCÚRIO', 'mercury'),
-    planetario('netuno', 'NETUNO', 'neptune'),
-    planetario('urano', 'URANO', 'uranus'),
-  ])),
+  [CONTEXTO.PLANETARIO]: Object.freeze(
+    Object.fromEntries([
+      planetario('terra', 'TERRA', 'earth_daymap'),
+      planetario('marte', 'MARTE', 'mars'),
+      planetario('jupiter', 'JÚPITER', 'jupiter'),
+      planetario('saturno', 'SATURNO', 'saturn'),
+      planetario('venus', 'VÊNUS', 'venus_surface'),
+      planetario('mercurio', 'MERCÚRIO', 'mercury'),
+      planetario('netuno', 'NETUNO', 'neptune'),
+      planetario('urano', 'URANO', 'uranus'),
+    ])
+  ),
   /*
    * ⭑ **O asteroide é o único caso em que textura ACRESCENTA em vez de substituir** — é a única
    * classe sem pele nenhuma (`superficies.js`: parado ele fica sem pele, e isso é decisão).
@@ -158,24 +165,30 @@ export const APARENCIAS = Object.freeze({
  * mesma chave e a proibição passaria a mentir sobre metade da população dela.
  */
 export const SEM_APARENCIA = Object.freeze({
-  estrutura: 'agregado não tem corpo — dar-lhe aparência afirmaria um objeto que não há, e a cena '
-    + 'UNIVERSO nem o desenha (ele é o lugar onde o sistema mora, e a POSIÇÃO já o comunica). '
-    + 'Marcar uma pasta continua valendo: o que ela não recebe é aparência',
-  fotosfera: 'a estrela JÁ é fotografada — `textures/sun.jpg` veste toda fotosfera do '
-    + 'céu, tingida por temperatura em `photosphere.js`. Uma aparência "Sol" seria escolher o que já '
-    + 'está lá: parâmetro sem leitor. Abre contexto no dia em que houver uma SEGUNDA textura '
-    + 'estelar (a K/M fria do item 7 do handoff), e aí a escolha passa a mudar um pixel',
-  cometa: 'coma e cauda são ESTADO, não corpo — existem só enquanto há trabalho '
-    + 'recente e somem quando ele passa. Uma marca nomeada aqui prenderia aparência a uma condição '
-    + 'que expira sozinha, e o corpo por baixo já tem contexto próprio (planetário ou rochoso)',
-  pulsar: 'não existe foto de superfície de estrela de nêutrons: o que se vê dela é '
-    + 'EMISSÃO, e emissão é o que o shader calcula. Textura aqui seria ilustração, não medida '
-    + '(`CREDITS.md`, a mesma linha que recusa quasar e buraco negro)',
-  nebulosa: 'já resolvido por outro canal — os fundos JWST em `assets/sky/` SÃO a '
-    + 'nebulosa fotografada, com crédito próprio',
-  estacao: 'a estação pede MALHA, não mapa: ela é objeto CONSTRUÍDO e o análogo '
-    + 'honesto é um `.glb` (o CubeSat genérico da NASA, T-34). E ela não tem população: '
-    + '`superficieDe()` não tem ramo que a devolva — ver `AUSENTES_NA_TABELA.station`',
+  estrutura:
+    'agregado não tem corpo — dar-lhe aparência afirmaria um objeto que não há, e a cena ' +
+    'UNIVERSO nem o desenha (ele é o lugar onde o sistema mora, e a POSIÇÃO já o comunica). ' +
+    'Marcar uma pasta continua valendo: o que ela não recebe é aparência',
+  fotosfera:
+    'a estrela JÁ é fotografada — `textures/sun.jpg` veste toda fotosfera do ' +
+    'céu, tingida por temperatura em `photosphere.js`. Uma aparência "Sol" seria escolher o que já ' +
+    'está lá: parâmetro sem leitor. Abre contexto no dia em que houver uma SEGUNDA textura ' +
+    'estelar (a K/M fria do item 7 do handoff), e aí a escolha passa a mudar um pixel',
+  cometa:
+    'coma e cauda são ESTADO, não corpo — existem só enquanto há trabalho ' +
+    'recente e somem quando ele passa. Uma marca nomeada aqui prenderia aparência a uma condição ' +
+    'que expira sozinha, e o corpo por baixo já tem contexto próprio (planetário ou rochoso)',
+  pulsar:
+    'não existe foto de superfície de estrela de nêutrons: o que se vê dela é ' +
+    'EMISSÃO, e emissão é o que o shader calcula. Textura aqui seria ilustração, não medida ' +
+    '(`CREDITS.md`, a mesma linha que recusa quasar e buraco negro)',
+  nebulosa:
+    'já resolvido por outro canal — os fundos JWST em `assets/sky/` SÃO a ' +
+    'nebulosa fotografada, com crédito próprio',
+  estacao:
+    'a estação pede MALHA, não mapa: ela é objeto CONSTRUÍDO e o análogo ' +
+    'honesto é um `.glb` (o CubeSat genérico da NASA, T-34). E ela não tem população: ' +
+    '`superficieDe()` não tem ramo que a devolva — ver `AUSENTES_NA_TABELA.station`',
 });
 
 /**
@@ -293,7 +306,10 @@ export function normalizar(bruto) {
       if (ehTexto(contexto) && ehTexto(nome)) aparencias[contexto] = nome;
     }
     marcas[id] = Object.freeze({
-      em: marca.em, por: marca.por, corpus: marca.corpus, aparencias: Object.freeze(aparencias),
+      em: marca.em,
+      por: marca.por,
+      corpus: marca.corpus,
+      aparencias: Object.freeze(aparencias),
     });
   }
   return Object.freeze({ v: VERSAO, marcas: Object.freeze(marcas) });
@@ -321,16 +337,16 @@ export function marcar(estado, entrada = {}) {
    */
   if (!ehTexto(corpus)) {
     throw new Error(
-      'favoritos: marcar exige `corpus` — sem ele a marca não sabe de que céu é, e os caminhos se '
-      + 'repetem entre corpora. O nome sai de `/api/graph` → `corpus.collection`, do SERVIDOR (que é '
-      + 'quem lê o .env), nunca do ambiente deste processo'
+      'favoritos: marcar exige `corpus` — sem ele a marca não sabe de que céu é, e os caminhos se ' +
+        'repetem entre corpora. O nome sai de `/api/graph` → `corpus.collection`, do SERVIDOR (que é ' +
+        'quem lê o .env), nunca do ambiente deste processo'
     );
   }
   if (!Object.values(AUTORIA).includes(por)) {
     const motivo = AUTORIAS_RECUSADAS[por];
     throw new Error(
-      `favoritos: autoria \`${por}\` recusada — ${motivo || 'fora de AUTORIA'}. `
-      + `Aceitas: ${Object.values(AUTORIA).join(', ')}`
+      `favoritos: autoria \`${por}\` recusada — ${motivo || 'fora de AUTORIA'}. ` +
+        `Aceitas: ${Object.values(AUTORIA).join(', ')}`
     );
   }
   const anterior = estado?.marcas?.[id];
@@ -369,13 +385,18 @@ export function escolherAparencia(estado, entrada = {}) {
   if (!Object.hasOwn(aceitas, aparencia)) {
     const nomes = Object.keys(aceitas);
     throw new Error(
-      `favoritos: \`${aparencia}\` não é aparência de \`${contexto}\`. `
-      + (nomes.length ? `Aceita: ${nomes.join(', ')}` : 'Este contexto não aceita aparência nomeada — ver SEM_APARENCIA')
+      `favoritos: \`${aparencia}\` não é aparência de \`${contexto}\`. ` +
+        (nomes.length
+          ? `Aceita: ${nomes.join(', ')}`
+          : 'Este contexto não aceita aparência nomeada — ver SEM_APARENCIA')
     );
   }
   return comMarcas({
     ...estado.marcas,
-    [id]: Object.freeze({ ...marca, aparencias: Object.freeze({ ...marca.aparencias, [contexto]: aparencia }) }),
+    [id]: Object.freeze({
+      ...marca,
+      aparencias: Object.freeze({ ...marca.aparencias, [contexto]: aparencia }),
+    }),
   });
 }
 
@@ -411,32 +432,51 @@ export function ler(estado, consulta = {}) {
    * marca está devolveria "não vale" com cara de medida sobre uma escolha perfeitamente válida.
    */
   if (!ehTexto(contexto)) {
-    throw new Error('favoritos: ler exige `contexto` — use `contextoDe(classificar(...), superficieDe(...))`');
+    throw new Error(
+      'favoritos: ler exige `contexto` — use `contextoDe(classificar(...), superficieDe(...))`'
+    );
   }
   const marca = estado?.marcas?.[id];
   const base = { id, contexto, aparencia: null, arquivo: null, disponivel: null };
   if (!marca) {
     return Object.freeze({
-      ...base, marcada: false, estado: ESTADO.NAO_MARCADO,
-      motivo: 'não marcado', por: null, em: null, corpus: null, escolhas: Object.freeze({}),
+      ...base,
+      marcada: false,
+      estado: ESTADO.NAO_MARCADO,
+      motivo: 'não marcado',
+      por: null,
+      em: null,
+      corpus: null,
+      escolhas: Object.freeze({}),
     });
   }
 
-  const proveniencia = { marcada: true, por: marca.por, em: marca.em, corpus: marca.corpus, escolhas: marca.aparencias };
+  const proveniencia = {
+    marcada: true,
+    por: marca.por,
+    em: marca.em,
+    corpus: marca.corpus,
+    escolhas: marca.aparencias,
+  };
   const escolhido = marca.aparencias[contexto];
   const outros = Object.keys(marca.aparencias).filter((c) => c !== contexto);
 
   if (!escolhido) {
     if (outros.length) {
       return Object.freeze({
-        ...base, ...proveniencia, estado: ESTADO.DEGRADADA,
-        motivo: `a escolha foi feita para ${outros.join(', ')} e este corpo está em ${contexto} agora — `
-          + 'ela fica guardada e volta se o corpo voltar',
+        ...base,
+        ...proveniencia,
+        estado: ESTADO.DEGRADADA,
+        motivo:
+          `a escolha foi feita para ${outros.join(', ')} e este corpo está em ${contexto} agora — ` +
+          'ela fica guardada e volta se o corpo voltar',
       });
     }
     const semContexto = contexto === CONTEXTO.NENHUM;
     return Object.freeze({
-      ...base, ...proveniencia, estado: ESTADO.SEM_APARENCIA,
+      ...base,
+      ...proveniencia,
+      estado: ESTADO.SEM_APARENCIA,
       motivo: semContexto
         ? `marcado para acompanhar; este corpo não abre contexto de aparência — ${caso?.motivo || `ver SEM_APARENCIA (${Object.keys(SEM_APARENCIA).join(', ')})`}`
         : 'marcado para acompanhar, sem aparência escolhida',
@@ -446,19 +486,29 @@ export function ler(estado, consulta = {}) {
   const item = APARENCIAS[contexto]?.[escolhido];
   if (!item) {
     return Object.freeze({
-      ...base, ...proveniencia, estado: ESTADO.DEGRADADA,
+      ...base,
+      ...proveniencia,
+      estado: ESTADO.DEGRADADA,
       motivo: `\`${escolhido}\` saiu do catálogo de ${contexto} — a escolha continua gravada, e nada a desenha`,
     });
   }
   if (emDisco && !emDisco.has(item.arquivo)) {
     return Object.freeze({
-      ...base, ...proveniencia, estado: ESTADO.DEGRADADA, aparencia: escolhido, arquivo: item.arquivo,
+      ...base,
+      ...proveniencia,
+      estado: ESTADO.DEGRADADA,
+      aparencia: escolhido,
+      arquivo: item.arquivo,
       disponivel: false,
       motivo: `${item.arquivo} não está em disco (T-34) — a escolha vale, e a pele procedural desenha no lugar`,
     });
   }
   return Object.freeze({
-    ...base, ...proveniencia, estado: ESTADO.MARCADA, aparencia: escolhido, arquivo: item.arquivo,
+    ...base,
+    ...proveniencia,
+    estado: ESTADO.MARCADA,
+    aparencia: escolhido,
+    arquivo: item.arquivo,
     disponivel: emDisco ? true : null,
     motivo: 'escolha do operador, válida neste corpo',
   });

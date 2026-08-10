@@ -375,8 +375,10 @@ export const MOTION = Object.freeze({
     periods: Object.freeze({ ion: 2.2, dust: 4.6 }),
     allowed: ['comet'],
     forbids: Object.freeze({
-      envelope: 'remanescente é evento com fim — escoamento contínuo afirmaria uma fonte ainda alimentando a casca',
-      photosphere: 'a superfície ferve no LUGAR; transporte líquido para fora seria perda de massa, não convecção',
+      envelope:
+        'remanescente é evento com fim — escoamento contínuo afirmaria uma fonte ainda alimentando a casca',
+      photosphere:
+        'a superfície ferve no LUGAR; transporte líquido para fora seria perda de massa, não convecção',
     }),
     /*
      * `freeze`, e a checagem é a de sempre: o que a cauda informa é DIREÇÃO (para longe da fonte) e

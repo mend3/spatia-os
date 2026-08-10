@@ -58,7 +58,10 @@ export function createYield(rails) {
 
   function paint(rail, points) {
     if (same(applied.get(rail), points)) return;
-    applied.set(rail, points.map((p) => ({ ...p })));
+    applied.set(
+      rail,
+      points.map((p) => ({ ...p }))
+    );
 
     if (!points.length) {
       // Sem nada a ceder, a máscara SAI. Uma máscara sem furos continua sendo uma camada de
@@ -75,9 +78,9 @@ export function createYield(rails) {
       const x = (p.x - box.left).toFixed(1);
       const y = (p.y - box.top).toFixed(1);
       const r = Math.max(12, p.r * HALO).toFixed(1);
-      return `radial-gradient(circle ${r}px at ${x}px ${y}px, transparent 0, transparent ${
-        (CORE * 100).toFixed(0)
-      }%, #000 100%)`;
+      return `radial-gradient(circle ${r}px at ${x}px ${y}px, transparent 0, transparent ${(
+        CORE * 100
+      ).toFixed(0)}%, #000 100%)`;
     });
 
     rail.style.maskImage = layers.join(', ');
@@ -105,8 +108,7 @@ export function createYield(rails) {
         const dentro = points.filter((p) => {
           const raio = p.r * HALO;
           return (
-            p.x + raio > box.left && p.x - raio < box.right &&
-            p.y + raio > box.top && p.y - raio < box.bottom
+            p.x + raio > box.left && p.x - raio < box.right && p.y + raio > box.top && p.y - raio < box.bottom
           );
         });
         paint(rail, dentro);

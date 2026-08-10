@@ -18,11 +18,7 @@ const TAU = Math.PI * 2;
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a, b) => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
 const scale = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const norm = (a) => scale(a, 1 / len(a));
@@ -105,11 +101,7 @@ for (let ia = 0; ia < 40; ia++) {
     const cr = Math.sqrt(Math.max(0, 1 - cz * cz));
     const dir = [cr * Math.cos(caz), cr * Math.sin(caz), cz];
     const position = [3, -7, 11];
-    const camPos = [
-      position[0] + dir[0] * 40,
-      position[1] + dir[1] * 40,
-      position[2] + dir[2] * 40,
-    ];
+    const camPos = [position[0] + dir[0] * 40, position[1] + dir[1] * 40, position[2] + dir[2] * 40];
     const forward = norm(sub(position, camPos));
     const mundoCima = Math.abs(forward[2]) > 0.99 ? [0, 1, 0] : [0, 0, 1];
     const right = norm(cross(forward, mundoCima));

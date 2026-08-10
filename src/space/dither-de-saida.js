@@ -97,7 +97,7 @@ export function comDither(fonte) {
   if (conversao < 0 || conversao > fim) {
     throw new Error(
       'dither-de-saida: não achei `sRGBTransferOETF` antes do fim do `main()`. O dither precisa ' +
-      'rodar em espaço de SAÍDA, e sem essa garantia a amplitude de 1 LSB deixa de significar 1 LSB.'
+        'rodar em espaço de SAÍDA, e sem essa garantia a amplitude de 1 LSB deixa de significar 1 LSB.'
     );
   }
   return `${fonte.slice(0, fim)}${GLSL_DITHER}\n}${fonte.slice(fim + 1)}`;

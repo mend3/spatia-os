@@ -16,16 +16,22 @@ import * as THREE from 'three';
 import { KIND_COLORS } from '../space/graph.js';
 import { diskPx } from '../space/galaxy.js';
 import {
-  createComet, cometParams,
-  LOD_FAR_PX as COMET_FAR, LOD_NEAR_PX as COMET_NEAR,
+  createComet,
+  cometParams,
+  LOD_FAR_PX as COMET_FAR,
+  LOD_NEAR_PX as COMET_NEAR,
 } from '../space/comet.js';
 import {
-  createNebula, nebulaParams,
-  LOD_FAR_PX as NEBULA_FAR, LOD_NEAR_PX as NEBULA_NEAR,
+  createNebula,
+  nebulaParams,
+  LOD_FAR_PX as NEBULA_FAR,
+  LOD_NEAR_PX as NEBULA_NEAR,
 } from '../space/nebula.js';
 import {
-  createStation, stationParams,
-  LOD_FAR_PX as STATION_FAR, LOD_NEAR_PX as STATION_NEAR,
+  createStation,
+  stationParams,
+  LOD_FAR_PX as STATION_FAR,
+  LOD_NEAR_PX as STATION_NEAR,
 } from '../space/station.js';
 
 /**
@@ -146,12 +152,12 @@ export const COMET_SPEC = {
         // exata: coma e cauda passam por grampos e perdem a informação nos extremos.
         const atividade = (base.amount - 0.25) / 0.75;
         ctx.report({
-          'atividade': `${atividade.toFixed(2)}${atividade > 0.999 ? ' (saturada)' : ''}`,
-          'coma': `${base.coma.toFixed(2)} raios`,
-          'cauda': `${params.tail.toFixed(2)} raios`,
-          'núcleo': `${base.nucleus.toFixed(3)} raios`,
-          'pixels': px.toFixed(0),
-          'nível': `${nivel.toFixed(2)} · ${nivelDe(px, COMET_FAR, COMET_NEAR)}`,
+          atividade: `${atividade.toFixed(2)}${atividade > 0.999 ? ' (saturada)' : ''}`,
+          coma: `${base.coma.toFixed(2)} raios`,
+          cauda: `${params.tail.toFixed(2)} raios`,
+          núcleo: `${base.nucleus.toFixed(3)} raios`,
+          pixels: px.toFixed(0),
+          nível: `${nivel.toFixed(2)} · ${nivelDe(px, COMET_FAR, COMET_NEAR)}`,
         });
       },
       dispose() {
@@ -219,12 +225,12 @@ export const NEBULA_SPEC = {
         const nivel = nebula.update(params, camera, px, clock.elapsed, values.reduzido);
 
         ctx.report({
-          'cavidade': base.cavity.toFixed(3),
-          'filamento': `${filament.toFixed(2)}${base.filament * values.filamento > 1 ? ' ⚠️ NO TETO' : ''}`,
-          'extensão': `${base.span.toFixed(2)} raios`,
-          'densidade': base.amount.toFixed(2),
-          'pixels': px.toFixed(0),
-          'nível': `${nivel.toFixed(2)} · ${nivelDe(px, NEBULA_FAR, NEBULA_NEAR)}`,
+          cavidade: base.cavity.toFixed(3),
+          filamento: `${filament.toFixed(2)}${base.filament * values.filamento > 1 ? ' ⚠️ NO TETO' : ''}`,
+          extensão: `${base.span.toFixed(2)} raios`,
+          densidade: base.amount.toFixed(2),
+          pixels: px.toFixed(0),
+          nível: `${nivel.toFixed(2)} · ${nivelDe(px, NEBULA_FAR, NEBULA_NEAR)}`,
         });
       },
       dispose: () => nebula.dispose(),
@@ -272,13 +278,13 @@ export const STATION_SPEC = {
         const nivel = station.update(params, px, clock.elapsed);
 
         ctx.report({
-          'módulos': params.modules,
-          'painéis': params.panels,
-          'casco': `${params.length.toFixed(2)} raios`,
-          'farol': params.beacon.toFixed(2),
-          'pose': `${((params.yaw * 180) / Math.PI).toFixed(0)}° / ${((params.pitch * 180) / Math.PI).toFixed(0)}°`,
-          'pixels': px.toFixed(0),
-          'nível': `${nivel.toFixed(2)} · ${nivelDe(px, STATION_FAR, STATION_NEAR)}`,
+          módulos: params.modules,
+          painéis: params.panels,
+          casco: `${params.length.toFixed(2)} raios`,
+          farol: params.beacon.toFixed(2),
+          pose: `${((params.yaw * 180) / Math.PI).toFixed(0)}° / ${((params.pitch * 180) / Math.PI).toFixed(0)}°`,
+          pixels: px.toFixed(0),
+          nível: `${nivel.toFixed(2)} · ${nivelDe(px, STATION_FAR, STATION_NEAR)}`,
         });
       },
       dispose: () => station.dispose(),

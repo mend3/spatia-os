@@ -218,9 +218,8 @@ export function createPulse() {
        * por `seed` existe para que dois quasares na mesma cena não estourem no mesmo instante;
        * sincronizados, o céu inteiro pisca junto e lê como falha de render.
        */
-      const f = reduced ? 0.42 : ((elapsed / PERIOD) + seed) % 1;
-      material.uniforms.uPhase.value =
-        (2 ** (DOUBLINGS * f) - 1) / (2 ** DOUBLINGS - 1);
+      const f = reduced ? 0.42 : (elapsed / PERIOD + seed) % 1;
+      material.uniforms.uPhase.value = (2 ** (DOUBLINGS * f) - 1) / (2 ** DOUBLINGS - 1);
 
       mesh.scale.setScalar(scale);
       if (camera) mesh.quaternion.copy(camera.quaternion);

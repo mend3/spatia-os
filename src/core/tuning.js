@@ -269,9 +269,7 @@ function load() {
      * ninguém escolheu aquilo — foi herdado. Esse recebe o novo. Qualquer outro valor é uma
      * decisão e fica de pé.
      */
-    return Object.fromEntries(
-      known.filter(([key, value]) => !(SUPERSEDED[key] ?? []).includes(value))
-    );
+    return Object.fromEntries(known.filter(([key, value]) => !(SUPERSEDED[key] ?? []).includes(value)));
   } catch {
     return {};
   }

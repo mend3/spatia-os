@@ -29,7 +29,14 @@ import { readdir } from 'node:fs/promises';
 import { TONS, FAMILIAS } from '../src/hud/tons.js';
 
 const RAIZ = new URL('..', import.meta.url);
-const C = { forte: '\x1b[1m', erro: '\x1b[31m', ok: '\x1b[32m', aviso: '\x1b[33m', fraco: '\x1b[2m', fim: '\x1b[0m' };
+const C = {
+  forte: '\x1b[1m',
+  erro: '\x1b[31m',
+  ok: '\x1b[32m',
+  aviso: '\x1b[33m',
+  fraco: '\x1b[2m',
+  fim: '\x1b[0m',
+};
 
 const css = await readFile(new URL('index.html', RAIZ), 'utf8');
 
@@ -71,11 +78,15 @@ for (const [familia, cfg] of Object.entries(FAMILIAS)) {
 }
 if (mudos.length) {
   console.log(`\n${C.erro}✗ ${mudos.length} tom(ns) SEM REGRA: ${mudos.join(', ')}${C.fim}`);
-  console.log(`  ${C.aviso}O código afirma e a tela não desenha. Nada quebra — ela só deixa de afirmar.${C.fim}`);
+  console.log(
+    `  ${C.aviso}O código afirma e a tela não desenha. Nada quebra — ela só deixa de afirmar.${C.fim}`
+  );
   falhou = true;
 } else {
   const total = Object.values(FAMILIAS).reduce((n, c) => n + c.aceita.length + c.naLinha.length, 0);
-  console.log(`${C.ok}✓ ${total} pares casados${C.fim}  ${C.fraco}${Object.keys(FAMILIAS).join(' · ')}${C.fim}`);
+  console.log(
+    `${C.ok}✓ ${total} pares casados${C.fim}  ${C.fraco}${Object.keys(FAMILIAS).join(' · ')}${C.fim}`
+  );
 }
 
 // ───────────────────────────────────────────────────────────── §2 · pintado sem quem emita
@@ -120,7 +131,9 @@ if (intrusos.size) {
   console.log(`  ${C.aviso}Nenhuma regra o alcança: a linha sai na cor de corpo.${C.fim}`);
   falhou = true;
 } else {
-  console.log(`${C.ok}✓ ${Object.keys(TONS).length} tons declarados${C.fim}  ${C.fraco}${arquivos.length} arquivos varridos${C.fim}`);
+  console.log(
+    `${C.ok}✓ ${Object.keys(TONS).length} tons declarados${C.fim}  ${C.fraco}${arquivos.length} arquivos varridos${C.fim}`
+  );
 }
 
 process.exit(falhou ? 1 : 0);

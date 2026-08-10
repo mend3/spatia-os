@@ -118,7 +118,7 @@ export const QUASAR_SPEC = {
             estado: 'apagado',
             // Diz QUAL dos dois portões barrou. Sem isto, "apagado" com massa alta é um mistério.
             'massa de bojo': `${bulgeMassOf(hub).toFixed(0)} ${bulgeMassOf(hub) < QUASAR_BULGE_FLOOR ? `< ${QUASAR_BULGE_FLOOR} ✗` : '✓'}`,
-            'acreção': `${values.acrecao} ${values.acrecao > 0 ? '✓' : '= 0 ✗ (buraco negro quieto)'}`,
+            acreção: `${values.acrecao} ${values.acrecao > 0 ? '✓' : '= 0 ✗ (buraco negro quieto)'}`,
           });
           return;
         }
@@ -132,17 +132,18 @@ export const QUASAR_SPEC = {
          */
         const alturaFb = window.innerHeight * (window.devicePixelRatio || 1);
         const entrada = { params, position: new THREE.Vector3(0, 0, 0), radius: values.radius };
-        const acesos = quasars.update(
-          [entrada], camera, alturaFb, clock.elapsed, diskPx, { far: LOD_ARM_PX, near: LOD_FULL_PX }
-        );
+        const acesos = quasars.update([entrada], camera, alturaFb, clock.elapsed, diskPx, {
+          far: LOD_ARM_PX,
+          near: LOD_FULL_PX,
+        });
 
         const px = diskPx(values.radius, camera.position.length(), alturaFb, camera.fov);
         ctx.report({
           estado: acesos ? 'aceso' : 'abaixo do piso de LOD',
           'massa de bojo': bulgeMassOf(hub).toFixed(0),
-          'acreção': `${values.acrecao} commits`,
-          'cosView': values.view.toFixed(2),
-          'inclinação': `${((Math.acos(Math.min(values.view, 1)) * 180) / Math.PI).toFixed(0)}°`,
+          acreção: `${values.acrecao} commits`,
+          cosView: values.view.toFixed(2),
+          inclinação: `${((Math.acos(Math.min(values.view, 1)) * 180) / Math.PI).toFixed(0)}°`,
           'disco na tela': `${px.toFixed(0)} px`,
           // O que o toro faz com a inclinação — o número que a linha nova governa.
           'achatamento do disco': Math.max(values.view, 0.07).toFixed(2),

@@ -36,7 +36,12 @@
 import { el } from './dom.js';
 import { button } from './button.js';
 import {
-  criarFavoritos, contextoDe, casoSemAparencia, APARENCIAS, ESTADO, CHAVE_PREFS,
+  criarFavoritos,
+  contextoDe,
+  casoSemAparencia,
+  APARENCIAS,
+  ESTADO,
+  CHAVE_PREFS,
 } from '../space/favoritos.js';
 import { indice as indiceDeSistemas, carregar as indexarSistemas } from '../space/sistemas.js';
 
@@ -117,8 +122,9 @@ export function leitura(node) {
   const onto = indiceDeSistemas().identidadeDe({ id });
   if (!onto) {
     return {
-      impedimento: 'a topologia servida não classificou este corpo, e assumir um contexto daria '
-        + 'aparência de planeta a uma estrela',
+      impedimento:
+        'a topologia servida não classificou este corpo, e assumir um contexto daria ' +
+        'aparência de planeta a uma estrela',
     };
   }
   /*
@@ -189,7 +195,11 @@ export function sonda() {
   const corpos = new Map(
     [...indiceDeSistemas().todas()].map(([id, o]) => [id, { classe: o.classe, pele: o.pele }])
   );
-  return { ligado: true, cobertos: indiceDeSistemas().cobertos, ...store.sonda({ corpus: corpusAtual, emDisco, corpos }) };
+  return {
+    ligado: true,
+    cobertos: indiceDeSistemas().cobertos,
+    ...store.sonda({ corpus: corpusAtual, emDisco, corpos }),
+  };
 }
 
 // ─────────────────────────────────────────────────────────── o pixel
@@ -241,20 +251,22 @@ function escolhas(node, l) {
   if (!nomes.length) return [];
   const caixa = el('div', 'marca-aparencias');
   for (const nome of nomes) {
-    caixa.append(button({
-      variant: 'select',
-      size: 'xs',
-      label: l.aceitas[nome].rotulo,
-      on: l.aparencia === nome,
-      title: `${l.aceitas[nome].arquivo} · ${l.aceitas[nome].licenca}`,
-      /*
-       * ⚠️ O clique lê o estado AGORA, não o que estava desenhado quando o chip nasceu. `l` é a
-       * leitura do desenho, e um handler que a consulta decide por um pixel que pode não valer mais
-       * — é a mesma família do proxy que expira sem avisar. O `on` do botão pode envelhecer sem
-       * estrago (o painel repinta); a AÇÃO, não.
-       */
-      onClick: () => escolher(node, leitura(node)?.aparencia === nome ? null : nome),
-    }));
+    caixa.append(
+      button({
+        variant: 'select',
+        size: 'xs',
+        label: l.aceitas[nome].rotulo,
+        on: l.aparencia === nome,
+        title: `${l.aceitas[nome].arquivo} · ${l.aceitas[nome].licenca}`,
+        /*
+         * ⚠️ O clique lê o estado AGORA, não o que estava desenhado quando o chip nasceu. `l` é a
+         * leitura do desenho, e um handler que a consulta decide por um pixel que pode não valer mais
+         * — é a mesma família do proxy que expira sem avisar. O `on` do botão pode envelhecer sem
+         * estrago (o painel repinta); a AÇÃO, não.
+         */
+        onClick: () => escolher(node, leitura(node)?.aparencia === nome ? null : nome),
+      })
+    );
   }
   return [caixa];
 }
@@ -319,11 +331,12 @@ export function desenharFavorito(node) {
      * presença afirma o OPOSTO do fato — com o motivo do modelo contradizendo a linha, na mesma
      * tela. `null` é *"ninguém me disse o que existe"*, que não é falta nem presença.
      */
-    const disco = l.disponivel === true
-      ? `${l.arquivo} — em disco`
-      : l.disponivel === false
-        ? `${l.arquivo} — NÃO está em disco; a pele procedural continua desenhando`
-        : `${l.arquivo} — disco não verificado; a pele procedural continua desenhando`;
+    const disco =
+      l.disponivel === true
+        ? `${l.arquivo} — em disco`
+        : l.disponivel === false
+          ? `${l.arquivo} — NÃO está em disco; a pele procedural continua desenhando`
+          : `${l.arquivo} — disco não verificado; a pele procedural continua desenhando`;
     linhas.push(el('div', 'widget-hint', disco));
   }
   linhas.push(...escolhas(node, l));

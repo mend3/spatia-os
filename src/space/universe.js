@@ -101,7 +101,7 @@ const DERIVA = 0.35;
  * do corpus real, ~5,8. A cena reescala sozinha em vez de exigir recalibração — que é a diferença
  * entre uma lei e um número calibrado.
  */
-const OCUPACAO = 0.30;
+const OCUPACAO = 0.3;
 /**
  * Que fração do envelope do sistema é a ESTRELA.
  *
@@ -109,7 +109,7 @@ const OCUPACAO = 0.30;
  * estelares, então uma estrela acima de ~0,4 do envelope não deixaria espaço para nenhuma órbita.
  * 0,22 põe a órbita mais interna em 0,54 do envelope e deixa a metade externa para a escada.
  */
-const FRACAO_ESTRELA = 0.10;
+const FRACAO_ESTRELA = 0.1;
 /**
  * Movimento médio na órbita de Roche, em rad/s — o relógio do sistema.
  *
@@ -259,7 +259,10 @@ const ALVO_PX = 12;
 
 const hash01 = (texto, sal = 0) => {
   let v = 2166136261 ^ sal;
-  for (let i = 0; i < texto.length; i++) { v ^= texto.charCodeAt(i); v = Math.imul(v, 16777619); }
+  for (let i = 0; i < texto.length; i++) {
+    v ^= texto.charCodeAt(i);
+    v = Math.imul(v, 16777619);
+  }
   return ((v >>> 0) % 100000) / 100000;
 };
 
@@ -712,10 +715,17 @@ export function createUniverse() {
   }
 
   function limpar() {
-    for (const m of [estrelas, planetas]) if (m) { group.remove(m); m.dispose?.(); }
+    for (const m of [estrelas, planetas])
+      if (m) {
+        group.remove(m);
+        m.dispose?.();
+      }
     estrelas = planetas = null;
     // O material é do módulo e sobrevive à troca de corpus; a GEOMETRIA é do céu que saiu.
-    if (sprites) { group.remove(sprites); sprites.geometry.dispose(); }
+    if (sprites) {
+      group.remove(sprites);
+      sprites.geometry.dispose();
+    }
     sprites = null;
     spritePos = spriteTam = spriteHalo = pxGeometria = pxSprite = zPorIndice = null;
     orbitas = [];
@@ -738,21 +748,31 @@ export function createUniverse() {
    * expandir em vez de a busca falhar.
    */
   function posicionar(i, nos, porNo, envelope, medio, postos) {
-    const a = hash01(`s${i}`, 11), b = hash01(`s${i}`, 23), c = hash01(`s${i}`, 41);
+    const a = hash01(`s${i}`, 11),
+      b = hash01(`s${i}`, 23),
+      c = hash01(`s${i}`, 41);
     const idx = Math.floor(a * nos.length) % nos.length;
-    const base = nos[idx].clone().lerp(nos[Math.floor(b * nos.length) % nos.length], c < 0.35 ? hash01(`s${i}`, 59) : 0);
+    const base = nos[idx]
+      .clone()
+      .lerp(nos[Math.floor(b * nos.length) % nos.length], c < 0.35 ? hash01(`s${i}`, 59) : 0);
     const grumoBase = Math.max((medio * Math.cbrt(Math.max(porNo[idx], 1))) / 0.6, medio * 2.2);
     for (let k = 0; k < TENTATIVAS; k++) {
       const grumo = grumoBase * (1 + k * 0.06);
-      const u = hash01(`s${i}:${k}`, 71), v = hash01(`s${i}:${k}`, 83), w = hash01(`s${i}:${k}`, 97);
+      const u = hash01(`s${i}:${k}`, 71),
+        v = hash01(`s${i}:${k}`, 83),
+        w = hash01(`s${i}:${k}`, 97);
       const rr = grumo * Math.cbrt(u);
       const theta = v * Math.PI * 2;
       const phi = Math.acos(2 * w - 1);
-      const p = base.clone().add(new THREE.Vector3(
-        rr * Math.sin(phi) * Math.cos(theta),
-        rr * Math.sin(phi) * Math.sin(theta),
-        rr * Math.cos(phi)
-      ));
+      const p = base
+        .clone()
+        .add(
+          new THREE.Vector3(
+            rr * Math.sin(phi) * Math.cos(theta),
+            rr * Math.sin(phi) * Math.sin(theta),
+            rr * Math.cos(phi)
+          )
+        );
       /*
        * ⚠️ **A distância mínima é a soma dos DOIS envelopes, não uma constante.**
        *
@@ -790,7 +810,13 @@ export function createUniverse() {
      * `anchorTarget` da cena já pagou uma vez.
      */
     sistemas: () =>
-      centros.map((c, i) => ({ i, id: c.sistema, pos: c.pos.clone(), envelope: c.envelope, raioEstrela: c.raio })),
+      centros.map((c, i) => ({
+        i,
+        id: c.sistema,
+        pos: c.pos.clone(),
+        envelope: c.envelope,
+        raioEstrela: c.raio,
+      })),
 
     /**
      * A que sistema um corpo pertence. `null` se ele não está nesta cena.
@@ -899,7 +925,13 @@ export function createUniverse() {
         if (!state) continue;
         // `recency` alimenta o `dimOf` do `follow`, e aqui ele é constante (esta cena não tem
         // janela temporal): vai o valor neutro em vez de um campo faltando.
-        entradas.push({ index: i, size: raiosPorIndice?.[i] ?? 1, state, recency: 1, detritos: i < centros.length });
+        entradas.push({
+          index: i,
+          size: raiosPorIndice?.[i] ?? 1,
+          state,
+          recency: 1,
+          detritos: i < centros.length,
+        });
       }
       const resultado = aneis.set(entradas);
       // A sonda conta o que foi MONTADO, não o que foi pedido: o teto de `maxRings` corta, e um
@@ -915,7 +947,12 @@ export function createUniverse() {
       // A rede na sonda: sem isto, "a seleção desenhou?" só se responde por foto — e foto não
       // distingue arco ausente de arco desenhado fora da tela.
       rede: selecao
-        ? { fonte: selecao.fonte, desenhados: selecao.desenhados, recusados: selecao.recusados, total: selecao.total }
+        ? {
+            fonte: selecao.fonte,
+            desenhados: selecao.desenhados,
+            recusados: selecao.recusados,
+            total: selecao.total,
+          }
         : null,
       /*
        * ⚠️ Quantos ANÉIS estão montados. Sem isto, "o anel não apareceu" não distingue três coisas
@@ -1032,8 +1069,14 @@ export function createUniverse() {
       const perfil = (fonte) => {
         const v = Array.from(fonte.slice(0, corpos.length)).sort((a, b) => a - b);
         const q = (p) => +v[Math.min(v.length - 1, Math.floor(p * v.length))].toFixed(2);
-        return { min: +v[0].toFixed(2), p25: q(0.25), p50: q(0.5), p75: q(0.75), p95: q(0.95),
-          max: +v[v.length - 1].toFixed(2) };
+        return {
+          min: +v[0].toFixed(2),
+          p25: q(0.25),
+          p50: q(0.5),
+          p75: q(0.75),
+          p95: q(0.95),
+          max: +v[v.length - 1].toFixed(2),
+        };
       };
       const conta = (fonte, teste) => {
         let c = 0;
@@ -1138,7 +1181,10 @@ export function createUniverse() {
       }
       lista.sort((a, b) => b.px - a.px);
       return lista.slice(0, k).map(({ i, source, px }) => ({
-        source, px, node: corpos[i], radius: raiosPorIndice[i],
+        source,
+        px,
+        node: corpos[i],
+        radius: raiosPorIndice[i],
         position: new THREE.Vector3(posicoes[i * 3], posicoes[i * 3 + 1], posicoes[i * 3 + 2]),
       }));
     },
@@ -1155,11 +1201,19 @@ export function createUniverse() {
       if (!posicoes || !raiosPorIndice || !corpos.length) return null;
       let melhor = null;
       for (let i = 0; i < corpos.length; i++) {
-        const dx = posicoes[i * 3] - ponto.x, dy = posicoes[i * 3 + 1] - ponto.y, dz = posicoes[i * 3 + 2] - ponto.z;
+        const dx = posicoes[i * 3] - ponto.x,
+          dy = posicoes[i * 3 + 1] - ponto.y,
+          dz = posicoes[i * 3 + 2] - ponto.z;
         const d2 = dx * dx + dy * dy + dz * dz;
         if (!melhor || d2 < melhor.d2) melhor = { d2, i };
       }
-      return melhor && { source: corpos[melhor.i]?.source ?? null, radius: raiosPorIndice[melhor.i], dist: Math.sqrt(melhor.d2) };
+      return (
+        melhor && {
+          source: corpos[melhor.i]?.source ?? null,
+          radius: raiosPorIndice[melhor.i],
+          dist: Math.sqrt(melhor.d2),
+        }
+      );
     },
 
     cederPara(source) {
@@ -1239,7 +1293,10 @@ export function createUniverse() {
       // posição depois, por `source`, seria ler o buffer de novo para responder o que já se sabe.
       if (!melhor) return null;
       const p = melhor.i * 3;
-      return { node: melhor.node, position: new THREE.Vector3(posicoes[p], posicoes[p + 1], posicoes[p + 2]) };
+      return {
+        node: melhor.node,
+        position: new THREE.Vector3(posicoes[p], posicoes[p + 1], posicoes[p + 2]),
+      };
     },
 
     /**
@@ -1266,8 +1323,16 @@ export function createUniverse() {
       let recusados = 0;
       for (const v of vizinhanca.v || []) {
         const outro = indiceDe.get(v.para);
-        if (outro === undefined) { recusados++; continue; }
-        pares.push([eu, outro, COR_DO_VINCULO[v.tipo] ?? COR_DO_VINCULO.desconhecido, SENTIDO[v.sentido] ?? 0]);
+        if (outro === undefined) {
+          recusados++;
+          continue;
+        }
+        pares.push([
+          eu,
+          outro,
+          COR_DO_VINCULO[v.tipo] ?? COR_DO_VINCULO.desconhecido,
+          SENTIDO[v.sentido] ?? 0,
+        ]);
       }
       const desenhados = rede.show(pares);
       selecao = { fonte: source, desenhados, recusados, total: vizinhanca.total || {} };
@@ -1387,7 +1452,9 @@ export function createUniverse() {
       const escalaCorpo = Math.min(
         ...sistemas.map((s, i) => (reservados[i] * FRACAO_ESTRELA) / raioPorMassa(s.estrela.chunks || 1))
       );
-      const raios = sistemas.map((s) => Math.max(raioPorMassa(s.estrela.chunks || 1) * escalaCorpo, RAIO_MINIMO * 1.6));
+      const raios = sistemas.map((s) =>
+        Math.max(raioPorMassa(s.estrela.chunks || 1) * escalaCorpo, RAIO_MINIMO * 1.6)
+      );
       /*
        * ⚠️ **O envelope cede ao PISO, e não o contrário.** `RAIO_MINIMO` impede corpo sub-pixel, e
        * numa pasta de 1 arquivo ele deixa a estrela maior do que a fatia de volume que o orçamento
@@ -1399,11 +1466,13 @@ export function createUniverse() {
       const envelopeMedio = envelopes.reduce((a, b) => a + b, 0) / (envelopes.length || 1);
       const nos = [];
       for (let k = 0; k < NOS; k++) {
-        nos.push(new THREE.Vector3(
-          (hash01(`n${k}`, 7) - 0.5) * 1.6 * RAIO_UNIVERSO,
-          (hash01(`n${k}`, 13) - 0.5) * 1.6 * RAIO_UNIVERSO,
-          (hash01(`n${k}`, 17) - 0.5) * 1.6 * RAIO_UNIVERSO
-        ));
+        nos.push(
+          new THREE.Vector3(
+            (hash01(`n${k}`, 7) - 0.5) * 1.6 * RAIO_UNIVERSO,
+            (hash01(`n${k}`, 13) - 0.5) * 1.6 * RAIO_UNIVERSO,
+            (hash01(`n${k}`, 17) - 0.5) * 1.6 * RAIO_UNIVERSO
+          )
+        );
       }
       const porNo = new Array(NOS).fill(0);
       for (let i = 0; i < sistemas.length; i++) porNo[Math.floor(hash01(`s${i}`, 11) * NOS) % NOS]++;
@@ -1423,7 +1492,11 @@ export function createUniverse() {
       const colocados = [];
       const ordem = sistemas.map((_, i) => i).sort((a, b) => envelopes[b] - envelopes[a]);
       for (const i of ordem) {
-        const posto = { pos: posicionar(i, nos, porNo, envelopes[i], envelopeMedio, colocados), s: sistemas[i], envelope: envelopes[i] };
+        const posto = {
+          pos: posicionar(i, nos, porNo, envelopes[i], envelopeMedio, colocados),
+          s: sistemas[i],
+          envelope: envelopes[i],
+        };
         postos[i] = posto;
         colocados.push(posto);
       }
@@ -1552,8 +1625,17 @@ export function createUniverse() {
            * também ENTRE sistemas — estrela mais massiva move seus planetas mais rápido no mesmo
            * raio relativo, que é o que Kepler afirma e o que a constante única negava.
            */
-          orbitas.push({ centro: i, a, e, rp, fase: hash01(f.id, 53) * Math.PI * 2, inc, giro,
-            n: MOVIMENTO_MEDIO * Math.pow(raio / a, 1.5), brilho: brilhoDe(f, usoVale) });
+          orbitas.push({
+            centro: i,
+            a,
+            e,
+            rp,
+            fase: hash01(f.id, 53) * Math.PI * 2,
+            inc,
+            giro,
+            n: MOVIMENTO_MEDIO * Math.pow(raio / a, 1.5),
+            brilho: brilhoDe(f, usoVale),
+          });
         });
         // `envelope` viaja junto porque a CÂMERA precisa dele: é o volume que o
         // empacotamento reservou a este sistema, e é ele que decide a que distância se CHEGA nele.
@@ -1561,7 +1643,9 @@ export function createUniverse() {
       });
 
       corpos = [...estrelasPorFonte, ...planetasPorFonte];
-      corpos.forEach((n, i) => { if (n?.source) indiceDe.set(n.source, i); });
+      corpos.forEach((n, i) => {
+        if (n?.source) indiceDe.set(n.source, i);
+      });
       posicoes = new Float32Array(Math.max(corpos.length, 1) * 3);
       raiosPorIndice = Float32Array.from([...centros.map((c) => c.raio), ...orbitas.map((o) => o.rp)]);
 
@@ -1575,15 +1659,23 @@ export function createUniverse() {
       const brilhoP = new Float32Array(Math.max(orbitas.length, 1));
       orbitas.forEach((o, i) => {
         const c = centros[o.centro].pos;
-        luz[i * 3] = c.x; luz[i * 3 + 1] = c.y; luz[i * 3 + 2] = c.z;
+        luz[i * 3] = c.x;
+        luz[i * 3 + 1] = c.y;
+        luz[i * 3 + 2] = c.z;
         brilhoP[i] = o.brilho;
       });
       planetas.geometry = geo.clone();
       planetas.geometry.setAttribute('aEstrela', new THREE.InstancedBufferAttribute(luz, 3));
       planetas.geometry.setAttribute('aBrilho', new THREE.InstancedBufferAttribute(brilhoP, 1));
       estrelas.geometry = geo.clone();
-      estrelas.geometry.setAttribute('aEstrela', new THREE.InstancedBufferAttribute(new Float32Array(Math.max(centros.length, 1) * 3), 3));
-      estrelas.geometry.setAttribute('aBrilho', new THREE.InstancedBufferAttribute(Float32Array.from(brilhoE), 1));
+      estrelas.geometry.setAttribute(
+        'aEstrela',
+        new THREE.InstancedBufferAttribute(new Float32Array(Math.max(centros.length, 1) * 3), 3)
+      );
+      estrelas.geometry.setAttribute(
+        'aBrilho',
+        new THREE.InstancedBufferAttribute(Float32Array.from(brilhoE), 1)
+      );
       estrelas.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(corEstrela), 3);
       planetas.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(corPlaneta), 3);
       estrelas.frustumCulled = false;
@@ -1613,8 +1705,10 @@ export function createUniverse() {
        * O sprite e a esfera afirmam o MESMO tipo; duas fontes para a cor de um corpo é como a HUD
        * passou a anunciar a taxonomia velha por cima da nova (`ce8ad95`).
        */
-      geoSprite.setAttribute('aColor', new THREE.BufferAttribute(
-        Float32Array.from([...corEstrela, ...corPlaneta]), 3));
+      geoSprite.setAttribute(
+        'aColor',
+        new THREE.BufferAttribute(Float32Array.from([...corEstrela, ...corPlaneta]), 3)
+      );
       /*
        * ⚠️ **Os cinco atributos abaixo existem para não ficarem IMPLÍCITOS.** Atributo não ligado lê
        * como `(0,0,0,1)` na GPU — funciona, e é a espécie de acerto silencioso que esta base já
@@ -1629,13 +1723,24 @@ export function createUniverse() {
        * conta 3 e 7 de 71): eles são o passo 2, e acender agora seria decidir no escuro quanto de
        * cada feição cabe num corpo de 4 px.
        */
-      for (const [nome, largura] of [['aIgnition', 1], ['aRecency', 1], ['aSupernova', 1], ['aDwarf', 1], ['aHidden', 1]]) {
-        geoSprite.setAttribute(nome, new THREE.BufferAttribute(new Float32Array(Math.max(n, 1) * largura), largura));
+      for (const [nome, largura] of [
+        ['aIgnition', 1],
+        ['aRecency', 1],
+        ['aSupernova', 1],
+        ['aDwarf', 1],
+        ['aHidden', 1],
+      ]) {
+        geoSprite.setAttribute(
+          nome,
+          new THREE.BufferAttribute(new Float32Array(Math.max(n, 1) * largura), largura)
+        );
       }
       /* A semente da silhueta sai do CAMINHO, como em toda feição por nó — nunca do índice, que
          muda quando o corpus ganha ou perde um arquivo. Ver `starSeed`. */
-      geoSprite.setAttribute('aSeed', new THREE.BufferAttribute(
-        Float32Array.from(corpos.map((c) => (c ? starSeed(c) : 0))), 1));
+      geoSprite.setAttribute(
+        'aSeed',
+        new THREE.BufferAttribute(Float32Array.from(corpos.map((c) => (c ? starSeed(c) : 0))), 1)
+      );
       sprites = new THREE.Points(geoSprite, matSprite);
       sprites.frustumCulled = false;
       /*
@@ -1667,7 +1772,9 @@ export function createUniverse() {
         V3.copy(centros[i].pos).add(desloca);
         // A POSIÇÃO é escrita sempre — o arco e o picking dependem dela mesmo com o corpo oculto.
         // Quem some é só a ESCALA da instância: zero desenha nada e não custa fragmento nenhum.
-        posicoes[i * 3] = V3.x; posicoes[i * 3 + 1] = V3.y; posicoes[i * 3 + 2] = V3.z;
+        posicoes[i * 3] = V3.x;
+        posicoes[i * 3 + 1] = V3.y;
+        posicoes[i * 3 + 2] = V3.z;
         M4.compose(V3, Q, new THREE.Vector3().setScalar(centros[i].raio * (cedidos.get(i) ?? 1)));
         estrelas.setMatrixAt(i, M4);
       }
@@ -1687,7 +1794,9 @@ export function createUniverse() {
         M4.compose(V3, Q, new THREE.Vector3().setScalar(o.rp * (cedidos.get(centros.length + k) ?? 1)));
         planetas.setMatrixAt(k, M4);
         const p = (centros.length + k) * 3;
-        posicoes[p] = V3.x; posicoes[p + 1] = V3.y; posicoes[p + 2] = V3.z;
+        posicoes[p] = V3.x;
+        posicoes[p + 1] = V3.y;
+        posicoes[p + 2] = V3.z;
         if (k === 0) amostra.copy(V3);
       }
       estrelas.instanceMatrix.needsUpdate = true;
@@ -1788,11 +1897,30 @@ export function createUniverse() {
          * — e aqui a lei mudou no MESMO branch, dois commits antes. Ao consertar um símbolo,
          * pergunte também se o que ele MEDE ainda é o que o nome diz.
          */
-        aneis.follow(posicoes, camera, () => 1, (i) => raioAparente(i, camera, viewportHeight), elapsed, undefined, indiceFocado);
+        aneis.follow(
+          posicoes,
+          camera,
+          () => 1,
+          (i) => raioAparente(i, camera, viewportHeight),
+          elapsed,
+          undefined,
+          indiceFocado
+        );
       }
     },
 
-    setVisible(v) { group.visible = v; },
-    dispose() { limpar(); rede.dispose(); coroa.geometry.dispose(); matCoroa.dispose(); geo.dispose(); matEstrela.dispose(); matPlaneta.dispose(); matSprite.dispose(); },
+    setVisible(v) {
+      group.visible = v;
+    },
+    dispose() {
+      limpar();
+      rede.dispose();
+      coroa.geometry.dispose();
+      matCoroa.dispose();
+      geo.dispose();
+      matEstrela.dispose();
+      matPlaneta.dispose();
+      matSprite.dispose();
+    },
   };
 }

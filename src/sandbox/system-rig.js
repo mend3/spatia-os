@@ -115,19 +115,66 @@ export const SYSTEM_SPEC = {
   name: 'SISTEMA LOCAL',
   distance: 34,
   controls: [
-    { key: 'massaEstrela', label: 'MASSA DA ESTRELA (chunks)', type: 'range', min: 1, max: 289, step: 1, value: 120 },
+    {
+      key: 'massaEstrela',
+      label: 'MASSA DA ESTRELA (chunks)',
+      type: 'range',
+      min: 1,
+      max: 289,
+      step: 1,
+      value: 120,
+    },
     { key: 'planetas', label: 'PLANETAS', type: 'range', min: 0, max: 12, step: 1, value: 4 },
-    { key: 'massaMaior', label: 'MASSA DO MAIOR PLANETA', type: 'range', min: 1, max: 289, step: 1, value: 24 },
+    {
+      key: 'massaMaior',
+      label: 'MASSA DO MAIOR PLANETA',
+      type: 'range',
+      min: 1,
+      max: 289,
+      step: 1,
+      value: 24,
+    },
     { key: 'espaco', label: 'ESPAÇAMENTO ×', type: 'range', min: 1.15, max: 2.2, step: 0.01, value: 1.45 },
-    { key: 'inclinacao', label: 'INCLINAÇÃO DO SISTEMA', type: 'range', min: 0, max: 1.2, step: 0.01, value: 0.35 },
+    {
+      key: 'inclinacao',
+      label: 'INCLINAÇÃO DO SISTEMA',
+      type: 'range',
+      min: 0,
+      max: 1.2,
+      step: 0.01,
+      value: 0.35,
+    },
     { key: 'deriva', label: 'VELOCIDADE DO SISTEMA', type: 'range', min: 0, max: 3, step: 0.05, value: 0.6 },
     { key: 'rumo', label: 'INCLINAÇÃO DO RUMO', type: 'range', min: 0, max: 1.5, step: 0.01, value: 1.05 },
     { key: 'rastro', label: 'RASTRO HELICOIDAL', type: 'bool', value: true },
-    { key: 'excentricidade', label: 'EXCENTRICIDADE', type: 'range', min: 0, max: 0.9, step: 0.005, value: 0.03 },
+    {
+      key: 'excentricidade',
+      label: 'EXCENTRICIDADE',
+      type: 'range',
+      min: 0,
+      max: 0.9,
+      step: 0.005,
+      value: 0.03,
+    },
     { key: 'kepler', label: 'OBEDECER KEPLER', type: 'bool', value: true },
-    { key: 'lei', label: 'LEI DE RAIO', type: 'enum', options: ['duas curvas', 'log (a do céu)'], value: 'duas curvas' },
+    {
+      key: 'lei',
+      label: 'LEI DE RAIO',
+      type: 'enum',
+      options: ['duas curvas', 'log (a do céu)'],
+      value: 'duas curvas',
+    },
     { key: 'orcamento', label: 'ORÇAMENTO DO SISTEMA', type: 'range', min: 0, max: 20, step: 0.5, value: 0 },
-    { key: 'camera', label: 'DISTÂNCIA DA CÂMERA', type: 'range', min: 8, max: 90, step: 1, value: 34, roll: false },
+    {
+      key: 'camera',
+      label: 'DISTÂNCIA DA CÂMERA',
+      type: 'range',
+      min: 8,
+      max: 90,
+      step: 1,
+      value: 34,
+      roll: false,
+    },
   ],
   watch: [
     'a ESTRELA é sempre o maior corpo — razão < 1 no painel é a inversão nº 1 do replanejamento',
@@ -294,7 +341,9 @@ export const SYSTEM_SPEC = {
         if (values.rastro && n > 0) {
           planetas[0].malha.getWorldPosition(MUNDO);
           const k = escritos % RASTRO;
-          trilhaPos[k * 3] = MUNDO.x; trilhaPos[k * 3 + 1] = MUNDO.y; trilhaPos[k * 3 + 2] = MUNDO.z;
+          trilhaPos[k * 3] = MUNDO.x;
+          trilhaPos[k * 3 + 1] = MUNDO.y;
+          trilhaPos[k * 3 + 2] = MUNDO.z;
           escritos++;
           trilhaGeo.setDrawRange(0, Math.min(escritos, RASTRO));
           trilhaGeo.attributes.position.needsUpdate = true;
@@ -306,12 +355,19 @@ export const SYSTEM_SPEC = {
           'raio da estrela': raioEstrela.toFixed(3),
           'raio do sistema': raioSistema.toFixed(2),
           'sistemas por 100 un.': (100 / Math.max(raioSistema * 2, 0.001)).toFixed(1),
-          'kepler': values.kepler ? 'ligado (ω ∝ a^-3/2)' : 'DESLIGADO — carrossel',
+          kepler: values.kepler ? 'ligado (ω ∝ a^-3/2)' : 'DESLIGADO — carrossel',
           'lei de raio': values.lei,
           'excentricidade (1º planeta)': excentricidade(0, values.excentricidade).toFixed(3),
           'periélio → afélio': `${(1 - excentricidade(0, values.excentricidade)).toFixed(2)} → ${(1 + excentricidade(0, values.excentricidade)).toFixed(2)} × a`,
-          'v periélio / v afélio': ((1 + excentricidade(0, values.excentricidade)) / (1 - excentricidade(0, values.excentricidade))).toFixed(2) + '×',
-          'orçamento': values.orcamento > 0 ? `${values.orcamento} un. (escala ${(values.orcamento / raioSistema).toFixed(3)}×)` : 'livre',
+          'v periélio / v afélio':
+            (
+              (1 + excentricidade(0, values.excentricidade)) /
+              (1 - excentricidade(0, values.excentricidade))
+            ).toFixed(2) + '×',
+          orçamento:
+            values.orcamento > 0
+              ? `${values.orcamento} un. (escala ${(values.orcamento / raioSistema).toFixed(3)}×)`
+              : 'livre',
           'inversão de massa': razao >= 1 ? 'não' : 'SIM — planeta maior que a estrela',
         });
         camera.position.setLength(values.camera);

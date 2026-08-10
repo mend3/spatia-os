@@ -212,7 +212,8 @@ export function createLinks() {
       const t = i / (SEGMENTS - 1);
       const u = 1 - t;
       // Bézier quadrática: (1-t)²A + 2(1-t)t·C + t²B.
-      P.copy(A).multiplyScalar(u * u)
+      P.copy(A)
+        .multiplyScalar(u * u)
         .addScaledVector(MID, 2 * u * t)
         .addScaledVector(B, t * t);
       positions[(base + i) * 3] = P.x;

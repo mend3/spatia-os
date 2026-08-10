@@ -163,11 +163,7 @@ export function createParticles() {
     burst(at, tint = 0xffffff, count = 22, spread = 5) {
       count = many(count);
       for (let n = 0; n < count; n++) {
-        const direction = new THREE.Vector3(
-          Math.random() - 0.5,
-          Math.random() - 0.5,
-          Math.random() - 0.5
-        )
+        const direction = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)
           .normalize()
           .multiplyScalar(spread * (0.4 + Math.random()));
         spawn('burst', at, direction.add(at), tint, { scale: 0.9 });

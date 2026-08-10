@@ -455,22 +455,22 @@ export function createBlackHole() {
     const pesos = SLICE_OFFSETS.map((i) => Math.exp(-(i * i) / 2));
     const soma = pesos.reduce((a, b) => a + b, 0);
     SLICE_OFFSETS.forEach((i, k) => {
-      const material = i === 0
-        ? diskMaterial
-        : new THREE.ShaderMaterial({
-          uniforms: { ...uniforms, uHeight: { value: 0 }, uWeight: { value: 0 }, uCheap: { value: 1 } },
-          vertexShader: DISK_VERTEX,
-          fragmentShader: DISK_FRAGMENT,
-          transparent: true,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          side: THREE.DoubleSide,
-        });
+      const material =
+        i === 0
+          ? diskMaterial
+          : new THREE.ShaderMaterial({
+              uniforms: { ...uniforms, uHeight: { value: 0 }, uWeight: { value: 0 }, uCheap: { value: 1 } },
+              vertexShader: DISK_VERTEX,
+              fragmentShader: DISK_FRAGMENT,
+              transparent: true,
+              depthWrite: false,
+              blending: THREE.AdditiveBlending,
+              side: THREE.DoubleSide,
+            });
       material.uniforms.uHeight.value = i * SCALE_HEIGHT * DISK_OUTER;
       material.uniforms.uWeight.value = pesos[k] / soma;
-      const malha = i === 0
-        ? disk
-        : new THREE.Mesh(new THREE.RingGeometry(DISK_INNER, DISK_OUTER, 256, 64), material);
+      const malha =
+        i === 0 ? disk : new THREE.Mesh(new THREE.RingGeometry(DISK_INNER, DISK_OUTER, 256, 64), material);
       malha.rotation.x = -Math.PI / 2;
       // A pilha é aditiva e sem `depthWrite`, então a ordem entre as fatias não importa — mas ela
       // tem de vir DEPOIS do horizonte, que é opaco e escreve profundidade.
@@ -498,7 +498,6 @@ export function createBlackHole() {
   // ao da esfera se sobrepõe à silhueta dela, e o passe de lente esfrega isso num espiral
   // dentro do buraco. A borda interna do próprio disco já é a beirada incandescente — e ela
   // está no lugar certo por construção, não por ajuste.
-
 
   const target = { ...REGIMES.idle };
   const live = { ...REGIMES.boot };
@@ -555,7 +554,7 @@ export function createBlackHole() {
          * integra em torno de R_s, precisa da divisão. Passar a sombra como se fosse R_s inflaria
          * o horizonte 2,6× e engoliria o disco inteiro.
          */
-        rs: (HORIZON_RADIUS * escala) / Math.sqrt(27) * 2,
+        rs: ((HORIZON_RADIUS * escala) / Math.sqrt(27)) * 2,
         inner: DISK_INNER * escala,
         outer: DISK_OUTER * escala,
         spin: live.spin * tune.spin,
@@ -630,7 +629,6 @@ export function createBlackHole() {
        * fazer.
        */
     },
-
 
     /** Afinação: escala o regime, não o troca. */
     tune(values) {

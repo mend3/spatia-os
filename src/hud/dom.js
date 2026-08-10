@@ -70,7 +70,6 @@ export function compact(value) {
   return `${(n / 1000).toFixed(1).replace('.', ',')}k`;
 }
 
-
 /**
  * Plural sem `(s)` colado no fim.
  *
@@ -84,5 +83,5 @@ export function compact(value) {
  * @param {string} [plural]  o default é `singular + 's'`, que cobre o caso regular
  */
 export function plural(count, singular, plural) {
-  return `${count} ${count === 1 ? singular : plural ?? `${singular}s`}`;
+  return `${count} ${count === 1 ? singular : (plural ?? `${singular}s`)}`;
 }

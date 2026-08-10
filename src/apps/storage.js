@@ -231,7 +231,11 @@ function registerCaches() {
           const row = el('div', `unit ${item.exists ? '' : 'down'}`);
           row.append(el('i', 'dot'), el('span', 'unit-name', item.path));
           row.append(
-            el('span', 'unit-detail', item.exists ? `${bytes(item.bytes)} · ${idade(item.age_seconds)}` : 'não existe')
+            el(
+              'span',
+              'unit-detail',
+              item.exists ? `${bytes(item.bytes)} · ${idade(item.age_seconds)}` : 'não existe'
+            )
           );
           row.querySelector('.dot').dataset.status = item.exists ? 'on' : 'off';
           row.append(el('div', 'unit-sub', item.note));

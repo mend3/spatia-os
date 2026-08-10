@@ -10,13 +10,13 @@
  * primeira divergência é exatamente o momento em que ela seria útil.
  */
 import * as THREE from 'three';
-import {
-  createRings, DIRTY_COLORS, VISIBLE_CORE, LOD_FAR_PX, LOD_NEAR_PX,
-} from '../space/rings.js';
+import { createRings, DIRTY_COLORS, VISIBLE_CORE, LOD_FAR_PX, LOD_NEAR_PX } from '../space/rings.js';
 import { RING_FAMILIES } from '../space/ring-profiles.js';
 import {
-  createPlanet, planetParams,
-  LOD_FAR_PX as PLANET_FAR_PX, LOD_NEAR_PX as PLANET_NEAR_PX,
+  createPlanet,
+  planetParams,
+  LOD_FAR_PX as PLANET_FAR_PX,
+  LOD_NEAR_PX as PLANET_NEAR_PX,
 } from '../space/planet.js';
 import { KIND_COLORS, hash01 } from '../space/graph.js';
 import { createPhotosphere, photosphereParams } from '../space/photosphere.js';
@@ -38,13 +38,30 @@ import { UNIVERSE_SPEC } from './universe-rig.js';
 
 /** Afinação neutra: a bancada não herda o que o operador ajustou na cena. */
 export const NEUTRAL = Object.freeze({
-  diskSpin: 1, diskIntensity: 1, diskWidth: 1, breath: 1,
-  starSpread: 1, starSize: 1, starBrightness: 1, starDrift: 0,
-  graphSpread: 1, graphSpeed: 0, nodeSize: 1, edgeOpacity: 0.2,
-  cameraDrift: 0, cameraEase: 9, fov: 46,
-  lensStrength: 0.18, bloomStrength: 0, bloomThreshold: 0.8,
-  aberration: 0, grain: 0, vignette: 0,
-  volume: 0, ambient: 0, brightness: 1,
+  diskSpin: 1,
+  diskIntensity: 1,
+  diskWidth: 1,
+  breath: 1,
+  starSpread: 1,
+  starSize: 1,
+  starBrightness: 1,
+  starDrift: 0,
+  graphSpread: 1,
+  graphSpeed: 0,
+  nodeSize: 1,
+  edgeOpacity: 0.2,
+  cameraDrift: 0,
+  cameraEase: 9,
+  fov: 46,
+  lensStrength: 0.18,
+  bloomStrength: 0,
+  bloomThreshold: 0.8,
+  aberration: 0,
+  grain: 0,
+  vignette: 0,
+  volume: 0,
+  ambient: 0,
+  brightness: 1,
 });
 
 /*
@@ -69,10 +86,31 @@ export const SPECS = [
      */
     distance: 6,
     controls: [
-      { key: 'familia', label: 'FAMÍLIA', type: 'enum', options: Object.keys(RING_FAMILIES), value: 'modified' },
-      { key: 'estado', label: 'ESTADO GIT', type: 'enum', options: Object.keys(DIRTY_COLORS), value: 'modified' },
+      {
+        key: 'familia',
+        label: 'FAMÍLIA',
+        type: 'enum',
+        options: Object.keys(RING_FAMILIES),
+        value: 'modified',
+      },
+      {
+        key: 'estado',
+        label: 'ESTADO GIT',
+        type: 'enum',
+        options: Object.keys(DIRTY_COLORS),
+        value: 'modified',
+      },
       { key: 'tombo', label: 'TOMBO', type: 'range', min: 0, max: 1.5, step: 0.01, value: 1.1 },
-      { key: 'raio', label: 'RAIO DA ESTRELA', type: 'range', min: 0.2, max: 1.4, step: 0.02, value: 0.7, roll: false },
+      {
+        key: 'raio',
+        label: 'RAIO DA ESTRELA',
+        type: 'range',
+        min: 0.2,
+        max: 1.4,
+        step: 0.02,
+        value: 0.7,
+        roll: false,
+      },
       { key: 'estrela', label: 'DESENHAR A ESTRELA', type: 'bool', value: true },
       /*
        * O modo MUNDO é o que a cena usa no astro EM FOCO, e ele não tinha espécime.
@@ -111,7 +149,8 @@ export const SPECS = [
       const star = new THREE.Mesh(
         new THREE.PlaneGeometry(2, 2),
         new THREE.ShaderMaterial({
-          vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+          vertexShader:
+            'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
           fragmentShader: [
             'precision highp float;',
             'varying vec2 vUv;',
@@ -160,19 +199,29 @@ export const SPECS = [
            * bancada em 1/0,6 e ela aprovaria transição que a cena não faz. Ver `rings.js`.
            */
           const world = values.raio / VISIBLE_CORE;
-          const px = (values.raio * window.innerHeight) / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
+          const px =
+            (values.raio * window.innerHeight) /
+            (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
           // `focusedIndex` 0 = o anel deste espécime é o "em foco": vira anel de MUNDO e passa a
           // responder à órbita. -1 mantém o billboard, que é o que a cena desenha fora do foco.
-          rings.follow(positions, camera, () => 1, () => ({ world, px }), clock.elapsed, values.tombo, values.mundo ? 0 : -1);
+          rings.follow(
+            positions,
+            camera,
+            () => 1,
+            () => ({ world, px }),
+            clock.elapsed,
+            values.tombo,
+            values.mundo ? 0 : -1
+          );
           ctx.report({
-            'família': values.familia,
-            'alcance': `${RING_FAMILIES[values.familia].reach.toFixed(2)} R`,
-            'tombo': `${((values.tombo * 180) / Math.PI).toFixed(0)}°`,
+            família: values.familia,
+            alcance: `${RING_FAMILIES[values.familia].reach.toFixed(2)} R`,
+            tombo: `${((values.tombo * 180) / Math.PI).toFixed(0)}°`,
             // O nível de detalhe é o que a RÉGUA DE RAIO varre aqui: 0,2 cai na laje e 1,4 na
             // rocha. Sem este número a revisão não sabe qual dos dois materiais está vendo — e
             // o defeito clássico da técnica é justamente a diferença entre os dois.
-            'pixels': px.toFixed(0),
-            'nível': px < LOD_FAR_PX ? 'LAJE (longe)' : px > LOD_NEAR_PX ? 'ROCHA (perto)' : 'transição',
+            pixels: px.toFixed(0),
+            nível: px < LOD_FAR_PX ? 'LAJE (longe)' : px > LOD_NEAR_PX ? 'ROCHA (perto)' : 'transição',
           });
         },
         dispose: () => rings.dispose(),
@@ -202,7 +251,16 @@ export const SPECS = [
       { key: 'tipo', label: 'TIPO (kind)', type: 'enum', options: Object.keys(KIND_COLORS), value: 'config' },
       { key: 'massa', label: 'MASSA (chunks)', type: 'range', min: 1, max: 240, step: 1, value: 103 },
       { key: 'manchas', label: 'MANCHAS ×', type: 'range', min: 0, max: 3, step: 0.01, value: 1 },
-      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1, roll: false },
+      {
+        key: 'raio',
+        label: 'RAIO DO ASTRO',
+        type: 'range',
+        min: 0.2,
+        max: 1.6,
+        step: 0.01,
+        value: 1,
+        roll: false,
+      },
     ],
     watch: [
       'o centro do disco é NÍTIDO e a borda escurece — é a lei de limbo, e é ela que dá o volume',
@@ -227,16 +285,20 @@ export const SPECS = [
             KIND_COLORS[values.tipo] ?? KIND_COLORS.other
           );
           star.object.scale.setScalar(values.raio);
-          const px = (values.raio * window.innerHeight)
-            / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
+          const px =
+            (values.raio * window.innerHeight) /
+            (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.length());
           const nivel = star.update(
-            { ...base, spots: base.spots * values.manchas }, camera, px, clock.elapsed
+            { ...base, spots: base.spots * values.manchas },
+            camera,
+            px,
+            clock.elapsed
           );
           ctx.report({
-            'manchas': (base.spots * values.manchas).toFixed(2),
-            'pixels': px.toFixed(0),
-            'nível': nivel.toFixed(2),
-            'terminador': 'não existe (emissiva)',
+            manchas: (base.spots * values.manchas).toFixed(2),
+            pixels: px.toFixed(0),
+            nível: nivel.toFixed(2),
+            terminador: 'não existe (emissiva)',
           });
         },
         dispose: () => star.dispose(),
@@ -267,7 +329,16 @@ export const SPECS = [
       { key: 'relevo', label: 'RELEVO ×', type: 'range', min: 0, max: 2.5, step: 0.01, value: 1 },
       { key: 'mar', label: 'MAR ×', type: 'range', min: 0, max: 3, step: 0.01, value: 1 },
       { key: 'atmosfera', label: 'ATMOSFERA ×', type: 'range', min: 0, max: 2, step: 0.01, value: 1 },
-      { key: 'raio', label: 'RAIO DO ASTRO', type: 'range', min: 0.2, max: 1.6, step: 0.01, value: 1, roll: false },
+      {
+        key: 'raio',
+        label: 'RAIO DO ASTRO',
+        type: 'range',
+        min: 0.2,
+        max: 1.6,
+        step: 0.01,
+        value: 1,
+        roll: false,
+      },
     ],
     watch: [
       'nenhuma costura de meridiano e nenhum aperto nos polos: o ruído é 3D, amostrado na esfera',
@@ -308,14 +379,14 @@ export const SPECS = [
           const near = planet.update(params, camera, px, clock.elapsed);
 
           ctx.report({
-            'chunksNorm': base.chunksNorm.toFixed(2),
-            'relevo': params.amplitude.toFixed(3),
-            'mar': params.sea.toFixed(3),
-            'cristas': base.ridged.toFixed(2),
-            'atmosfera': params.atmosphere.toFixed(2),
-            'pixels': px.toFixed(0),
-            'oitavas': (3 + near * 5).toFixed(1),
-            'nível': px < PLANET_FAR_PX ? 'AUSENTE' : px > PLANET_NEAR_PX ? 'CHEIO' : 'transição',
+            chunksNorm: base.chunksNorm.toFixed(2),
+            relevo: params.amplitude.toFixed(3),
+            mar: params.sea.toFixed(3),
+            cristas: base.ridged.toFixed(2),
+            atmosfera: params.atmosphere.toFixed(2),
+            pixels: px.toFixed(0),
+            oitavas: (3 + near * 5).toFixed(1),
+            nível: px < PLANET_FAR_PX ? 'AUSENTE' : px > PLANET_NEAR_PX ? 'CHEIO' : 'transição',
           });
         },
         dispose: () => planet.dispose(),
@@ -340,9 +411,24 @@ export const SPECS = [
        * disco, e a câmera de foco vai junto. Aqui não há grafo para colidir, então a régua vai até
        * 2,2 e o que se revisa é a PROPORÇÃO INTERNA: ela tem de ficar idêntica em toda a faixa.
        */
-      { key: 'escala', label: 'TAMANHO DO NÚCLEO', type: 'range', min: 0.5, max: 2.2, step: 0.05, value: 1, roll: false },
+      {
+        key: 'escala',
+        label: 'TAMANHO DO NÚCLEO',
+        type: 'range',
+        min: 0.5,
+        max: 2.2,
+        step: 0.05,
+        value: 1,
+        roll: false,
+      },
       { key: 'respiracao', label: 'RESPIRAÇÃO', type: 'range', min: 0, max: 3, step: 0.05, value: 1 },
-      { key: 'regime', label: 'REGIME', type: 'enum', options: ['idle', 'thinking', 'answering', 'error'], value: 'idle' },
+      {
+        key: 'regime',
+        label: 'REGIME',
+        type: 'enum',
+        options: ['idle', 'thinking', 'answering', 'error'],
+        value: 'idle',
+      },
     ],
     watch: [
       'o crescente do beaming fica PARADO enquanto o disco gira — se circula, o tempo entrou na conta',
@@ -371,9 +457,9 @@ export const SPECS = [
           hole.syncView(camera);
           ctx.report({
             regime: values.regime,
-            'horizonte': `${(hole.horizonRadius * values.escala).toFixed(2)} de mundo`,
+            horizonte: `${(hole.horizonRadius * values.escala).toFixed(2)} de mundo`,
             'intensidade viva': hole.intensity().toFixed(3),
-            't': `${clock.elapsed.toFixed(2)}s`,
+            t: `${clock.elapsed.toFixed(2)}s`,
           });
         },
       };
@@ -405,8 +491,8 @@ export const SPECS = [
       'o giro tem que ser VISÍVEL — foi por isto que o material deixou de ser MeshBasicMaterial',
       'o lado voltado para a origem é o iluminado: a fonte da cena é o núcleo',
       'a borda nunca fica totalmente preta (termo de rim)',
-      'ORBITE O DE CONTROLE: se a silhueta dele virar um QUADRADO chapado em algum ângulo, é o '
-        + 'octaedro visto pelo eixo de dois vértices — a mesma imagem que aparece solta no céu',
+      'ORBITE O DE CONTROLE: se a silhueta dele virar um QUADRADO chapado em algum ângulo, é o ' +
+        'octaedro visto pelo eixo de dois vértices — a mesma imagem que aparece solta no céu',
     ],
     build(ctx) {
       const bodies = createBodies(document.createElement('div'));
@@ -421,7 +507,12 @@ export const SPECS = [
        */
       bodies.install([
         { id: 'a', name: 'ARQUIVOS', color: 0x7ee0c0, orbit: { radius: 2.4, phase: 0, inclination: 0.2 } },
-        { id: 'b', name: 'SISTEMA', color: 0xffab54, orbit: { radius: 3.2, phase: Math.PI, inclination: -0.3 } },
+        {
+          id: 'b',
+          name: 'SISTEMA',
+          color: 0xffab54,
+          orbit: { radius: 3.2, phase: Math.PI, inclination: -0.3 },
+        },
         {
           id: 'c',
           name: 'PERMISSÕES',
@@ -434,7 +525,13 @@ export const SPECS = [
       return {
         object: bodies.group,
         update(values, camera, clock) {
-          bodies.update(clock.delta, clock.elapsed, camera, values.ativo ? 'a' : null, values.hover ? 'a' : null);
+          bodies.update(
+            clock.delta,
+            clock.elapsed,
+            camera,
+            values.ativo ? 'a' : null,
+            values.hover ? 'a' : null
+          );
           ctx.report({ corpos: 3 });
         },
       };
@@ -447,7 +544,13 @@ export const SPECS = [
     distance: 120,
     controls: [
       { key: 'online', label: 'PROVEDOR NO AR', type: 'bool', value: true },
-      { key: 'portal', label: 'FAMÍLIA DO PORTAL', type: 'enum', options: Object.keys(TOOL_COLORS), value: 'filesystem' },
+      {
+        key: 'portal',
+        label: 'FAMÍLIA DO PORTAL',
+        type: 'enum',
+        options: Object.keys(TOOL_COLORS),
+        value: 'filesystem',
+      },
       { key: 'abrir', label: 'ABRIR PORTAL', type: 'action' },
     ],
     watch: [
@@ -522,12 +625,15 @@ export const SPECS = [
           });
           stars.update(clock.delta, clock.elapsed);
           ctx.report({
-            'tamanho': values.tamanho.toFixed(2),
-            'brilho': values.brilho.toFixed(2),
+            tamanho: values.tamanho.toFixed(2),
+            brilho: values.brilho.toFixed(2),
             // A faixa real da casca, que é o número que responde "o grafo cabe dentro?" — ele
             // chega a 217 no ajuste padrão da cena.
-            'casca': `${(150 * values.espalhamento).toFixed(0)}–${(400 * values.espalhamento).toFixed(0)}`,
-            'deriva': values.deriva > 0 && !clock.playing ? `${values.deriva.toFixed(2)} (tempo parado)` : values.deriva.toFixed(2),
+            casca: `${(150 * values.espalhamento).toFixed(0)}–${(400 * values.espalhamento).toFixed(0)}`,
+            deriva:
+              values.deriva > 0 && !clock.playing
+                ? `${values.deriva.toFixed(2)} (tempo parado)`
+                : values.deriva.toFixed(2),
           });
         },
       };
@@ -559,7 +665,7 @@ export const SPECS = [
         },
         update(values, camera, clock) {
           particles.update(clock.delta);
-          ctx.report({ 't': `${clock.elapsed.toFixed(2)}s` });
+          ctx.report({ t: `${clock.elapsed.toFixed(2)}s` });
         },
       };
     },

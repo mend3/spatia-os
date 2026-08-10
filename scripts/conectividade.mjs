@@ -131,10 +131,13 @@ function spearman(a, b) {
   const posto = (v) => {
     const ord = v.map((x, i) => [x, i]).sort((p, q) => p[0] - q[0]);
     const r = new Array(v.length);
-    ord.forEach(([, i], k) => { r[i] = k; });
+    ord.forEach(([, i], k) => {
+      r[i] = k;
+    });
     return r;
   };
-  const ra = posto(a); const rb = posto(b);
+  const ra = posto(a);
+  const rb = posto(b);
   const m = a.length;
   const md = (m * m - 1) / 12;
   const mA = (m - 1) / 2;
@@ -148,7 +151,9 @@ try {
   influencia = JSON.parse(fs.readFileSync(INFLUENCIA, 'utf-8')).influencia;
 } catch {
   console.error(`\x1b[33m⚠ sem ${INFLUENCIA} — sem centralidade não há com o que comparar.\x1b[0m`);
-  console.error('  rode scripts/centralidade.mjs antes: a pergunta deste script é se a nova dimensão REPETE a velha.');
+  console.error(
+    '  rode scripts/centralidade.mjs antes: a pergunta deste script é se a nova dimensão REPETE a velha.'
+  );
   process.exit(1);
 }
 /** Só os corpos que as DUAS mediram — comparar com ausente inventaria concordância. */
@@ -161,7 +166,9 @@ const candidatas = {
 };
 
 const q = (v, p) => [...v].sort((a, b) => a - b)[Math.floor(p * v.length)] ?? 0;
-console.log(`\n\x1b[1mAS TRÊS CANDIDATAS, contra a centralidade já materializada (${comuns.length} corpos)\x1b[0m`);
+console.log(
+  `\n\x1b[1mAS TRÊS CANDIDATAS, contra a centralidade já materializada (${comuns.length} corpos)\x1b[0m`
+);
 console.log('  Spearman alto = a dimensão nova é a velha com outro nome.\n');
 const rho = {};
 for (const [nome, v] of Object.entries(candidatas)) {
@@ -169,14 +176,18 @@ for (const [nome, v] of Object.entries(candidatas)) {
   const marca = Math.abs(rho[nome]) >= 0.7 ? '\x1b[31m' : '\x1b[32m';
   console.log(
     `  \x1b[1m${nome.padEnd(12)}\x1b[0m ρ(centralidade) = ${marca}${rho[nome].toFixed(3)}\x1b[0m` +
-    `  · MED ${q(v, 0.5).toFixed(3)} · P90 ${q(v, 0.9).toFixed(3)} · máx ${Math.max(...v).toFixed(3)}` +
-    ` · zeros ${v.filter((x) => x === 0).length}`
+      `  · MED ${q(v, 0.5).toFixed(3)} · P90 ${q(v, 0.9).toFixed(3)} · máx ${Math.max(...v).toFixed(3)}` +
+      ` · zeros ${v.filter((x) => x === 0).length}`
   );
 }
-console.log(`\n  \x1b[2mρ ≥ 0,7 (vermelho) = repete a centralidade; ρ baixo (verde) = acrescenta informação.\x1b[0m`);
+console.log(
+  `\n  \x1b[2mρ ≥ 0,7 (vermelho) = repete a centralidade; ρ baixo (verde) = acrescenta informação.\x1b[0m`
+);
 
 // E elas discordam ENTRE SI? Duas candidatas idênticas não são duas dimensões.
-console.log(`\n  agrupamento × alcance: ρ = ${spearman(candidatas.agrupamento, candidatas.alcance).toFixed(3)}`);
+console.log(
+  `\n  agrupamento × alcance: ρ = ${spearman(candidatas.agrupamento, candidatas.alcance).toFixed(3)}`
+);
 console.log(`  agrupamento × grau:    ρ = ${spearman(candidatas.agrupamento, candidatas.grau).toFixed(3)}`);
 console.log(`  alcance × grau:        ρ = ${spearman(candidatas.alcance, candidatas.grau).toFixed(3)}`);
 
@@ -198,15 +209,27 @@ const rhoTam = spearman(candidatas.alcance, vTam);
 const vNulo = vTam.map((t) => 1 - (t - 1) / (sistemaDe.size - 1));
 const rhoNulo = spearman(candidatas.alcance, vNulo);
 const residuo = candidatas.alcance.map((x, i) => x - vNulo[i]);
-console.log(`\n\x1b[1m  alcance × TAMANHO DO SISTEMA: ρ = ${Math.abs(rhoTam) >= 0.7 ? '\x1b[31m' : '\x1b[32m'}${rhoTam.toFixed(3)}\x1b[0m`);
-console.log(`\x1b[1m  alcance × NULO (vizinho sorteado no céu): ρ = ${Math.abs(rhoNulo) >= 0.9 ? '\x1b[31m' : '\x1b[32m'}${rhoNulo.toFixed(3)}\x1b[0m`);
-console.log(`  \x1b[2m(ρ com o nulo perto de 1 = a dimensão é contenção com outro nome; a cena já a desenha por posição)\x1b[0m`);
-console.log(`  resíduo (alcance − nulo) × centralidade: ρ = ${spearman(residuo, vCent).toFixed(3)} — é o que sobra de informação própria`);
+console.log(
+  `\n\x1b[1m  alcance × TAMANHO DO SISTEMA: ρ = ${Math.abs(rhoTam) >= 0.7 ? '\x1b[31m' : '\x1b[32m'}${rhoTam.toFixed(3)}\x1b[0m`
+);
+console.log(
+  `\x1b[1m  alcance × NULO (vizinho sorteado no céu): ρ = ${Math.abs(rhoNulo) >= 0.9 ? '\x1b[31m' : '\x1b[32m'}${rhoNulo.toFixed(3)}\x1b[0m`
+);
+console.log(
+  `  \x1b[2m(ρ com o nulo perto de 1 = a dimensão é contenção com outro nome; a cena já a desenha por posição)\x1b[0m`
+);
+console.log(
+  `  resíduo (alcance − nulo) × centralidade: ρ = ${spearman(residuo, vCent).toFixed(3)} — é o que sobra de informação própria`
+);
 const emUm = candidatas.alcance.filter((x) => x >= 0.999).length;
 const sozinhos = comuns.filter((s) => (tamanhoDoSistema.get(sistemaDe.get(s)) || 1) === 1).length;
-console.log(`  alcance = 1,0 em ${emUm} corpos (${((emUm / comuns.length) * 100).toFixed(1)}%), dos quais ${sozinhos} são filho único do sistema`);
+console.log(
+  `  alcance = 1,0 em ${emUm} corpos (${((emUm / comuns.length) * 100).toFixed(1)}%), dos quais ${sozinhos} são filho único do sistema`
+);
 const dist = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].map((p) => q(candidatas.alcance, p).toFixed(2));
-console.log(`  distribuição do alcance — min ${dist[0]} · P10 ${dist[1]} · P25 ${dist[2]} · MED ${dist[3]} · P75 ${dist[4]} · P90 ${dist[5]}`);
+console.log(
+  `  distribuição do alcance — min ${dist[0]} · P10 ${dist[1]} · P25 ${dist[2]} · MED ${dist[3]} · P75 ${dist[4]} · P90 ${dist[5]}`
+);
 
 /*
  * E contra as dimensões que o céu JÁ TEM. Uma dimensão nova que repete a massa não é nova — e a
@@ -218,7 +241,9 @@ const vMassa = comuns.map((s) => massaDe.get(s) || 0);
 const vChurn = comuns.map((s) => churnDe.get(s) || 0);
 console.log('\n\x1b[1m  contra as dimensões que já existem\x1b[0m');
 for (const [nome, v] of Object.entries(candidatas)) {
-  console.log(`  ${nome.padEnd(12)} × massa ρ = ${spearman(v, vMassa).toFixed(3)} · × atividade ρ = ${spearman(v, vChurn).toFixed(3)}`);
+  console.log(
+    `  ${nome.padEnd(12)} × massa ρ = ${spearman(v, vMassa).toFixed(3)} · × atividade ρ = ${spearman(v, vChurn).toFixed(3)}`
+  );
 }
 
 if (SO_MEDIR) process.exit(0);
@@ -242,7 +267,8 @@ const snapshot = {
   // sobre outro corpus e chegou a ZERO dos 72 corpos, com `stats.conexao` de cabeçalho cheio.
   corpus: graph.corpus.collection,
   metrica: ESCOLHA,
-  definicao: 'fração dos vínculos laterais cujo destino está FORA do sistema do corpo — e sistema é o que a cena monta: a pasta que o servidor promoveu a nó `dir`, ou o repo',
+  definicao:
+    'fração dos vínculos laterais cujo destino está FORA do sistema do corpo — e sistema é o que a cena monta: a pasta que o servidor promoveu a nó `dir`, ou o repo',
   spearman_centralidade: Number(rho[ESCOLHA].toFixed(4)),
   // A fraqueza confessa viaja com o número: o alcance é fração sobre o sistema, então ele repete em
   // parte a CONTENÇÃO que a cena já desenha. `spearman_nulo` é contra o alcance de vizinho sorteado
@@ -263,4 +289,6 @@ const snapshot = {
 };
 fs.mkdirSync('.cache', { recursive: true });
 fs.writeFileSync(SAIDA, JSON.stringify(snapshot));
-console.log(`\n\x1b[1mescrito\x1b[0m  ${SAIDA} · métrica "${ESCOLHA}" · ${fontes.length} corpos · MED ${snapshot.med}`);
+console.log(
+  `\n\x1b[1mescrito\x1b[0m  ${SAIDA} · métrica "${ESCOLHA}" · ${fontes.length} corpos · MED ${snapshot.med}`
+);

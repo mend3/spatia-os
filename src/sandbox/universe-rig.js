@@ -27,7 +27,10 @@ export const SISTEMAS_REAIS = 221;
 /** PRNG determinístico: o mesmo N tem de dar o mesmo universo, ou o A/B compara dois sorteios. */
 function semente(i, sal) {
   let v = 2166136261 ^ sal;
-  for (const ch of `${i}`) { v ^= ch.charCodeAt(0); v = Math.imul(v, 16777619); }
+  for (const ch of `${i}`) {
+    v ^= ch.charCodeAt(0);
+    v = Math.imul(v, 16777619);
+  }
   return ((v >>> 0) % 100000) / 100000;
 }
 
@@ -64,7 +67,9 @@ const TENTATIVAS = 30;
  * aglomerado se expande em vez de a busca falhar.
  */
 function posicao(i, modo, raio, nos, raioSistema, porNo, jaPostos) {
-  const a = semente(i, 11), b = semente(i, 23), c = semente(i, 41);
+  const a = semente(i, 11),
+    b = semente(i, 23),
+    c = semente(i, 41);
   if (modo === 'uniforme') {
     return new THREE.Vector3((a - 0.5) * 2 * raio, (b - 0.5) * 2 * raio, (c - 0.5) * 2 * raio);
   }
@@ -79,16 +84,22 @@ function posicao(i, modo, raio, nos, raioSistema, porNo, jaPostos) {
 
   for (let k = 0; k < TENTATIVAS; k++) {
     const grumo = grumoBase * (1 + k * 0.06);
-    const u = semente(i * 97 + k, 71), v = semente(i * 97 + k, 83), w = semente(i * 97 + k, 97);
+    const u = semente(i * 97 + k, 71),
+      v = semente(i * 97 + k, 83),
+      w = semente(i * 97 + k, 97);
     // Ponto UNIFORME na bola: `cbrt` no raio, senão tudo se acumula no centro.
     const rr = grumo * Math.cbrt(u);
     const theta = v * Math.PI * 2;
     const phi = Math.acos(2 * w - 1);
-    const p = base.clone().add(new THREE.Vector3(
-      rr * Math.sin(phi) * Math.cos(theta),
-      rr * Math.sin(phi) * Math.sin(theta),
-      rr * Math.cos(phi)
-    ));
+    const p = base
+      .clone()
+      .add(
+        new THREE.Vector3(
+          rr * Math.sin(phi) * Math.cos(theta),
+          rr * Math.sin(phi) * Math.sin(theta),
+          rr * Math.cos(phi)
+        )
+      );
     if (jaPostos.every((o) => o.distanceTo(p) >= minimo)) return p;
   }
   // Desistiu: devolve o nó. Melhor um caso visível do que um laço sem fim — e o contador de
@@ -102,11 +113,34 @@ export const UNIVERSE_SPEC = {
   distance: 260,
   controls: [
     { key: 'sistemas', label: 'SISTEMAS', type: 'range', min: 4, max: 260, step: 1, value: SISTEMAS_REAIS },
-    { key: 'modo', label: 'DISTRIBUIÇÃO', type: 'enum', options: ['teia cósmica', 'uniforme'], value: 'teia cósmica' },
+    {
+      key: 'modo',
+      label: 'DISTRIBUIÇÃO',
+      type: 'enum',
+      options: ['teia cósmica', 'uniforme'],
+      value: 'teia cósmica',
+    },
     { key: 'nos', label: 'NÓS DA TEIA', type: 'range', min: 2, max: 24, step: 1, value: 9 },
     { key: 'raioUniverso', label: 'RAIO DO UNIVERSO', type: 'range', min: 30, max: 300, step: 5, value: 120 },
-    { key: 'raioSistema', label: 'RAIO DE CADA SISTEMA', type: 'range', min: 0.5, max: 20, step: 0.5, value: 6 },
-    { key: 'camera', label: 'DISTÂNCIA DA CÂMERA', type: 'range', min: 40, max: 500, step: 5, value: 260, roll: false },
+    {
+      key: 'raioSistema',
+      label: 'RAIO DE CADA SISTEMA',
+      type: 'range',
+      min: 0.5,
+      max: 20,
+      step: 0.5,
+      value: 6,
+    },
+    {
+      key: 'camera',
+      label: 'DISTÂNCIA DA CÂMERA',
+      type: 'range',
+      min: 40,
+      max: 500,
+      step: 5,
+      value: 260,
+      roll: false,
+    },
   ],
   watch: [
     'COLISÕES tem de ser ZERO — dois sistemas sobrepostos afirmam um vínculo que não existe',
@@ -139,11 +173,13 @@ export const UNIVERSE_SPEC = {
 
         const nos = [];
         for (let k = 0; k < Math.round(values.nos); k++) {
-          nos.push(new THREE.Vector3(
-            (semente(k, 7) - 0.5) * 1.6 * values.raioUniverso,
-            (semente(k, 13) - 0.5) * 1.6 * values.raioUniverso,
-            (semente(k, 17) - 0.5) * 1.6 * values.raioUniverso
-          ));
+          nos.push(
+            new THREE.Vector3(
+              (semente(k, 7) - 0.5) * 1.6 * values.raioUniverso,
+              (semente(k, 13) - 0.5) * 1.6 * values.raioUniverso,
+              (semente(k, 17) - 0.5) * 1.6 * values.raioUniverso
+            )
+          );
         }
 
         // Quantos sistemas cada nó recebe — o grumo precisa saber para reservar volume.
@@ -205,12 +241,12 @@ export const UNIVERSE_SPEC = {
         casca.instanceMatrix.needsUpdate = true;
 
         ctx.report({
-          'sistemas': `${n} (real: ${SISTEMAS_REAIS})`,
-          'distribuição': values.modo,
-          'colisões': colisoes === 0 ? '0 ✓' : `${colisoes} ✗`,
+          sistemas: `${n} (real: ${SISTEMAS_REAIS})`,
+          distribuição: values.modo,
+          colisões: colisoes === 0 ? '0 ✓' : `${colisoes} ✗`,
           'vizinho mais próximo': `${vizinhoMin.toFixed(1)} un. (mínimo seguro ${(values.raioSistema * 2).toFixed(1)})`,
           'fração de vazio': `${((vazias / (L * L * L)) * 100).toFixed(1)}% (natureza: >70%)`,
-          'densidade': `${(n / Math.pow(2 * values.raioUniverso, 3) * 1e6).toFixed(2)} sistemas por 10⁶ un.³`,
+          densidade: `${((n / Math.pow(2 * values.raioUniverso, 3)) * 1e6).toFixed(2)} sistemas por 10⁶ un.³`,
         });
       },
       dispose() {

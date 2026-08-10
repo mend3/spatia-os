@@ -109,7 +109,12 @@ export function createSpeechPanel(root) {
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') speak(input.value);
     });
-    const play = button({ variant: 'select', size: 'xs', label: 'SINTETIZAR', onClick: () => speak(input.value) });
+    const play = button({
+      variant: 'select',
+      size: 'xs',
+      label: 'SINTETIZAR',
+      onClick: () => speak(input.value),
+    });
     const benchStatus = el('div', 'unit-sub', '');
     bench.append(input, play, benchStatus);
     body.append(bench);
@@ -117,17 +122,44 @@ export function createSpeechPanel(root) {
 
     // ---- parâmetros ----
     body.append(el('div', 'controls-group', 'PARÂMETROS'));
-    body.append(slider('VELOCIDADE', s.speed, cfg.speed_range[0], cfg.speed_range[1], 0.05,
-      (v) => patch({ speed: v }), 'x'));
-    body.append(slider('VOLUME', s.volume_multiplier, cfg.volume_range[0], cfg.volume_range[1], 0.05,
-      (v) => patch({ volume_multiplier: v }), 'x'));
+    body.append(
+      slider(
+        'VELOCIDADE',
+        s.speed,
+        cfg.speed_range[0],
+        cfg.speed_range[1],
+        0.05,
+        (v) => patch({ speed: v }),
+        'x'
+      )
+    );
+    body.append(
+      slider(
+        'VOLUME',
+        s.volume_multiplier,
+        cfg.volume_range[0],
+        cfg.volume_range[1],
+        0.05,
+        (v) => patch({ volume_multiplier: v }),
+        'x'
+      )
+    );
 
     body.append(chips('IDIOMA', Object.entries(cfg.languages), s.lang_code, (v) => patch({ lang_code: v })));
-    body.append(chips('FORMATO', cfg.formats.map((f) => [f, f.toUpperCase()]),
-      s.response_format, (v) => patch({ response_format: v })));
+    body.append(
+      chips(
+        'FORMATO',
+        cfg.formats.map((f) => [f, f.toUpperCase()]),
+        s.response_format,
+        (v) => patch({ response_format: v })
+      )
+    );
 
-    body.append(toggle('NORMALIZAR TEXTO', 'expande número, URL e e-mail antes de falar',
-      s.normalize, (v) => patch({ normalize: v })));
+    body.append(
+      toggle('NORMALIZAR TEXTO', 'expande número, URL e e-mail antes de falar', s.normalize, (v) =>
+        patch({ normalize: v })
+      )
+    );
 
     // ---- vozes ----
     const langOfVoice = (voice) => Object.keys(cfg.catalog).find((k) => cfg.catalog[k].includes(voice)) || '';
@@ -142,8 +174,11 @@ export function createSpeechPanel(root) {
      * tem que apontá-la — o controle permite, mas não em silêncio.
      */
     if (s.lang_code && mainLang && s.lang_code !== mainLang) {
-      const warn = el('div', 'widget-error',
-        `a voz ${s.voice} é ${cfg.languages[mainLang]} e o idioma está em ${cfg.languages[s.lang_code]}`);
+      const warn = el(
+        'div',
+        'widget-error',
+        `a voz ${s.voice} é ${cfg.languages[mainLang]} e o idioma está em ${cfg.languages[s.lang_code]}`
+      );
       body.append(warn);
       body.append(
         button({ variant: 'select', size: 'xs', label: 'USAR AUTO', onClick: () => patch({ lang_code: '' }) })
@@ -170,12 +205,26 @@ export function createSpeechPanel(root) {
 
     // ---- mistura ----
     body.append(el('div', 'controls-group', 'MISTURA DE VOZES'));
-    body.append(toggle('MISTURAR DUAS VOZES',
-      s.blend_voice ? `com ${s.blend_voice}` : 'shift+clique numa voz acima para escolher a segunda',
-      s.blend, (v) => patch({ blend: v })));
+    body.append(
+      toggle(
+        'MISTURAR DUAS VOZES',
+        s.blend_voice ? `com ${s.blend_voice}` : 'shift+clique numa voz acima para escolher a segunda',
+        s.blend,
+        (v) => patch({ blend: v })
+      )
+    );
     if (s.blend && s.blend_voice) {
-      body.append(slider(`PESO DE ${s.voice}`, s.blend_weight, 1, 99, 1,
-        (v) => patch({ blend_weight: Math.round(v) }), '%'));
+      body.append(
+        slider(
+          `PESO DE ${s.voice}`,
+          s.blend_weight,
+          1,
+          99,
+          1,
+          (v) => patch({ blend_weight: Math.round(v) }),
+          '%'
+        )
+      );
     }
 
     body.append(el('div', 'unit-sub', `no fio: ${cfg.wire_voice}`));
@@ -216,13 +265,21 @@ export function createSpeechPanel(root) {
         source.connect(context.destination);
         source.start();
         player = source;
-        set(benchStatus,
-          `${ms}ms · ${(blob.size / 1024).toFixed(1)}KB · ${blob.type} · ${buffer.duration.toFixed(1)}s`);
+        set(
+          benchStatus,
+          `${ms}ms · ${(blob.size / 1024).toFixed(1)}KB · ${blob.type} · ${buffer.duration.toFixed(1)}s`
+        );
       } catch (error) {
         // Erro de decodificação é informação: PCM cru não toca no browser, e dizer isso é
         // melhor que um preview que não faz nada.
-        set(benchStatus, `falhou: ${error.message}${cfg.state.response_format === 'pcm'
-          ? ' — PCM cru não é decodificável no browser; use mp3 ou wav para ouvir aqui' : ''}`);
+        set(
+          benchStatus,
+          `falhou: ${error.message}${
+            cfg.state.response_format === 'pcm'
+              ? ' — PCM cru não é decodificável no browser; use mp3 ou wav para ouvir aqui'
+              : ''
+          }`
+        );
       }
     }
   }
@@ -250,7 +307,13 @@ export function createSpeechPanel(root) {
     const row = el('div', 'perm-modes');
     for (const [value, text] of options) {
       row.append(
-        button({ variant: 'select', size: 'xs', label: text, on: value === active, onClick: () => onPick(value) })
+        button({
+          variant: 'select',
+          size: 'xs',
+          label: text,
+          on: value === active,
+          onClick: () => onPick(value),
+        })
       );
     }
     wrap.append(row);
@@ -292,7 +355,9 @@ export function createSpeechPanel(root) {
   const trigger = root.querySelector('[data-speech-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));
 
-  bind({ code: TOGGLE_KEY, label: 'CONFIG VOZ', group: 'PAINÉIS' }, () => setOpen(!panel.classList.contains('open')));
+  bind({ code: TOGGLE_KEY, label: 'CONFIG VOZ', group: 'PAINÉIS' }, () =>
+    setOpen(!panel.classList.contains('open'))
+  );
 
   return { toggle: () => setOpen(!panel.classList.contains('open')) };
 }

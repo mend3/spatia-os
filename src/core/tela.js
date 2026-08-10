@@ -137,6 +137,7 @@ export function install({ cena = null } = {}) {
   commit({ cena });
   on('ui.scene-mode', ({ modo }) => commit({ cena: modo ?? null }));
   on('ui.route', ({ route, app, arg }) =>
-    commit({ rota: Object.freeze({ id: route ?? null, app: app ?? null, arg: arg ?? '' }) }));
+    commit({ rota: Object.freeze({ id: route ?? null, app: app ?? null, arg: arg ?? '' }) })
+  );
   return atual;
 }

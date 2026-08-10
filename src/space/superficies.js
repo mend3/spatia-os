@@ -225,11 +225,12 @@ export const AUSENTES_NA_TABELA = Object.freeze({
    * E `classificar()` ganha família para objeto CONSTRUÍDO, que o catálogo hoje não nomeia. É
    * outro pipeline, não outro limiar — e enquanto ele não existir, a ausência é estrutural.
    */
-  station: 'a estação é objeto CONSTRUÍDO e representa um AGENTE (§8 do replanejamento: não tem '
-    + 'análogo natural). A cena UNIVERSO desenha conhecimento, e agente não é corpo do corpus: o '
-    + 'rótulo `Agent` do Neo4j TEM população (1 em 2026-08-09) e não basta, porque o Neo4j só '
-    + 'anota corpo existente por `source` — ele nunca cria um. Falta um produtor que ponha o '
-    + 'agente na topologia, e família de objeto construído em `classificar()`',
+  station:
+    'a estação é objeto CONSTRUÍDO e representa um AGENTE (§8 do replanejamento: não tem ' +
+    'análogo natural). A cena UNIVERSO desenha conhecimento, e agente não é corpo do corpus: o ' +
+    'rótulo `Agent` do Neo4j TEM população (1 em 2026-08-09) e não basta, porque o Neo4j só ' +
+    'anota corpo existente por `source` — ele nunca cria um. Falta um produtor que ponha o ' +
+    'agente na topologia, e família de objeto construído em `classificar()`',
   /*
    * ⚠️ **O PORTÃO ANTIGO DIZIA *"a cena ainda não tem esse nível"*, e o "ainda" é a parte falsa.**
    * Ele se lê como fila — como se o nível estivesse a um commit de distância. Medido em
@@ -255,10 +256,11 @@ export const AUSENTES_NA_TABELA = Object.freeze({
    * Então o berço não espera um nível: ele espera que um dos três deixe de ser verdade. Enquanto
    * os três valerem, a ausência é decisão, e a nebulosa segue viva SÓ na bancada.
    */
-  nebula: 'nebulosa é berço ou cadáver (§3.2), e os dois têm desfechos diferentes: o CADÁVER já é '
-    + 'desenhado (a casca da `supernova`, 3 de 71 no fixture) e nunca esteve em falta. O BERÇO é '
-    + 'região de arquivos novos, e região exige contenção entre sistema e corpo — medido, ela não '
-    + 'existe: os novos não se agrupam (máx 1 por sistema), o aninhamento de dir é nível ACIMA e '
-    + 'nenhum pai se separa do próprio sistema, e o resto agrupa por RELAÇÃO, que o §9.1 proíbe '
-    + 'desenhar como posição',
+  nebula:
+    'nebulosa é berço ou cadáver (§3.2), e os dois têm desfechos diferentes: o CADÁVER já é ' +
+    'desenhado (a casca da `supernova`, 3 de 71 no fixture) e nunca esteve em falta. O BERÇO é ' +
+    'região de arquivos novos, e região exige contenção entre sistema e corpo — medido, ela não ' +
+    'existe: os novos não se agrupam (máx 1 por sistema), o aninhamento de dir é nível ACIMA e ' +
+    'nenhum pai se separa do próprio sistema, e o resto agrupa por RELAÇÃO, que o §9.1 proíbe ' +
+    'desenhar como posição',
 });

@@ -74,7 +74,10 @@ for (const caminho of arquivos(RAIZ)) {
     const trecho = (offset) => {
       const de = corpo.lastIndexOf('\n', offset) + 1;
       const ate = corpo.indexOf('\n', offset);
-      return corpo.slice(de, ate < 0 ? undefined : ate).trim().slice(0, 72);
+      return corpo
+        .slice(de, ate < 0 ? undefined : ate)
+        .trim()
+        .slice(0, 72);
     };
 
     /*

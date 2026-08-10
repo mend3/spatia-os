@@ -76,7 +76,10 @@ const DIARIO = flag('--diario') || (SEMEAR ? DIARIO_SEMEADO : DIARIO_REAL);
  */
 function execucoes(dir) {
   if (!fs.existsSync(dir)) return [];
-  const arquivos = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl')).sort();
+  const arquivos = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.jsonl'))
+    .sort();
   const saida = [];
   for (const f of arquivos) {
     for (const linha of fs.readFileSync(path.join(dir, f), 'utf8').split('\n')) {
@@ -107,7 +110,9 @@ function execucoes(dir) {
  */
 function semear(n, fontes) {
   if (path.resolve(DIARIO) === path.resolve(DIARIO_REAL)) {
-    console.error('\x1b[31mRECUSADO\x1b[0m  o diário real é um ledger encadeado — semear nele é forjar registro.');
+    console.error(
+      '\x1b[31mRECUSADO\x1b[0m  o diário real é um ledger encadeado — semear nele é forjar registro.'
+    );
     process.exit(1);
   }
   fs.mkdirSync(DIARIO, { recursive: true });
@@ -121,15 +126,17 @@ function semear(n, fontes) {
   for (let i = 0; i < n; i++) {
     const quantos = 3 + Math.floor(Math.random() * 5);
     const tocados = [...new Set(Array.from({ length: quantos }, sorteia))];
-    linhas.push(JSON.stringify({
-      id: `s-${String(i + 1).padStart(4, '0')}`,
-      started: new Date(Date.now() - (n - i) * 60000).toISOString(),
-      origin: 'semeado',
-      agent: { brain: 'claude', model: 'claude-opus-5', session: `sem-${i}` },
-      question: `execução sintética ${i + 1}`,
-      sources: tocados.map((label, k) => ({ n: k + 1, kind: 'memory', label, section: '' })),
-      outcome: 'success',
-    }));
+    linhas.push(
+      JSON.stringify({
+        id: `s-${String(i + 1).padStart(4, '0')}`,
+        started: new Date(Date.now() - (n - i) * 60000).toISOString(),
+        origin: 'semeado',
+        agent: { brain: 'claude', model: 'claude-opus-5', session: `sem-${i}` },
+        question: `execução sintética ${i + 1}`,
+        sources: tocados.map((label, k) => ({ n: k + 1, kind: 'memory', label, section: '' })),
+        outcome: 'success',
+      })
+    );
   }
   const arquivo = path.join(DIARIO, 'semeado.jsonl');
   fs.writeFileSync(arquivo, linhas.join('\n') + '\n');
@@ -139,7 +146,9 @@ function semear(n, fontes) {
 
 // ═══════════════════════════════════════════════════════════════ o céu
 
-const graph = await fetch(`${SPATIA}/api/graph`).then((r) => r.json()).catch(() => null);
+const graph = await fetch(`${SPATIA}/api/graph`)
+  .then((r) => r.json())
+  .catch(() => null);
 if (!graph) {
   console.error(`sem resposta de ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
   process.exit(1);
@@ -166,9 +175,9 @@ if (SEMEAR) {
 // ═══════════════════════════════════════════════════════════════ derivação
 
 const runs = execucoes(DIARIO);
-const toques = new Map();       // source → nº de execuções DISTINTAS que o tocaram
-const arestas = [];             // {run, source}
-const agentes = new Map();      // id → {id, brain}
+const toques = new Map(); // source → nº de execuções DISTINTAS que o tocaram
+const arestas = []; // {run, source}
+const agentes = new Map(); // id → {id, brain}
 let semAgente = 0;
 let foraDoCeu = 0;
 
@@ -179,7 +188,10 @@ for (const r of runs) {
     // ⚠️ `kind: 'web'` são páginas, não corpos. Casar por label sem filtrar criaria `Astro` para
     // "Google Notícias" — 6 deles no diário real de 08/08.
     if (s.kind && s.kind !== 'memory') continue;
-    if (!noCeu.has(s.label)) { foraDoCeu++; continue; }
+    if (!noCeu.has(s.label)) {
+      foraDoCeu++;
+      continue;
+    }
     rotulos.add(s.label);
   }
   for (const label of rotulos) {
@@ -210,16 +222,29 @@ const meta = {
 const evidencia = evidenciaDeUso(meta);
 
 console.log(`\x1b[1mUSO — derivação\x1b[0m  (diário: ${DIARIO})`);
-console.log(`  execuções: ${runs.length} · com agente identificado: ${runs.length - semAgente} · agentes distintos: ${agentes.size}`);
-console.log(`  corpos tocados: ${toques.size} (${(cobertura * 100).toFixed(2)}% do céu) · arestas TOUCHED: ${arestas.length}`);
+console.log(
+  `  execuções: ${runs.length} · com agente identificado: ${runs.length - semAgente} · agentes distintos: ${agentes.size}`
+);
+console.log(
+  `  corpos tocados: ${toques.size} (${(cobertura * 100).toFixed(2)}% do céu) · arestas TOUCHED: ${arestas.length}`
+);
 console.log(`  grau: MED ${q(0.5)} · P90 ${q(0.9)} · máx ${grauMax}`);
-if (foraDoCeu) console.log(`  \x1b[2m${foraDoCeu} citações fora do céu (web ou caminho não indexado) — descartadas\x1b[0m`);
+if (foraDoCeu)
+  console.log(
+    `  \x1b[2m${foraDoCeu} citações fora do céu (web ou caminho não indexado) — descartadas\x1b[0m`
+  );
 
 const cor = evidencia.suficiente ? '\x1b[32m' : '\x1b[33m';
-console.log(`\n${cor}EVIDÊNCIA\x1b[0m  disponível: ${evidencia.disponivel} · suficiente: \x1b[1m${evidencia.suficiente}\x1b[0m — ${evidencia.motivo}`);
-console.log(`  \x1b[2mpiso: grau máx ≥ ${EVIDENCIA_USO_MINIMA.grauMax} e cobertura > ${(EVIDENCIA_USO_MINIMA.cobertura * 100).toFixed(1)}%\x1b[0m`);
+console.log(
+  `\n${cor}EVIDÊNCIA\x1b[0m  disponível: ${evidencia.disponivel} · suficiente: \x1b[1m${evidencia.suficiente}\x1b[0m — ${evidencia.motivo}`
+);
+console.log(
+  `  \x1b[2mpiso: grau máx ≥ ${EVIDENCIA_USO_MINIMA.grauMax} e cobertura > ${(EVIDENCIA_USO_MINIMA.cobertura * 100).toFixed(1)}%\x1b[0m`
+);
 if (!evidencia.suficiente) {
-  console.log(`  \x1b[2ma dimensão EXISTE e é publicada; ela só não exerce influência enquanto a evidência for rala.\x1b[0m`);
+  console.log(
+    `  \x1b[2ma dimensão EXISTE e é publicada; ela só não exerce influência enquanto a evidência for rala.\x1b[0m`
+  );
 }
 
 if (SO_MEDIR) process.exit(0);
@@ -227,7 +252,9 @@ if (SO_MEDIR) process.exit(0);
 // ═══════════════════════════════════════════════════════════════ escrita no Neo4j
 
 if (!USER || !PASS) {
-  console.error('\nNEO4J_USER e NEO4J_PASSWORD são obrigatórios para materializar — use --medir para só medir.');
+  console.error(
+    '\nNEO4J_USER e NEO4J_PASSWORD são obrigatórios para materializar — use --medir para só medir.'
+  );
   process.exit(1);
 }
 const auth = 'Basic ' + Buffer.from(`${USER}:${PASS}`).toString('base64');
@@ -297,7 +324,9 @@ const conf = await cypher(
    OPTIONAL MATCH (a:${AGENTE}) RETURN execucoes, tocados, count(a) AS agentes`
 );
 const [nExec, nToc, nAg] = conf.data.values[0];
-console.log(`\n\x1b[1mmaterializado\x1b[0m  ${nExec} :${EXECUCAO} · ${nToc} TOUCHED · ${nAg} :${AGENTE} · group_id=${GRUPO}`);
+console.log(
+  `\n\x1b[1mmaterializado\x1b[0m  ${nExec} :${EXECUCAO} · ${nToc} TOUCHED · ${nAg} :${AGENTE} · group_id=${GRUPO}`
+);
 
 // ═══════════════════════════════════════════════════════════════ o snapshot
 
@@ -332,8 +361,12 @@ const snapshot = {
 };
 fs.mkdirSync('.cache', { recursive: true });
 fs.writeFileSync(SAIDA, JSON.stringify(snapshot));
-console.log(`\x1b[1mescrito\x1b[0m  ${SAIDA} · ${toques.size} corpos · origem "${snapshot.origem}" · saturação ${USO_CHEIO}`);
+console.log(
+  `\x1b[1mescrito\x1b[0m  ${SAIDA} · ${toques.size} corpos · origem "${snapshot.origem}" · saturação ${USO_CHEIO}`
+);
 
-const topo = [...toques.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+const topo = [...toques.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 5)
   .map(([s, n]) => `${s.split('/').slice(-2).join('/')} (${n})`);
 if (topo.length) console.log(`  mais usados: ${topo.join(' · ')}`);

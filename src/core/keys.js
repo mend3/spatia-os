@@ -55,7 +55,12 @@ const held = new Set();
  * DERIVADA do próprio spec, então não existe mais um segundo lugar para envelhecer.
  */
 const KEY_NAMES = {
-  Escape: 'ESC', Tab: 'TAB', Home: 'HOME', Backquote: '`', Space: 'ESPAÇO', Enter: '⏎',
+  Escape: 'ESC',
+  Tab: 'TAB',
+  Home: 'HOME',
+  Backquote: '`',
+  Space: 'ESPAÇO',
+  Enter: '⏎',
 };
 
 /** O texto da tecla, a partir do spec que a registra. */

@@ -19,7 +19,14 @@
  */
 import fs from 'node:fs';
 import {
-  entityPhysics, classificar, fenomenos, degrau, ESCADA, AUSENTES, FAMILIA, dominanteDe,
+  entityPhysics,
+  classificar,
+  fenomenos,
+  degrau,
+  ESCADA,
+  AUSENTES,
+  FAMILIA,
+  dominanteDe,
 } from '../src/space/entity-physics.js';
 
 const BASE = 'http://127.0.0.1:8787';
@@ -58,7 +65,10 @@ const contexto = new Map();
 let semDominante = 0;
 for (const agg of aggs) {
   const meus = (filhos.get(agg.id) || []).filter((c) => c?.type === 'file');
-  if (!meus.length) { semDominante++; continue; }
+  if (!meus.length) {
+    semDominante++;
+    continue;
+  }
   // Esta cópia CASAVA com a cena — e era cópia do mesmo jeito. Quatro transcrições da mesma regra,
   // livres para divergir na primeira edição; duas já haviam divergido. `dominanteDe` é a fonte.
   const dono = dominanteDe(meus);
@@ -77,12 +87,27 @@ const fisicas = files.map((f) => ({ node: f, p: entityPhysics(f, contexto.get(f.
 const num = (sel) => fisicas.map(({ p }) => sel(p)).filter((v) => typeof v === 'number');
 const q = (a, p) => [...a].sort((x, y) => x - y)[Math.floor(p * a.length)] ?? 0;
 const linha = (nome, vals, casas = 2) => {
-  console.log(`  ${nome.padEnd(12)} min ${q(vals, 0).toFixed(casas).padStart(7)} · MED ${q(vals, 0.5).toFixed(casas).padStart(7)} · P90 ${q(vals, 0.9).toFixed(casas).padStart(7)} · máx ${q(vals, 0.999).toFixed(casas).padStart(7)}`);
+  console.log(
+    `  ${nome.padEnd(12)} min ${q(vals, 0).toFixed(casas).padStart(7)} · MED ${q(vals, 0.5).toFixed(casas).padStart(7)} · P90 ${q(vals, 0.9).toFixed(casas).padStart(7)} · máx ${q(vals, 0.999).toFixed(casas).padStart(7)}`
+  );
 };
-linha('chunks', num((p) => p.chunks), 0);
-linha('activity', num((p) => p.activity));
-linha('age', num((p) => p.age));
-linha('volatility', num((p) => p.volatility));
+linha(
+  'chunks',
+  num((p) => p.chunks),
+  0
+);
+linha(
+  'activity',
+  num((p) => p.activity)
+);
+linha(
+  'age',
+  num((p) => p.age)
+);
+linha(
+  'volatility',
+  num((p) => p.volatility)
+);
 
 console.log(`  ${red('sem fato (null, nunca zero):')}`);
 for (const [k, v] of Object.entries(AUSENTES)) console.log(`    ${k.padEnd(13)} ${v}`);
@@ -113,8 +138,14 @@ for (const { node, p } of fisicas) {
   const c = classificar(p, node);
   if (c.porte) portes[c.porte] = (portes[c.porte] || 0) + 1;
 }
-console.log(`  porte das estrelas: ${Object.entries(portes).map(([k, v]) => `${k} ${v}`).join(' · ')}`);
-console.log(`  limiares (chunks): lua ≥ ${ESCADA.LUA} · planeta ≥ ${ESCADA.PLANETA} · estrela ≥ ${ESCADA.ESTRELA}`);
+console.log(
+  `  porte das estrelas: ${Object.entries(portes)
+    .map(([k, v]) => `${k} ${v}`)
+    .join(' · ')}`
+);
+console.log(
+  `  limiares (chunks): lua ≥ ${ESCADA.LUA} · planeta ≥ ${ESCADA.PLANETA} · estrela ≥ ${ESCADA.ESTRELA}`
+);
 
 // ──────────────────────────────────────────────── 4. fenômenos
 titulo('4. FENÔMENOS — o que ACONTECE, sem trocar a classe');

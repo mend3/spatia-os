@@ -74,9 +74,12 @@ function raizDoDisco(doServidor) {
   // ⚠️ E ele só vence se APONTAR PARA O MESMO LUGAR que o servidor, ou se o servidor não souber.
   // Uma árvore diferente da que montou o céu não mede outro corpus: mede o vazio, porque nenhum
   // caminho casa. Medido: com `AGENT_CWD=devshell-one` exportado no perfil, 0 de 188 arquivos.
-  if (doAmbiente && fs.existsSync(doAmbiente) && (!doServidor || doAmbiente === doServidor)) return doAmbiente;
+  if (doAmbiente && fs.existsSync(doAmbiente) && (!doServidor || doAmbiente === doServidor))
+    return doAmbiente;
   if (doAmbiente) {
-    console.warn(`\x1b[33m⚠ AGENT_CWD=${doAmbiente} não existe no disco — usando a raiz que o servidor publica\x1b[0m`);
+    console.warn(
+      `\x1b[33m⚠ AGENT_CWD=${doAmbiente} não existe no disco — usando a raiz que o servidor publica\x1b[0m`
+    );
   }
   return doServidor;
 }
@@ -99,16 +102,22 @@ const prosa = graph.nodes
   .sort((a, b) => (b.chunks || 0) - (a.chunks || 0))
   .slice(0, LIMITE);
 
-console.log(`\x1b[1mP7 — conceitos\x1b[0m  ${prosa.length} arquivos de prosa · modelo ${MODELO} · raiz ${RAIZ}`);
+console.log(
+  `\x1b[1mP7 — conceitos\x1b[0m  ${prosa.length} arquivos de prosa · modelo ${MODELO} · raiz ${RAIZ}`
+);
 if (!prosa.length) {
   console.error('nenhum arquivo de prosa no céu — nada a extrair.');
   process.exit(1);
 }
 
 // ─────────────────────────────────────────────────────── 2. o modelo está no ar?
-const tags = await fetch(`${OLLAMA}/api/tags`).then((r) => r.json()).catch(() => null);
+const tags = await fetch(`${OLLAMA}/api/tags`)
+  .then((r) => r.json())
+  .catch(() => null);
 if (!tags) {
-  console.error(`\x1b[31mollama não responde em ${OLLAMA}.\x1b[0m O P7 é a única fase que depende de inferência — sem ele, nada a fazer.`);
+  console.error(
+    `\x1b[31mollama não responde em ${OLLAMA}.\x1b[0m O P7 é a única fase que depende de inferência — sem ele, nada a fazer.`
+  );
   process.exit(1);
 }
 const disponiveis = (tags.models || []).map((m) => m.name);
@@ -129,8 +138,13 @@ no máximo ${POR_ARQUIVO} strings, em português, minúsculas, cada uma com 1 a 
 que o documento TRATA — não o que ele é. Nada de explicação, nada de markdown, só o array.`;
 
 const slugificar = (s) =>
-  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48);
 
 async function extrair(texto) {
   const r = await fetch(`${OLLAMA}/api/chat`, {
@@ -148,7 +162,9 @@ async function extrair(texto) {
         { role: 'user', content: texto },
       ],
     }),
-  }).then((x) => x.json()).catch(() => null);
+  })
+    .then((x) => x.json())
+    .catch(() => null);
   const bruto = r?.message?.content ?? '';
   const inicio = bruto.indexOf('[');
   const fim = bruto.lastIndexOf(']');
@@ -156,7 +172,11 @@ async function extrair(texto) {
   try {
     const lista = JSON.parse(bruto.slice(inicio, fim + 1));
     return Array.isArray(lista)
-      ? lista.filter((x) => typeof x === 'string').map((x) => x.trim().toLowerCase()).filter(Boolean).slice(0, POR_ARQUIVO)
+      ? lista
+          .filter((x) => typeof x === 'string')
+          .map((x) => x.trim().toLowerCase())
+          .filter(Boolean)
+          .slice(0, POR_ARQUIVO)
       : [];
   } catch {
     return [];
@@ -184,30 +204,39 @@ if (!REEXTRAIR) {
   try {
     const bruto = JSON.parse(fs.readFileSync(CACHE, 'utf-8'));
     if (bruto.modelo === MODELO) doCache = bruto;
-  } catch { /* sem cache: extrai */ }
+  } catch {
+    /* sem cache: extrai */
+  }
 }
 
 if (doCache) {
-  console.log(`  \x1b[2mextração lida do cache (${doCache.as_of}, modelo ${doCache.modelo}) — use --reextrair para refazer\x1b[0m`);
+  console.log(
+    `  \x1b[2mextração lida do cache (${doCache.as_of}, modelo ${doCache.modelo}) — use --reextrair para refazer\x1b[0m`
+  );
   for (const [source, lista] of Object.entries(doCache.porCorpo)) porCorpo.set(source, lista);
 } else {
-for (const [i, node] of prosa.entries()) {
-  let texto;
-  try {
-    texto = fs.readFileSync(path.join(RAIZ, semRepo(node.source)), 'utf-8').slice(0, JANELA_CHARS);
-  } catch {
-    continue;
+  for (const [i, node] of prosa.entries()) {
+    let texto;
+    try {
+      texto = fs.readFileSync(path.join(RAIZ, semRepo(node.source)), 'utf-8').slice(0, JANELA_CHARS);
+    } catch {
+      continue;
+    }
+    const lista = await extrair(texto);
+    if (!lista.length) semResposta++;
+    porCorpo.set(node.source, lista);
+    process.stdout.write(`\r  extraindo: ${i + 1}/${prosa.length}`);
   }
-  const lista = await extrair(texto);
-  if (!lista.length) semResposta++;
-  porCorpo.set(node.source, lista);
-  process.stdout.write(`\r  extraindo: ${i + 1}/${prosa.length}`);
-}
-console.log('');
-fs.mkdirSync('.cache', { recursive: true });
-fs.writeFileSync(CACHE, JSON.stringify({
-  as_of: new Date().toISOString(), modelo: MODELO, porCorpo: Object.fromEntries(porCorpo),
-}));
+  console.log('');
+  fs.mkdirSync('.cache', { recursive: true });
+  fs.writeFileSync(
+    CACHE,
+    JSON.stringify({
+      as_of: new Date().toISOString(),
+      modelo: MODELO,
+      porCorpo: Object.fromEntries(porCorpo),
+    })
+  );
 }
 
 // ─────────────────────────────────────────── 3.5 CONSOLIDAÇÃO por significado
@@ -235,17 +264,25 @@ const rotulos = [...new Set([...porCorpo.values()].flat())];
 const vetores = new Map();
 for (let i = 0; i < rotulos.length; i += 16) {
   const lote = rotulos.slice(i, i + 16);
-  const respostas = await Promise.all(lote.map((texto) =>
-    fetch(`${OLLAMA}/api/embeddings`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: EMBED_MODELO, prompt: texto }),
-    }).then((x) => x.json()).catch(() => null)
-  ));
+  const respostas = await Promise.all(
+    lote.map((texto) =>
+      fetch(`${OLLAMA}/api/embeddings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: EMBED_MODELO, prompt: texto }),
+      })
+        .then((x) => x.json())
+        .catch(() => null)
+    )
+  );
   lote.forEach((texto, j) => {
     const v = respostas[j]?.embedding;
     if (Array.isArray(v)) {
       const norma = Math.hypot(...v) || 1;
-      vetores.set(texto, v.map((x) => x / norma));
+      vetores.set(
+        texto,
+        v.map((x) => x / norma)
+      );
     }
   });
   process.stdout.write(`\r  embutindo rótulos: ${Math.min(i + 16, rotulos.length)}/${rotulos.length}`);
@@ -298,8 +335,8 @@ for (const limiar of LIMIARES) {
   const domina = maior > corposTotal / 2;
   console.log(
     `  ≥${limiar.toFixed(2)}  ${String(grupos.size).padStart(4)} conceitos · ` +
-    `compartilhados \x1b[1m${String(compart).padStart(3)}\x1b[0m · maior grupo toca ${maior} corpos` +
-    (domina ? ' \x1b[31m← engole mais da metade do céu\x1b[0m' : '')
+      `compartilhados \x1b[1m${String(compart).padStart(3)}\x1b[0m · maior grupo toca ${maior} corpos` +
+      (domina ? ' \x1b[31m← engole mais da metade do céu\x1b[0m' : '')
   );
   if (!domina && (!melhor || compart > melhor.compart)) melhor = { limiar, compart, grupos, corposDoGrupo };
 }
@@ -307,15 +344,20 @@ if (!melhor) {
   console.error('\n\x1b[31mnenhum limiar liga corpos sem colapsar o céu num assunto só.\x1b[0m');
   process.exit(1);
 }
-console.log(`\n  \x1b[1mlimiar = ${melhor.limiar.toFixed(2)}\x1b[0m  (${melhor.compart} conceitos compartilhados)`);
+console.log(
+  `\n  \x1b[1mlimiar = ${melhor.limiar.toFixed(2)}\x1b[0m  (${melhor.compart} conceitos compartilhados)`
+);
 
 for (const [chave, membros] of melhor.grupos) {
   const corpos = melhor.corposDoGrupo.get(chave) || new Set();
   // Representante: o rótulo mais usado do grupo; empate resolve pelo mais curto, que costuma ser
   // o termo e não a paráfrase.
   const freq = new Map();
-  for (const lista of porCorpo.values()) for (const r of lista) if (membros.includes(r)) freq.set(r, (freq.get(r) || 0) + 1);
-  const label = [...membros].sort((a, b) => (freq.get(b) || 0) - (freq.get(a) || 0) || a.length - b.length)[0];
+  for (const lista of porCorpo.values())
+    for (const r of lista) if (membros.includes(r)) freq.set(r, (freq.get(r) || 0) + 1);
+  const label = [...membros].sort(
+    (a, b) => (freq.get(b) || 0) - (freq.get(a) || 0) || a.length - b.length
+  )[0];
   const slug = slugificar(label);
   if (!slug) continue;
   conceitos.set(slug, { label, corpos, sinonimos: membros });
@@ -328,13 +370,18 @@ const arestas = [...conceitos.values()].reduce((a, c) => a + c.corpos.size, 0);
 const corposCobertos = new Set([...conceitos.values()].flatMap((c) => [...c.corpos])).size;
 
 console.log(`\n\x1b[1mEXTRAÍDO\x1b[0m`);
-console.log(`  ${conceitos.size} conceitos distintos · ${arestas} arestas ABOUT · ${corposCobertos}/${prosa.length} arquivos cobertos`);
+console.log(
+  `  ${conceitos.size} conceitos distintos · ${arestas} arestas ABOUT · ${corposCobertos}/${prosa.length} arquivos cobertos`
+);
 if (semResposta) console.log(`  \x1b[33m${semResposta} arquivos não devolveram JSON utilizável\x1b[0m`);
 console.log(`\n\x1b[1mO QUE DECIDE: quantos conceitos LIGAM dois corpos\x1b[0m`);
-console.log(`  compartilhados (≥2 corpos): \x1b[1m${compartilhados.length}\x1b[0m · solitários: ${solitarios} (${((solitarios / Math.max(conceitos.size, 1)) * 100).toFixed(0)}%)`);
+console.log(
+  `  compartilhados (≥2 corpos): \x1b[1m${compartilhados.length}\x1b[0m · solitários: ${solitarios} (${((solitarios / Math.max(conceitos.size, 1)) * 100).toFixed(0)}%)`
+);
 if (compartilhados.length) {
   const topo = compartilhados.sort((a, b) => b[1].corpos.size - a[1].corpos.size).slice(0, 8);
-  for (const [slug, c] of topo) console.log(`    ${String(c.corpos.size).padStart(2)} corpos · ${c.label} \x1b[2m(${slug})\x1b[0m`);
+  for (const [slug, c] of topo)
+    console.log(`    ${String(c.corpos.size).padStart(2)} corpos · ${c.label} \x1b[2m(${slug})\x1b[0m`);
 }
 console.log(
   compartilhados.length
@@ -394,16 +441,20 @@ const snapshot = {
   conceitos: conceitos.size,
   compartilhados: compartilhados.length,
   porCorpo: Object.fromEntries(
-    [...porCorpo.keys()].map((source) => [
-      source,
-      [...conceitos.entries()]
-        .filter(([, c]) => c.corpos.has(source))
-        .map(([slug, c]) => ({ slug, label: c.label, corpos: c.corpos.size })),
-    ]).filter(([, lista]) => lista.length)
+    [...porCorpo.keys()]
+      .map((source) => [
+        source,
+        [...conceitos.entries()]
+          .filter(([, c]) => c.corpos.has(source))
+          .map(([slug, c]) => ({ slug, label: c.label, corpos: c.corpos.size })),
+      ])
+      .filter(([, lista]) => lista.length)
   ),
 };
 fs.writeFileSync('.cache/conceitos.json', JSON.stringify(snapshot));
-console.log(`\x1b[1mescrito\x1b[0m  .cache/conceitos.json · ${Object.keys(snapshot.porCorpo).length} corpos com assunto`);
+console.log(
+  `\x1b[1mescrito\x1b[0m  .cache/conceitos.json · ${Object.keys(snapshot.porCorpo).length} corpos com assunto`
+);
 
 const conf = await cypher(
   `MATCH (c:Concept {group_id: $g}) WITH count(c) AS conceitos
@@ -411,6 +462,8 @@ const conf = await cypher(
   { g: GRUPO }
 );
 const [nConceitos, nArestas] = conf.data.values[0];
-console.log(`\n\x1b[1mescrito\x1b[0m  ${nConceitos} :Concept · ${nArestas} ABOUT (modelo=${MODELO}, as_of=${asOf})`);
+console.log(
+  `\n\x1b[1mescrito\x1b[0m  ${nConceitos} :Concept · ${nArestas} ABOUT (modelo=${MODELO}, as_of=${asOf})`
+);
 console.log(`  ⚠️ ABOUT liga Astro→Concept: as duas pontas NÃO são corpos, então ela não entra na`);
 console.log(`     rede da seleção — pela mesma razão que o TOUCHED ficou de fora (§5.1).`);

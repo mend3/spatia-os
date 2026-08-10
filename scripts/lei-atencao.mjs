@@ -48,8 +48,7 @@ attention.install();
 
 const CORPO = { id: 'a', source: 'docs/a.md', type: 'file' };
 const OUTRO = { id: 'b', source: 'docs/b.md', type: 'file' };
-const emitir = (subject, extra = {}) =>
-  bus.emit({ t: 'ui.links', subject, nodes: [], ...extra });
+const emitir = (subject, extra = {}) => bus.emit({ t: 'ui.links', subject, nodes: [], ...extra });
 
 // ───────────────────────────────────────────── §1 · o ouvinte nunca vê o estado anterior
 
@@ -68,9 +67,11 @@ conferir('§1 ☠️ o ouvinte lê o estado NOVO, nunca o anterior', vistos[0] =
 const recebidos = [];
 const soltarArg = attention.aoMudar((estado) => recebidos.push(estado?.subject?.id));
 emitir(CORPO);
-conferir('§1 e o argumento entregue é o MESMO que o `snapshot()`',
+conferir(
+  '§1 e o argumento entregue é o MESMO que o `snapshot()`',
   recebidos[0] === 'a' && attention.snapshot().subject?.id === 'a',
-  `${recebidos[0]} vs ${attention.snapshot().subject?.id}`);
+  `${recebidos[0]} vs ${attention.snapshot().subject?.id}`
+);
 soltarArg();
 
 conferir('§1 toda emissão notifica — nenhuma se perde', vistos.length === 2, `${vistos.length}`);
@@ -133,8 +134,11 @@ const tocam = ARQUIVOS.filter((f) => /'ui\.links'|\bui\('links'/.test(semProsa(s
 const intrusos = tocam.filter((f) => !DONOS_DO_EVENTO[f]);
 const orfaos = Object.keys(DONOS_DO_EVENTO).filter((f) => !tocam.includes(f));
 
-conferir('§4 ☠️ ninguém desenha atenção a partir do `ui.links` cru',
-  intrusos.length === 0, `também tocam: ${intrusos.join(', ')}`);
+conferir(
+  '§4 ☠️ ninguém desenha atenção a partir do `ui.links` cru',
+  intrusos.length === 0,
+  `também tocam: ${intrusos.join(', ')}`
+);
 conferir('§4 `DONOS_DO_EVENTO` não é tabela velha', orfaos.length === 0, orfaos.join(', '));
 
 /*
@@ -144,13 +148,18 @@ conferir('§4 `DONOS_DO_EVENTO` não é tabela velha', orfaos.length === 0, orfa
 const ctx = semProsa(src('src/apps/context.js'));
 conferir('§4 o painel de contexto assina `attention.aoMudar`', /attention\.aoMudar\(/.test(ctx));
 const nome = ctx.match(/const\s+(\w+)\s*=\s*attention\.aoMudar\(/);
-conferir('§4 a assinatura guarda o cancelamento', Boolean(nome),
-  'o retorno de `attention.aoMudar` foi descartado');
+conferir(
+  '§4 a assinatura guarda o cancelamento',
+  Boolean(nome),
+  'o retorno de `attention.aoMudar` foi descartado'
+);
 if (nome) {
   const destroy = ctx.match(/destroy:\s*\(\)\s*=>\s*\{([\s\S]*?)\}/);
-  conferir('§4 e o `destroy` chama o cancelamento que recebeu',
+  conferir(
+    '§4 e o `destroy` chama o cancelamento que recebeu',
     Boolean(destroy) && new RegExp(`\\b${nome[1]}\\(\\)`).test(destroy[1]),
-    `destroy: ${destroy ? destroy[1].trim() : 'ausente'}`);
+    `destroy: ${destroy ? destroy[1].trim() : 'ausente'}`
+  );
 }
 
 // ───────────────────────────────────────────────────────────────── veredito

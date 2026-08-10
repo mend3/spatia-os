@@ -98,7 +98,15 @@ export const PULSAR_SPEC = {
      * 1 a 0, então as cristas só existem no instante em que a casca nasce. Em 0 elas voltam a ser
      * permanentes, que é a ESTRELA DE PONTAS: é esse o par que este controle serve para comparar.
      */
-    { key: 'decaimento', label: 'DECAIMENTO DO FILAMENTO', type: 'range', min: 0, max: 1, step: 0.01, value: 1 },
+    {
+      key: 'decaimento',
+      label: 'DECAIMENTO DO FILAMENTO',
+      type: 'range',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      value: 1,
+    },
     /*
      * NEBULOSA — a camada mais externa, a 7 raios de âncora. O controle existe porque ela é tênue
      * de propósito: com ela ligada, um defeito NELA lê como fundo sujo, e a única forma de saber
@@ -141,7 +149,11 @@ export const PULSAR_SPEC = {
         const alturaFb = document.querySelector('canvas')?.height ?? window.innerHeight;
         const px = diskPx(values.raio, camera.position.length(), alturaFb, camera.fov);
 
-        pulsar.tune({ filamento: values.filamento, decaimento: values.decaimento, nebulosa: values.nebulosa });
+        pulsar.tune({
+          filamento: values.filamento,
+          decaimento: values.decaimento,
+          nebulosa: values.nebulosa,
+        });
         const nivel = pulsar.update(params, px, clock.elapsed, values.reduzido, camera);
         // LIDO do módulo, não recalculado aqui. Uma segunda cópia da fórmula do batimento seria a
         // primeira coisa a divergir — e justamente quando a leitura fosse útil.
@@ -157,7 +169,10 @@ export const PULSAR_SPEC = {
           obliquidade: `${((params.obliquity * 180) / Math.PI).toFixed(0)}°`,
           'núcleo (raios)': `${params.core.toFixed(3)}  (constante — ver BODY_SPAN)`,
           feixe: params.beam.toFixed(2),
-          filamento: values.filamento === 0 ? 'desligado' : `${values.filamento.toFixed(2)} · decai ${values.decaimento.toFixed(2)}`,
+          filamento:
+            values.filamento === 0
+              ? 'desligado'
+              : `${values.filamento.toFixed(2)} · decai ${values.decaimento.toFixed(2)}`,
           nebulosa: values.nebulosa === 0 ? 'desligada' : `${values.nebulosa.toFixed(2)} · 7,0 R âncora`,
         });
       },

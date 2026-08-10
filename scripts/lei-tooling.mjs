@@ -29,16 +29,27 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const C = { erro: '\x1b[31m', ok: '\x1b[32m', aviso: '\x1b[33m', fraco: '\x1b[2m', forte: '\x1b[1m', fim: '\x1b[0m' };
+const C = {
+  erro: '\x1b[31m',
+  ok: '\x1b[32m',
+  aviso: '\x1b[33m',
+  fraco: '\x1b[2m',
+  forte: '\x1b[1m',
+  fim: '\x1b[0m',
+};
 let falhas = 0;
 const checar = (secao, cond, frase) => {
   if (cond) console.log(`  ${C.ok}✓${C.fim} ${C.fraco}${secao}${C.fim} ${frase}`);
-  else { falhas += 1; console.log(`${C.erro}✗ ${secao} ${frase}${C.fim}`); }
+  else {
+    falhas += 1;
+    console.log(`${C.erro}✗ ${secao} ${frase}${C.fim}`);
+  }
 };
 
 const ler = (rel) => fs.readFileSync(path.join(RAIZ, rel), 'utf8');
 const MAKEFILE = ler('Makefile');
-const SCRIPTS = fs.readdirSync(path.join(RAIZ, 'scripts'))
+const SCRIPTS = fs
+  .readdirSync(path.join(RAIZ, 'scripts'))
   .filter((n) => /\.(mjs|js|py)$/.test(n))
   .sort();
 
@@ -56,7 +67,8 @@ function medidaDoPortao() {
   if (i < 0) return null;
   const fim = fonte.indexOf('\n};', i);
   if (fim < 0) return null;
-  const corpo = fonte.slice(i, fim + 3)
+  const corpo = fonte
+    .slice(i, fim + 3)
     .replace(/readFileSync\(`\$\{RAIZ\}\/scripts\/\$\{nome\}`, 'utf8'\)/, 'LER(nome)');
   // eslint-disable-next-line no-new-func
   return new Function('LER', `${corpo}; return mutaCompartilhado;`)((n) => ler(`scripts/${n}`));
@@ -79,10 +91,15 @@ const SEM_ALVO = {
   'leis.mjs': 'é o portão; `make leis` o chama, e ele não muta nada',
 };
 
-console.log(`${C.forte}§1  NENHUM SCRIPT ÓRFÃO${C.fim}  ${C.fraco}quem muta estado tem alvo no Makefile${C.fim}`);
+console.log(
+  `${C.forte}§1  NENHUM SCRIPT ÓRFÃO${C.fim}  ${C.fraco}quem muta estado tem alvo no Makefile${C.fim}`
+);
 {
-  checar('§1', typeof mutaCompartilhado === 'function',
-    '`mutaCompartilhado` continua recortável de `leis.mjs` — é ele o dono da medida de efeito colateral');
+  checar(
+    '§1',
+    typeof mutaCompartilhado === 'function',
+    '`mutaCompartilhado` continua recortável de `leis.mjs` — é ele o dono da medida de efeito colateral'
+  );
   if (typeof mutaCompartilhado === 'function') {
     /*
      * ⚠️ **A varredura é sobre a MEDIDA, não sobre a lista declarada.** Conferir `NAO_RODAM`
@@ -91,13 +108,21 @@ console.log(`${C.forte}§1  NENHUM SCRIPT ÓRFÃO${C.fim}  ${C.fraco}quem muta e
      */
     const materializadores = SCRIPTS.filter((n) => !(n in SEM_ALVO) && mutaCompartilhado(n));
     const orfaos = materializadores.filter((n) => !MAKEFILE.includes(`scripts/${n}`));
-    checar('§1b', orfaos.length === 0,
-      `os ${materializadores.length} materializadores têm alvo no Makefile`
-      + (orfaos.length ? ` — ÓRFÃOS: ${orfaos.join(', ')}. Um snapshot que ninguém rematerializa `
-        + 'envelhece enquanto a API continua servindo o arquivo velho com cara de fato' : ''));
+    checar(
+      '§1b',
+      orfaos.length === 0,
+      `os ${materializadores.length} materializadores têm alvo no Makefile` +
+        (orfaos.length
+          ? ` — ÓRFÃOS: ${orfaos.join(', ')}. Um snapshot que ninguém rematerializa ` +
+            'envelhece enquanto a API continua servindo o arquivo velho com cara de fato'
+          : '')
+    );
     const isentaVazio = Object.keys(SEM_ALVO).filter((n) => !SCRIPTS.includes(n));
-    checar('§1c', isentaVazio.length === 0,
-      `\`SEM_ALVO\` não isenta arquivo inexistente${isentaVazio.length ? ` — ${isentaVazio.join(', ')}` : ''}`);
+    checar(
+      '§1c',
+      isentaVazio.length === 0,
+      `\`SEM_ALVO\` não isenta arquivo inexistente${isentaVazio.length ? ` — ${isentaVazio.join(', ')}` : ''}`
+    );
   }
 }
 
@@ -121,7 +146,7 @@ function meios(nome) {
     const literal = expr.match(/['"`](\.cache\/[a-z-]+\.json)['"`]/);
     if (literal) return literal[1];
     const nomeConst = expr.match(/\b([A-Z_]+)\b/);
-    return nomeConst ? consts.get(nomeConst[1]) ?? null : null;
+    return nomeConst ? (consts.get(nomeConst[1]) ?? null) : null;
   };
   const escreve = new Set();
   const le = new Set();
@@ -151,15 +176,20 @@ for (const [a, ma] of medida) {
     if (a === b) continue;
     const porArquivo = [...ma.escreve].find((f) => mb.le.has(f));
     if (porArquivo) arestas.push({ antes: a, depois: b, por: porArquivo });
-    else if (ma.escreveGrafo && !mb.escreveGrafo && mb.leGrafo) arestas.push({ antes: a, depois: b, por: 'grafo' });
+    else if (ma.escreveGrafo && !mb.escreveGrafo && mb.leGrafo)
+      arestas.push({ antes: a, depois: b, por: 'grafo' });
   }
 }
 
-console.log(`\n${C.forte}§2  A CADEIA SAI DO FONTE${C.fim}  ${C.fraco}quem lê depende de quem escreve${C.fim}`);
+console.log(
+  `\n${C.forte}§2  A CADEIA SAI DO FONTE${C.fim}  ${C.fraco}quem lê depende de quem escreve${C.fim}`
+);
 {
   checar('§2', arestas.length > 0, `${arestas.length} dependências derivadas do fonte`);
   for (const e of arestas.filter((x) => x.por !== 'grafo')) {
-    console.log(`  ${C.fraco}·${C.fim} ${e.antes.padEnd(18)} → ${e.depois.padEnd(18)} ${C.fraco}${e.por}${C.fim}`);
+    console.log(
+      `  ${C.fraco}·${C.fim} ${e.antes.padEnd(18)} → ${e.depois.padEnd(18)} ${C.fraco}${e.por}${C.fim}`
+    );
   }
   const pelaTopologia = arestas.filter((x) => x.por === 'grafo');
   if (pelaTopologia.length) {
@@ -178,7 +208,11 @@ console.log(`\n${C.forte}§3  A ORDEM DA RECEITA${C.fim}`);
   let atual = null;
   for (const linha of MAKEFILE.split('\n')) {
     const cabeca = linha.match(/^([a-z][a-z0-9-]*):/);
-    if (cabeca) { atual = cabeca[1]; alvos.set(atual, []); continue; }
+    if (cabeca) {
+      atual = cabeca[1];
+      alvos.set(atual, []);
+      continue;
+    }
     if (!linha.startsWith('\t') && linha.trim() !== '' && !linha.startsWith(' ')) atual = null;
     if (!atual) continue;
     for (const m of linha.matchAll(/scripts\/([a-z-]+\.(?:mjs|js|py))/g)) alvos.get(atual).push(m[1]);
@@ -192,9 +226,14 @@ console.log(`\n${C.forte}§3  A ORDEM DA RECEITA${C.fim}`);
       if (iA >= 0 && iB >= 0 && iA > iB) foraDeOrdem.push({ alvo, ...e });
     }
   }
-  checar('§3', foraDeOrdem.length === 0,
-    `nenhuma receita chama um dependente antes da dependência`
-    + (foraDeOrdem.length ? ` — ${foraDeOrdem.map((f) => `\`${f.alvo}\`: ${f.depois} antes de ${f.antes}`).join('; ')}` : ''));
+  checar(
+    '§3',
+    foraDeOrdem.length === 0,
+    `nenhuma receita chama um dependente antes da dependência` +
+      (foraDeOrdem.length
+        ? ` — ${foraDeOrdem.map((f) => `\`${f.alvo}\`: ${f.depois} antes de ${f.antes}`).join('; ')}`
+        : '')
+  );
 
   /* Dependência AUSENTE é pior que fora de ordem: a receita sai 1 no meio, ou pior, usa o velho. */
   const faltando = [];
@@ -205,9 +244,14 @@ console.log(`\n${C.forte}§3  A ORDEM DA RECEITA${C.fim}`);
       }
     }
   }
-  checar('§3b', faltando.length === 0,
-    'nenhuma receita chama um dependente SEM a dependência'
-    + (faltando.length ? ` — ${faltando.map((f) => `\`${f.alvo}\` chama ${f.depois} sem ${f.antes} (${f.por})`).join('; ')}` : ''));
+  checar(
+    '§3b',
+    faltando.length === 0,
+    'nenhuma receita chama um dependente SEM a dependência' +
+      (faltando.length
+        ? ` — ${faltando.map((f) => `\`${f.alvo}\` chama ${f.depois} sem ${f.antes} (${f.por})`).join('; ')}`
+        : '')
+  );
 }
 
 // ─────────────────────────── §4 · O DOC NÃO PODE CONTRADIZER A MEDIDA
@@ -249,20 +293,29 @@ console.log(`\n${C.forte}§4  O DOC CONTRA A MEDIDA${C.fim}`);
         const iA = acha(bloco, e.antes);
         const iB = acha(bloco, e.depois);
         if (iB >= 0 && (iA < 0 || iA > iB)) {
-          problemas.push(`${doc}: a cadeia desenhada põe ${semExt(e.depois)} sem ${semExt(e.antes)} antes (${e.por})`);
+          problemas.push(
+            `${doc}: a cadeia desenhada põe ${semExt(e.depois)} sem ${semExt(e.antes)} antes (${e.por})`
+          );
         }
       }
     }
   }
-  checar('§4', problemas.length === 0,
-    'a cadeia desenhada nos docs bate com a medida'
-    + (problemas.length ? ` — ${[...new Set(problemas)].join('; ')}` : ''));
+  checar(
+    '§4',
+    problemas.length === 0,
+    'a cadeia desenhada nos docs bate com a medida' +
+      (problemas.length ? ` — ${[...new Set(problemas)].join('; ')}` : '')
+  );
 }
 
 console.log('');
 if (falhas) {
-  console.log(`${C.erro}✗ ${falhas} falha(s)${C.fim}  o tooling tem script sem dono, ou receita fora da cadeia.`);
+  console.log(
+    `${C.erro}✗ ${falhas} falha(s)${C.fim}  o tooling tem script sem dono, ou receita fora da cadeia.`
+  );
   process.exit(1);
 }
-console.log(`${C.ok}✓ a lei vale${C.fim}  ${C.fraco}todo script tem alvo, e a ordem das receitas sai da `
-  + `medida — não de uma lista mantida à mão.${C.fim}`);
+console.log(
+  `${C.ok}✓ a lei vale${C.fim}  ${C.fraco}todo script tem alvo, e a ordem das receitas sai da ` +
+    `medida — não de uma lista mantida à mão.${C.fim}`
+);

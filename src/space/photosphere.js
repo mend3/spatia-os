@@ -596,7 +596,14 @@ export function photosphereParams(node, hash01, kindColor) {
     (retrogrado ? 0.6 : 1);
 
   return Object.freeze({
-    seed: seed * 10, hot, cool, spots, cells, limb, umbra, temp,
+    seed: seed * 10,
+    hot,
+    cool,
+    spots,
+    cells,
+    limb,
+    umbra,
+    temp,
     spin,
     // Eixo inclinado: sem isto todo polo aponta para cima e a rotação vira um carrossel só.
     tilt: (hash01(node.source ?? 'sem-caminho', 19) - 0.5) * 1.1,

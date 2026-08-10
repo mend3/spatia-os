@@ -219,15 +219,16 @@ function esculpirNucleo(seed) {
     // Três harmônicas de frequência crescente: os lobos, o degrau grande, a quina. A função é da
     // DIREÇÃO, então os vértices duplicados da malha não-indexada caem no mesmo lugar — sem isso
     // a casca abriria fenda em cada aresta compartilhada.
-    let r = 1
-      + 0.20 * Math.sin(2.3 * v.x + a) * Math.cos(2.7 * v.y + b)
-      + 0.11 * Math.sin(4.1 * v.z + c) * Math.cos(3.7 * v.x + d)
-      + 0.06 * Math.sin(6.9 * v.y + e);
+    let r =
+      1 +
+      0.2 * Math.sin(2.3 * v.x + a) * Math.cos(2.7 * v.y + b) +
+      0.11 * Math.sin(4.1 * v.z + c) * Math.cos(3.7 * v.x + d) +
+      0.06 * Math.sin(6.9 * v.y + e);
     if (bilobado) {
       // A cintura: uma gaussiana estreita em torno do plano perpendicular ao eixo. Estrangula em
       // vez de cortar — os dois lobos continuam ligados por um pescoço, que é o que se vê.
       const ao = v.dot(eixo);
-      r -= 0.30 * Math.exp(-(ao * ao) / 0.045);
+      r -= 0.3 * Math.exp(-(ao * ao) / 0.045);
     }
     pos.setXYZ(i, v.x * r, v.y * r, v.z * r);
   }
@@ -379,11 +380,17 @@ export function cometParams(node = {}, color = 0xffffff) {
      * uma cauda grossa e torta.
      */
     ion: Object.freeze({
-      color: 0x74d8ff, spread: 0.12, curve: 0, size: 260,
+      color: 0x74d8ff,
+      spread: 0.12,
+      curve: 0,
+      size: 260,
       flow: 1 / MOTION.cometOutflow.periods.ion,
     }),
     dust: Object.freeze({
-      color: 0xffe9b8, spread: 0.3, curve: 1.5 + seed * 1.6, size: 340,
+      color: 0xffe9b8,
+      spread: 0.3,
+      curve: 1.5 + seed * 1.6,
+      size: 340,
       flow: 1 / MOTION.cometOutflow.periods.dust,
     }),
     /*
@@ -631,7 +638,10 @@ export function createComet() {
       BASE.makeBasis(PARA_FORA, CIMA, OLHAR);
       leque.quaternion.setFromRotationMatrix(BASE);
 
-      for (const [cauda, cfg] of [[ion, params.ion], [dust, params.dust]]) {
+      for (const [cauda, cfg] of [
+        [ion, params.ion],
+        [dust, params.dust],
+      ]) {
         const u = cauda.material.uniforms;
         u.uColor.value.set(cfg.color);
         u.uAmount.value = params.amount * level;

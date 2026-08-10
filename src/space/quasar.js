@@ -334,11 +334,7 @@ export function quasarParams(galaxy, viewOverride = null) {
     path,
     bulge,
     axis,
-    axisWorld: new THREE.Vector3(
-      raioEixo * Math.cos(azimuteEixo),
-      raioEixo * Math.sin(azimuteEixo),
-      zAxis
-    ),
+    axisWorld: new THREE.Vector3(raioEixo * Math.cos(azimuteEixo), raioEixo * Math.sin(azimuteEixo), zAxis),
     cosView,
     /*
      * O JATO ENCURTA quando aponta para você — e este é o par que engana: o lado que estoura de
@@ -1071,12 +1067,7 @@ export function createQuasars(capacity = 16) {
       for (let i = 0; i < count; i += 1) {
         const entry = entries[i];
         const radius = entry.radius;
-        const px = pxOf(
-          radius,
-          camera.position.distanceTo(entry.position),
-          viewportHeight,
-          camera.fov
-        );
+        const px = pxOf(radius, camera.position.distanceTo(entry.position), viewportHeight, camera.fov);
 
         center[i * 3] = entry.position.x;
         center[i * 3 + 1] = entry.position.y;

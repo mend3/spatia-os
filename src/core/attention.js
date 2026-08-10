@@ -27,7 +27,14 @@ import { on } from './bus.js';
  * so no read site needs a guard — and a missing guard is how the previous version of this idea
  * would have thrown on the very first mount before any hover.
  */
-const EMPTY = Object.freeze({ subject: null, dirty: null, origin: null, links: Object.freeze([]), rede: null, conceitos: null });
+const EMPTY = Object.freeze({
+  subject: null,
+  dirty: null,
+  origin: null,
+  links: Object.freeze([]),
+  rede: null,
+  conceitos: null,
+});
 
 let current = EMPTY;
 const ouvintes = new Set();

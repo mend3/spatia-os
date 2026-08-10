@@ -103,7 +103,10 @@ function mascara(texto) {
       while (j < texto.length && texto[j] !== texto[i]) j += texto[j] === '\\' ? 2 : 1;
       fim = j + 1;
     }
-    if (fim > i) { for (let k = i; k < fim && k < m.length; k++) m[k] = 1; i = fim; } else i++;
+    if (fim > i) {
+      for (let k = i; k < fim && k < m.length; k++) m[k] = 1;
+      i = fim;
+    } else i++;
   }
   return m;
 }
@@ -134,8 +137,9 @@ const codigoCena = soCodigo(fonteCena);
 // ─────────────────────────────────────────────────────── o que a cadeia É, lido do `scene.js`
 
 /** Os `addPass` na ordem em que o `scene.js` os declara. */
-const cadeiaDeclarada = [...codigoCena.matchAll(/composer\.addPass\(\s*([^)]*(?:\([^)]*\))?[^)]*)\)/g)]
-  .map((m) => m[1].trim());
+const cadeiaDeclarada = [...codigoCena.matchAll(/composer\.addPass\(\s*([^)]*(?:\([^)]*\))?[^)]*)\)/g)].map(
+  (m) => m[1].trim()
+);
 if (cadeiaDeclarada.length < 2) morre(`não achei os composer.addPass(...) em ${SCENE_JS}`);
 
 /**
@@ -158,13 +162,15 @@ function classeDoPasse(expr) {
     const fabrica = codigoCena.match(new RegExp(`const\\s+${prop[1]}\\s*=\\s*(\\w+)\\(`));
     // ⚠️ O especificador do `import` é uma STRING, e `soCodigo` apaga string — a busca do CAMINHO
     // tem de ser na fonte crua. O nome importado continua sendo lido do código.
-    const importa = fabrica
-      && fonteCena.match(new RegExp(`import\\s*\\{[^}]*\\b${fabrica[1]}\\b[^}]*\\}\\s*from\\s*'([^']+)'`));
+    const importa =
+      fabrica &&
+      fonteCena.match(new RegExp(`import\\s*\\{[^}]*\\b${fabrica[1]}\\b[^}]*\\}\\s*from\\s*'([^']+)'`));
     if (importa) {
       const alvo = path.resolve(path.dirname(SCENE_JS), importa[1]);
       if (fs.existsSync(alvo)) {
-        const achado = soCodigo(fs.readFileSync(alvo, 'utf8'))
-          .match(new RegExp(`const\\s+${prop[2]}\\s*=\\s*new\\s+(\\w+)\\s*\\(`));
+        const achado = soCodigo(fs.readFileSync(alvo, 'utf8')).match(
+          new RegExp(`const\\s+${prop[2]}\\s*=\\s*new\\s+(\\w+)\\s*\\(`)
+        );
         if (achado) return achado[1];
       }
     }
@@ -217,12 +223,16 @@ const passeDaChave = (chave) => CADEIA.findIndex((p) => p.expr.toLowerCase().inc
 
 // ⚠️ `=(?!=)` e não `=`: a sonda `composicao` COMPARA `depthTexture` para dizer onde ela está, e
 // uma comparação lida como atribuição faria esta lei acusar dois alvos onde há um.
-const anexos = [...codigoCena.matchAll(/composer\.(renderTarget[12])\.depthTexture\s*=(?!=)/g)]
-  .map((m) => m[1]);
+const anexos = [...codigoCena.matchAll(/composer\.(renderTarget[12])\.depthTexture\s*=(?!=)/g)].map(
+  (m) => m[1]
+);
 if (anexos.length === 0) nota('§1', 'nenhum alvo recebe `depthTexture` — a lente lê o quê?');
 if (new Set(anexos).size > 1) {
-  nota('§1', `a profundidade é anexada a ${new Set(anexos).size} alvos (${[...new Set(anexos)]}) — `
-    + 'uma textura que é entrada e saída ao mesmo tempo é feedback loop, e a cena sai PRETA');
+  nota(
+    '§1',
+    `a profundidade é anexada a ${new Set(anexos).size} alvos (${[...new Set(anexos)]}) — ` +
+      'uma textura que é entrada e saída ao mesmo tempo é feedback loop, e a cena sai PRETA'
+  );
 }
 const ALVO_DA_PROFUNDIDADE = anexos[0] ?? 'renderTarget2';
 
@@ -230,20 +240,30 @@ const ALVO_DA_PROFUNDIDADE = anexos[0] ?? 'renderTarget2';
 
 const iFixador = codigoCena.indexOf('function desenharQuadro');
 if (iFixador < 0) {
-  nota('§2', 'não existe `desenharQuadro` — sem um fixador do par, a paridade volta a decidir '
-    + 'onde a profundidade é gravada');
+  nota(
+    '§2',
+    'não existe `desenharQuadro` — sem um fixador do par, a paridade volta a decidir ' +
+      'onde a profundidade é gravada'
+  );
 } else {
   const corpo = recorteBalanceado(fonteCena, iFixador) ?? '';
   const codigoDoCorpo = soCodigo(corpo);
   const fixaLeitura = /composer\.readBuffer\s*=\s*composer\.renderTarget[12]/.test(codigoDoCorpo);
   const fixaEscrita = /composer\.writeBuffer\s*=\s*composer\.renderTarget[12]/.test(codigoDoCorpo);
   if (!fixaLeitura) nota('§3', '`desenharQuadro` não fixa `readBuffer` — é ele que o RenderPass grava');
-  if (!fixaEscrita) nota('§3', '`desenharQuadro` não fixa `writeBuffer` — fixar meio par deixa a '
-    + 'escrita da lente sorteada pela paridade');
+  if (!fixaEscrita)
+    nota(
+      '§3',
+      '`desenharQuadro` não fixa `writeBuffer` — fixar meio par deixa a ' +
+        'escrita da lente sorteada pela paridade'
+    );
   const lidoEm = codigoDoCorpo.match(/composer\.readBuffer\s*=\s*composer\.(renderTarget[12])/)?.[1];
   if (lidoEm && lidoEm !== ALVO_DA_PROFUNDIDADE) {
-    nota('§3', `o fixador manda o RenderPass gravar em ${lidoEm}, e a profundidade está em `
-      + `${ALVO_DA_PROFUNDIDADE} — a lente leria um buffer vazio`);
+    nota(
+      '§3',
+      `o fixador manda o RenderPass gravar em ${lidoEm}, e a profundidade está em ` +
+        `${ALVO_DA_PROFUNDIDADE} — a lente leria um buffer vazio`
+    );
   }
   // A chamada real tem de estar DENTRO do fixador, e ser a única do src/.
   if (!/composer\.render\(\)/.test(codigoDoCorpo)) {
@@ -252,24 +272,33 @@ if (iFixador < 0) {
 }
 
 const SRC = path.join(RAIZ, 'src');
-const varrer = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (
-  e.isDirectory() ? varrer(path.join(dir, e.name))
-    : e.name.endsWith('.js') ? [path.join(dir, e.name)] : []));
+const varrer = (dir) =>
+  fs
+    .readdirSync(dir, { withFileTypes: true })
+    .flatMap((e) =>
+      e.isDirectory()
+        ? varrer(path.join(dir, e.name))
+        : e.name.endsWith('.js')
+          ? [path.join(dir, e.name)]
+          : []
+    );
 // ⚠️ A faixa do fixador é medida da CHAVE que abre o corpo, não do `function`: somar o tamanho do
 // bloco ao índice da palavra encurta a faixa e deixa a última linha do corpo de fora — que é
 // justamente onde mora o `composer.render()`.
 const abreFixador = iFixador >= 0 ? fonteCena.indexOf('{', iFixador) : -1;
-const fechaFixador = abreFixador >= 0
-  ? abreFixador + (recorteBalanceado(fonteCena, iFixador)?.length ?? 0) : -1;
+const fechaFixador =
+  abreFixador >= 0 ? abreFixador + (recorteBalanceado(fonteCena, iFixador)?.length ?? 0) : -1;
 for (const arquivo of varrer(SRC)) {
   const codigo = soCodigo(fs.readFileSync(arquivo, 'utf8'));
   for (const m of codigo.matchAll(/composer\.render\(/g)) {
-    const dentroDoFixador = arquivo === SCENE_JS
-      && m.index > abreFixador && m.index < fechaFixador;
+    const dentroDoFixador = arquivo === SCENE_JS && m.index > abreFixador && m.index < fechaFixador;
     if (!dentroDoFixador) {
       const linha = codigo.slice(0, m.index).split('\n').length;
-      nota('§2', `${path.relative(RAIZ, arquivo)}:${linha} chama \`composer.render()\` por fora do `
-        + 'fixador — esse caminho volta a depender da paridade');
+      nota(
+        '§2',
+        `${path.relative(RAIZ, arquivo)}:${linha} chama \`composer.render()\` por fora do ` +
+          'fixador — esse caminho volta a depender da paridade'
+      );
     }
   }
 }
@@ -281,7 +310,11 @@ const { EffectComposer } = await import(path.join(VENDOR, 'EffectComposer.js'));
 /** Um renderer de mentira. Nenhuma chamada de GL acontece — os passes só anotam o que receberam. */
 const rendererFalso = {
   getPixelRatio: () => 1,
-  getSize: (v) => { v.x = 800; v.y = 600; return v; },
+  getSize: (v) => {
+    v.x = 800;
+    v.y = 600;
+    return v;
+  },
   getRenderTarget: () => null,
   setRenderTarget: () => {},
 };
@@ -289,9 +322,14 @@ const rendererFalso = {
 /** Um passe que não desenha: ele registra em qual alvo teria escrito e de qual teria lido. */
 function passeDeMentira({ classe, troca }, diario) {
   return {
-    classe, enabled: true, needsSwap: troca, renderToScreen: false,
+    classe,
+    enabled: true,
+    needsSwap: troca,
+    renderToScreen: false,
     setSize() {},
-    render(_r, writeBuffer, readBuffer) { diario.push({ classe, escreve: writeBuffer, le: readBuffer }); },
+    render(_r, writeBuffer, readBuffer) {
+      diario.push({ classe, escreve: writeBuffer, le: readBuffer });
+    },
   };
 }
 
@@ -322,13 +360,15 @@ function simular(sequencia, { fixar }) {
       for (const d of diarios) d.length = 0;
       if (fixar) {
         composer.readBuffer = composer[ALVO_DA_PROFUNDIDADE];
-        composer.writeBuffer = composer[ALVO_DA_PROFUNDIDADE === 'renderTarget2' ? 'renderTarget1' : 'renderTarget2'];
+        composer.writeBuffer =
+          composer[ALVO_DA_PROFUNDIDADE === 'renderTarget2' ? 'renderTarget1' : 'renderTarget2'];
       }
       composer.render(0);
       const doRender = diarios[CADEIA.findIndex((p) => p.classe === 'RenderPass')]?.[0];
       const daLente = iLente >= 0 && passes[iLente].enabled ? diarios[iLente][0] : null;
       vereditos.push({
-        cena, quadro: q,
+        cena,
+        quadro: q,
         // O `RenderPass` desenha no `readBuffer` (`needsSwap: false`), e é lá que a profundidade vai.
         gravaEm: doRender?.le === profundidade ? 'profundidade' : 'o outro alvo',
         leDaProfundidade: daLente ? daLente.le === profundidade : null,
@@ -347,7 +387,10 @@ for (const a of nomesDeCena) {
     if (a === b) continue;
     // 1 e 2 quadros na cena de origem: é a PARIDADE que se está exercitando, não a duração.
     for (const quadros of [1, 2, 3]) {
-      sequencias.push([{ cena: a, quadros }, { cena: b, quadros: 2 }]);
+      sequencias.push([
+        { cena: a, quadros },
+        { cena: b, quadros: 2 },
+      ]);
     }
   }
 }
@@ -358,15 +401,24 @@ for (const seq of sequencias) {
   for (const v of simular(seq, { fixar: true })) {
     simulados++;
     if (v.gravaEm !== 'profundidade') {
-      nota('§4', `[${rotulo}] quadro ${v.quadro} de "${v.cena}": o RenderPass grava em ${v.gravaEm}, `
-        + 'e a lente leria profundidade vazia');
+      nota(
+        '§4',
+        `[${rotulo}] quadro ${v.quadro} de "${v.cena}": o RenderPass grava em ${v.gravaEm}, ` +
+          'e a lente leria profundidade vazia'
+      );
     }
     if (v.leDaProfundidade === false) {
-      nota('§4', `[${rotulo}] quadro ${v.quadro} de "${v.cena}": a lente NÃO lê o alvo que carrega a profundidade`);
+      nota(
+        '§4',
+        `[${rotulo}] quadro ${v.quadro} de "${v.cena}": a lente NÃO lê o alvo que carrega a profundidade`
+      );
     }
     if (v.realimenta) {
-      nota('§5', `[${rotulo}] quadro ${v.quadro} de "${v.cena}": a lente escreve no alvo cuja `
-        + 'depthTexture ela amostra — feedback loop, e a tela sai PRETA');
+      nota(
+        '§5',
+        `[${rotulo}] quadro ${v.quadro} de "${v.cena}": a lente escreve no alvo cuja ` +
+          'depthTexture ela amostra — feedback loop, e a tela sai PRETA'
+      );
     }
   }
 }
@@ -378,14 +430,18 @@ for (const seq of sequencias) {
 const semFixador = sequencias.flatMap((seq) => simular(seq, { fixar: false }));
 const defeitosSemFixador = semFixador.filter((v) => v.realimenta || v.gravaEm !== 'profundidade');
 if (defeitosSemFixador.length === 0) {
-  nota('§5', 'sem o fixador a simulação NÃO acha defeito nenhum — ou a cadeia deixou de ter '
-    + 'paridade ímpar em alguma cena, ou esta lei parou de exercitar o que diz exercitar');
+  nota(
+    '§5',
+    'sem o fixador a simulação NÃO acha defeito nenhum — ou a cadeia deixou de ter ' +
+      'paridade ímpar em alguma cena, ou esta lei parou de exercitar o que diz exercitar'
+  );
 }
 
 // ───────────────────────────────────────────────────────────────────────────── o veredito
 
-const cabecalho = `\x1b[1mA PARIDADE DE SWAPS\x1b[0m  ${CADEIA.length} passes · ${nomesDeCena.length} cenas · `
-  + `${simulados} quadros simulados · profundidade em ${ALVO_DA_PROFUNDIDADE}`;
+const cabecalho =
+  `\x1b[1mA PARIDADE DE SWAPS\x1b[0m  ${CADEIA.length} passes · ${nomesDeCena.length} cenas · ` +
+  `${simulados} quadros simulados · profundidade em ${ALVO_DA_PROFUNDIDADE}`;
 console.log(cabecalho);
 console.log(`  cadeia: ${CADEIA.map((p) => `${p.classe}${p.troca ? '↔' : ''}`).join(' → ')}   (↔ = troca)`);
 for (const cena of nomesDeCena) {
@@ -394,8 +450,10 @@ for (const cena of nomesDeCena) {
     return chave ? CENAS[cena].passes[chave] : true;
   });
   const trocas = ligados.filter((p) => p.troca).length;
-  console.log(`  ${cena.padEnd(10)} ${ligados.length} passes ligados · ${trocas} trocas `
-    + `(${trocas % 2 === 0 ? 'PAR' : 'ÍMPAR'})`);
+  console.log(
+    `  ${cena.padEnd(10)} ${ligados.length} passes ligados · ${trocas} trocas ` +
+      `(${trocas % 2 === 0 ? 'PAR' : 'ÍMPAR'})`
+  );
 }
 console.log(`  sem o fixador: ${defeitosSemFixador.length} quadros defeituosos — é o que a lei impede`);
 

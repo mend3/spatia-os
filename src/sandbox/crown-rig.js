@@ -78,7 +78,16 @@ export const CROWN_SPEC = {
      * a pele em detalhe pleno. O meio é a transição, e é lá que uma troca seca apareceria.
      */
     { key: 'nivel', label: 'NÍVEL (halo)', type: 'range', min: 0, max: 1, step: 0.01, value: 1 },
-    { key: 'raio', label: 'RAIO DE REFERÊNCIA', type: 'range', min: 0.1, max: 2, step: 0.01, value: 1, roll: false },
+    {
+      key: 'raio',
+      label: 'RAIO DE REFERÊNCIA',
+      type: 'range',
+      min: 0.1,
+      max: 2,
+      step: 0.01,
+      value: 1,
+      roll: false,
+    },
     { key: 'massa', label: 'MASSA (chunks)', type: 'range', min: 1, max: 240, step: 1, value: 60 },
     { key: 'semente', label: 'SEMENTE (caminho)', type: 'range', min: 0, max: 1, step: 0.001, value: 0.31 },
     { key: 'reduzido', label: 'MOVIMENTO REDUZIDO', type: 'bool', value: false },
@@ -110,7 +119,7 @@ export const CROWN_SPEC = {
 
     const peles = {
       fotosfera: { surface: SUPERFICIE.FOTOSFERA, mod: createPhotosphere() },
-      'estação': { surface: SUPERFICIE.ESTACAO, mod: createStation() },
+      estação: { surface: SUPERFICIE.ESTACAO, mod: createStation() },
       cometa: { surface: SUPERFICIE.COMETA, mod: createComet() },
       nebulosa: { surface: SUPERFICIE.NEBULOSA, mod: createNebula() },
     };
@@ -155,19 +164,20 @@ export const CROWN_SPEC = {
 
         let nivelPele = 0;
         if (values.pele === 'fotosfera') {
-          nivelPele = escolhida.mod.update(
-            photosphereParams(no, hash01, cor), camera, px, clock.elapsed
-          );
+          nivelPele = escolhida.mod.update(photosphereParams(no, hash01, cor), camera, px, clock.elapsed);
         } else if (values.pele === 'estação') {
           nivelPele = escolhida.mod.update(stationParams(no, cor), px, clock.elapsed);
         } else if (values.pele === 'cometa') {
           nivelPele = escolhida.mod.update(
-            cometParams(no, cor), ORIGEM, camera, px, clock.elapsed, values.reduzido
+            cometParams(no, cor),
+            ORIGEM,
+            camera,
+            px,
+            clock.elapsed,
+            values.reduzido
           );
         } else {
-          nivelPele = escolhida.mod.update(
-            nebulaParams(no, cor), camera, px, clock.elapsed, values.reduzido
-          );
+          nivelPele = escolhida.mod.update(nebulaParams(no, cor), camera, px, clock.elapsed, values.reduzido);
         }
 
         /*

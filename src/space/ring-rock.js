@@ -48,7 +48,7 @@ function noise2(x, y, periodY) {
   const b = hash2(ix + 1, y0);
   const c = hash2(ix, y1);
   const d = hash2(ix + 1, y1);
-  return a + (b - a) * ux + ((c - a) + (a - b - c + d) * ux) * uy;
+  return a + (b - a) * ux + (c - a + (a - b - c + d) * ux) * uy;
 }
 
 /**

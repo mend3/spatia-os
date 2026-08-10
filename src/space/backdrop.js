@@ -256,7 +256,9 @@ export function createBackdrop() {
         const horizonte = Math.hypot(camera.position.x, camera.position.z) || 1;
         material.uniforms.uShift.value.set(
           (camera.position.x / horizonte) * Math.PI * PARALLAX * 0.16,
-          -Math.asin(THREE.MathUtils.clamp(camera.position.y / camera.position.length(), -1, 1)) * PARALLAX * 0.16
+          -Math.asin(THREE.MathUtils.clamp(camera.position.y / camera.position.length(), -1, 1)) *
+            PARALLAX *
+            0.16
         );
       }
 

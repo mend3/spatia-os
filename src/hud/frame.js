@@ -166,8 +166,10 @@ export function createFrame(root) {
     const idade = Date.now() - aferidoEm;
     set(
       afericao,
-      idade < 1000 ? 'AGORA'
-        : idade < 60_000 ? `HÁ ${Math.floor(idade / 1000)}S`
+      idade < 1000
+        ? 'AGORA'
+        : idade < 60_000
+          ? `HÁ ${Math.floor(idade / 1000)}S`
           : `HÁ ${Math.floor(idade / 60_000)}MIN`
     );
     if (idade >= AFERICAO_VENCIDA_MS) {
@@ -231,7 +233,10 @@ export function createFrame(root) {
     if (store.limit?.resets_at) {
       const remaining = Math.max(0, store.limit.resets_at * 1000 - Date.now());
       const hours = Math.floor(remaining / 3_600_000);
-      set(cells.get('window'), `${hours}h${String(Math.floor((remaining % 3_600_000) / 60_000)).padStart(2, '0')}`);
+      set(
+        cells.get('window'),
+        `${hours}h${String(Math.floor((remaining % 3_600_000) / 60_000)).padStart(2, '0')}`
+      );
       tone(cells.get('window'), store.limit.status === 'allowed' ? '' : 'bad');
     }
 

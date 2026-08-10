@@ -196,8 +196,7 @@ export const CELESTIAL = [
      * "quanto mais regular que o acaso este arquivo é".
      */
     from: 'ritmo REGULAR de commits (`node.regularity`, de `server/recency.py`)',
-    test: (node) =>
-      node?.type === 'file' && (node.regularity || 0) >= PULSAR_REGULARITY_FLOOR,
+    test: (node) => node?.type === 'file' && (node.regularity || 0) >= PULSAR_REGULARITY_FLOOR,
     features: {
       /*
        * A CLASSE declara o corpo, e é isso que a diferencia das outras: aqui o corpo não vem da
@@ -353,7 +352,8 @@ export const CELESTIAL = [
        * estrela é granulação convectiva e escurecimento de limbo, que é outro shader e outra
        * feição; enquanto ele não existir, a estrela continua sendo um ponto de perto também.
        */
-      surface: 'estrela tem FOTOSFERA, não crosta: relevo e mar afirmariam corpo sólido — mas ela TEM fotosfera, ver `features.photosphere`',
+      surface:
+        'estrela tem FOTOSFERA, não crosta: relevo e mar afirmariam corpo sólido — mas ela TEM fotosfera, ver `features.photosphere`',
     },
   },
 ];
@@ -493,9 +493,12 @@ const CIRCUMSTELLAR = Object.freeze({
 
 /** Por que este corpo não hospeda nada em órbita. Só para os que recusam. */
 const SEM_ORBITA = Object.freeze({
-  cometa: 'cauda e anel juntos não descrevem nada — é o mesmo `forbids` que a classe cometa-extinto já declarava',
-  pulsar: 'estrela de nêutrons pode ter disco de FALLBACK (PSR B1257+12 formou planetas de um), mas fallback é a supernova recaindo, não cascata colisional — e a cena não modela nenhum dos dois',
-  'estação': 'anel em volta de um artefato não descreve nada: material orbital é o que NÃO se agregou, e uma estação foi construída inteira',
+  cometa:
+    'cauda e anel juntos não descrevem nada — é o mesmo `forbids` que a classe cometa-extinto já declarava',
+  pulsar:
+    'estrela de nêutrons pode ter disco de FALLBACK (PSR B1257+12 formou planetas de um), mas fallback é a supernova recaindo, não cascata colisional — e a cena não modela nenhum dos dois',
+  estação:
+    'anel em volta de um artefato não descreve nada: material orbital é o que NÃO se agregou, e uma estação foi construída inteira',
   nebulosa: 'não há corpo central a anelar — a nebulosa é difusa por definição',
 });
 

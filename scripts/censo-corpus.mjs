@@ -47,15 +47,30 @@ const titulo = (t) => console.log(`\n\x1b[1m${t}\x1b[0m`);
 
 // ─────────────────────────────────────────────────────────── 1. forma do corpus
 titulo('1. FORMA DO CORPUS');
-console.log(`  nós ${nodes.length}  ·  ${aggs.filter((n) => n.type === 'repo').length} repo · ${aggs.filter((n) => n.type === 'dir').length} dir · ${files.length} file`);
+console.log(
+  `  nós ${nodes.length}  ·  ${aggs.filter((n) => n.type === 'repo').length} repo · ${aggs.filter((n) => n.type === 'dir').length} dir · ${files.length} file`
+);
 console.log(`  arestas ${(graph.edges || []).length} — laterais (não-contenção): ${laterais}`);
 const ch = aggs.map((n) => n.chunks || 0);
-console.log(`  agregados, chunks:  min ${q(ch, 0)} · P25 ${q(ch, 0.25)} · MED ${q(ch, 0.5)} · P75 ${q(ch, 0.75)} · P90 ${q(ch, 0.9)} · máx ${q(ch, 0.999)}`);
+console.log(
+  `  agregados, chunks:  min ${q(ch, 0)} · P25 ${q(ch, 0.25)} · MED ${q(ch, 0.5)} · P75 ${q(ch, 0.75)} · P90 ${q(ch, 0.9)} · máx ${q(ch, 0.999)}`
+);
 const nk = aggs.map((n) => K(n.id).length);
-console.log(`  agregados, filhos:  min ${q(nk, 0)} · MED ${q(nk, 0.5)} · P75 ${q(nk, 0.75)} · P90 ${q(nk, 0.9)} · máx ${q(nk, 0.999)}`);
+console.log(
+  `  agregados, filhos:  min ${q(nk, 0)} · MED ${q(nk, 0.5)} · P75 ${q(nk, 0.75)} · P90 ${q(nk, 0.9)} · máx ${q(nk, 0.999)}`
+);
 const doisFilhos = aggs.filter((n) => K(n.id).length <= 2).length;
-const umKind = aggs.filter((n) => new Set(K(n.id).map((c) => c?.kind).filter(Boolean)).size <= 1).length;
-console.log(`  com <= 2 filhos: ${doisFilhos} (${pc(doisFilhos, aggs.length)})   com UM kind só: ${umKind} (${pc(umKind, aggs.length)})`);
+const umKind = aggs.filter(
+  (n) =>
+    new Set(
+      K(n.id)
+        .map((c) => c?.kind)
+        .filter(Boolean)
+    ).size <= 1
+).length;
+console.log(
+  `  com <= 2 filhos: ${doisFilhos} (${pc(doisFilhos, aggs.length)})   com UM kind só: ${umKind} (${pc(umKind, aggs.length)})`
+);
 
 /*
  * SISTEMAS — a pasta como ESTRELA e os arquivos dela como planetas.
@@ -79,10 +94,18 @@ const puros = dirs.filter((n) => K(n.id).every((c) => c?.type === 'file')).lengt
 const semPlaneta = porEstrela.filter((n) => n === 0).length;
 const sobDir = porEstrela.reduce((a, b) => a + b, 0);
 const orfaos = files.length - sobDir;
-console.log(`  sistemas: ${dirs.length} pastas — ${puros} só com arquivos · ${dirs.length - puros} com subpasta · ${semPlaneta} SEM planeta`);
-console.log(`  planetas por estrela: min ${q(porEstrela, 0)} · P25 ${q(porEstrela, 0.25)} · MED ${q(porEstrela, 0.5)} · P75 ${q(porEstrela, 0.75)} · P90 ${q(porEstrela, 0.9)} · máx ${q(porEstrela, 0.999)}`);
-console.log(`  arquivos sob uma pasta: ${sobDir} · \x1b[33mÓRFÃOS (direto no repo): ${orfaos} (${pc(orfaos, files.length)})\x1b[0m`);
-console.log(`  razão planeta/estrela: ${(sobDir / Math.max(dirs.length, 1)).toFixed(2)}  ·  contando os repos como estrela: ${(files.length / Math.max(aggs.length, 1)).toFixed(2)}`);
+console.log(
+  `  sistemas: ${dirs.length} pastas — ${puros} só com arquivos · ${dirs.length - puros} com subpasta · ${semPlaneta} SEM planeta`
+);
+console.log(
+  `  planetas por estrela: min ${q(porEstrela, 0)} · P25 ${q(porEstrela, 0.25)} · MED ${q(porEstrela, 0.5)} · P75 ${q(porEstrela, 0.75)} · P90 ${q(porEstrela, 0.9)} · máx ${q(porEstrela, 0.999)}`
+);
+console.log(
+  `  arquivos sob uma pasta: ${sobDir} · \x1b[33mÓRFÃOS (direto no repo): ${orfaos} (${pc(orfaos, files.length)})\x1b[0m`
+);
+console.log(
+  `  razão planeta/estrela: ${(sobDir / Math.max(dirs.length, 1)).toFixed(2)}  ·  contando os repos como estrela: ${(files.length / Math.max(aggs.length, 1)).toFixed(2)}`
+);
 
 const ext = {};
 for (const f of files) {
@@ -90,35 +113,54 @@ for (const f of files) {
   ext[m ? m[1].toLowerCase() : '«sem»'] = (ext[m ? m[1].toLowerCase() : '«sem»'] || 0) + 1;
 }
 const topExt = Object.entries(ext).sort((a, b) => b[1] - a[1]);
-console.log(`  extensões no índice: ${topExt.length} distintas · dominante ${topExt[0][0]} ${pc(topExt[0][1], files.length)}`);
+console.log(
+  `  extensões no índice: ${topExt.length} distintas · dominante ${topExt[0][0]} ${pc(topExt[0][1], files.length)}`
+);
 const codigo = ['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs'].reduce((s, e) => s + (ext[e] || 0), 0);
-if (!codigo) console.log('  \x1b[33m⚠️  ZERO arquivos de código no índice — o indexador não ingere .ts/.py\x1b[0m');
+if (!codigo)
+  console.log('  \x1b[33m⚠️  ZERO arquivos de código no índice — o indexador não ingere .ts/.py\x1b[0m');
 
 // ─────────────────────────────────────────────────────── 2. constantes calibradas
 titulo('2. SAÚDE DAS CONSTANTES CALIBRADAS');
 const M = graph.stats?.chunks || files.reduce((s, n) => s + (n.chunks || 0), 0);
-const A_MIN = 26, A_MAX = 62, ROCHE = 2.44;
+const A_MIN = 26,
+  A_MAX = 62,
+  ROCHE = 2.44;
 for (const k of [0.7, 0.5]) {
   const corte = ROCHE * k * Math.cbrt(3 * M);
   const frac = Math.max(0, Math.min(1, (A_MAX - corte) / (A_MAX - A_MIN)));
   const flag = corte >= A_MAX ? ' \x1b[31m← NENHUMA LUA\x1b[0m' : '';
-  console.log(`  DENSITY_K ${k.toFixed(2)} → a_corte ${corte.toFixed(1)} (raio máx ${A_MAX})  ${(frac * 100).toFixed(0)}% dos elegíveis${flag}`);
+  console.log(
+    `  DENSITY_K ${k.toFixed(2)} → a_corte ${corte.toFixed(1)} (raio máx ${A_MAX})  ${(frac * 100).toFixed(0)}% dos elegíveis${flag}`
+  );
 }
 const size = (c) => 1.5 + Math.log2(1 + (c || 0)) * 0.3;
-const sMed = q(aggs.map((n) => size(n.chunks)), 0.5);
+const sMed = q(
+  aggs.map((n) => size(n.chunks)),
+  0.5
+);
 const areaCapote = (71 * Math.PI * 32 * 32) / 0.49;
 for (const span of [2.8, 1.5]) {
-  const area = aggs.reduce((s, n) => s + Math.PI * ((32 * size(n.chunks)) / sMed) ** 2 * (span / 2.8) ** 2, 0);
-  console.log(`  SPAN ${span.toFixed(1)} → cobertura de tinta ${((area / areaCapote) * 100).toFixed(0)}%  (referência: 49% com 71 hubs)`);
+  const area = aggs.reduce(
+    (s, n) => s + Math.PI * ((32 * size(n.chunks)) / sMed) ** 2 * (span / 2.8) ** 2,
+    0
+  );
+  console.log(
+    `  SPAN ${span.toFixed(1)} → cobertura de tinta ${((area / areaCapote) * 100).toFixed(0)}%  (referência: 49% com 71 hubs)`
+  );
 }
 
 // ────────────────────────────────────────────────────────── 3. classes vazias
 titulo('3. CLASSES COM POPULAÇÃO ZERO');
 const reg = files.map((n) => n.regularity || 0).filter((v) => v > 0);
 const acima = reg.filter((v) => v >= 0.5).length;
-console.log(`  PULSAR   regularidade>0: ${reg.length}  ·  >= 0,50: ${acima}${acima ? '' : `  \x1b[31m← VAZIO (máx ${Math.max(...reg, 0).toFixed(3)})\x1b[0m`}`);
+console.log(
+  `  PULSAR   regularidade>0: ${reg.length}  ·  >= 0,50: ${acima}${acima ? '' : `  \x1b[31m← VAZIO (máx ${Math.max(...reg, 0).toFixed(3)})\x1b[0m`}`
+);
 const partes = files.filter((n) => (n.sections || []).length >= 5 || (n.services || []).length >= 5).length;
-console.log(`  LUA      arquivos com >= 5 partes: ${partes}  (a geometria corta depois — ver spatia.moons())`);
+console.log(
+  `  LUA      arquivos com >= 5 partes: ${partes}  (a geometria corta depois — ver spatia.moons())`
+);
 const svc = files.filter((n) => (n.services || []).length > 0);
 console.log(`  SERVIÇOS ${svc.reduce((s, n) => s + n.services.length, 0)} em ${svc.length} arquivos compose`);
 
@@ -127,11 +169,26 @@ titulo('4. SINAL DAS CANDIDATAS (o modelo declarado)');
 const recs = files.map((n) => n.recency || 0);
 const p25rec = q(recs, 0.25);
 const chs = files.map((n) => n.chunks || 0);
-const linha = (nome, n, nota) => console.log(`  ${nome.padEnd(22)} ${String(n).padStart(5)}  ${pc(n, files.length).padStart(6)}   ${nota}`);
-linha('anã branca', files.filter((f) => (f.chunks || 0) >= q(chs, 0.75) && !f.churn && !(f.dormant > 0) && (f.recency || 0) <= p25rec).length, 'massa>=P75, sem atividade, recência<=P25');
-linha('cometa-extinto', files.filter((f) => (f.dormant || 0) >= 2 && !f.churn).length, 'JÁ no catálogo — régua de comparação');
+const linha = (nome, n, nota) =>
+  console.log(`  ${nome.padEnd(22)} ${String(n).padStart(5)}  ${pc(n, files.length).padStart(6)}   ${nota}`);
+linha(
+  'anã branca',
+  files.filter(
+    (f) => (f.chunks || 0) >= q(chs, 0.75) && !f.churn && !(f.dormant > 0) && (f.recency || 0) <= p25rec
+  ).length,
+  'massa>=P75, sem atividade, recência<=P25'
+);
+linha(
+  'cometa-extinto',
+  files.filter((f) => (f.dormant || 0) >= 2 && !f.churn).length,
+  'JÁ no catálogo — régua de comparação'
+);
 linha('supernova', files.filter((f) => (f.supernova || 0) > 0.001).length, 'JÁ no catálogo — régua');
-linha('sem NENHUMA feição', files.filter((f) => !(f.sections || []).length && !f.churn && !f.regularity && !f.dormant).length, 'o buraco: nada os distingue');
+linha(
+  'sem NENHUMA feição',
+  files.filter((f) => !(f.sections || []).length && !f.churn && !f.regularity && !f.dormant).length,
+  'o buraco: nada os distingue'
+);
 console.log('  protoestrela · exoplaneta → 0 por construção: o NÓ não existe');
 console.log('  binária · entrelaçamento → 0 por construção: a ARESTA não existe');
 

@@ -80,7 +80,16 @@ export function registerActivity() {
     tagline: 'o que roda agora, e como parar',
     color: COLOR,
     key: '8',
-    widgets: ['context', 'act-queue', 'act-running', 'act-throttle', 'act-processes', 'answer', 'sky-time', 'timeline'],
+    widgets: [
+      'context',
+      'act-queue',
+      'act-running',
+      'act-throttle',
+      'act-processes',
+      'answer',
+      'sky-time',
+      'timeline',
+    ],
   });
 }
 
@@ -111,10 +120,7 @@ function registerQueue() {
         if (falha) return view.empty(`indisponível: ${falha}`);
         if (!fila) return view.empty('lendo…');
         const status = fila.queue || {};
-        const blocks = [
-          kv('RETIDAS', status.pending ?? 0),
-          kv('JÁ DRENADAS', status.drained ?? 0),
-        ];
+        const blocks = [kv('RETIDAS', status.pending ?? 0), kv('JÁ DRENADAS', status.drained ?? 0)];
         /*
          * A fila é o que separa "recebido" de uma promessa vazia.
          *
@@ -229,7 +235,10 @@ function registerThrottle() {
         if (!payload) return view.empty(erro ? `indisponível: ${erro}` : 'lendo…');
         const b = payload.budget || {};
         const rows = [
-          kv('SIMULTÂNEAS', b.max_concurrent ? `${b.running} de ${b.max_concurrent}` : `${b.running} · sem limite`),
+          kv(
+            'SIMULTÂNEAS',
+            b.max_concurrent ? `${b.running} de ${b.max_concurrent}` : `${b.running} · sem limite`
+          ),
           kv('GASTO HOJE', money(b.spent_today || 0)),
           kv(
             'TETO DIÁRIO',

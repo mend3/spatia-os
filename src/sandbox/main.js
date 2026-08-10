@@ -129,9 +129,7 @@ function el(tag, className, text) {
 function drawRail() {
   rail.replaceChildren();
   rail.append(el('h1', null, 'BANCADA 3D'));
-  rail.append(
-    el('div', 'sub', 'um objeto por vez · tempo manual · sem pós-processamento')
-  );
+  rail.append(el('div', 'sub', 'um objeto por vez · tempo manual · sem pós-processamento'));
 
   rail.append(el('div', 'group', 'ESPÉCIME'));
   for (const entry of SPECS) {
@@ -187,9 +185,7 @@ function drawRail() {
    * disparar o efeito dele. Espécime sem nada a sortear não ganha botão — botão inerte ensina a
    * duvidar dos que funcionam.
    */
-  const randomizable = spec.controls.filter(
-    (control) => control.type !== 'action' && control.roll !== false
-  );
+  const randomizable = spec.controls.filter((control) => control.type !== 'action' && control.roll !== false);
   if (randomizable.length) {
     const dice = el('button', null, `⚄ SORTEAR ${randomizable.length}`);
     dice.addEventListener('click', () => {

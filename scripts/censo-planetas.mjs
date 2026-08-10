@@ -254,7 +254,7 @@ function faixasTeoricas(amostras = 60000) {
       source: `sonda/${i}/${(i * 2654435761) % 1e9}.md`,
       kind: 'doc',
       // Log-espaçado até 512: `chunksNorm` satura em chunks = 2⁸-1, então isso cobre a faixa inteira.
-      chunks: Math.round(2 ** ((i % 512) / 512 * 9.1)),
+      chunks: Math.round(2 ** (((i % 512) / 512) * 9.1)),
     });
     for (const e of EIXOS) {
       const v = e.valor(p);
@@ -291,7 +291,7 @@ function spearman(xs, ys) {
   const posto = (vs) => {
     const idx = vs.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]);
     const r = new Array(vs.length);
-    for (let i = 0; i < idx.length; ) {
+    for (let i = 0; i < idx.length;) {
       let j = i;
       while (j + 1 < idx.length && idx[j + 1][0] === idx[i][0]) j++;
       const medio = (i + j) / 2;
@@ -322,10 +322,14 @@ console.log(`\x1b[1mCENSO DOS PLANETAS\x1b[0m  ·  ${URL_GRAFO}`);
 titulo('1. QUEM É PLANETA (pele resolvida por superficies.js)');
 for (const [pele, n] of [...peles].sort((a, b) => b[1] - a[1])) {
   const marca = pele === SUPERFICIE.PLANETA ? ' ←' : '';
-  console.log(`  ${String(pele).padEnd(12)} ${String(n).padStart(5)}  ${frac(n, arquivos.length).padStart(6)}${marca}`);
+  console.log(
+    `  ${String(pele).padEnd(12)} ${String(n).padStart(5)}  ${frac(n, arquivos.length).padStart(6)}${marca}`
+  );
 }
 console.log(`  ${'—'.repeat(30)}`);
-console.log(`  ${planetas.length} planetas de ${arquivos.length} arquivos indexados (${grafo.nodes.length} nós no total)`);
+console.log(
+  `  ${planetas.length} planetas de ${arquivos.length} arquivos indexados (${grafo.nodes.length} nós no total)`
+);
 
 titulo('2. DISTRIBUIÇÃO DE CADA EIXO — e quanto da faixa teórica ele ocupa');
 console.log(
@@ -366,18 +370,31 @@ const binsPorEixo = EIXOS.map((e) => {
   const t = TEORICA.get(e.nome);
   return Math.max(1, Math.floor(t.max / e.bin) - Math.floor(t.min / e.bin) + 1);
 });
-console.log(`  combinações que o CÓDIGO admite: ${binsPorEixo.reduce((a, b) => a * b, 1).toLocaleString('pt-BR')}  (${binsPorEixo.join('×')})`);
-console.log(`  formatos que o CORPUS produz:    \x1b[1m${ordenados.length}\x1b[0m  em ${planetas.length} planetas`);
-console.log(`  bins ocupados por eixo:          ${EIXOS.map((e, i) => `${e.nome} ${new Set(planetas.map((x) => Math.floor(e.valor(x.p) / e.bin))).size}/${binsPorEixo[i]}`).join(' · ')}`);
+console.log(
+  `  combinações que o CÓDIGO admite: ${binsPorEixo.reduce((a, b) => a * b, 1).toLocaleString('pt-BR')}  (${binsPorEixo.join('×')})`
+);
+console.log(
+  `  formatos que o CORPUS produz:    \x1b[1m${ordenados.length}\x1b[0m  em ${planetas.length} planetas`
+);
+console.log(
+  `  bins ocupados por eixo:          ${EIXOS.map((e, i) => `${e.nome} ${new Set(planetas.map((x) => Math.floor(e.valor(x.p) / e.bin))).size}/${binsPorEixo[i]}`).join(' · ')}`
+);
 const maior = ordenados[0];
 console.log(
   `  bin mais populoso: \x1b[1m${maior[1].length}\x1b[0m planetas — ${frac(maior[1].length, planetas.length)} do céu`
 );
-console.log(`    exemplo: ${maior[1].slice(0, 3).map((x) => x.node.id).join(' · ')}`);
+console.log(
+  `    exemplo: ${maior[1]
+    .slice(0, 3)
+    .map((x) => x.node.id)
+    .join(' · ')}`
+);
 const top5 = ordenados.slice(0, 5).reduce((s, b) => s + b[1].length, 0);
 console.log(`  os 5 maiores bins cobrem ${top5} planetas (${frac(top5, planetas.length)})`);
 const solitarios = ordenados.filter(([, b]) => b.length === 1).length;
-console.log(`  formatos com um único planeta: ${solitarios} (${frac(solitarios, ordenados.length)} dos formatos)`);
+console.log(
+  `  formatos com um único planeta: ${solitarios} (${frac(solitarios, ordenados.length)} dos formatos)`
+);
 
 titulo('4. CORRELAÇÃO SUSPEITA — eixos que andam juntos porque saem da mesma semente');
 console.log('  |ρ| de Spearman >= 0,90. Cada par destes é UM eixo de variação, não dois.');
@@ -385,11 +402,16 @@ const numericos = [{ nome: 'chunksNorm', valor: (p) => p.chunksNorm }, ...EIXOS]
 let pares = 0;
 for (let i = 0; i < numericos.length; i++) {
   for (let j = i + 1; j < numericos.length; j++) {
-    const r = spearman(planetas.map((x) => numericos[i].valor(x.p)), planetas.map((x) => numericos[j].valor(x.p)));
+    const r = spearman(
+      planetas.map((x) => numericos[i].valor(x.p)),
+      planetas.map((x) => numericos[j].valor(x.p))
+    );
     if (Math.abs(r) >= 0.9) {
       pares++;
       const trava = Math.abs(r) > 0.999 ? vermelho('  ← função exata um do outro') : '';
-      console.log(`  ${numericos[i].nome.padEnd(12)} ↔ ${numericos[j].nome.padEnd(12)} ρ = ${r >= 0 ? ' ' : ''}${f(r)}${trava}`);
+      console.log(
+        `  ${numericos[i].nome.padEnd(12)} ↔ ${numericos[j].nome.padEnd(12)} ρ = ${r >= 0 ? ' ' : ''}${f(r)}${trava}`
+      );
     }
   }
 }
@@ -430,8 +452,12 @@ for (const x of planetas) {
   g.n++;
   g.kinds.add(x.node.kind);
 }
-console.log(`  paletas com hex distinto:  ${exatas.size} de ${planetas.length} — a semente separa a tinta, sim`);
-console.log(`  famílias de cor:           \x1b[1m${famílias.length}\x1b[0m — e é este o número que o olho conta`);
+console.log(
+  `  paletas com hex distinto:  ${exatas.size} de ${planetas.length} — a semente separa a tinta, sim`
+);
+console.log(
+  `  famílias de cor:           \x1b[1m${famílias.length}\x1b[0m — e é este o número que o olho conta`
+);
 for (const g of [...famílias].sort((a, b) => b.n - a.n)) {
   const linha =
     `    ${[...g.kinds].join(',').padEnd(12)} ${String(g.n).padStart(4)}  ${frac(g.n, planetas.length).padStart(6)}` +
@@ -462,9 +488,11 @@ if (Math.abs(BANDS[2] - WET_EDGE) > 1e-9) {
   );
 }
 const NOMES = ['mar profundo', 'plataforma', 'costa', 'terra alta', 'pico'];
-const xExigido = (p, t) => ((t * (1 - inundacao(p)) + inundacao(p)) ** (1 / p.sharpness));
+const xExigido = (p, t) => (t * (1 - inundacao(p)) + inundacao(p)) ** (1 / p.sharpness);
 console.log(`  x é o campo remapeado para [0,1]; ele é simétrico, então sua MEDIANA é 0,50.`);
-console.log(`  ${'faixa'.padEnd(13)}${'t'.padStart(6)}${'x exigido (MED)'.padStart(18)}${'planetas em que o'.padStart(20)}`);
+console.log(
+  `  ${'faixa'.padEnd(13)}${'t'.padStart(6)}${'x exigido (MED)'.padStart(18)}${'planetas em que o'.padStart(20)}`
+);
 console.log(`  ${''.padEnd(13)}${''.padStart(6)}${''.padStart(18)}${'ponto MEDIANO chega'.padStart(20)}`);
 for (let b = 0; b < BANDS.length; b++) {
   const xs = planetas.map((x) => xExigido(x.p, BANDS[b]));
@@ -479,13 +507,18 @@ titulo('7. O DIAGNÓSTICO — o que está colapsado');
 const chunksNorm = planetas.map((x) => x.p.chunksNorm);
 console.log(
   `  chunksNorm = log2(1+chunks)/8 →  mín ${f(Math.min(...chunksNorm))} · MED ${f(pct(chunksNorm, 0.5))} · máx ${f(Math.max(...chunksNorm))}` +
-    `  (chunks MED ${pct(planetas.map((x) => x.node.chunks || 0), 0.5)}) — a MÃE de amplitude, sea, ridged e atmosphere`
+    `  (chunks MED ${pct(
+      planetas.map((x) => x.node.chunks || 0),
+      0.5
+    )}) — a MÃE de amplitude, sea, ridged e atmosphere`
 );
 
 if (colapsados.length) {
   for (const c of colapsados) {
     console.log(
-      vermelho(`  ▶ GEOMETRIA: ${c.e.nome} ocupa ${(c.ocupUtil * 100).toFixed(0)}% da faixa teórica no miolo do corpus`) +
+      vermelho(
+        `  ▶ GEOMETRIA: ${c.e.nome} ocupa ${(c.ocupUtil * 100).toFixed(0)}% da faixa teórica no miolo do corpus`
+      ) +
         `\n      P10 ${f(pct(c.vs, 0.1))} … P90 ${f(pct(c.vs, 0.9))}, contra ${f(TEORICA.get(c.e.nome).min)} … ${f(TEORICA.get(c.e.nome).max)} que o código permite`
     );
   }
@@ -498,14 +531,18 @@ if (colapsados.length) {
 
 const dominante = [...famílias].sort((a, b) => b.n - a.n)[0];
 console.log(
-  vermelho(`  ▶ COR: ${famílias.length} famílias para ${planetas.length} planetas — a maior cobre ${frac(dominante.n, planetas.length)} do céu`) +
+  vermelho(
+    `  ▶ COR: ${famílias.length} famílias para ${planetas.length} planetas — a maior cobre ${frac(dominante.n, planetas.length)} do céu`
+  ) +
     `\n      A cor sai de \`kind\`, e o desvio por semente é ±0,02 de matiz: menor que o degrau em que` +
     `\n      o olho separa dois azuis. A semente pinta ${exatas.size} tintas que leem como ${famílias.length}.`
 );
 
 const mortas = BANDS.filter((t) => planetas.every((x) => xExigido(x.p, t) > 0.5)).length;
 console.log(
-  vermelho(`  ▶ CONTRASTE: ${mortas} das ${BANDS.length} faixas de bioma exigem campo acima da mediana em TODO planeta`) +
+  vermelho(
+    `  ▶ CONTRASTE: ${mortas} das ${BANDS.length} faixas de bioma exigem campo acima da mediana em TODO planeta`
+  ) +
     `\n      As faixas de cima são as que carregam a matiz do tipo e o brilho de referência. Sem elas` +
     `\n      sobram mar (L≈0,09) e costa dessaturada (L≈0,50) — corpo escuro com manchas cinzas.`
 );

@@ -198,11 +198,12 @@ export function criarAncoraDeDocumento(acharPainel) {
         raio: Math.hypot(Math.abs(luzX) + caixa.width / 2, Math.abs(luzY) + caixa.height / 2),
         forca: Math.min(1, ctx.px / LUZ_PLENA_PX),
       };
-      const andou = !luzEscrita
-        || Math.abs(luz.x - luzEscrita.x) > PASSO_DA_LUZ
-        || Math.abs(luz.y - luzEscrita.y) > PASSO_DA_LUZ
-        || Math.abs(luz.raio - luzEscrita.raio) > PASSO_DA_LUZ
-        || Math.abs(luz.forca - luzEscrita.forca) > 0.05;
+      const andou =
+        !luzEscrita ||
+        Math.abs(luz.x - luzEscrita.x) > PASSO_DA_LUZ ||
+        Math.abs(luz.y - luzEscrita.y) > PASSO_DA_LUZ ||
+        Math.abs(luz.raio - luzEscrita.raio) > PASSO_DA_LUZ ||
+        Math.abs(luz.forca - luzEscrita.forca) > 0.05;
       if (andou) {
         painel.style.setProperty('--ancora-luz-x', `${luz.x.toFixed(0)}px`);
         painel.style.setProperty('--ancora-luz-y', `${luz.y.toFixed(0)}px`);
@@ -232,10 +233,4 @@ export function criarAncoraDeDocumento(acharPainel) {
   };
 }
 
-export {
-  MOTIVOS as MOTIVOS_DA_ANCORA,
-  FOLGA_EM_RAIOS,
-  MARGEM_PX,
-  PASSO_DA_LUZ,
-  LUZ_PLENA_PX,
-};
+export { MOTIVOS as MOTIVOS_DA_ANCORA, FOLGA_EM_RAIOS, MARGEM_PX, PASSO_DA_LUZ, LUZ_PLENA_PX };

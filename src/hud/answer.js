@@ -100,9 +100,8 @@ export const SEGUNDA_TESTEMUNHA = Object.freeze({
  * @returns {{widget: string, titulo: string, deposito: Element, linha: Element}|null}
  */
 export function testemunhaVisivel(fonte, doc) {
-  const declarada = fonte && Object.hasOwn(SEGUNDA_TESTEMUNHA, fonte.kind)
-    ? SEGUNDA_TESTEMUNHA[fonte.kind]
-    : null;
+  const declarada =
+    fonte && Object.hasOwn(SEGUNDA_TESTEMUNHA, fonte.kind) ? SEGUNDA_TESTEMUNHA[fonte.kind] : null;
   if (!declarada) return null;
   const seletor = declarada.daLinha(fonte);
   if (!seletor) return null;
@@ -451,7 +450,9 @@ export function createAnswer(root) {
    * com `subtree` não dispara em `childList`, então o stream de tokens e as linhas da timeline
    * não repintam nada.
    */
-  const repintar = () => { if (sources.length) pintarFontes(); };
+  const repintar = () => {
+    if (sources.length) pintarFontes();
+  };
   const fendas = [...root.querySelectorAll('[data-slot]')];
   const daMontagem = new MutationObserver(repintar);
   const doRecolher = new MutationObserver(repintar);
@@ -541,7 +542,6 @@ export function createAnswer(root) {
 
   inspectorClose?.addEventListener('click', close);
   dismissButton?.addEventListener('click', dismiss);
-
 
   // Clique fora fecha. O canvas propaga o clique, então basta ignorar cliques internos.
   document.addEventListener('pointerdown', (event) => {

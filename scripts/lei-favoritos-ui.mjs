@@ -80,15 +80,24 @@ function criarElemento(tag) {
       this.children.length = 0;
     },
     get textContent() {
-      return this.children.length
-        ? this.children.map((c) => c.textContent).join(' ')
-        : this.proprio;
+      return this.children.length ? this.children.map((c) => c.textContent).join(' ') : this.proprio;
     },
-    append(...ns) { for (const n of ns) if (n) this.children.push(n); },
-    appendChild(n) { this.children.push(n); return n; },
-    setAttribute(k, v) { this[k] = v; },
-    addEventListener(tipo, fn) { (this.ouvintes[tipo] ||= []).push(fn); },
-    clicar() { for (const fn of this.ouvintes.click || []) fn(); },
+    append(...ns) {
+      for (const n of ns) if (n) this.children.push(n);
+    },
+    appendChild(n) {
+      this.children.push(n);
+      return n;
+    },
+    setAttribute(k, v) {
+      this[k] = v;
+    },
+    addEventListener(tipo, fn) {
+      (this.ouvintes[tipo] ||= []).push(fn);
+    },
+    clicar() {
+      for (const fn of this.ouvintes.click || []) fn();
+    },
   };
 }
 globalThis.document = { createElement: criarElemento };
@@ -116,11 +125,13 @@ const KEYS = await import(`${RAIZ}/src/core/keys.js`);
  * exportadas no perfil apontando para lugares que não existem, e um oráculo rodado contra o corpus
  * errado responde com convicção total sobre um céu que ninguém está vendo.
  */
-const graph = await fetch(`${SPATIA}/api/graph`).then((r) => r.json()).catch(() => null);
+const graph = await fetch(`${SPATIA}/api/graph`)
+  .then((r) => r.json())
+  .catch(() => null);
 if (!graph?.corpus?.collection) {
   console.error(
-    `sem \`corpus\` em ${SPATIA}/api/graph — suba o ./serve.py primeiro.\n`
-    + '  Sem saber de que céu vieram, os corpos abaixo não sustentam afirmação nenhuma.'
+    `sem \`corpus\` em ${SPATIA}/api/graph — suba o ./serve.py primeiro.\n` +
+      '  Sem saber de que céu vieram, os corpos abaixo não sustentam afirmação nenhuma.'
   );
   process.exit(1);
 }
@@ -131,8 +142,14 @@ const guardados = new Map();
 const avisos = [];
 const prefsFake = {
   get: (k) => guardados.get(k) ?? null,
-  set: (k, v) => { guardados.set(k, v); for (const fn of avisos) fn(k, v); },
-  subscribe: (fn) => { avisos.push(fn); return () => {}; },
+  set: (k, v) => {
+    guardados.set(k, v);
+    for (const fn of avisos) fn(k, v);
+  },
+  subscribe: (fn) => {
+    avisos.push(fn);
+    return () => {};
+  },
 };
 UI.instalarFavoritos(prefsFake);
 const cobertura = UI.carregarTopologia(graph);
@@ -153,7 +170,10 @@ const limpar = () => guardados.set(F.CHAVE_PREFS, null);
 /** Escreve um estado CRU no storage — é como se chega aos casos que um gesto sozinho não produz. */
 const gravar = (marcas) => guardados.set(F.CHAVE_PREFS, { v: F.VERSAO, marcas });
 const marcaCrua = (aparencias) => ({
-  em: '2026-08-09T12:00:00.000Z', por: F.AUTORIA.OPERADOR, corpus: CORPUS, aparencias,
+  em: '2026-08-09T12:00:00.000Z',
+  por: F.AUTORIA.OPERADOR,
+  corpus: CORPUS,
+  aparencias,
 });
 
 // ───────────────────────────────────────────────────── §1 · a derivação tem UM dono, e a HUD LÊ
@@ -198,22 +218,35 @@ const CHAMADORES = fs
   .filter((f) => f.endsWith('.js'))
   // ⚠️ `function dominanteDe(` é a DECLARAÇÃO, não um chamado — `entity-physics.js` é a casa dela.
   .filter((f) => /(?<!function\s{1,4})\bdominanteDe\s*\(/.test(semProsa(src(`src/space/${f}`))));
-conferir('§1 só `sistemas.js` elege o dominante',
+conferir(
+  '§1 só `sistemas.js` elege o dominante',
   CHAMADORES.length === 1 && CHAMADORES[0] === 'sistemas.js',
-  `chamam \`dominanteDe()\`: ${CHAMADORES.join(', ') || 'ninguém'} — a eleição voltou a ter duas fontes`);
+  `chamam \`dominanteDe()\`: ${CHAMADORES.join(', ') || 'ninguém'} — a eleição voltou a ter duas fontes`
+);
 
 /*
  * A HUD LÊ, e não deriva. Cada uma destas chamadas de volta ao `favoritos-ui.js` reabre a cópia —
  * e a cópia envelhece calada, porque nada na tela acusa uma classe derivada com contexto errado.
  */
-for (const derivacao of ['entityPhysics', 'classificar', 'fenomenos', 'superficieDe', 'resolveBody', 'dominanteDe']) {
-  conferir(`§1 a HUD não deriva — \`${derivacao}()\``,
+for (const derivacao of [
+  'entityPhysics',
+  'classificar',
+  'fenomenos',
+  'superficieDe',
+  'resolveBody',
+  'dominanteDe',
+]) {
+  conferir(
+    `§1 a HUD não deriva — \`${derivacao}()\``,
     !new RegExp(`\\b${derivacao}\\s*\\(`).test(semProsa(uiSrc)),
-    `src/hud/favoritos-ui.js voltou a derivar a ontologia por conta própria`);
+    `src/hud/favoritos-ui.js voltou a derivar a ontologia por conta própria`
+  );
 }
-conferir('§1 a HUD lê o índice dos sistemas',
+conferir(
+  '§1 a HUD lê o índice dos sistemas',
   /identidadeDe\s*\(/.test(semProsa(uiSrc)),
-  'a HUD parou de ler `sistemas.identidadeDe` — de onde ela tira a classe agora?');
+  'a HUD parou de ler `sistemas.identidadeDe` — de onde ela tira a classe agora?'
+);
 
 /*
  * ☠️ **A PELE NÃO DEPENDE MAIS DA CENA, e isto é o que T-39 comprou.**
@@ -223,29 +256,45 @@ conferir('§1 a HUD lê o índice dos sistemas',
  * desenhado como ESTAÇÃO ela não tem onde ser aplicada. Convergidas as cenas, ler a cena aqui
  * voltaria a fabricar a diferença que deixou de existir.
  */
-conferir('§1 a pele oferecida não consulta a cena',
+conferir(
+  '§1 a pele oferecida não consulta a cena',
   !/telaEstado|\bcena\s*===/.test(semProsa(uiSrc)),
-  'a UI voltou a escolher a pele pela cena corrente — as duas cenas desenham a mesma, e ler a cena aqui inventa divergência');
+  'a UI voltou a escolher a pele pela cena corrente — as duas cenas desenham a mesma, e ler a cena aqui inventa divergência'
+);
 
-conferir('§1 a seta é de mão única — nada em space/ importa a interface',
-  !fs.readdirSync(`${RAIZ}/src/space`).some(
-    (f) => f.endsWith('.js') && /^\s*import[\s\S]*?from\s*['"][^'"]*hud\//m.test(src(`src/space/${f}`))),
-  'um módulo de space/ passou a importar a HUD: a marca voltaria a poder decidir o que um corpo é');
+conferir(
+  '§1 a seta é de mão única — nada em space/ importa a interface',
+  !fs
+    .readdirSync(`${RAIZ}/src/space`)
+    .some(
+      (f) => f.endsWith('.js') && /^\s*import[\s\S]*?from\s*['"][^'"]*hud\//m.test(src(`src/space/${f}`))
+    ),
+  'um módulo de space/ passou a importar a HUD: a marca voltaria a poder decidir o que um corpo é'
+);
 
 // ───────────────────────────────────────────────────────── §2 · cobertura, sem contexto assumido
 
-conferir('§2 a topologia inteira recebeu contexto', cobertura.semContexto === 0,
-  `${cobertura.semContexto} de ${cobertura.nos} nós sem contexto`);
+conferir(
+  '§2 a topologia inteira recebeu contexto',
+  cobertura.semContexto === 0,
+  `${cobertura.semContexto} de ${cobertura.nos} nós sem contexto`
+);
 conferir('§2 o corpus carimbado é o do servidor', cobertura.corpus === CORPUS, String(cobertura.corpus));
 conferir('§2 há corpo em contexto planetário', espécimes.planetario.length > 0);
-conferir('§2 há corpo SEM contexto de aparência', (espécimes.fotosfera.length + espécimes.estrutura.length) > 0);
+conferir(
+  '§2 há corpo SEM contexto de aparência',
+  espécimes.fotosfera.length + espécimes.estrutura.length > 0
+);
 /*
  * ⚠️ Nó fora da tabela não recebe contexto de consolo. Um `dominante: false` assumido daria contexto
  * PLANETARIO a uma estrela, e a tela ofereceria TERRA para uma fotosfera — com toda a cara de medida.
  */
 const forasteiro = UI.leitura({ id: 'nao-existe-em-ceu-nenhum', type: 'file' });
-conferir('§2 corpo fora da topologia é IMPEDIMENTO, não `nao-marcado`',
-  Boolean(forasteiro.impedimento) && forasteiro.estado === undefined, JSON.stringify(forasteiro));
+conferir(
+  '§2 corpo fora da topologia é IMPEDIMENTO, não `nao-marcado`',
+  Boolean(forasteiro.impedimento) && forasteiro.estado === undefined,
+  JSON.stringify(forasteiro)
+);
 conferir('§2 corpo sem `id` estável é IMPEDIMENTO', Boolean(UI.leitura({ type: 'moon' }).impedimento));
 
 // ───────────────────────────────────────────────────────── §3 · os quatro estados no pixel
@@ -272,28 +321,45 @@ for (const [estado, linhas] of Object.entries(desenhos)) {
 }
 const textos = Object.fromEntries(Object.entries(desenhos).map(([e, l]) => [e, texto(l)]));
 const distintos = new Set(Object.values(textos));
-conferir('§3 os QUATRO estados produzem textos distintos', distintos.size === 4,
-  `${distintos.size} texto(s) distinto(s) em 4 estados — dois estados colapsaram no pixel`);
-conferir('§3 `nao-marcado` oferece MARCAR e mais nada',
-  acoes(desenhos[F.ESTADO.NAO_MARCADO]).join(',') === 'MARCAR');
-conferir('§3 `nao-marcado` não afirma procedência nenhuma',
-  !textos[F.ESTADO.NAO_MARCADO].includes('VOCÊ MARCOU')
-  && !textos[F.ESTADO.NAO_MARCADO].includes(F.AUTORIA.OPERADOR));
-conferir('§3 `marcada` nomeia a aparência escolhida',
-  textos[F.ESTADO.MARCADA].includes('TERRA') && textos[F.ESTADO.MARCADA].includes('APARÊNCIA'));
-conferir('§3 `sem-aparencia` NÃO nomeia aparência nenhuma',
-  !textos[F.ESTADO.SEM_APARENCIA].includes('APARÊNCIA'));
-conferir('§3 os três estados marcados oferecem DESMARCAR',
-  [F.ESTADO.SEM_APARENCIA, F.ESTADO.MARCADA, F.ESTADO.DEGRADADA]
-    .every((e) => acoes(desenhos[e]).includes('DESMARCAR')));
+conferir(
+  '§3 os QUATRO estados produzem textos distintos',
+  distintos.size === 4,
+  `${distintos.size} texto(s) distinto(s) em 4 estados — dois estados colapsaram no pixel`
+);
+conferir(
+  '§3 `nao-marcado` oferece MARCAR e mais nada',
+  acoes(desenhos[F.ESTADO.NAO_MARCADO]).join(',') === 'MARCAR'
+);
+conferir(
+  '§3 `nao-marcado` não afirma procedência nenhuma',
+  !textos[F.ESTADO.NAO_MARCADO].includes('VOCÊ MARCOU') &&
+    !textos[F.ESTADO.NAO_MARCADO].includes(F.AUTORIA.OPERADOR)
+);
+conferir(
+  '§3 `marcada` nomeia a aparência escolhida',
+  textos[F.ESTADO.MARCADA].includes('TERRA') && textos[F.ESTADO.MARCADA].includes('APARÊNCIA')
+);
+conferir(
+  '§3 `sem-aparencia` NÃO nomeia aparência nenhuma',
+  !textos[F.ESTADO.SEM_APARENCIA].includes('APARÊNCIA')
+);
+conferir(
+  '§3 os três estados marcados oferecem DESMARCAR',
+  [F.ESTADO.SEM_APARENCIA, F.ESTADO.MARCADA, F.ESTADO.DEGRADADA].every((e) =>
+    acoes(desenhos[e]).includes('DESMARCAR')
+  )
+);
 /*
  * O estado viaja no `data-estado` da faixa, e é ele que o CSS lê para dar glifo e tinta próprios ao
  * anúncio. Sem isso `degradada` e `marcada` sairiam com a mesma cara, que é o §5 pelo lado do pixel.
  */
 for (const e of [F.ESTADO.SEM_APARENCIA, F.ESTADO.MARCADA, F.ESTADO.DEGRADADA]) {
   const faixas = porClasse(desenhos[e], 'marca');
-  conferir(`§3 ${e} carimba o estado na faixa`, faixas.length === 1 && faixas[0].dataset.estado === e,
-    faixas.map((f) => f.dataset.estado).join(','));
+  conferir(
+    `§3 ${e} carimba o estado na faixa`,
+    faixas.length === 1 && faixas[0].dataset.estado === e,
+    faixas.map((f) => f.dataset.estado).join(',')
+  );
 }
 
 // ───────────────────────────────────────────────────────── §4 · a tela diz "VOCÊ MARCOU"
@@ -340,14 +406,20 @@ for (const [causa, aparencias, disco, marcador] of CAUSAS) {
   motivosVistos.push(l.motivo);
   UI.declararEmDisco(null);
 }
-conferir('§5 as TRÊS causas têm motivos distintos', new Set(motivosVistos).size === 3,
-  `${new Set(motivosVistos).size} motivo(s) para 3 causas`);
-conferir('§5 a causa "em disco" só existe com o disco DECLARADO',
+conferir(
+  '§5 as TRÊS causas têm motivos distintos',
+  new Set(motivosVistos).size === 3,
+  `${new Set(motivosVistos).size} motivo(s) para 3 causas`
+);
+conferir(
+  '§5 a causa "em disco" só existe com o disco DECLARADO',
   (() => {
     gravar({ [alvo.id]: marcaCrua({ planetario: 'terra' }) });
     UI.declararEmDisco(null);
     return UI.leitura(alvo).estado === F.ESTADO.MARCADA;
-  })(), 'com `emDisco` nulo a escolha válida não pode degradar — isso seria "não medi" virando "falta"');
+  })(),
+  'com `emDisco` nulo a escolha válida não pode degradar — isso seria "não medi" virando "falta"'
+);
 
 // ───────────────────────────────────────────────────────── §6 · `disponivel: null` sobrevive
 
@@ -366,7 +438,11 @@ conferir('§6 o estado continua MARCADA', lNull.estado === F.ESTADO.MARCADA, Str
 conferir('§6 a tela nomeia o arquivo', tNull.includes(arquivoDaTerra));
 conferir('§6 a tela diz que o disco NÃO foi verificado', tNull.includes('disco não verificado'));
 conferir('§6 a tela não AFIRMA que a textura está em disco', !tNull.includes('— em disco'));
-conferir('§6 a sonda publica `emDisco: null`, nunca 0', UI.sonda().emDisco === null, String(UI.sonda().emDisco));
+conferir(
+  '§6 a sonda publica `emDisco: null`, nunca 0',
+  UI.sonda().emDisco === null,
+  String(UI.sonda().emDisco)
+);
 /*
  * ☠️ **Aqui havia uma lei que gravava um FATO DE MUNDO:** *"nenhuma das 9 aparências está em
  * disco"*. Ela era verdade no dia em que foi escrita e **expirou na primeira vez que a tarefa irmã
@@ -376,14 +452,16 @@ conferir('§6 a sonda publica `emDisco: null`, nunca 0', UI.sonda().emDisco === 
  * O que a lei precisa provar é o COMPORTAMENTO, e ele é o mesmo com zero ou com nove em disco: a
  * tela distingue os TRÊS valores de `disponivel` e nunca afirma o que não mediu.
  */
-conferir('§6 `false` NÃO é desenhado como presença',
+conferir(
+  '§6 `false` NÃO é desenhado como presença',
   (() => {
     UI.declararEmDisco(new Set());
     const t = texto(UI.desenharFavorito(alvo));
     UI.declararEmDisco(null);
     return !t.includes('— em disco');
   })(),
-  '`disponivel: false` é "medi e FALTA" — escrevê-lo como presença é o colapso que o §6 existe para pegar');
+  '`disponivel: false` é "medi e FALTA" — escrevê-lo como presença é o colapso que o §6 existe para pegar'
+);
 
 // ───────────────────────────────────────────────────────── §7 · a tecla falha no REGISTRO
 
@@ -406,7 +484,9 @@ function specsDeclarados() {
        */
       const corpo = src(`${dir}/${arq}`)
         .replace(/\/\*[\s\S]*?\*\//g, '')
-        .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//'))
+        .join('\n');
       // Constantes locais de tecla (`const TOGGLE_KEY = 'KeyV'`) entram substituídas: o spec as
       // referencia por nome, e um literal escrito aqui seria uma segunda fonte da verdade.
       const constantes = [...corpo.matchAll(/const\s+([A-Z_]+)\s*=\s*'([^']+)'/g)];
@@ -447,9 +527,16 @@ conferir('§7 `F` não vale com foco em texto', !comF[0]?.spec?.whileTyping);
  * tecla tem de derrubar o registro, com o nome do dono dentro do erro.
  */
 let recusou = '';
-try { KEYS.bind({ code: 'KeyF', label: 'INTRUSO' }, () => {}); } catch (e) { recusou = e.message; }
-conferir('§7 a segunda `F` é RECUSADA, nomeando o dono',
-  recusou.includes('FAVORITAR'), recusou || 'a segunda declaração passou');
+try {
+  KEYS.bind({ code: 'KeyF', label: 'INTRUSO' }, () => {});
+} catch (e) {
+  recusou = e.message;
+}
+conferir(
+  '§7 a segunda `F` é RECUSADA, nomeando o dono',
+  recusou.includes('FAVORITAR'),
+  recusou || 'a segunda declaração passou'
+);
 
 // ───────────────────────────────────────────────────────── §8 · a marca não muda a ontologia
 
@@ -495,14 +582,19 @@ conferir('§9 há caso de proibição com população no corpus', comPopulacao >
 /* O contexto planetário exerce a outra metade: nomear o que a classe ACEITA. */
 gravar({ [alvo.id]: marcaCrua({}) });
 const chips = porClasse(UI.desenharFavorito(alvo), 'btn').map((b) => b.textContent);
-conferir('§9 o contexto planetário oferece as 8 aparências do catálogo',
+conferir(
+  '§9 o contexto planetário oferece as 8 aparências do catálogo',
   Object.keys(F.APARENCIAS[F.CONTEXTO.PLANETARIO]).every((n) =>
-    chips.includes(F.APARENCIAS[F.CONTEXTO.PLANETARIO][n].rotulo)),
-  chips.join(','));
+    chips.includes(F.APARENCIAS[F.CONTEXTO.PLANETARIO][n].rotulo)
+  ),
+  chips.join(',')
+);
 if (semContextoNode) {
   gravar({ [semContextoNode.id]: marcaCrua({}) });
-  conferir('§9 corpo sem contexto não recebe chip de aparência',
-    porClasse(UI.desenharFavorito(semContextoNode), 'marca-aparencias').length === 0);
+  conferir(
+    '§9 corpo sem contexto não recebe chip de aparência',
+    porClasse(UI.desenharFavorito(semContextoNode), 'marca-aparencias').length === 0
+  );
 }
 limpar();
 
@@ -516,22 +608,30 @@ limpar();
 limpar();
 const linhaMarcar = porClasse(UI.desenharFavorito(alvo), 'btn')[0];
 linhaMarcar.clicar();
-conferir('§10 clicar em MARCAR marca', UI.leitura(alvo).estado === F.ESTADO.SEM_APARENCIA,
-  String(UI.leitura(alvo).estado));
+conferir(
+  '§10 clicar em MARCAR marca',
+  UI.leitura(alvo).estado === F.ESTADO.SEM_APARENCIA,
+  String(UI.leitura(alvo).estado)
+);
 conferir('§10 a marca gravada carimba o céu do servidor', UI.leitura(alvo).corpus === CORPUS);
 conferir('§10 e carimba a autoria do OPERADOR', UI.leitura(alvo).por === F.AUTORIA.OPERADOR);
 
-const chipTerra = porClasse(UI.desenharFavorito(alvo), 'btn')
-  .find((b) => b.textContent === F.APARENCIAS[F.CONTEXTO.PLANETARIO].terra.rotulo);
+const chipTerra = porClasse(UI.desenharFavorito(alvo), 'btn').find(
+  (b) => b.textContent === F.APARENCIAS[F.CONTEXTO.PLANETARIO].terra.rotulo
+);
 chipTerra.clicar();
-conferir('§10 clicar no chip escolhe a aparência', UI.leitura(alvo).aparencia === 'terra',
-  String(UI.leitura(alvo).aparencia));
+conferir(
+  '§10 clicar no chip escolhe a aparência',
+  UI.leitura(alvo).aparencia === 'terra',
+  String(UI.leitura(alvo).aparencia)
+);
 chipTerra.clicar();
-conferir('§10 clicar de novo ESQUECE a aparência e mantém a marca',
-  UI.leitura(alvo).aparencia === null && UI.leitura(alvo).marcada === true);
+conferir(
+  '§10 clicar de novo ESQUECE a aparência e mantém a marca',
+  UI.leitura(alvo).aparencia === null && UI.leitura(alvo).marcada === true
+);
 
-const linhaSoltar = porClasse(UI.desenharFavorito(alvo), 'btn')
-  .find((b) => acoes([b]).includes('DESMARCAR'));
+const linhaSoltar = porClasse(UI.desenharFavorito(alvo), 'btn').find((b) => acoes([b]).includes('DESMARCAR'));
 linhaSoltar.clicar();
 conferir('§10 clicar em DESMARCAR desmarca', UI.leitura(alvo).estado === F.ESTADO.NAO_MARCADO);
 
@@ -541,8 +641,11 @@ conferir('§10 clicar em DESMARCAR desmarca', UI.leitura(alvo).estado === F.ESTA
  */
 UI.carregarTopologia({ ...graph, corpus: null });
 const semCeu = UI.alternar(alvo);
-conferir('§10 marca sem carimbo de corpus é recusada com o conserto no motivo',
-  semCeu.ok === false && String(semCeu.erro).includes('/api/graph'), JSON.stringify(semCeu));
+conferir(
+  '§10 marca sem carimbo de corpus é recusada com o conserto no motivo',
+  semCeu.ok === false && String(semCeu.erro).includes('/api/graph'),
+  JSON.stringify(semCeu)
+);
 UI.carregarTopologia(graph);
 limpar();
 
@@ -601,13 +704,18 @@ conferir('§11 o cancelamento de `aoMudar` solta o ouvinte', repintou.length ===
  */
 const ctx = semProsa(src('src/apps/context.js'));
 const ligacao = ctx.match(/const\s+(\w+)\s*=\s*aoMudar\(/);
-conferir('§11 o painel de contexto registra a repintura por `aoMudar`', Boolean(ligacao),
-  'nenhum `const X = aoMudar(` em apps/context.js');
+conferir(
+  '§11 o painel de contexto registra a repintura por `aoMudar`',
+  Boolean(ligacao),
+  'nenhum `const X = aoMudar(` em apps/context.js'
+);
 if (ligacao) {
   const destroy = ctx.match(/destroy:\s*\(\)\s*=>\s*\{([\s\S]*?)\}/);
-  conferir('§11 e o `destroy` chama o cancelamento que recebeu',
+  conferir(
+    '§11 e o `destroy` chama o cancelamento que recebeu',
     Boolean(destroy) && new RegExp(`\\b${ligacao[1]}\\(\\)`).test(destroy[1]),
-    `destroy: ${destroy ? destroy[1].trim() : 'ausente'}`);
+    `destroy: ${destroy ? destroy[1].trim() : 'ausente'}`
+  );
 }
 
 limpar();
@@ -616,9 +724,9 @@ limpar();
 
 const CENSO = [
   `corpus ${CORPUS} · ${cobertura.nos} nós · ${cobertura.cobertos} com contexto`,
-  `planetário ${espécimes.planetario.length} · rochoso ${espécimes.rochoso.length} · `
-  + `estrutura ${espécimes.estrutura.length} · fotosfera ${espécimes.fotosfera.length} · `
-  + `cometa ${espécimes.cometa.length} · pulsar ${espécimes.pulsar.length}`,
+  `planetário ${espécimes.planetario.length} · rochoso ${espécimes.rochoso.length} · ` +
+    `estrutura ${espécimes.estrutura.length} · fotosfera ${espécimes.fotosfera.length} · ` +
+    `cometa ${espécimes.cometa.length} · pulsar ${espécimes.pulsar.length}`,
   // ⚠️ MEDIDO, nunca cravado: o `0` que estava aqui virou mentira no dia em que as texturas
   // chegaram, e continuava sendo impresso como se tivesse sido medido.
   (() => {

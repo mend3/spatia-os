@@ -78,12 +78,10 @@ const TIMELINE_LABELS = {
    * diretório de trabalho, vão no `title` da linha, que é copiável. O modelo entra visível porque
    * "qual cérebro respondeu isto" é a segunda pergunta de quem está lendo a timeline.
    */
-  brain: (e) => [
-    'NÚCLEO ONLINE',
-    e.model,
-    `${e.tools ?? 0} FERRAMENTAS`,
-    e.session ? e.session.slice(0, 8) : null,
-  ].filter(Boolean).join(' · '),
+  brain: (e) =>
+    ['NÚCLEO ONLINE', e.model, `${e.tools ?? 0} FERRAMENTAS`, e.session ? e.session.slice(0, 8) : null]
+      .filter(Boolean)
+      .join(' · '),
   answer: (e) => `RESPOSTA · ${e.turns ?? 1} TURNO(S)`,
   // A causa entra aqui porque `FALHA · TTS` sozinho não diz se a chave está errada ou se o
   // serviço caiu — e o operador trata os dois de formas diferentes. Ver `core/upstream.js`.
@@ -164,20 +162,24 @@ function desdeQuando(since) {
   const pad = (value) => String(value).padStart(2, '0');
   const nascimento = new Date(since * 1000);
   const hora = `${pad(nascimento.getHours())}:${pad(nascimento.getMinutes())}`;
-  const dia = nascimento.toDateString() === new Date().toDateString()
-    ? ''
-    : `${pad(nascimento.getDate())}/${pad(nascimento.getMonth() + 1)} `;
+  const dia =
+    nascimento.toDateString() === new Date().toDateString()
+      ? ''
+      : `${pad(nascimento.getDate())}/${pad(nascimento.getMonth() + 1)} `;
   return `DESDE ${dia}${hora}`;
 }
 
 /** O que a linha não mostra e o hover revela. Vazio = sem `title`. */
 const TIMELINE_TITLES = {
-  brain: (e) => [
-    e.session && `sessão ${e.session}`,
-    e.model && `modelo ${e.model}`,
-    e.cwd && `cwd ${e.cwd}`,
-    e.mcp?.length && `mcp ${e.mcp.join(', ')}`,
-  ].filter(Boolean).join('\n'),
+  brain: (e) =>
+    [
+      e.session && `sessão ${e.session}`,
+      e.model && `modelo ${e.model}`,
+      e.cwd && `cwd ${e.cwd}`,
+      e.mcp?.length && `mcp ${e.mcp.join(', ')}`,
+    ]
+      .filter(Boolean)
+      .join('\n'),
 };
 
 export function createStreams(root, { toolColor }) {
@@ -534,9 +536,7 @@ export function createStreams(root, { toolColor }) {
       for (const provider of providers) {
         const row = el('div', `web-item ${provider.online ? '' : 'off'}`);
         row.append(el('span', 'web-provider', provider.label));
-        row.append(
-          el('span', 'web-title', provider.online ? 'pronto' : `requer ${provider.needs}`)
-        );
+        row.append(el('span', 'web-title', provider.online ? 'pronto' : `requer ${provider.needs}`));
         web.push(row);
       }
     },

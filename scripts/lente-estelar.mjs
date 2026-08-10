@@ -59,9 +59,19 @@ import { SUPERFICIE } from '../src/space/superficies.js';
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ler = (rel) => readFileSync(join(RAIZ, rel), 'utf8');
 
-const C = { erro: '\x1b[31m', ok: '\x1b[32m', aviso: '\x1b[33m', fraco: '\x1b[2m', forte: '\x1b[1m', fim: '\x1b[0m' };
+const C = {
+  erro: '\x1b[31m',
+  ok: '\x1b[32m',
+  aviso: '\x1b[33m',
+  fraco: '\x1b[2m',
+  forte: '\x1b[1m',
+  fim: '\x1b[0m',
+};
 let falhas = 0;
-const falhar = (msg) => { falhas += 1; console.log(`${C.erro}✗ ${msg}${C.fim}`); };
+const falhar = (msg) => {
+  falhas += 1;
+  console.log(`${C.erro}✗ ${msg}${C.fim}`);
+};
 
 /*
  * ─────────────────────────── 1. A TRANSCRIÇÃO, E A TRAVA DELA
@@ -120,15 +130,20 @@ const PISO_PX = 1;
  */
 const AUTORIZADAS = new Set(['buraco-negro', 'pulsar']);
 const CLASSES = Object.keys(RS_POR_RAIO).map((id) => ({
-  id, rsPorR: RS_POR_RAIO[id], lenteAutorizada: AUTORIZADAS.has(id),
+  id,
+  rsPorR: RS_POR_RAIO[id],
+  lenteAutorizada: AUTORIZADAS.has(id),
 }));
-
 
 /*
  * ─────────────────────────── 4. A TABELA, E O VEREDITO POR CLASSE
  */
-console.log(`${C.forte}ORÁCULO DA LENTE${C.fim}  ${C.fraco}alfa = 2·R_s/b  ·  b = R (limbo)  ·  k = ${K_PX_POR_RAD.toFixed(1)} px/rad  (fb ${TELA.alturaFB}, fov ${TELA.fovGraus}°)${C.fim}\n`);
-console.log(`${C.fraco}  classe          R_s/R        alfa (rad)     arcsec        px      ≥1px  autorizada${C.fim}`);
+console.log(
+  `${C.forte}ORÁCULO DA LENTE${C.fim}  ${C.fraco}alfa = 2·R_s/b  ·  b = R (limbo)  ·  k = ${K_PX_POR_RAD.toFixed(1)} px/rad  (fb ${TELA.alturaFB}, fov ${TELA.fovGraus}°)${C.fim}\n`
+);
+console.log(
+  `${C.fraco}  classe          R_s/R        alfa (rad)     arcsec        px      ≥1px  autorizada${C.fim}`
+);
 
 for (const c of CLASSES) {
   const alfa = deflexao(c.rsPorR, 1); // b = R  ⇒  alfa = 2·(R_s/R)
@@ -138,21 +153,27 @@ for (const c of CLASSES) {
   const auto = c.lenteAutorizada ? `${C.ok}sim${C.fim}` : `${C.fraco}não${C.fim}`;
   console.log(
     `  ${c.id.padEnd(14)} ${c.rsPorR.toExponential(2).padStart(9)}  ${alfa.toExponential(3).padStart(11)}` +
-    `  ${(alfa * 206264.8).toExponential(2).padStart(10)}  ${px.toExponential(2).padStart(9)}   ${marca}  ${auto}`
+      `  ${(alfa * 206264.8).toExponential(2).padStart(10)}  ${px.toExponential(2).padStart(9)}   ${marca}  ${auto}`
   );
   /*
    * A COERÊNCIA é o que este laço realmente testa: autorizar uma classe que não alcança um pixel
    * seria desenhar um fenômeno que não existe; proibir uma que alcança seria esconder um que existe.
    */
   if (c.lenteAutorizada !== resolve) {
-    falhar(`${c.id}: autorizada=${c.lenteAutorizada} mas alcança ${px.toExponential(2)} px ` +
-      `(piso ${PISO_PX}). Uma das duas está errada — a razão declarada ou a autorização.`);
+    falhar(
+      `${c.id}: autorizada=${c.lenteAutorizada} mas alcança ${px.toExponential(2)} px ` +
+        `(piso ${PISO_PX}). Uma das duas está errada — a razão declarada ou a autorização.`
+    );
   }
 }
 
-const limiar = (PISO_PX / K_PX_POR_RAD) / 2;
-console.log(`\n  ${C.forte}O CORTE:${C.fim} nesta tela um corpo precisa de ${C.forte}R_s/R ≥ ${limiar.toExponential(2)}${C.fim} para valer um pixel no limbo.`);
-console.log(`  ${C.fraco}Uma estrela tipo Sol fica ${(limiar / 4.24e-6).toFixed(0)}× abaixo disso. Não é sutil: é ausente.${C.fim}`);
+const limiar = PISO_PX / K_PX_POR_RAD / 2;
+console.log(
+  `\n  ${C.forte}O CORTE:${C.fim} nesta tela um corpo precisa de ${C.forte}R_s/R ≥ ${limiar.toExponential(2)}${C.fim} para valer um pixel no limbo.`
+);
+console.log(
+  `  ${C.fraco}Uma estrela tipo Sol fica ${(limiar / 4.24e-6).toFixed(0)}× abaixo disso. Não é sutil: é ausente.${C.fim}`
+);
 
 /*
  * ─────────────────────────── 5. O ANEL DE EINSTEIN, E POR QUE ELE NÃO SAI DA ESTRELA
@@ -160,7 +181,9 @@ console.log(`  ${C.fraco}Uma estrela tipo Sol fica ${(limiar / 4.24e-6).toFixed(
  * A distância mínima para o anel escapar do disco do próprio corpo sai de `theta_E > R / D_L`, que
  * com a fonte muito atrás resolve para `D_L > R² / (2 R_s)` — ou seja, `D_L/R > 1/(2·R_s/R)`.
  */
-console.log(`\n${C.forte}ANEL DE EINSTEIN${C.fim}  ${C.fraco}a que distância ele sai de dentro do próprio corpo${C.fim}`);
+console.log(
+  `\n${C.forte}ANEL DE EINSTEIN${C.fim}  ${C.fraco}a que distância ele sai de dentro do próprio corpo${C.fim}`
+);
 const CAMERA_EM_RAIOS = 6.5; // medido em 2026-08-08: anexar um corpo chega em px 135 ⇒ D/R ≈ 6,5
 for (const c of CLASSES.filter((x) => x.id !== 'buraco-negro')) {
   const precisaDeRaios = raiosParaAnelVisivel(c.id);
@@ -168,11 +191,13 @@ for (const c of CLASSES.filter((x) => x.id !== 'buraco-negro')) {
   const thetaE = raioDeEinstein(c.rsPorR, CAMERA_EM_RAIOS, CAMERA_EM_RAIOS * 2);
   console.log(
     `  ${c.id.padEnd(14)} precisa de ${precisaDeRaios.toExponential(2).padStart(9)} raios` +
-    `  ·  a câmera está a ${CAMERA_EM_RAIOS}  ·  ${alcanca ? `${C.ok}sai${C.fim}` : `${C.fraco}fica dentro do corpo${C.fim}`}` +
-    `  ${C.fraco}(θ_E ${(thetaE * K_PX_POR_RAD).toFixed(2)} px)${C.fim}`
+      `  ·  a câmera está a ${CAMERA_EM_RAIOS}  ·  ${alcanca ? `${C.ok}sai${C.fim}` : `${C.fraco}fica dentro do corpo${C.fim}`}` +
+      `  ${C.fraco}(θ_E ${(thetaE * K_PX_POR_RAD).toFixed(2)} px)${C.fim}`
   );
 }
-console.log(`  ${C.fraco}Para o Sol isso são 548 UA — a distância focal da lente gravitacional solar. É por isso que${C.fim}`);
+console.log(
+  `  ${C.fraco}Para o Sol isso são 548 UA — a distância focal da lente gravitacional solar. É por isso que${C.fim}`
+);
 console.log(`  ${C.fraco}microlente estelar se detecta como BRILHO e nunca como arco resolvido.${C.fim}`);
 
 /*
@@ -197,8 +222,10 @@ const iSync = iIni >= 0 ? cena.indexOf('lensing.sync(', iIni) : -1;
 const iFim = iSync >= 0 ? cena.indexOf('\n', iSync) : -1;
 const bloco = iFim > 0 ? [cena.slice(iIni, iFim)] : null;
 if (!bloco) {
-  falhar('não achei o trecho que monta `corpoDaLente` e chama `lensing.sync` em scene.js — ' +
-    'o oráculo perdeu o alvo e não pode mais afirmar nada sobre quem dobra a luz.');
+  falhar(
+    'não achei o trecho que monta `corpoDaLente` e chama `lensing.sync` em scene.js — ' +
+      'o oráculo perdeu o alvo e não pode mais afirmar nada sobre quem dobra a luz.'
+  );
 } else {
   const trecho = bloco[0];
   /*
@@ -210,8 +237,10 @@ if (!bloco) {
   const citadas = [...new Set([...trecho.matchAll(/SUPERFICIE\.([A-Z_]+)/g)].map((m) => m[1]))];
   const desconhecidas = citadas.filter((k) => !(k in SUPERFICIE));
   for (const k of desconhecidas) {
-    falhar(`o trecho da lente cita \`SUPERFICIE.${k}\`, que NÃO existe em \`superficies.js\`. ` +
-      `O oráculo perdeu o vocabulário e não pode dizer que corpo dobra a luz.`);
+    falhar(
+      `o trecho da lente cita \`SUPERFICIE.${k}\`, que NÃO existe em \`superficies.js\`. ` +
+        `O oráculo perdeu o vocabulário e não pode dizer que corpo dobra a luz.`
+    );
   }
   const surfaces = citadas.filter((k) => k in SUPERFICIE).map((k) => SUPERFICIE[k]);
   const temRs = /\brs\s*:/.test(trecho);
@@ -221,17 +250,23 @@ if (!bloco) {
   for (const s of surfaces) {
     const classe = CLASSES.find((c) => c.id === s);
     if (!classe) {
-      falhar(`a pele \`${s}\` alimenta a lente e NÃO tem razão R_s/R declarada neste oráculo. ` +
-        `Ou ela é um corpo com âncora física — e então declare a razão, com fonte — ou a lente dela ` +
-        `deriva de \`chunks\`, e aí é curva artística vestida de física.`);
+      falhar(
+        `a pele \`${s}\` alimenta a lente e NÃO tem razão R_s/R declarada neste oráculo. ` +
+          `Ou ela é um corpo com âncora física — e então declare a razão, com fonte — ou a lente dela ` +
+          `deriva de \`chunks\`, e aí é curva artística vestida de física.`
+      );
       continue;
     }
     if (!classe.lenteAutorizada) {
-      falhar(`a pele \`${s}\` alimenta a lente, mas R_s/R = ${classe.rsPorR.toExponential(2)} ` +
-        `só produz ${(2 * classe.rsPorR * K_PX_POR_RAD).toExponential(2)} px. Abaixo do piso de ${PISO_PX} px.`);
+      falhar(
+        `a pele \`${s}\` alimenta a lente, mas R_s/R = ${classe.rsPorR.toExponential(2)} ` +
+          `só produz ${(2 * classe.rsPorR * K_PX_POR_RAD).toExponential(2)} px. Abaixo do piso de ${PISO_PX} px.`
+      );
       continue;
     }
-    console.log(`  ${C.ok}✓${C.fim} pele ${s.padEnd(12)} R_s/R ${classe.rsPorR}  ${C.fraco}razão adimensional declarada em astrofisica.js${C.fim}`);
+    console.log(
+      `  ${C.ok}✓${C.fim} pele ${s.padEnd(12)} R_s/R ${classe.rsPorR}  ${C.fraco}razão adimensional declarada em astrofisica.js${C.fim}`
+    );
   }
   /*
    * ⚠️ E o R_s tem de sair de uma RAZÃO aplicada ao raio desenhado — nunca de `chunks`, `mass` ou
@@ -239,9 +274,11 @@ if (!bloco) {
    */
   const cognitivas = /\brs\s*:[^,\n]*\b(chunks|mass|massa|scale|degrau|centrality|influence)\b/i;
   if (cognitivas.test(trecho)) {
-    falhar('o `rs:` da lente deriva de uma grandeza COGNITIVA (chunks/mass/scale/…). ' +
-      'Nenhuma grandeza física pode ser derivada de uma variável cognitiva sem unidade e constante ' +
-      'explícitas — e a saída correta é uma RAZÃO adimensional por classe, como o pulsar faz.');
+    falhar(
+      'o `rs:` da lente deriva de uma grandeza COGNITIVA (chunks/mass/scale/…). ' +
+        'Nenhuma grandeza física pode ser derivada de uma variável cognitiva sem unidade e constante ' +
+        'explícitas — e a saída correta é uma RAZÃO adimensional por classe, como o pulsar faz.'
+    );
   }
 }
 
@@ -250,5 +287,7 @@ if (falhas) {
   console.log(`${C.erro}✗ ${falhas} ${falhas === 1 ? 'falha' : 'falhas'}${C.fim}`);
   process.exit(1);
 }
-console.log(`${C.ok}✓ a lente só é dobrada por quem tem razão R_s/R declarada e medida${C.fim} — ` +
-  `e nenhuma grandeza física sai de chunks.`);
+console.log(
+  `${C.ok}✓ a lente só é dobrada por quem tem razão R_s/R declarada e medida${C.fim} — ` +
+    `e nenhuma grandeza física sai de chunks.`
+);

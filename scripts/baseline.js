@@ -9,8 +9,12 @@
   // quadro perdido aqui. Teto = taxa do monitor — se der 120 num monitor de 120Hz, a cena
   // não é o gargalo NESTA pose, e o número que informa é o custo em ms, abaixo.
   const fps = async (segundos = 5) => {
-    let n = 0, parar = false;
-    const tick = () => { n += 1; if (!parar) requestAnimationFrame(tick); };
+    let n = 0,
+      parar = false;
+    const tick = () => {
+      n += 1;
+      if (!parar) requestAnimationFrame(tick);
+    };
     const t0 = performance.now();
     requestAnimationFrame(tick);
     await espera(segundos * 1000);
@@ -20,7 +24,9 @@
 
   const roda = (voltas, direcao) => {
     for (let i = 0; i < voltas; i++) {
-      canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: direcao * 100, bubbles: true, cancelable: true }));
+      canvas.dispatchEvent(
+        new WheelEvent('wheel', { deltaY: direcao * 100, bubbles: true, cancelable: true })
+      );
     }
   };
 
@@ -28,7 +34,7 @@
     bus.emit({ t: 'ui.focus-node', source: null });
     await espera(1000);
     roda(voltas, direcao);
-    await espera(6000);                       // deixa o voo terminar ANTES de medir
+    await espera(6000); // deixa o voo terminar ANTES de medir
     const quadros = await fps(5);
     const custo = await window.espatial.renderCost(30);
     return { pose: nome, fps: quadros, ...custo };
@@ -38,7 +44,8 @@
   const dbg = gl.getExtension('WEBGL_debug_renderer_info');
   const ambiente = {
     gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'indisponível',
-    navegador: navigator.userAgent.match(/(Chrome|Firefox|Safari)\/[\d.]+/g)?.join(' ') ?? navigator.userAgent,
+    navegador:
+      navigator.userAgent.match(/(Chrome|Firefox|Safari)\/[\d.]+/g)?.join(' ') ?? navigator.userAgent,
     dpr: devicePixelRatio,
     buffer: [canvas.width, canvas.height],
     css: [canvas.clientWidth, canvas.clientHeight],
@@ -54,6 +61,6 @@
 
   const saida = { quando: new Date().toISOString(), ambiente, medidas: [longe, perto] };
   console.log(JSON.stringify(saida, null, 2));
-  copy?.(JSON.stringify(saida));            // vai para a área de transferência no Chrome
+  copy?.(JSON.stringify(saida)); // vai para a área de transferência no Chrome
   return saida;
 })();

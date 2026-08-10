@@ -74,11 +74,7 @@ export function stationParams(node = {}, color = 0xffffff) {
   return Object.freeze({
     // A estrutura do documento vira a estrutura do casco — não é decoração: um agente com dez
     // seções É uma peça mais articulada que um de duas.
-    modules: THREE.MathUtils.clamp(
-      MODULES.min + Math.round(sections * 0.5),
-      MODULES.min,
-      MODULES.max
-    ),
+    modules: THREE.MathUtils.clamp(MODULES.min + Math.round(sections * 0.5), MODULES.min, MODULES.max),
     panels: THREE.MathUtils.clamp(
       PANELS.min + Math.round(Math.log2(1 + chunks) * 0.6),
       PANELS.min,
@@ -229,11 +225,7 @@ export function createStation() {
      * @returns {number} nível de detalhe aplicado, 0…1 — o mesmo contrato das outras peles
      */
     update(params, px, elapsed) {
-      const level = THREE.MathUtils.clamp(
-        (px - LOD_FAR_PX) / (LOD_NEAR_PX - LOD_FAR_PX),
-        0,
-        1
-      );
+      const level = THREE.MathUtils.clamp((px - LOD_FAR_PX) / (LOD_NEAR_PX - LOD_FAR_PX), 0, 1);
       group.visible = level > 0.002;
       if (!group.visible) return 0;
 

@@ -147,8 +147,7 @@ function stackedBar(entries, total) {
        * A textura é decoração; a codificação continua sendo a largura, que não muda. Os traços
        * dão ao olho uma régua para comparar duas coletas — um bloco chapado só diz "grande".
        */
-      backgroundImage:
-        'repeating-linear-gradient(90deg, rgba(4,6,10,0.55) 0 1px, transparent 1px 4px)',
+      backgroundImage: 'repeating-linear-gradient(90deg, rgba(4,6,10,0.55) 0 1px, transparent 1px 4px)',
       borderRadius: index === 0 ? '2px 0 0 2px' : index === entries.length - 1 ? '0 2px 2px 0' : '0',
     });
     parte.title = `${label}: ${Math.round(value).toLocaleString('pt-BR')} tk · ${(share * 100).toFixed(2)}%`;
@@ -174,7 +173,11 @@ function legend(entries, total) {
     nome.append(marca, document.createTextNode(label));
     linha.append(
       nome,
-      el('span', 'kv-value', `${Math.round(value).toLocaleString('pt-BR')} tk · ${((value / total) * 100).toFixed(2)}%`)
+      el(
+        'span',
+        'kv-value',
+        `${Math.round(value).toLocaleString('pt-BR')} tk · ${((value / total) * 100).toFixed(2)}%`
+      )
     );
     return linha;
   });
@@ -206,7 +209,17 @@ export function registerMetrics() {
     tagline: 'demorou onde, custou quanto, a tela aguenta',
     color: COLOR,
     key: '6',
-    widgets: ['context', 'mx-corpus', 'mx-tools', 'mx-stages', 'mx-cost', 'mx-client', 'answer', 'sky-time', 'timeline'],
+    widgets: [
+      'context',
+      'mx-corpus',
+      'mx-tools',
+      'mx-stages',
+      'mx-cost',
+      'mx-client',
+      'answer',
+      'sky-time',
+      'timeline',
+    ],
   });
 }
 
@@ -265,7 +278,11 @@ function registerStages() {
          */
         blocks.push(
           el('div', 'widget-hint', 'p90 é a BORDA do bucket, não interpolação: leia "abaixo de"'),
-          el('div', 'widget-hint', '/api/ask fica fora do histograma de latência HTTP de propósito — é stream longo')
+          el(
+            'div',
+            'widget-hint',
+            '/api/ask fica fora do histograma de latência HTTP de propósito — é stream longo'
+          )
         );
         view.set(blocks);
       }
@@ -350,7 +367,9 @@ function registerCorpus() {
         if (score !== null) {
           blocks.push(kv('SCORE MÉDIO DO 1º', score.toFixed(4)));
           // Armadilha documentada: RRF não é comparável entre consultas em valor absoluto.
-          blocks.push(el('div', 'widget-hint', 'score de fusão RRF: sinal de deriva, não medida de qualidade'));
+          blocks.push(
+            el('div', 'widget-hint', 'score de fusão RRF: sinal de deriva, não medida de qualidade')
+          );
         }
         view.set(blocks);
       }
@@ -426,7 +445,13 @@ function registerCost() {
 
         // O contador é do PROCESSO, desde o boot. O gasto que atravessa restart é o do diário —
         // dizer de onde o número vem impede que os dois sejam lidos como o mesmo.
-        blocks.push(el('div', 'widget-hint', 'contadores em memória desde o boot · o gasto que sobrevive ao restart está em #/journal'));
+        blocks.push(
+          el(
+            'div',
+            'widget-hint',
+            'contadores em memória desde o boot · o gasto que sobrevive ao restart está em #/journal'
+          )
+        );
         view.set(blocks);
       }
       return attach(draw);
@@ -454,7 +479,13 @@ function registerClient() {
 
         const blocks = rows.map(([label, value]) => kv(label, value));
         if (!rows.length) {
-          blocks.push(el('div', 'widget-empty', 'o cliente ainda não reportou — a telemetria sobe depois do boot da cena'));
+          blocks.push(
+            el(
+              'div',
+              'widget-empty',
+              'o cliente ainda não reportou — a telemetria sobe depois do boot da cena'
+            )
+          );
         }
         /*
          * A resposta honesta sobre o que esta tela NÃO é.

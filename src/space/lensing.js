@@ -542,10 +542,7 @@ export function createLensingPass() {
       // A terceira coluna é o eixo +Z da câmera, que aponta para TRÁS: a frente é o negativo dela.
       uniforms.uCamFwd.value.setFromMatrixColumn(camera.matrixWorld, 2).normalize().negate();
       uniforms.uTanHalfFov.value = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-      uniforms.uViewProj.value.multiplyMatrices(
-        camera.projectionMatrix,
-        camera.matrixWorldInverse
-      );
+      uniforms.uViewProj.value.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
 
       /*
        * A geometria vem do `blackHole`, JÁ multiplicada pela escala do grupo. Recalculá-la aqui foi

@@ -121,8 +121,13 @@ export function createWidgetHost(root) {
       colapsar = aplicar;
       label.addEventListener('click', () => {
         const recolhido = frame.dataset.collapsed !== 'true';
-        if (recolhido) { collapsedState.add(contract.id); expandedState.delete(contract.id); }
-        else { collapsedState.delete(contract.id); expandedState.add(contract.id); }
+        if (recolhido) {
+          collapsedState.add(contract.id);
+          expandedState.delete(contract.id);
+        } else {
+          collapsedState.delete(contract.id);
+          expandedState.add(contract.id);
+        }
         /*
          * ABRIR UM RECOLHE OS OUTROS DO MESMO TRILHO — e só do mesmo trilho.
          *

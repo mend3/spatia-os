@@ -128,7 +128,7 @@ const SPAN_CAP = 2.4;
 export const VISIBLE_CORE = 0.6;
 // Dispersão determinística da inclinação e do rolamento. Todos os anéis com o MESMO tombo lê
 // como carimbo; os planetas reais não combinaram inclinação entre si.
-const TILT_SPREAD = 0.30;
+const TILT_SPREAD = 0.3;
 /*
  * Dispersão do ROLAMENTO — quanto o eixo maior da elipse pode sair da horizontal.
  *
@@ -295,7 +295,7 @@ const VERTEX = /* glsl */ `
  * Encke e os dez anéis de Urano ficavam uma ordem de grandeza abaixo de um pixel — existiam no
  * arquivo e não na imagem. Descartar essa faixa devolve ~1.8× de resolução radial onde há
  * estrutura para ver.
- */const FRAGMENT = /* glsl */ `
+ */ const FRAGMENT = /* glsl */ `
   precision highp float;
   uniform sampler2D uProfile;
   uniform sampler2D uRock;
@@ -632,9 +632,7 @@ export function createRings() {
         // DISCO DE DETRITOS é outra família, não outro módulo: os dois são material em órbita e
         // o que muda é o PERFIL — cavidade dominante e cinturão estreito de um lado, faixas
         // coladas no corpo do outro. Quem decide qual é o `solver.js`, por CORPO.
-        const family = entry.detritos
-          ? 'debris'
-          : familyOf(entry.state);
+        const family = entry.detritos ? 'debris' : familyOf(entry.state);
         const profile = profileFor(family);
 
         mesh.visible = true;
@@ -649,9 +647,7 @@ export function createRings() {
         mesh.userData.shade.material.uniforms.uRadial.value.set(...radial);
         mesh.material.uniforms.uLimb.value = 1 / span;
         mesh.userData.shade.material.uniforms.uLimb.value = 1 / span;
-        mesh.material.uniforms.uColor.value.setHex(
-          DIRTY_COLORS[entry.state] ?? DIRTY_COLORS.modified
-        );
+        mesh.material.uniforms.uColor.value.setHex(DIRTY_COLORS[entry.state] ?? DIRTY_COLORS.modified);
 
         active.push({
           mesh,
@@ -850,7 +846,10 @@ export function createRings() {
      * @param {THREE.Camera} camera  a mesma do `follow`; sem ela só o par de contagens sai
      */
     poses(camera) {
-      let mundo = 0, billboard = 0, delta = 0, deltaBb = 0;
+      let mundo = 0,
+        billboard = 0,
+        delta = 0,
+        deltaBb = 0;
       for (const ring of active) {
         if (ring.modoMundo) {
           mundo++;
@@ -884,7 +883,11 @@ export function createRings() {
          * numa aferição de 2026-08-09 antes de a etapa 0 — que se compara consigo — mostrar o
          * mesmo 0,025 e denunciar o piso.
          */
-        camQuat: camera ? [camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w].map((v) => +v.toFixed(6)) : null,
+        camQuat: camera
+          ? [camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w].map(
+              (v) => +v.toFixed(6)
+            )
+          : null,
       };
     },
 

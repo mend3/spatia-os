@@ -62,7 +62,17 @@ export function registerJournal() {
     tagline: 'execuções, permissões em vigor, custo',
     color: COLOR,
     key: '5',
-    widgets: ['context', 'jr-spend', 'jr-denials', 'jr-runs', 'jr-detail', 'jr-replay', 'answer', 'sky-time', 'timeline'],
+    widgets: [
+      'context',
+      'jr-spend',
+      'jr-denials',
+      'jr-runs',
+      'jr-detail',
+      'jr-replay',
+      'answer',
+      'sky-time',
+      'timeline',
+    ],
   });
 }
 
@@ -125,16 +135,26 @@ function registerRuns() {
 
         const ferramentas = [...new Set(runs.flatMap((run) => (run.tools || []).map((t) => t.tool)))].sort();
         const filtros = el('div', 'config-choices');
-        for (const [valor, rotulo] of [['all', 'TUDO'], ['success', 'OK'], ['error', 'FALHA']]) {
+        for (const [valor, rotulo] of [
+          ['all', 'TUDO'],
+          ['success', 'OK'],
+          ['error', 'FALHA'],
+        ]) {
           const b = button({ variant: 'select', size: 'sm', on: outcome === valor });
           b.textContent = rotulo;
-          b.addEventListener('click', () => { outcome = valor; draw(); });
+          b.addEventListener('click', () => {
+            outcome = valor;
+            draw();
+          });
           filtros.append(b);
         }
         for (const nome of ferramentas) {
           const b = button({ variant: 'select', size: 'sm', on: tool === nome });
           b.textContent = nome;
-          b.addEventListener('click', () => { tool = tool === nome ? 'all' : nome; draw(); });
+          b.addEventListener('click', () => {
+            tool = tool === nome ? 'all' : nome;
+            draw();
+          });
           filtros.append(b);
         }
         blocks.push(filtros);
@@ -144,7 +164,9 @@ function registerRuns() {
           // some assim que há filtro. Sem filtro ela aparece na ordem do tempo, que é onde a
           // ausência de um `shutdown` entre dois `boot` fica legível.
           if (run.kind) return outcome === 'all' && tool === 'all';
-          const okOutcome = outcome === 'all' || (outcome === 'success' ? run.outcome === 'success' : run.outcome !== 'success');
+          const okOutcome =
+            outcome === 'all' ||
+            (outcome === 'success' ? run.outcome === 'success' : run.outcome !== 'success');
           const okTool = tool === 'all' || (run.tools || []).some((t) => t.tool === tool);
           return okOutcome && okTool;
         });
@@ -369,7 +391,10 @@ function registerDenials() {
           row.append(el('span', 'row-time', (run.started || '').slice(11, 19)));
           row.append(el('span', 'delivery-source', call.tool));
           row.append(el('span', 'delivery-summary', call.detail || run.question || '—'));
-          row.addEventListener('click', () => { selectedId = run.id; notify(); });
+          row.addEventListener('click', () => {
+            selectedId = run.id;
+            notify();
+          });
           blocks.push(row);
         }
         /*
@@ -379,7 +404,9 @@ function registerDenials() {
          */
         // Toda recusa do sistema passa por `journal.denial`: ferramenta que falhou dentro de
         // uma execução, webhook, portão de capacidade, cross-site e arquivo fora da raiz.
-        blocks.push(el('div', 'unit-sub', 'ferramentas, webhooks, portão, cross-site e arquivo fora da raiz'));
+        blocks.push(
+          el('div', 'unit-sub', 'ferramentas, webhooks, portão, cross-site e arquivo fora da raiz')
+        );
         view.set(blocks);
       }
       return follow(draw);

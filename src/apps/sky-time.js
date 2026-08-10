@@ -62,9 +62,7 @@ function buildAxis(nodes) {
     .map((node) => ({ recency: node.recency ?? 0.5, at: node.changed_at }))
     .sort((a, b) => a.at - b.at);
 
-  const undated = nodes.filter(
-    (node) => isSkyNode(node) && node.type === 'file' && !node.changed_at
-  ).length;
+  const undated = nodes.filter((node) => isSkyNode(node) && node.type === 'file' && !node.changed_at).length;
 
   /*
    * Uma marca por virada de mês, na posição de rank onde ela acontece.

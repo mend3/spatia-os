@@ -16,7 +16,10 @@ import { comDither, GLSL_DITHER, MARCA } from '../src/space/dither-de-saida.js';
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const C = { ok: '\x1b[32m', erro: '\x1b[31m', forte: '\x1b[1m', fraco: '\x1b[2m', fim: '\x1b[0m' };
 let falhas = 0;
-const falhar = (m) => { console.log(`${C.erro}✗ ${m}${C.fim}`); falhas++; };
+const falhar = (m) => {
+  console.log(`${C.erro}✗ ${m}${C.fim}`);
+  falhas++;
+};
 const passa = (m) => console.log(`  ${C.ok}✓${C.fim} ${m}`);
 
 const ler = (p) => readFileSync(resolve(RAIZ, p), 'utf8');
@@ -30,15 +33,21 @@ console.log(`${C.forte}A LEI DO DITHER DE SAÍDA${C.fim}`);
 const fonteDoModulo = ler('vendor/jsm/shaders/OutputShader.js');
 const casa = fonteDoModulo.match(/fragmentShader:\s*\/\* glsl \*\/`([\s\S]*?)`\s*\n\s*\}/);
 if (!casa) {
-  falhar('não achei o `fragmentShader` em `vendor/jsm/shaders/OutputShader.js` — o oráculo perdeu ' +
-    'o alvo e não pode afirmar nada sobre a saída.');
+  falhar(
+    'não achei o `fragmentShader` em `vendor/jsm/shaders/OutputShader.js` — o oráculo perdeu ' +
+      'o alvo e não pode afirmar nada sobre a saída.'
+  );
 } else {
   const cru = casa[1];
   passa(`shader de saída lido do vendor (${cru.split('\n').length} linhas)`);
 
   // §2 — a injeção acontece de fato, e o marcador chega ao shader composto.
   let composto = null;
-  try { composto = comDither(cru); } catch (e) { falhar(`a injeção levantou sobre o shader REAL: ${e.message}`); }
+  try {
+    composto = comDither(cru);
+  } catch (e) {
+    falhar(`a injeção levantou sobre o shader REAL: ${e.message}`);
+  }
   if (composto) {
     if (!composto.includes(MARCA)) falhar(`o shader composto não traz o marcador \`${MARCA}\`.`);
     else passa(`o marcador \`${MARCA}\` chega ao shader composto`);
@@ -51,8 +60,10 @@ if (!casa) {
     const iDither = composto.indexOf(MARCA + ':');
     if (iDither < 0 || iConv < 0) falhar('não consegui localizar conversão e dither no composto.');
     else if (iDither < iConv) {
-      falhar('o dither está ANTES da conversão de espaço de cor. Em luz linear 1/255 não é 1 LSB, ' +
-        'e a correção some exatamente na faixa clara, que é a que ela existe para consertar.');
+      falhar(
+        'o dither está ANTES da conversão de espaço de cor. Em luz linear 1/255 não é 1 LSB, ' +
+          'e a correção some exatamente na faixa clara, que é a que ela existe para consertar.'
+      );
     } else passa('o dither roda DEPOIS da conversão de espaço de cor');
 
     // §4 — ele está dentro do `main()`, não pendurado depois do fecho.
@@ -67,16 +78,22 @@ if (!casa) {
    * mas deixa a variância dele depender do sinal, e a banda volta como textura modulada.
    */
   if (!/\/\s*255\.0/.test(GLSL_DITHER)) {
-    falhar('a amplitude do dither não é 1/255. Abaixo disso ele não alcança o quantizador; acima, ' +
-      'vira grão visível — e grão é `uGrain`, que tem outro dono e outro propósito.');
+    falhar(
+      'a amplitude do dither não é 1/255. Abaixo disso ele não alcança o quantizador; acima, ' +
+        'vira grão visível — e grão é `uGrain`, que tem outro dono e outro propósito.'
+    );
   } else passa('amplitude de 1 LSB (1/255)');
   if (!/ign1\s*-\s*ign2/.test(GLSL_DITHER)) {
-    falhar('o dither não é TPDF (diferença de dois uniformes) — com um sorteio só a variância do ' +
-      'erro acompanha o sinal e a banda reaparece modulada.');
+    falhar(
+      'o dither não é TPDF (diferença de dois uniformes) — com um sorteio só a variância do ' +
+        'erro acompanha o sinal e a banda reaparece modulada.'
+    );
   } else passa('densidade triangular (TPDF): diferença de dois uniformes');
   if (/uTime|uDiskTime/.test(GLSL_DITHER)) {
-    falhar('o dither depende do relógio. A 1 LSB um padrão fixo é invisível; um animado acrescenta ' +
-      'cintilação numa cena que já tem grão temporal.');
+    falhar(
+      'o dither depende do relógio. A 1 LSB um padrão fixo é invisível; um animado acrescenta ' +
+        'cintilação numa cena que já tem grão temporal.'
+    );
   } else passa('o padrão não depende do relógio');
 }
 
@@ -91,7 +108,11 @@ const recusas = [
 ];
 for (const [nome, fonte] of recusas) {
   let levantou = false;
-  try { comDither(fonte); } catch { levantou = true; }
+  try {
+    comDither(fonte);
+  } catch {
+    levantou = true;
+  }
   if (!levantou) falhar(`\`comDither\` ACEITOU um shader ${nome} — injeção que degrada calada.`);
   else passa(`recusa shader ${nome}`);
 }

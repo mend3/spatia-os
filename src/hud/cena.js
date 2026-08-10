@@ -52,7 +52,11 @@ export function createCenaSwitch(root, { scene, onChange } = {}) {
   window.addEventListener('keydown', (e) => {
     if (e.code !== TECLA || e.metaKey || e.ctrlKey || e.altKey) return;
     const alvo = e.target;
-    if (alvo instanceof HTMLElement && (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName))) return;
+    if (
+      alvo instanceof HTMLElement &&
+      (alvo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName))
+    )
+      return;
     ir(scene?.mode?.() === 'universo' ? 'agente' : 'universo');
   });
 

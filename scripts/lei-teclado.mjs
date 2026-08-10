@@ -159,7 +159,10 @@ let despachou = 0;
 const soltaReserva = keys.reserve({ code: 'KeyU', label: 'TROCAR CENA', group: 'CENA' });
 janela.emitir('keydown', tecla('KeyU', { preventDefault: () => despachou++ }));
 prova('reservada NÃO é despachada aqui', despachou === 0, `preventDefault=${despachou}`);
-prova('reservada aparece na lista', keys.list().some((e) => e.keys === 'U' && e.label === 'TROCAR CENA'));
+prova(
+  'reservada aparece na lista',
+  keys.list().some((e) => e.keys === 'U' && e.label === 'TROCAR CENA')
+);
 let reservaDuplicada = false;
 try {
   keys.bind({ code: 'KeyU', label: 'OUTRA COISA' }, () => {});
@@ -173,7 +176,7 @@ sobe('KeyU');
 /* ── 6. varredura aleatória — a ordem que ninguém imaginou ───────────────────────────────── */
 const CODES = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft'];
 let semente = 20260809;
-const sorteio = () => ((semente = (semente * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+const sorteio = () => (semente = (semente * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 
 /** O último evento visto por tecla — modelo por TECLA, não cópia da implementação. */
 const ultimo = new Map();
@@ -214,5 +217,9 @@ if (falhas.length) {
   console.log(`\n  \x1b[33mUma tecla presa não tem sintoma além do movimento que não para.\x1b[0m`);
   process.exit(1);
 }
-console.log(`\n\x1b[32m✓ a lei vale\x1b[0m  nenhuma tecla sobrevive a blur, a aba ao fundo ou ao ⌘ que engole o keyup.`);
-console.log(`  \x1b[2me o despacho de atalho continua idêntico: dispara, bloqueia repeat, cala digitando.\x1b[0m`);
+console.log(
+  `\n\x1b[32m✓ a lei vale\x1b[0m  nenhuma tecla sobrevive a blur, a aba ao fundo ou ao ⌘ que engole o keyup.`
+);
+console.log(
+  `  \x1b[2me o despacho de atalho continua idêntico: dispara, bloqueia repeat, cala digitando.\x1b[0m`
+);

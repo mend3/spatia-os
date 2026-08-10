@@ -174,7 +174,13 @@ export function createPermissions(root, { onChange } = {}) {
     const off = new Set(data.state.tools_off);
     for (const tool of data.tools) {
       body.append(
-        switchRow(tool.id, tool.label, !off.has(tool.id), (on) => toggleOff('tools_off', tool.id, on), tool.kind)
+        switchRow(
+          tool.id,
+          tool.label,
+          !off.has(tool.id),
+          (on) => toggleOff('tools_off', tool.id, on),
+          tool.kind
+        )
       );
     }
 
@@ -258,7 +264,9 @@ export function createPermissions(root, { onChange } = {}) {
    *
    * Vai pelo barramento em vez de alcançar o router: este painel é HUD e não conhece o kernel.
    */
-  bind({ code: TOGGLE_KEY, label: 'PERMISSÕES', group: 'NAVEGAÇÃO' }, () => ui('open-app', { id: 'security' }));
+  bind({ code: TOGGLE_KEY, label: 'PERMISSÕES', group: 'NAVEGAÇÃO' }, () =>
+    ui('open-app', { id: 'security' })
+  );
 
   const trigger = root.querySelector('[data-perms-toggle]');
   trigger?.addEventListener('click', () => setOpen(!panel.classList.contains('open')));

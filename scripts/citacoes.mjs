@@ -73,9 +73,12 @@ function raizDoDisco(doServidor) {
   // ⚠️ E ele só vence se APONTAR PARA O MESMO LUGAR que o servidor, ou se o servidor não souber.
   // Uma árvore diferente da que montou o céu não mede outro corpus: mede o vazio, porque nenhum
   // caminho casa. Medido: com `AGENT_CWD=devshell-one` exportado no perfil, 0 de 188 arquivos.
-  if (doAmbiente && fs.existsSync(doAmbiente) && (!doServidor || doAmbiente === doServidor)) return doAmbiente;
+  if (doAmbiente && fs.existsSync(doAmbiente) && (!doServidor || doAmbiente === doServidor))
+    return doAmbiente;
   if (doAmbiente) {
-    console.warn(`\x1b[33m⚠ AGENT_CWD=${doAmbiente} não existe no disco — usando a raiz que o servidor publica\x1b[0m`);
+    console.warn(
+      `\x1b[33m⚠ AGENT_CWD=${doAmbiente} não existe no disco — usando a raiz que o servidor publica\x1b[0m`
+    );
   }
   return doServidor;
 }
@@ -100,7 +103,9 @@ const RAIZ = raizDoDisco(graph.corpus.cwd);
 const CORPUS = graph.corpus.collection;
 
 const arquivos = graph.nodes.filter((n) => n.type === 'file');
-console.log(`\x1b[1mcorpus\x1b[0m  ${graph.corpus.collection} · ${arquivos.length} corpos · disco em ${RAIZ}`);
+console.log(
+  `\x1b[1mcorpus\x1b[0m  ${graph.corpus.collection} · ${arquivos.length} corpos · disco em ${RAIZ}`
+);
 
 /*
  * O `source` do céu é `<repo>/<caminho>`; o disco só conhece o caminho. O primeiro segmento é o
@@ -122,7 +127,8 @@ for (const n of arquivos) {
  * Caminhos citados em PROSA. Aceita `docs/x.md`, `./src/y.js`, `` `server/z.py` `` e links de
  * markdown — tudo o que pareça caminho com barra e extensão conhecida.
  */
-const CITACAO = /(?:^|[\s(<`'"[])((?:\.{0,2}\/)?(?:[\w.@-]+\/)+[\w.@-]+\.[a-z]{1,5})(?=[\s)>`'"\],:;!?]|$)/gim;
+const CITACAO =
+  /(?:^|[\s(<`'"[])((?:\.{0,2}\/)?(?:[\w.@-]+\/)+[\w.@-]+\.[a-z]{1,5})(?=[\s)>`'"\],:;!?]|$)/gim;
 /**
  * `import`/`require`/`from` com caminho RELATIVO. Pacote instalado não é corpo deste céu, e
  * resolver `three` para `vendor/three.module.js` seria inventar a aresta que o importmap faz.
@@ -147,7 +153,9 @@ function lerCorpos() {
 }
 
 const textos = lerCorpos();
-console.log(`\x1b[1mlidos\x1b[0m   ${textos.size} de ${arquivos.length} corpos (o resto sumiu do disco ou é grande demais)`);
+console.log(
+  `\x1b[1mlidos\x1b[0m   ${textos.size} de ${arquivos.length} corpos (o resto sumiu do disco ou é grande demais)`
+);
 /*
  * ⚠️ Zero lidos é ERRO, não resultado. Sem esta parada o script segue e imprime um relatório
  * inteiro de zeros — a forma mais convincente de mentir que existe, porque tudo nele está certo
@@ -209,7 +217,8 @@ function relatar(tipo) {
   let peso = 0;
   for (const [chave, n] of pares) {
     const [a, b] = chave.split(' ');
-    nos.add(a); nos.add(b);
+    nos.add(a);
+    nos.add(b);
     peso += n;
   }
   const cobertura = (nos.size / arquivos.length) * 100;
@@ -223,19 +232,25 @@ function relatar(tipo) {
   const q = (p) => v[Math.floor(p * v.length)] ?? 0;
   console.log(
     `  \x1b[1m${tipo.padEnd(11)}\x1b[0m ${String(pares.size).padStart(5)} pares · ${peso} citações · ` +
-    `${nos.size} corpos (${cobertura.toFixed(1)}% do céu) · grau MED ${q(0.5)} · P90 ${q(0.9)} · máx ${v.at(-1) ?? 0}`
+      `${nos.size} corpos (${cobertura.toFixed(1)}% do céu) · grau MED ${q(0.5)} · P90 ${q(0.9)} · máx ${v.at(-1) ?? 0}`
   );
   return { pares: pares.size, nos: nos.size, cobertura };
 }
 
 console.log(`\n\x1b[1mP6 — as duas relações DIRIGIDAS\x1b[0m`);
-console.log(`  varridos: ${citacoesVistas} caminhos citados · ${importsVistos} imports relativos · ${foraDoCeu} não resolveram para corpo do céu`);
+console.log(
+  `  varridos: ${citacoesVistas} caminhos citados · ${importsVistos} imports relativos · ${foraDoCeu} não resolveram para corpo do céu`
+);
 const medida = { REFERENCES: relatar('REFERENCES'), IMPORTS: relatar('IMPORTS') };
 
-console.log(`\n  \x1b[2mcomparação: CO_EDITED cobre 85,1% do céu e SIMILAR_TO cobre 100% — mas nenhuma das duas tem SETA.\x1b[0m`);
+console.log(
+  `\n  \x1b[2mcomparação: CO_EDITED cobre 85,1% do céu e SIMILAR_TO cobre 100% — mas nenhuma das duas tem SETA.\x1b[0m`
+);
 for (const tipo of ['REFERENCES', 'IMPORTS']) {
   if (medida[tipo].pares === 0) {
-    console.log(`  \x1b[31m⚠ ${tipo} não produziu aresta nenhuma neste corpus — a relação nasceria vazia.\x1b[0m`);
+    console.log(
+      `  \x1b[31m⚠ ${tipo} não produziu aresta nenhuma neste corpus — a relação nasceria vazia.\x1b[0m`
+    );
   }
 }
 
@@ -286,4 +301,6 @@ const conf = await cypher(
 );
 const [corpos, refs, imps] = conf.data.values[0];
 console.log(`\n  céu: ${corpos} :${ROTULO} · ${refs} REFERENCES · ${imps} IMPORTS`);
-console.log(`  ⚠️ rode \x1b[1mscripts/vizinhanca.mjs\x1b[0m em seguida — a rede da seleção lê o snapshot, não o banco.`);
+console.log(
+  `  ⚠️ rode \x1b[1mscripts/vizinhanca.mjs\x1b[0m em seguida — a rede da seleção lê o snapshot, não o banco.`
+);

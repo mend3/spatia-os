@@ -71,7 +71,9 @@ const fontes = new Set(graph.nodes.filter((n) => n.type === 'file').map((n) => n
  * script acabou de buscar. Uma fonte, e ela é a mesma que montou o céu contra o qual se mede.
  */
 if (!graph.corpus) {
-  console.error('o /api/graph não publicou `corpus` — servidor velho? Sem ele este script adivinharia a coleção.');
+  console.error(
+    'o /api/graph não publicou `corpus` — servidor velho? Sem ele este script adivinharia a coleção.'
+  );
   process.exit(1);
 }
 /*
@@ -124,7 +126,12 @@ do {
   const r = await fetch(`${QDRANT}/collections/${COLECAO}/points/scroll`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ limit: 4096, offset: proximo, with_payload: ['metadata.source'], with_vector: false }),
+    body: JSON.stringify({
+      limit: 4096,
+      offset: proximo,
+      with_payload: ['metadata.source'],
+      with_vector: false,
+    }),
   }).then((x) => x.json());
   for (const p of r.result.points) {
     const bruto = p.payload?.metadata?.source;
@@ -142,18 +149,22 @@ const vizinhos = new Map();
 const alvos = [...rep.entries()];
 for (let i = 0; i < alvos.length; i += 64) {
   const lote = alvos.slice(i, i + 64);
-  const respostas = await Promise.all(lote.map(([, id]) =>
-    fetch(`${QDRANT}/collections/${COLECAO}/points/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: id,
-        using: 'fast-paraphrase-multilingual-minilm-l12-v2',
-        limit: K_TETO * 4, // folga: vários chunks do mesmo arquivo colapsam num vizinho só
-        with_payload: ['metadata.source'],
-      }),
-    }).then((x) => x.json()).catch(() => null)
-  ));
+  const respostas = await Promise.all(
+    lote.map(([, id]) =>
+      fetch(`${QDRANT}/collections/${COLECAO}/points/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: id,
+          using: 'fast-paraphrase-multilingual-minilm-l12-v2',
+          limit: K_TETO * 4, // folga: vários chunks do mesmo arquivo colapsam num vizinho só
+          with_payload: ['metadata.source'],
+        }),
+      })
+        .then((x) => x.json())
+        .catch(() => null)
+    )
+  );
   lote.forEach(([fonte], j) => {
     const pontos = respostas[j]?.result?.points || [];
     const vistos = new Set([fonte]);
@@ -196,10 +207,12 @@ for (const k of K_CANDIDATOS) {
   const ord = [...vals].sort((a, b) => a - b);
   const p90 = ord[Math.floor(0.9 * ord.length)];
   const med = ord[Math.floor(0.5 * ord.length)];
-  console.log(`  k=${String(k).padStart(2)}  Gini ${g.toFixed(3)} · isolados ${String(isolados).padStart(4)} (${((isolados / vals.length) * 100).toFixed(1)}%) · MED ${String(med).padStart(3)} · P90 ${String(p90).padStart(3)} · máx ${ord.at(-1)}`);
+  console.log(
+    `  k=${String(k).padStart(2)}  Gini ${g.toFixed(3)} · isolados ${String(isolados).padStart(4)} (${((isolados / vals.length) * 100).toFixed(1)}%) · MED ${String(med).padStart(3)} · P90 ${String(p90).padStart(3)} · máx ${ord.at(-1)}`
+  );
   // Melhor = maior Gini entre os que deixam menos de 10% isolados. Discriminar não vale nada se
   // for discriminar um céu vazio.
-  if (isolados / vals.length < 0.10 && (!melhor || g > melhor.g)) melhor = { k, g, isolados };
+  if (isolados / vals.length < 0.1 && (!melhor || g > melhor.g)) melhor = { k, g, isolados };
 }
 if (!melhor) {
   console.error('  nenhum k deixa menos de 10% isolados — a vizinhança semântica não cobre o corpus');
@@ -220,8 +233,11 @@ for (const [fonte, lista] of vizinhos) {
 await cypher(`CREATE CONSTRAINT astro_source IF NOT EXISTS FOR (a:${ROTULO}) REQUIRE a.source IS UNIQUE`);
 const todas = [...new Set(arestas.flatMap((e) => [e.a, e.b]))];
 for (let i = 0; i < todas.length; i += 2000) {
-  await cypher(`UNWIND $f AS s MERGE (a:${ROTULO} {source: s}) SET a.group_id = $g, a.corpus = $c`,
-    { f: todas.slice(i, i + 2000), g: GRUPO, c: CORPUS });
+  await cypher(`UNWIND $f AS s MERGE (a:${ROTULO} {source: s}) SET a.group_id = $g, a.corpus = $c`, {
+    f: todas.slice(i, i + 2000),
+    g: GRUPO,
+    c: CORPUS,
+  });
 }
 for (let i = 0; i < arestas.length; i += 2000) {
   await cypher(
@@ -243,4 +259,6 @@ const conf = await cypher(
   { c: CORPUS }
 );
 const [corpos, sim, coed] = conf.data.values[0];
-console.log(`\n\n\x1b[1mescrito\x1b[0m  ${corpos} :${ROTULO} · ${sim} SIMILAR_TO (k=${K}, as_of=${asOf}) · ${coed} CO_EDITED`);
+console.log(
+  `\n\n\x1b[1mescrito\x1b[0m  ${corpos} :${ROTULO} · ${sim} SIMILAR_TO (k=${K}, as_of=${asOf}) · ${coed} CO_EDITED`
+);

@@ -736,7 +736,9 @@ export function createGraph() {
     const arquivos = nodes.filter((node) => node.type === 'file');
     const ordenados = [...arquivos].sort((a, b) => (a.chunks || 0) - (b.chunks || 0));
     const posicao = new Map();
-    ordenados.forEach((node, i) => posicao.set(node.id, ordenados.length > 1 ? i / (ordenados.length - 1) : 0.5));
+    ordenados.forEach((node, i) =>
+      posicao.set(node.id, ordenados.length > 1 ? i / (ordenados.length - 1) : 0.5)
+    );
     for (const node of arquivos) node.massRank = posicao.get(node.id) ?? 0.5;
 
     const centralMass = payload.stats?.chunks || nodes.reduce((sum, n) => sum + (n.chunks || 0), 0);
@@ -834,11 +836,12 @@ export function createGraph() {
        * Descendentes e não filhos diretos: uma pasta é grande pelo que ela CONTÉM. Por filho
        * direto, a raiz do repositório (que só tem subpastas) seria a menor galáxia do céu.
        */
-      sizes[i] = node.type === 'moon'
-        ? moonSpriteSize(node, nodes[node.parentIndex]) * tune.moonSize
-        : node.type === 'file'
-          ? 0.55 + Math.log2(1 + node.chunks) * 0.42
-          : GALAXY_SIZE_BASE * (descendentes.get(prefixoDe(node)) ?? 1) ** GALAXY_SIZE_EXP;
+      sizes[i] =
+        node.type === 'moon'
+          ? moonSpriteSize(node, nodes[node.parentIndex]) * tune.moonSize
+          : node.type === 'file'
+            ? 0.55 + Math.log2(1 + node.chunks) * 0.42
+            : GALAXY_SIZE_BASE * (descendentes.get(prefixoDe(node)) ?? 1) ** GALAXY_SIZE_EXP;
       // `supernova` é 0…1 e vem do servidor (`recency._annotate_supernova`), normalizado pelo
       // pico DESTE corpus. Nó que não é arquivo nunca é supernova: agregado não tem história
       // própria, tem a dos filhos.
@@ -897,7 +900,10 @@ export function createGraph() {
       if (!neighbours.has(a)) neighbours.set(a, []);
       neighbours.get(a).push([a, b]);
     };
-    for (const [a, b] of edgePairs) { ligar(a, b); ligar(b, a); }
+    for (const [a, b] of edgePairs) {
+      ligar(a, b);
+      ligar(b, a);
+    }
 
     advance(0);
     return count;
@@ -983,8 +989,7 @@ export function createGraph() {
          * sem iteração não há estado acumulado, e a lua cai sempre no mesmo lugar no mesmo
          * instante, em qualquer sessão e a qualquer taxa de quadros.
          */
-        const trueAnomaly =
-          mean + 2 * e * Math.sin(mean) + 1.25 * e * e * Math.sin(2 * mean);
+        const trueAnomaly = mean + 2 * e * Math.sin(mean) + 1.25 * e * e * Math.sin(2 * mean);
         moonOffset(node, trueAnomaly, MOON_AT);
         /*
          * Sem rotação própria: as 19 luas arredondadas do Sistema Solar estão travadas por maré, e
@@ -1009,9 +1014,10 @@ export function createGraph() {
        * Zerado, e não congelado numa fase: o corpo em foco fica no plano da própria órbita, que é
        * onde ele deveria estar para ser olhado.
        */
-      const bob = node.i === focusedIndex
-        ? 0
-        : Math.sin(bobPhase + node.wobble * BOB.phaseSpread) * node.radius * BOB.amplitude;
+      const bob =
+        node.i === focusedIndex
+          ? 0
+          : Math.sin(bobPhase + node.wobble * BOB.phaseSpread) * node.radius * BOB.amplitude;
       /*
        * Rotação REAL em torno de X — a versão anterior não era uma órbita inclinada.
        *
@@ -1202,10 +1208,16 @@ export function createGraph() {
         const decisao = resolveBody(nodes[i], { dirty: state });
         const anel = decisao.modifiers.includes(MODIFIER.RING);
         const detritos = decisao.modifiers.includes(MODIFIER.DEBRIS);
-        if (!anel && !detritos) { recusados += 1; continue; }
+        if (!anel && !detritos) {
+          recusados += 1;
+          continue;
+        }
         // Corpo escondido não deixa o anel dele para trás: um anel sem estrela no meio lê como
         // defeito de render, e o filtro é justamente o gesto de tirar aquele tipo da tela.
-        if (hidden?.[i]) { escondidos += 1; continue; }
+        if (hidden?.[i]) {
+          escondidos += 1;
+          continue;
+        }
         // `detritos` diz QUAL objeto em órbita — anel planetário ou disco de detritos. Os dois
         // saem do mesmo módulo porque os dois são material orbital; o que muda é o perfil.
         entries.push({ index: i, size: sizes[i], state, recency: nodes[i].recency, detritos });

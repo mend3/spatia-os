@@ -97,7 +97,15 @@ const GRAIN_VARIANT = {
     ...BASE_CONTROLS,
     { key: 'grao', label: 'GRÃO', type: 'range', min: 0, max: 1.5, step: 0.02, value: 0.7 },
     { key: 'celulas', label: 'CÉLULAS NO AZIMUTE', type: 'range', min: 16, max: 320, step: 4, value: 96 },
-    { key: 'assimetria', label: 'ASSIMETRIA (wakes)', type: 'range', min: 0, max: 0.6, step: 0.01, value: 0.22 },
+    {
+      key: 'assimetria',
+      label: 'ASSIMETRIA (wakes)',
+      type: 'range',
+      min: 0,
+      max: 0.6,
+      step: 0.01,
+      value: 0.22,
+    },
   ],
   watch: [
     ...BASE_WATCH,
@@ -134,10 +142,10 @@ const GRAIN_VARIANT = {
         rig.orient(camera, values.tombo, ROLL, values.raio / VISIBLE_CORE);
 
         ctx.report({
-          'família': family,
-          'alcance': `${RING_FAMILIES[family].reach.toFixed(2)} R`,
-          'células': Math.round(values.celulas),
-          'custo': '1 fetch + 9 simplex',
+          família: family,
+          alcance: `${RING_FAMILIES[family].reach.toFixed(2)} R`,
+          células: Math.round(values.celulas),
+          custo: '1 fetch + 9 simplex',
         });
       },
       dispose() {
@@ -312,9 +320,25 @@ const SWARM_VARIANT = {
   controls: [
     ...BASE_CONTROLS,
     { key: 'fragmentos', label: 'FRAGMENTOS', type: 'range', min: 200, max: 4000, step: 100, value: 1600 },
-    { key: 'tamanho', label: 'TAMANHO DO FRAGMENTO', type: 'range', min: 0.004, max: 0.06, step: 0.002, value: 0.018 },
+    {
+      key: 'tamanho',
+      label: 'TAMANHO DO FRAGMENTO',
+      type: 'range',
+      min: 0.004,
+      max: 0.06,
+      step: 0.002,
+      value: 0.018,
+    },
     { key: 'base', label: 'BASE LISA', type: 'range', min: 0, max: 1, step: 0.02, value: 0.3 },
-    { key: 'assimetria', label: 'ASSIMETRIA (wakes)', type: 'range', min: 0, max: 0.6, step: 0.01, value: 0.22 },
+    {
+      key: 'assimetria',
+      label: 'ASSIMETRIA (wakes)',
+      type: 'range',
+      min: 0,
+      max: 0.6,
+      step: 0.01,
+      value: 0.22,
+    },
   ],
   watch: [
     ...BASE_WATCH,
@@ -384,8 +408,8 @@ const SWARM_VARIANT = {
         material.uniforms.uOpacity.value = 0.9;
 
         ctx.report({
-          'família': family,
-          'fragmentos': count,
+          família: family,
+          fragmentos: count,
           'no céu (64 anéis)': `${(count * 64).toLocaleString('pt-BR')} pontos`,
           'draw calls': '3 por anel',
         });
@@ -445,7 +469,7 @@ function noise2(x, y, periodY) {
   const b = hash2(ix + 1, y0);
   const c = hash2(ix, y1);
   const d = hash2(ix + 1, y1);
-  return a + (b - a) * ux + ((c - a) + (a - b - c + d) * ux) * uy;
+  return a + (b - a) * ux + (c - a + (a - b - c + d) * ux) * uy;
 }
 
 /**
@@ -559,7 +583,15 @@ const BOULDER_VARIANT = {
     ...BASE_CONTROLS,
     { key: 'grao', label: 'GRÃO', type: 'range', min: 0, max: 1, step: 0.02, value: 0.75 },
     { key: 'pedregulho', label: 'PEDREGULHO', type: 'range', min: 0, max: 4, step: 0.05, value: 1.4 },
-    { key: 'assimetria', label: 'ASSIMETRIA (wakes)', type: 'range', min: 0, max: 0.6, step: 0.01, value: 0.22 },
+    {
+      key: 'assimetria',
+      label: 'ASSIMETRIA (wakes)',
+      type: 'range',
+      min: 0,
+      max: 0.6,
+      step: 0.01,
+      value: 0.22,
+    },
   ],
   watch: [
     ...BASE_WATCH,
@@ -603,9 +635,9 @@ const BOULDER_VARIANT = {
         rig.orient(camera, values.tombo, ROLL, values.raio / VISIBLE_CORE);
 
         ctx.report({
-          'família': family,
-          'campo': `${GRAIN_RADIAL_TEXELS}×${GRAIN_AZIM_TEXELS} RGBA · ${((GRAIN_RADIAL_TEXELS * GRAIN_AZIM_TEXELS * 4) / 1024).toFixed(0)} KB`,
-          'custo': '3 fetch, 0 hash',
+          família: family,
+          campo: `${GRAIN_RADIAL_TEXELS}×${GRAIN_AZIM_TEXELS} RGBA · ${((GRAIN_RADIAL_TEXELS * GRAIN_AZIM_TEXELS * 4) / 1024).toFixed(0)} KB`,
+          custo: '3 fetch, 0 hash',
         });
       },
       dispose() {
@@ -728,9 +760,25 @@ const SLAB_VARIANT = {
   controls: [
     ...BASE_CONTROLS,
     { key: 'sombra', label: 'AUTO-SOMBRA RADIAL', type: 'range', min: 0, max: 4, step: 0.05, value: 1.6 },
-    { key: 'profundidade', label: 'PROFUNDIDADE ÓPTICA', type: 'range', min: 0.2, max: 5, step: 0.05, value: 1.6 },
+    {
+      key: 'profundidade',
+      label: 'PROFUNDIDADE ÓPTICA',
+      type: 'range',
+      min: 0.2,
+      max: 5,
+      step: 0.05,
+      value: 1.6,
+    },
     { key: 'grao', label: 'GRÃO', type: 'range', min: 0, max: 0.8, step: 0.02, value: 0.28 },
-    { key: 'assimetria', label: 'ASSIMETRIA (wakes)', type: 'range', min: 0, max: 0.6, step: 0.01, value: 0.22 },
+    {
+      key: 'assimetria',
+      label: 'ASSIMETRIA (wakes)',
+      type: 'range',
+      min: 0,
+      max: 0.6,
+      step: 0.01,
+      value: 0.22,
+    },
   ],
   watch: [
     ...BASE_WATCH,
@@ -774,10 +822,10 @@ const SLAB_VARIANT = {
         rig.shade.material.uniforms.uDepth.value = OPTICAL_DEPTH;
 
         ctx.report({
-          'família': family,
+          família: family,
           'μ (caminho)': Math.cos(values.tombo).toFixed(2),
           'τ efetivo': (values.profundidade / Math.max(Math.cos(values.tombo), 0.05)).toFixed(2),
-          'custo': '1 fetch + 9 simplex',
+          custo: '1 fetch + 9 simplex',
         });
       },
       dispose() {

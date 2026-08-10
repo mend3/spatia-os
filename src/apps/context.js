@@ -111,7 +111,12 @@ export function registerContextWidget() {
        * present instead of waiting for the operator to move the mouse again.
        */
       pintar(attention.snapshot());
-      return { destroy: () => { off(); offMarca(); } };
+      return {
+        destroy: () => {
+          off();
+          offMarca();
+        },
+      };
     },
   });
 }
@@ -148,8 +153,8 @@ function desenhar(node, dirty, origin, vizinhos, rede, conceitos) {
    * opinião", e aí o catálogo antigo continua sendo a resposta certa.
    */
   const daCena = tipoDeCorpo(node.source);
-  const corpo = daCena
-    ?? (classe.id === 'estrela' ? morphologyOf(node.kind).body.toUpperCase() : classe.name);
+  const corpo =
+    daCena ?? (classe.id === 'estrela' ? morphologyOf(node.kind).body.toUpperCase() : classe.name);
   meta.textContent = [
     corpo,
     origin === 'focus' ? 'TRAVADO' : null,
@@ -270,7 +275,9 @@ function vinculos(vizinhos, rede) {
      * (`integracao-neo4j.md` §3.2.2), e a linha tem de dizer qual das duas está na tela junto com
      * o número BRUTO que a sustenta: "3 commits" é verificável, "0,10" não é nada.
      */
-    linha.append(el('span', 'fs-meta', vizinho.vinculo ? forcaDe(vizinho.vinculo) : String(vizinho.chunks ?? '')));
+    linha.append(
+      el('span', 'fs-meta', vizinho.vinculo ? forcaDe(vizinho.vinculo) : String(vizinho.chunks ?? ''))
+    );
     if (vizinho.vinculo) linha.dataset.vinculo = vizinho.vinculo.tipo;
     linhas.push(linha);
   }
@@ -343,7 +350,13 @@ function legenda(rede) {
     linhas.push(linha);
   }
   if (total > (rede.desenhados ?? 0)) {
-    linhas.push(el('div', 'widget-hint', `${total - rede.desenhados} não desenhados — o teto é ${rede.teto ?? '?'} arcos`));
+    linhas.push(
+      el(
+        'div',
+        'widget-hint',
+        `${total - rede.desenhados} não desenhados — o teto é ${rede.teto ?? '?'} arcos`
+      )
+    );
   }
   if (rede.recusados) {
     // Vizinho que não é corpo desta cena. Some do desenho por não ter onde aterrissar, e some

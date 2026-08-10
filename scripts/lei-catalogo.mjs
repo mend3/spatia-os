@@ -230,7 +230,9 @@ const fontes = todosOsFontes(path.join(RAIZ, 'src')).map((arquivo) => ({
 
 console.log('\x1b[1mLEI DO CATÁLOGO — o contrato nomeia o que ACEITA, a fenda exige o que precisa\x1b[0m');
 console.log(`  vocabulário: ${Object.keys(VOCABULARIO_DO_WIDGET).join(', ')}`);
-console.log(`  fendas: ${SLOTS.map((s) => `${s}${exigidasDaFenda(s).length ? `(exige ${exigidasDaFenda(s).join('/')})` : ''}`).join(' · ')}`);
+console.log(
+  `  fendas: ${SLOTS.map((s) => `${s}${exigidasDaFenda(s).length ? `(exige ${exigidasDaFenda(s).join('/')})` : ''}`).join(' · ')}`
+);
 console.log(`  ${fontes.length} fontes em src/`);
 
 // ───────────────────────────────────────────────────────── §1 o catálogo, conferido contra si mesmo
@@ -257,7 +259,10 @@ for (const slot of SLOTS) {
   }
   for (const chave of exigidasDaFenda(slot)) {
     if (!Object.hasOwn(VOCABULARIO_DO_WIDGET, chave)) {
-      nota('§1', `a fenda \`${slot}\` exige \`${chave}\`, que o vocabulário não aceita — exigência impossível`);
+      nota(
+        '§1',
+        `a fenda \`${slot}\` exige \`${chave}\`, que o vocabulário não aceita — exigência impossível`
+      );
     }
   }
   for (const chave of proibidasNaFenda(slot)) {
@@ -299,7 +304,10 @@ for (const { arquivo, texto } of fontes) {
   for (const m of texto.matchAll(/\bcontract\s*\.\s*([A-Za-z_$][\w$]*)\b/g)) {
     lidas.add(m[1]);
     if (!Object.hasOwn(VOCABULARIO_DO_WIDGET, m[1])) {
-      nota('§2', `${rel(arquivo)}:${linhaDe(texto, m.index)} lê \`contract.${m[1]}\`, que o catálogo não declara`);
+      nota(
+        '§2',
+        `${rel(arquivo)}:${linhaDe(texto, m.index)} lê \`contract.${m[1]}\`, que o catálogo não declara`
+      );
     }
   }
 }
@@ -335,7 +343,9 @@ function recusa(rotulo, contrato) {
   } else if (!String(erro.message).includes(id)) {
     nota('§3', `${rotulo} foi recusado sem nomear o culpado: "${erro.message}"`);
   }
-  console.log(`  ${erro && depois === antes ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} recusa  ${rotulo.padEnd(46)} \x1b[2m${erro ? erro.message.slice(0, 60) : 'ACEITOU'}\x1b[0m`);
+  console.log(
+    `  ${erro && depois === antes ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} recusa  ${rotulo.padEnd(46)} \x1b[2m${erro ? erro.message.slice(0, 60) : 'ACEITOU'}\x1b[0m`
+  );
 }
 
 /** O portão tem de ACEITAR — senão a lei estaria proibindo o contrato legítimo. */
@@ -343,7 +353,9 @@ function aceita(rotulo, contrato) {
   const id = contrato.id ?? idProva();
   const erro = tentar({ ...contrato, id });
   if (erro) nota('§3', `o portão RECUSOU ${rotulo}: ${erro.message}`);
-  console.log(`  ${erro ? '\x1b[31m✗\x1b[0m' : '\x1b[32m✓\x1b[0m'} aceita  ${rotulo.padEnd(46)} \x1b[2m${erro ? erro.message.slice(0, 60) : ''}\x1b[0m`);
+  console.log(
+    `  ${erro ? '\x1b[31m✗\x1b[0m' : '\x1b[32m✓\x1b[0m'} aceita  ${rotulo.padEnd(46)} \x1b[2m${erro ? erro.message.slice(0, 60) : ''}\x1b[0m`
+  );
 }
 
 aceita('o contrato mínimo (fenda sem exigência)', { title: 'T', slot: 'left', mount });
@@ -354,7 +366,13 @@ recusa('chave fora do vocabulário no palco', { title: 'T', slot: 'stage', surfa
 recusa('palco SEM `surface` declarado', { title: 'T', slot: 'stage', mount });
 recusa('palco com `surface: null` (não é decisão)', { title: 'T', slot: 'stage', surface: null, mount });
 recusa('palco com `surface: undefined`', { title: 'T', slot: 'stage', surface: undefined, mount });
-recusa('chave proibida pela fenda (`collapsed` no palco)', { title: 'T', slot: 'stage', surface: true, collapsed: true, mount });
+recusa('chave proibida pela fenda (`collapsed` no palco)', {
+  title: 'T',
+  slot: 'stage',
+  surface: true,
+  collapsed: true,
+  mount,
+});
 recusa('fenda inexistente', { title: 'T', slot: 'centro', mount });
 recusa('`mount` que não é função', { title: 'T', slot: 'left', mount: 'depois' });
 
@@ -374,7 +392,8 @@ console.log('\n\x1b[1m§4 A VARREDURA DAS DECLARAÇÕES\x1b[0m  invólucros desc
  */
 function funcoesDoArquivo(texto) {
   const achadas = [];
-  const padrao = /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(|\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\s*)?\(/g;
+  const padrao =
+    /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(|\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\s*)?\(/g;
   let m;
   while ((m = padrao.exec(texto))) {
     const nome = m[1] || m[2];
@@ -425,7 +444,10 @@ function importados(texto, arquivo) {
     if (!m[2].startsWith('.')) continue;
     const modulo = path.resolve(path.dirname(arquivo), m[2]);
     for (const parte of m[1].split(',')) {
-      const [origem, apelido] = parte.trim().split(/\s+as\s+/).map((x) => x.trim());
+      const [origem, apelido] = parte
+        .trim()
+        .split(/\s+as\s+/)
+        .map((x) => x.trim());
       if (origem) mapa.set(apelido || origem, `${modulo}#${origem}`);
     }
   }
@@ -441,7 +463,15 @@ function importados(texto, arquivo) {
  */
 const CHAVE_SEMENTE = `${path.join(RAIZ, 'src', 'kernel', 'registry.js')}#registerWidget`;
 const portais = new Map([
-  [CHAVE_SEMENTE, { nome: 'registerWidget', aceita: new Set(chavesVocabulario), padroes: new Map(), onde: 'src/kernel/registry.js' }],
+  [
+    CHAVE_SEMENTE,
+    {
+      nome: 'registerWidget',
+      aceita: new Set(chavesVocabulario),
+      padroes: new Map(),
+      onde: 'src/kernel/registry.js',
+    },
+  ],
 ]);
 
 /** Os portais VISÍVEIS num arquivo: os que ele define e os que ele importa. `nome -> chave`. */
@@ -472,9 +502,8 @@ while (cresceu) {
         const aceita = new Set();
         for (const membro of membros) {
           if (!membro.chave) continue;
-          const [nome, padrao] = membro.valor === '(abreviado)'
-            ? [membro.chave, null]
-            : [membro.chave, membro.valor];
+          const [nome, padrao] =
+            membro.valor === '(abreviado)' ? [membro.chave, null] : [membro.chave, membro.valor];
           aceita.add(nome);
           if (padrao) padroes.set(nome, padrao);
         }
@@ -484,8 +513,14 @@ while (cresceu) {
           aceita.add(m[1]);
           padroes.set(m[1], m[2].trim());
         }
-        for (const m of literal.texto.matchAll(/(?:^|[{,])\s*([A-Za-z_$][\w$]*)\s*(?=[,}])/g)) aceita.add(m[1]);
-        portais.set(`${arquivo}#${fn.nome}`, { nome: fn.nome, aceita, padroes, onde: `${rel(arquivo)}:${linhaDe(texto, fn.de)}` });
+        for (const m of literal.texto.matchAll(/(?:^|[{,])\s*([A-Za-z_$][\w$]*)\s*(?=[,}])/g))
+          aceita.add(m[1]);
+        portais.set(`${arquivo}#${fn.nome}`, {
+          nome: fn.nome,
+          aceita,
+          padroes,
+          onde: `${rel(arquivo)}:${linhaDe(texto, fn.de)}`,
+        });
         cresceu = true;
       } else if (/^[A-Za-z_$][\w$]*\s*[,)]?$/.test(primeiro.replace(/\)$/, ''))) {
         // Repasse do objeto inteiro: o portal não engole nada, então aceita o vocabulário.
@@ -502,7 +537,9 @@ while (cresceu) {
 }
 
 for (const portal of portais.values()) {
-  console.log(`  portal ${portal.nome.padEnd(16)} ${portal.onde.padEnd(34)} aceita: ${[...portal.aceita].join(', ')}`);
+  console.log(
+    `  portal ${portal.nome.padEnd(16)} ${portal.onde.padEnd(34)} aceita: ${[...portal.aceita].join(', ')}`
+  );
 }
 
 /*
@@ -514,8 +551,11 @@ const exigidasEmAlgumaFenda = new Set(SLOTS.flatMap((slot) => exigidasDaFenda(sl
 for (const portal of portais.values()) {
   for (const chave of exigidasEmAlgumaFenda) {
     if (portal.padroes.has(chave)) {
-      nota('§4', `o invólucro \`${portal.nome}\` (${portal.onde}) tem padrão \`${chave} = ${portal.padroes.get(chave)}\` — `
-        + 'ele FABRICA a decisão que a fenda exige do app, e o registro não vê a ausência');
+      nota(
+        '§4',
+        `o invólucro \`${portal.nome}\` (${portal.onde}) tem padrão \`${chave} = ${portal.padroes.get(chave)}\` — ` +
+          'ele FABRICA a decisão que a fenda exige do app, e o registro não vê a ausência'
+      );
     }
   }
 }
@@ -555,7 +595,8 @@ for (const d of declaracoes) {
   } else {
     const membros = membrosDoLiteral(literal.texto);
     for (const membro of membros) {
-      if (!membro.chave) problemas.push(`forma ${membro.forma} (\`${membro.texto}\`) — o portão não vê o que ela traz`);
+      if (!membro.chave)
+        problemas.push(`forma ${membro.forma} (\`${membro.texto}\`) — o portão não vê o que ela traz`);
     }
     const chaves = membros.filter((x) => x.chave).map((x) => x.chave);
     for (const chave of chaves) {
@@ -597,8 +638,12 @@ for (const d of declaracoes) {
 
 // ────────────────────────────────────────────────────────────────────────────── §5 o censo, medido
 
-console.log('\n\x1b[1m§5 O CENSO\x1b[0m  \x1b[2m(medida, não lei — o número de hoje sai desta varredura)\x1b[0m');
-console.log(`  ${declaracoes.length} declarações de widget em src/ · ${aprovados} passam pelo portão · ${declaracoes.length - aprovados} não`);
+console.log(
+  '\n\x1b[1m§5 O CENSO\x1b[0m  \x1b[2m(medida, não lei — o número de hoje sai desta varredura)\x1b[0m'
+);
+console.log(
+  `  ${declaracoes.length} declarações de widget em src/ · ${aprovados} passam pelo portão · ${declaracoes.length - aprovados} não`
+);
 console.log(`  por fenda: ${[...porFenda].map(([s, n]) => `${s} ${n}`).join(' · ')}`);
 console.log(`  ids distintos: ${ids.size}`);
 
@@ -618,7 +663,9 @@ if (falhas.length) {
   process.exit(1);
 }
 
-console.log('\n\x1b[32m✓ a lei vale\x1b[0m  o contrato nomeia o que aceita, e a fenda recusa o que não pode ler.');
+console.log(
+  '\n\x1b[32m✓ a lei vale\x1b[0m  o contrato nomeia o que aceita, e a fenda recusa o que não pode ler.'
+);
 console.log(
   `  \x1b[2m${chavesVocabulario.length} chaves, todas com leitor · ${portais.size} portais descobertos ·\x1b[0m\n` +
     `  \x1b[2m${declaracoes.length} declarações auditadas na fonte, e o portão recusa as ${11} formas inválidas provadas na §3.\x1b[0m`

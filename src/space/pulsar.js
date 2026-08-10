@@ -246,7 +246,6 @@ const FRAGMENT = /* glsl */ `
   }
 `;
 
-
 /**
  * O NÚCLEO não é um círculo — é massa de energia.
  *
@@ -660,11 +659,7 @@ export function pulsarParams(node = {}, color = 0xffffff) {
    * enxergava a ponta de cima do eixo. Os dois liam uma escala do CÉU para descrever um corpo cuja
    * existência depende de um LIMIAR. Ver `GIGANTE`.
    */
-  const massa = THREE.MathUtils.clamp(
-    Math.log2(Math.max(node.chunks || 1, 1) / GIGANTE),
-    0,
-    1
-  );
+  const massa = THREE.MathUtils.clamp(Math.log2(Math.max(node.chunks || 1, 1) / GIGANTE), 0, 1);
 
   return Object.freeze({
     seed,
@@ -942,9 +937,25 @@ export function createPulsar() {
     });
   }
   // Jato: quase não perde brilho no comprimento, miolo apertado, espinha branca acesa.
-  const jatoMat = criarMaterial({ fall: 0.9, edge: 3.2, spine: 1, sharp: 17, gain: 1.5, cone: 0, plasma: 0.45 });
+  const jatoMat = criarMaterial({
+    fall: 0.9,
+    edge: 3.2,
+    spine: 1,
+    sharp: 17,
+    gain: 1.5,
+    cone: 0,
+    plasma: 0.45,
+  });
   // Lobo: morre depressa, borda larga e macia, sem espinha — ele é o halo, não o fio.
-  const loboMat = criarMaterial({ fall: 2.2, edge: 1.8, spine: 0, sharp: 1, gain: 0.85, cone: 1, plasma: 0.85 });
+  const loboMat = criarMaterial({
+    fall: 2.2,
+    edge: 1.8,
+    spine: 0,
+    sharp: 1,
+    gain: 0.85,
+    cone: 1,
+    plasma: 0.85,
+  });
 
   /*
    * O EIXO MAGNÉTICO é um grupo próprio, inclinado dentro do eixo de ROTAÇÃO.
@@ -969,7 +980,10 @@ export function createPulsar() {
      * um ponto e se abre. `rotateX(π)` inverte, e o `translate` põe o ápice na origem para
      * `position.y` valer direto como fração percorrida no shader.
      */
-    for (const [mat, lista] of [[jatoMat, jatos], [loboMat, lobos]]) {
+    for (const [mat, lista] of [
+      [jatoMat, jatos],
+      [loboMat, lobos],
+    ]) {
       /*
        * O JATO É UM CILINDRO e o LOBO é um cone, e a diferença é a colimação.
        *
@@ -993,9 +1007,7 @@ export function createPulsar() {
        * `ConeGeometry` nasce com o ápice em +y; `rotateX(π)` põe o ápice embaixo, no corpo, para
        * a luz sair de um ponto e abrir. O `translate` põe a base em y=0 nos dois.
        */
-      const geo = mat === jatoMat
-        ? new THREE.PlaneGeometry(2, 1)
-        : new THREE.ConeGeometry(1, 1, 16, 1, true);
+      const geo = mat === jatoMat ? new THREE.PlaneGeometry(2, 1) : new THREE.ConeGeometry(1, 1, 16, 1, true);
       if (mat !== jatoMat) geo.rotateX(Math.PI);
       geo.translate(0, 0.5, 0);
       const feixe = new THREE.Mesh(geo, mat);
@@ -1170,10 +1182,21 @@ export function createPulsar() {
        * parâmetro por corpo.
        */
       for (const jato of jatos) jato.scale.set(params.beam * 0.2, params.beam * SCALE.jet, 1);
-      for (const lobo of lobos) lobo.scale.set(params.beam * 0.5, params.beam * SCALE.lobe, params.beam * 0.5);
+      for (const lobo of lobos)
+        lobo.scale.set(params.beam * 0.5, params.beam * SCALE.lobe, params.beam * 0.5);
       // O pulso alcança a ponta do LOBO, não a do jato: ele é emissão isotrópica, e ir tão longe
       // quanto a agulha colimada afirmaria que ela não colima nada. Ver `pulsar-pulse.js`.
-      pulso.update(params.beam * SCALE.wind, level, elapsed, params.seed, params.color, camera, reduced, ajuste.filamento, ajuste.decaimento);
+      pulso.update(
+        params.beam * SCALE.wind,
+        level,
+        elapsed,
+        params.seed,
+        params.color,
+        camera,
+        reduced,
+        ajuste.filamento,
+        ajuste.decaimento
+      );
       vento.update(params.beam * SCALE.wind, level, elapsed, batimento, reduced);
 
       group.rotation.set(params.tilt, params.yaw, 0);

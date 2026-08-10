@@ -105,7 +105,7 @@ export const GALAXY_CLASSES = Object.freeze([
     // Flatter than every other class, and that IS the cue: at 8 px the ellipse axis ratio is
     // the last thing still readable after knot count and bar have dissolved.
     cosIncBase: 0.38,
-    cosIncSpread: 0.10,
+    cosIncSpread: 0.1,
     barLen: 0,
     split: 0.15,
   }),
@@ -145,11 +145,11 @@ export const GALAXY_CLASSES = Object.freeze([
     band: 'files >= 9',
     dirs: 6,
     arms: 6,
-    ...spiral(22, 0.20),
+    ...spiral(22, 0.2),
     bulgeFraction: 0.05,
     cosIncBase: 0.62,
     cosIncSpread: 0.34,
-    barLen: 0.20,
+    barLen: 0.2,
     split: 0.45,
   }),
 ]);

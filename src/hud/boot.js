@@ -179,13 +179,20 @@ export function createBoot(root, { onEngage }) {
     async report(health) {
       const missing = [];
       const steps = [
-        ['NÚCLEO COGNITIVO', health.brain === 'claude'
-          ? health.claude_cli ? `claude · ${health.agent_cwd.split('/').pop()}` : 'CLI AUSENTE'
-          : `ollama · ${health.ollama?.models?.[0] ?? '—'}`,
-          health.brain === 'claude' && !health.claude_cli],
-        ['MEMÓRIA VETORIAL', health.qdrant?.online
-          ? `${health.qdrant.points.toLocaleString('pt-BR')} chunks`
-          : 'OFFLINE', !health.qdrant?.online],
+        [
+          'NÚCLEO COGNITIVO',
+          health.brain === 'claude'
+            ? health.claude_cli
+              ? `claude · ${health.agent_cwd.split('/').pop()}`
+              : 'CLI AUSENTE'
+            : `ollama · ${health.ollama?.models?.[0] ?? '—'}`,
+          health.brain === 'claude' && !health.claude_cli,
+        ],
+        [
+          'MEMÓRIA VETORIAL',
+          health.qdrant?.online ? `${health.qdrant.points.toLocaleString('pt-BR')} chunks` : 'OFFLINE',
+          !health.qdrant?.online,
+        ],
         ['VETORIZADOR LOCAL', health.embed_ready ? 'onnx · cpu' : 'carregando', false],
         ['MODELO LOCAL', health.ollama?.online ? `${health.ollama.models.length} modelos` : 'offline', false],
         ...health.providers.map((provider) => [

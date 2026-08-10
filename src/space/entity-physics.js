@@ -94,7 +94,11 @@ export function evidenciaDeUso(meta) {
     return { disponivel: true, suficiente: false, motivo: `grau máximo ${meta.grau_max} < ${grauMax}` };
   }
   if ((meta.cobertura || 0) <= cobertura) {
-    return { disponivel: true, suficiente: false, motivo: `cobertura ${((meta.cobertura || 0) * 100).toFixed(1)}% ≤ ${(cobertura * 100).toFixed(1)}%` };
+    return {
+      disponivel: true,
+      suficiente: false,
+      motivo: `cobertura ${((meta.cobertura || 0) * 100).toFixed(1)}% ≤ ${(cobertura * 100).toFixed(1)}%`,
+    };
   }
   return { disponivel: true, suficiente: true, motivo: 'grau e cobertura acima do piso' };
 }
@@ -113,9 +117,11 @@ const CHUNKS_REMANESCENTE = 13;
 export const AUSENTES = Object.freeze({
   density: 'bytes por chunk — o indexador não emite. Conserta-se no indexador, não no grafo',
   centrality: 'RESOLVIDA — snapshot de scripts/centralidade.mjs. `null` quando não materializada',
-  usage: 'RESOLVIDA — snapshot de scripts/uso.mjs (P5). Dimensão DISPONÍVEL, evidência hoje esparsa: ver evidenciaDeUso()',
-  connectivity: 'RESOLVIDA — snapshot de scripts/conectividade.mjs, e NÃO como a spec pedia: o grau '
-    + 'repete a centralidade (ρ 0,821). O que ficou é o ALCANCE, ρ −0,083 com ela',
+  usage:
+    'RESOLVIDA — snapshot de scripts/uso.mjs (P5). Dimensão DISPONÍVEL, evidência hoje esparsa: ver evidenciaDeUso()',
+  connectivity:
+    'RESOLVIDA — snapshot de scripts/conectividade.mjs, e NÃO como a spec pedia: o grau ' +
+    'repete a centralidade (ρ 0,821). O que ficou é o ALCANCE, ρ −0,083 com ela',
   importance: 'RECUSADA como dimensão: é juízo, não fato. Derivá-la reconstrói o score composto',
 });
 
@@ -369,7 +375,12 @@ export function classificar(fisica, node) {
    * proibida — que é a diferença entre invariante implementada e invariante declarada.
    */
   if (fisica.dominante) {
-    return { familia: FAMILIA.CORPO, tipo: 'estrela', porte: porteEstelar(fisica.chunks), motivo: 'entidade dominante do sistema' };
+    return {
+      familia: FAMILIA.CORPO,
+      tipo: 'estrela',
+      porte: porteEstelar(fisica.chunks),
+      motivo: 'entidade dominante do sistema',
+    };
   }
 
   // Corpo não dominante nunca é estrela — o teto é planeta, e ele não pode passar a dominante.
@@ -421,8 +432,12 @@ export function porteEstelar(chunks) {
  * @returns {'pulsar'|'ana-branca'|null}
  */
 export function remanescente(fisica, node) {
-  const acabou = node.dwarf === 1
-    || (fisica.chunks >= CHUNKS_REMANESCENTE && fisica.activity === 0 && fisica.dormant === 0 && fisica.age <= 0.25);
+  const acabou =
+    node.dwarf === 1 ||
+    (fisica.chunks >= CHUNKS_REMANESCENTE &&
+      fisica.activity === 0 &&
+      fisica.dormant === 0 &&
+      fisica.age <= 0.25);
   if (!acabou) return null;
   return porteEstelar(fisica.chunks) === 'gigante' ? 'pulsar' : 'ana-branca';
 }

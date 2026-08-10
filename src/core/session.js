@@ -107,7 +107,13 @@ function describe(target) {
   const named = target.closest('[data-tray],[data-app],[data-widget],[data-slot]');
   if (named) {
     const set = named.dataset;
-    return set.tray ? `tray:${set.tray}` : set.app ? `app:${set.app}` : set.widget ? `widget:${set.widget}` : `slot:${set.slot}`;
+    return set.tray
+      ? `tray:${set.tray}`
+      : set.app
+        ? `app:${set.app}`
+        : set.widget
+          ? `widget:${set.widget}`
+          : `slot:${set.slot}`;
   }
   const text = (target.textContent || '').trim().slice(0, 24);
   return text || target.tagName.toLowerCase();

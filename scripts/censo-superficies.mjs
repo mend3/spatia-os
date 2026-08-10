@@ -24,7 +24,9 @@ import { SUPERFICIE, superficieDe, AUSENTES_NA_TABELA } from '../src/space/super
 
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
 
-const graph = await fetch(`${SPATIA}/api/graph`).then((r) => r.json()).catch(() => null);
+const graph = await fetch(`${SPATIA}/api/graph`)
+  .then((r) => r.json())
+  .catch(() => null);
 if (!graph) {
   console.error(`sem resposta de ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
   process.exit(1);
@@ -92,11 +94,15 @@ for (const node of corpos) {
   if (pele === SUPERFICIE.NENHUMA) semPele.push(node.source);
 }
 
-console.log(`\x1b[1mCENSO DE SUPERFÍCIES\x1b[0m  ${corpos.length} corpos · corpus ${graph.corpus?.collection}\n`);
+console.log(
+  `\x1b[1mCENSO DE SUPERFÍCIES\x1b[0m  ${corpos.length} corpos · corpus ${graph.corpus?.collection}\n`
+);
 
 console.log('\x1b[1mCLASSE (ontologia nova)\x1b[0m');
 for (const [k, n] of [...porClasse].sort((a, b) => b[1] - a[1])) {
-  console.log(`  ${k.padEnd(18)} ${String(n).padStart(4)}  ${'█'.repeat(Math.ceil((n / corpos.length) * 40))}`);
+  console.log(
+    `  ${k.padEnd(18)} ${String(n).padStart(4)}  ${'█'.repeat(Math.ceil((n / corpos.length) * 40))}`
+  );
 }
 
 console.log('\n\x1b[1mPELE que cada uma recebe\x1b[0m');
@@ -111,17 +117,23 @@ for (const nome of Object.values(SUPERFICIE)) {
   const n = porSuperficie.get(nome) || 0;
   const pct = ((n / corpos.length) * 100).toFixed(1);
   if (n === 0 && AUSENTES_NA_TABELA[nome]) {
-    console.log(`  \x1b[2m${nome.padEnd(12)}    —  fora da tabela: ${AUSENTES_NA_TABELA[nome].slice(0, 64)}…\x1b[0m`);
+    console.log(
+      `  \x1b[2m${nome.padEnd(12)}    —  fora da tabela: ${AUSENTES_NA_TABELA[nome].slice(0, 64)}…\x1b[0m`
+    );
   } else if (n === 0 && nome !== SUPERFICIE.NENHUMA) {
     vazias++;
     console.log(`  \x1b[31m${nome.padEnd(12)} ${String(n).padStart(4)}  ← ROTEADA E VAZIA\x1b[0m`);
   } else {
-    console.log(`  ${nome.padEnd(12)} ${String(n).padStart(4)}  ${pct.padStart(5)}%  ${'█'.repeat(Math.ceil((n / corpos.length) * 40))}`);
+    console.log(
+      `  ${nome.padEnd(12)} ${String(n).padStart(4)}  ${pct.padStart(5)}%  ${'█'.repeat(Math.ceil((n / corpos.length) * 40))}`
+    );
   }
 }
 
 if (semPele.length) {
-  console.log(`\n  ${semPele.length} corpos sem pele — asteroide fica esfera lisa até existir a pele dele, e isso é decisão`);
+  console.log(
+    `\n  ${semPele.length} corpos sem pele — asteroide fica esfera lisa até existir a pele dele, e isso é decisão`
+  );
 }
 
 console.log(

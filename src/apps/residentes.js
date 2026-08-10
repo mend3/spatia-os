@@ -29,17 +29,17 @@ import { registerApp } from '../kernel/registry.js';
  */
 export const RESIDENTES = Object.freeze({
   context:
-    'o céu está visível em TODA rota e este painel fala do céu — e clicar num astro NAVEGA, '
-    + 'então o gesto que trava a câmera era o mesmo que apagava o painel que ia descrever o astro travado',
+    'o céu está visível em TODA rota e este painel fala do céu — e clicar num astro NAVEGA, ' +
+    'então o gesto que trava a câmera era o mesmo que apagava o painel que ia descrever o astro travado',
   answer:
-    'o compositor se pergunta de qualquer rota — se a resposta só tivesse onde aparecer em algumas, '
-    + 'as outras executariam, pagariam e jogariam o texto no sótão. Sem resposta ele não desenha nada',
+    'o compositor se pergunta de qualquer rota — se a resposta só tivesse onde aparecer em algumas, ' +
+    'as outras executariam, pagariam e jogariam o texto no sótão. Sem resposta ele não desenha nada',
   'sky-time':
-    'a janela temporal controla o CÉU, que está visível em toda rota — fora da tela ela fica ativa '
-    + 'e sem controle, filtrando o corpus por uma data que ninguém vê',
+    'a janela temporal controla o CÉU, que está visível em toda rota — fora da tela ela fica ativa ' +
+    'e sem controle, filtrando o corpus por uma data que ninguém vê',
   timeline:
-    'o histórico do que aconteceu, e o host preserva o que continua declarado — ele atravessa a '
-    + 'navegação sem remontar, então sair dele numa rota é PERDER a continuidade, não escondê-la',
+    'o histórico do que aconteceu, e o host preserva o que continua declarado — ele atravessa a ' +
+    'navegação sem remontar, então sair dele numa rota é PERDER a continuidade, não escondê-la',
 });
 
 /** Este widget é residente? Leitor de `RESIDENTES`. */
@@ -62,8 +62,8 @@ function exigirResidentes(rotulo, widgets) {
   const faltando = residentesAusentes(widgets);
   if (!faltando.length) return;
   throw new Error(
-    `${rotulo}: a lista de widgets não monta o conjunto residente — falta ${faltando.join(', ')}. `
-      + faltando.map((id) => `\`${id}\`: ${RESIDENTES[id]}`).join(' — ')
+    `${rotulo}: a lista de widgets não monta o conjunto residente — falta ${faltando.join(', ')}. ` +
+      faltando.map((id) => `\`${id}\`: ${RESIDENTES[id]}`).join(' — ')
   );
 }
 

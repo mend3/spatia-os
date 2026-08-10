@@ -77,8 +77,16 @@ export function registerSecurity() {
     color: COLOR,
     key: '7',
     widgets: [
-      'context', 'sec-mode', 'sec-tools', 'sec-catalog',
-      'sec-reach', 'sec-exposure', 'sec-effective', 'answer', 'sky-time', 'timeline',
+      'context',
+      'sec-mode',
+      'sec-tools',
+      'sec-catalog',
+      'sec-reach',
+      'sec-exposure',
+      'sec-effective',
+      'answer',
+      'sky-time',
+      'timeline',
     ],
   });
 }
@@ -223,7 +231,9 @@ function registerReach() {
          */
         blocks.push(kv('RAIZ DO AGENTE', health.agent_cwd || '—'));
         const roots = health.exposure?.file_roots || [];
-        blocks.push(kv('RAÍZES DE ARQUIVO', roots.length ? plural(roots.length, 'raiz', 'raízes') : 'só o projeto'));
+        blocks.push(
+          kv('RAÍZES DE ARQUIVO', roots.length ? plural(roots.length, 'raiz', 'raízes') : 'só o projeto')
+        );
         for (const root of roots) blocks.push(el('div', 'unit-sub', root));
 
         /*

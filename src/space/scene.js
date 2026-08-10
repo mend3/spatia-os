@@ -37,7 +37,14 @@ import { createBackdrop } from './backdrop.js';
 import { createPlanet, planetParams, LOD_FAR_PX as PLANETA_FAR } from './planet.js';
 import { RS_POR_RAIO } from './astrofisica.js';
 import { createLinks } from './links.js';
-import { createGalaxy, galaxyParams, diskPx, SPAN as SPAN_DA_GALAXIA, LOD_ARM_PX, LOD_FULL_PX } from './galaxy.js';
+import {
+  createGalaxy,
+  galaxyParams,
+  diskPx,
+  SPAN as SPAN_DA_GALAXIA,
+  LOD_ARM_PX,
+  LOD_FULL_PX,
+} from './galaxy.js';
 import { createQuasars, quasarParams } from './quasar.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
@@ -83,8 +90,7 @@ const CAMERA = { fov: 46, near: 0.1, far: 900, start: new THREE.Vector3(0, 96, 1
  * Com `1 - exp(-rate * delta)` o resultado depende só do tempo decorrido: mesma trajetória a
  * qualquer FPS, e quadro perdido não vira tranco. `rate` é em unidades de 1/segundo.
  */
-const smooth = (current, target, rate, delta) =>
-  current + (target - current) * (1 - Math.exp(-rate * delta));
+const smooth = (current, target, rate, delta) => current + (target - current) * (1 - Math.exp(-rate * delta));
 
 // Taxas de convergência, em 1/s. Câmera responde rápido, regime cognitivo respira devagar.
 const RATE = { orbit: 9, zoom: 6, focus: 1.4, portal: 5 };
@@ -210,8 +216,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * (`fs-content` só existe em `#/files`), e uma referência guardada escreveria num nó órfão.
    * A consulta é um `querySelector` de atributo, e o custo dela está medido em `docs/medidas.md`.
    */
-  const ancoraDoDocumento = criarAncoraDeDocumento(
-    () => document.querySelector('.widget[data-panel-surface][data-widget="fs-content"]')
+  const ancoraDoDocumento = criarAncoraDeDocumento(() =>
+    document.querySelector('.widget[data-panel-surface][data-widget="fs-content"]')
   );
   /* Reusados por quadro — alocar `Vector3` no laço é lixo por quadro, como o resto da cena faz. */
   const ndcDoFoco = new THREE.Vector3();
@@ -337,7 +343,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
 
   const ROTAS_DO_POOL = {
     [SUPERFICIE.PLANETA]: {
-      pool: poolPlaneta, criar: createPlanet, far: PLANETA_FAR,
+      pool: poolPlaneta,
+      criar: createPlanet,
+      far: PLANETA_FAR,
       params: (node) => ({ ...planetParams(node), mapa: texturaDeAparencia(node.source) }),
       desenhar: (pele, base, c, elapsed) => {
         // A luz vem da ESTRELA DO SISTEMA, não da origem: iluminar de outra direção poria o
@@ -350,14 +358,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
     },
     [SUPERFICIE.FOTOSFERA]: {
-      pool: poolFotosfera, criar: createPhotosphere, far: FOTOSFERA_FAR,
+      pool: poolFotosfera,
+      criar: createPhotosphere,
+      far: FOTOSFERA_FAR,
       params: (node) => photosphereParams(node, hash01, graph.kindColor(node.kind)),
       // A fotosfera EMITE: não tem terminador e não pede direção de luz nenhuma.
       desenhar: (pele, base, c, elapsed) => pele.update(base, camera, c.px, elapsed),
       esconder: (pele, base, elapsed) => pele.update(base ?? {}, camera, 0, elapsed),
     },
     [SUPERFICIE.COMETA]: {
-      pool: poolCometa, criar: createComet, far: COMETA_FAR,
+      pool: poolCometa,
+      criar: createComet,
+      far: COMETA_FAR,
       params: (node) => cometParams(node, graph.kindColor(node.kind)),
       desenhar: (pele, base, c, elapsed) => {
         // ⚠️ `estrelaDoSistema` PRIMEIRO: é ela que preenche `FONTE_DA_CAUDA`. Sem esta linha a
@@ -367,7 +379,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       },
       // O cometa segue o idioma do caminho de foco: as morfológicas somem por `visible`, porque a
       // coma e as caudas não têm rampa de nível própria para descer.
-      esconder: (pele) => { pele.object.visible = false; },
+      esconder: (pele) => {
+        pele.object.visible = false;
+      },
     },
     /*
      * O PULSAR entrou no pool em 2026-08-08, quando deixou de ter população zero — o §2.7.1 do
@@ -380,10 +394,14 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * `lente-estelar.mjs` audita aquele caminho, não este.
      */
     [SUPERFICIE.PULSAR]: {
-      pool: poolPulsar, criar: createPulsar, far: PULSAR_FAR,
+      pool: poolPulsar,
+      criar: createPulsar,
+      far: PULSAR_FAR,
       params: (node) => pulsarParams(node, graph.kindColor(node.kind)),
       desenhar: (pele, base, c, elapsed) => pele.update(base, c.px, elapsed, motion.isReduced(), camera),
-      esconder: (pele) => { pele.object.visible = false; },
+      esconder: (pele) => {
+        pele.object.visible = false;
+      },
     },
   };
 
@@ -480,8 +498,18 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   scene.add(
     // O fundo entra PRIMEIRO na lista e com `renderOrder` mínimo: ele é o que tudo o mais tapa.
     backdrop.object,
-    stars.object, blackHole.group, universe.object, graph.group, planet.object, photosphere.object, remnant.object, moonOrbits.object,
-    station.object, comet.object, pulsar.object, nebula.object,
+    stars.object,
+    blackHole.group,
+    universe.object,
+    graph.group,
+    planet.object,
+    photosphere.object,
+    remnant.object,
+    moonOrbits.object,
+    station.object,
+    comet.object,
+    pulsar.object,
+    nebula.object,
     /*
      * SCENE ROOT, e não sob `graph.group` — o módulo é explícito sobre isso e o motivo é medido:
      * as entradas vêm de `planetAnchor`, que já multiplicou posição e raio pela escala do grupo.
@@ -494,7 +522,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // `planetAnchor`, já em MUNDO. Sob `graph.group` o `graphSpread` entraria duas vezes.
     quasars.object,
     particles.object,
-    satellites.group, wormholes.group, bodies.group
+    satellites.group,
+    wormholes.group,
+    bodies.group
   );
 
   /*
@@ -657,12 +687,17 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   function composicao() {
     const nomeDe = (p) => (p === lensing.pass ? 'lente' : p.constructor.name);
     const alvoDaProfundidade =
-      composer.renderTarget2.depthTexture === profundidadeDaCena ? 'rt2'
-        : composer.renderTarget1.depthTexture === profundidadeDaCena ? 'rt1' : 'nenhum';
+      composer.renderTarget2.depthTexture === profundidadeDaCena
+        ? 'rt2'
+        : composer.renderTarget1.depthTexture === profundidadeDaCena
+          ? 'rt1'
+          : 'nenhum';
     const habilitados = composer.passes.filter((p) => p.enabled !== false);
     // A simulação anda o par a partir do começo FIXO, com a mesma regra do laço vendorizado.
-    let leitor = 'rt2', escritor = 'rt1';
-    let gravaACena = null, escreveALente = null;
+    let leitor = 'rt2',
+      escritor = 'rt1';
+    let gravaACena = null,
+      escreveALente = null;
     for (const p of habilitados) {
       if (p.constructor.name === 'RenderPass') gravaACena = leitor;
       if (p === lensing.pass) escreveALente = escritor;
@@ -670,13 +705,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     }
     return {
       passes: composer.passes.map((p) => ({
-        nome: nomeDe(p), ligado: p.enabled !== false, troca: !!p.needsSwap,
+        nome: nomeDe(p),
+        ligado: p.enabled !== false,
+        troca: !!p.needsSwap,
       })),
       trocas: habilitados.filter((p) => p.needsSwap).length,
       fixado: { leitura: 'rt2', escrita: 'rt1' },
       leitura: composer.readBuffer === composer.renderTarget2 ? 'rt2' : 'rt1',
       profundidadeEm: alvoDaProfundidade,
-      gravaACena, escreveALente,
+      gravaACena,
+      escreveALente,
       /* ☠️ O defeito, nomeado: a lente escrevendo no alvo que carrega a profundidade que ela lê. */
       realimentacao: escreveALente !== null && escreveALente === alvoDaProfundidade,
       /* A cena tem de gravar profundidade onde a lente vai lê-la. */
@@ -698,7 +736,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     distance: readOrbit('camera.distance', 12, 260),
   };
   const orbit = {
-    azimuth: startOrbit.azimuth, polar: startOrbit.polar, distance: startOrbit.distance,
+    azimuth: startOrbit.azimuth,
+    polar: startOrbit.polar,
+    distance: startOrbit.distance,
     targetAzimuth: startOrbit.azimuth,
     targetPolar: startOrbit.polar,
     targetDistance: startOrbit.distance,
@@ -1010,7 +1050,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
    * @param {boolean} chegar `true` = reenquadra a distância pelo envelope
    */
   function adotarSistema(i, chegar = false) {
-    if (i === null || i === undefined) { sistemaCorrente = null; return; }
+    if (i === null || i === undefined) {
+      sistemaCorrente = null;
+      return;
+    }
     sistemaCorrente = i;
     const s = universe.sistemas()[i];
     if (!s) return;
@@ -1107,7 +1150,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
   on('memory', ({ hits }) => {
     // Acender a estrela e derrubá-la no núcleo é a mesma informação em dois canais: onde o
     // conhecimento está no céu, e que ele foi absorvido agora.
-    const lit = graph.ignite((hits || []).map((hit) => hit.source), 1.2);
+    const lit = graph.ignite(
+      (hits || []).map((hit) => hit.source),
+      1.2
+    );
     for (const { node, position } of lit) {
       particles.infall(position, graph.kindColor(node.kind), 16);
     }
@@ -1376,7 +1422,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * ver. `buttons & 4` é o do meio — `event.button` não vale em `pointermove`, ele só é o botão
      * que INICIOU o gesto.
      */
-    if (modo === 'universo' && !focusedNode && (event.shiftKey || (event.buttons & 4))) {
+    if (modo === 'universo' && !focusedNode && (event.shiftKey || event.buttons & 4)) {
       userControlled = true;
       orbitMoved = true;
       transladarLivre(event.movementX, event.movementY);
@@ -1386,9 +1432,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     // o quadro; aplicá-lo direto na câmera transporta esse ruído para a imagem.
     orbitMoved = true;
     orbit.targetAzimuth -= event.movementX * 0.0042;
-    orbit.targetPolar = THREE.MathUtils.clamp(
-      orbit.targetPolar - event.movementY * 0.0034, 0.22, 2.9
-    );
+    orbit.targetPolar = THREE.MathUtils.clamp(orbit.targetPolar - event.movementY * 0.0034, 0.22, 2.9);
   });
 
   canvas.addEventListener(
@@ -1683,9 +1727,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * `resolveBody`, e uma entrada com chave própria no MESMO array faria a sonda mostrar metade
        * das recusas sem frase. Foi assim que a segunda voz sobre a ausência de pele nasceu.
        */
-      rejected: pele === SUPERFICIE.NENHUMA
-        ? [...modificadores.rejected, { feature: 'surface', reason: `classe ${classe.tipo} não roteia pele` }]
-        : modificadores.rejected,
+      rejected:
+        pele === SUPERFICIE.NENHUMA
+          ? [
+              ...modificadores.rejected,
+              { feature: 'surface', reason: `classe ${classe.tipo} não roteia pele` },
+            ]
+          : modificadores.rejected,
       // O que a ontologia concluiu, para a sonda poder dizer por que esta pele e não outra.
       classe,
       fenomenos: ativos,
@@ -1719,9 +1767,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * a cena AGENTE sem foco, onde a âncora é o núcleo do buraco negro e não há corpo a consultar.
      */
     const raio = porteLocal();
-    const floor = raio === null
-      ? ZOOM_RANGE.min
-      : Math.max(raio * FOCUS_FLOOR_RADII, CAMERA.near * 4);
+    const floor = raio === null ? ZOOM_RANGE.min : Math.max(raio * FOCUS_FLOOR_RADII, CAMERA.near * 4);
     return THREE.MathUtils.clamp(value, floor, ZOOM_RANGE.max);
   }
 
@@ -1863,7 +1909,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       if (elapsed > FOCO_PRAZO_S) {
         const largado = focoDeEntrada.desistir();
         trace('foco-restaura', () => ({
-          etapa: 'desistiu', alvo: largado.source, origem: largado.origem, apos: `${elapsed.toFixed(1)}s`,
+          etapa: 'desistiu',
+          alvo: largado.source,
+          origem: largado.origem,
+          apos: `${elapsed.toFixed(1)}s`,
         }));
       }
       return;
@@ -1978,7 +2027,9 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * corpus, o destino era sempre plausível e sempre errado.
      */
     const nodeAt = focusedNode
-      ? (modo === 'universo' ? universe.posicaoDe(focusedNode) : graph.worldPositionOf(focusedNode))
+      ? modo === 'universo'
+        ? universe.posicaoDe(focusedNode)
+        : graph.worldPositionOf(focusedNode)
       : null;
     // Astro que saiu do céu (recarga da topologia) solta o foco em vez de prender a câmera
     // apontando para o vazio.
@@ -2348,9 +2399,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
          * `SKIN_EXTENT` é o multiplicador de distância de cada pele.
          */
         const extensao = SKIN_EXTENT[decisao?.surface] ?? 1;
-        orbit.targetDistance = clampDistance(
-          ((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX) * extensao
-        );
+        orbit.targetDistance = clampDistance(((focusGeometry.k * pouso.radius) / FOCUS_FIT_PX) * extensao);
         fitPending = false;
       }
     } else if (!focusedNode) {
@@ -2364,7 +2413,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * cegas. Diagnóstico que só existe no caminho feliz não é diagnóstico.
      */
     probe = {
-      focado: focusedNode, ancorou: Boolean(pouso), px: pouso?.px ?? 0, level: 0,
+      focado: focusedNode,
+      ancorou: Boolean(pouso),
+      px: pouso?.px ?? 0,
+      level: 0,
       pedido: lastFocusRequest,
       guarda: guardBit,
       raioDaCamera: +camera.position.length().toFixed(2),
@@ -2594,7 +2646,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         const rota = ROTAS_DO_POOL[sup];
         if (!rota) continue;
         if (c.px < rota.far) continue;
-        if (vizinhas.length >= PELES_VIZINHAS_MAX) { cortadas += 1; continue; }
+        if (vizinhas.length >= PELES_VIZINHAS_MAX) {
+          cortadas += 1;
+          continue;
+        }
         const slot = slotDaPele(rota.pool, rota.criar);
         slot.usado = true;
         slot.fonte = c.source;
@@ -2620,23 +2675,25 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * A CESSÃO é PLURAL: o corpo em foco e cada vizinho com pele cedem o sprite e viram núcleo.
      * Um só chamador, uma só lista — ver `universe.cederParaVarios`.
      */
-    universe.cederParaVarios([
-      ...(modo === 'universo' && decisao && decisao.surface !== SUPERFICIE.NENHUMA && focusedNode
-        ? [{ source: focusedNode, span: BODY_SPAN[decisao.surface] ?? 1 }]
-        : []),
-      // Cada pele cede conforme o PORTE dela: a esfera vira o núcleo sob o corpo desenhado, e não
-      // uma bola 2% menor que o cobre. Ver `cederParaVarios`.
-      ...vizinhas.map((v) => ({ source: v.source, span: BODY_SPAN[v.pele] ?? 1 })),
-    ],
-    /*
-     * ⚠️ **O FOCO vai no segundo argumento, e não como item da lista.** É ele que decide qual
-     * anel é objeto de mundo e qual é billboard. O `universe` inferia isso de
-     * `cedidos.size === 1`; desde que a cessão virou plural a inferência erra nos DOIS sentidos —
-     * some com o anel de mundo quando há vizinho com pele, e o inventa num vizinho quando não há
-     * foco. E ele é independente de PELE de propósito: um corpo em foco sem pele continua sendo
-     * o corpo que se está inspecionando. Ver `indiceFocado` em `universe.js`.
-     */
-    modo === 'universo' ? focusedNode : null);
+    universe.cederParaVarios(
+      [
+        ...(modo === 'universo' && decisao && decisao.surface !== SUPERFICIE.NENHUMA && focusedNode
+          ? [{ source: focusedNode, span: BODY_SPAN[decisao.surface] ?? 1 }]
+          : []),
+        // Cada pele cede conforme o PORTE dela: a esfera vira o núcleo sob o corpo desenhado, e não
+        // uma bola 2% menor que o cobre. Ver `cederParaVarios`.
+        ...vizinhas.map((v) => ({ source: v.source, span: BODY_SPAN[v.pele] ?? 1 })),
+      ],
+      /*
+       * ⚠️ **O FOCO vai no segundo argumento, e não como item da lista.** É ele que decide qual
+       * anel é objeto de mundo e qual é billboard. O `universe` inferia isso de
+       * `cedidos.size === 1`; desde que a cessão virou plural a inferência erra nos DOIS sentidos —
+       * some com o anel de mundo quando há vizinho com pele, e o inventa num vizinho quando não há
+       * foco. E ele é independente de PELE de propósito: um corpo em foco sem pele continua sendo
+       * o corpo que se está inspecionando. Ver `indiceFocado` em `universe.js`.
+       */
+      modo === 'universo' ? focusedNode : null
+    );
     /*
      * ⚠️ **A COROA da estrela, e ela existe porque a cena AGENTE a tinha por outro caminho.**
      *
@@ -2748,8 +2805,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
            */
           const raioDesenhado = ancora.radius * SPAN_DA_GALAXIA;
           candidatosAoOclusor.push({
-            quem: hub.id, tipo: 'galaxia', raio: +raioDesenhado.toFixed(2),
-            b: +b.toFixed(2), dist: +distHub.toFixed(2), cobre: b <= raioDesenhado,
+            quem: hub.id,
+            tipo: 'galaxia',
+            raio: +raioDesenhado.toFixed(2),
+            b: +b.toFixed(2),
+            dist: +distHub.toFixed(2),
+            cobre: b <= raioDesenhado,
           });
           // ⚠️ A régua é o ÂNGULO — quanta tela ele cobre —, e não a distância. Ver o bloco do
           // corpo em foco, onde escolher por distância produziu uma regressão medida.
@@ -2784,7 +2845,8 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * esconder o objeto no `setMode` durava um quadro. A guarda tem de ser na CHAMADA — e ela vale
        * como economia também, porque a cena UNIVERSO não paga o LOD de 228 discos que não desenha.
        */
-      const acesas = modo === 'universo' ? [] : galaxy.update(lote, camera, canvas.height, elapsed, focadaNoLote);
+      const acesas =
+        modo === 'universo' ? [] : galaxy.update(lote, camera, canvas.height, elapsed, focadaNoLote);
       /*
        * A MESMA projeção e a MESMA escada da galáxia, injetadas — não recalculadas aqui.
        *
@@ -2807,9 +2869,7 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
        * parâmetro só para isto seria uma chave a mais para alguém esquecer de ligar — e este
        * arquivo já pagou por chave órfã.
        */
-      const fluxo = motion.isReduced()
-        ? 0
-        : THREE.MathUtils.clamp(tune.graphSpeed / 0.25, 0, 1.6);
+      const fluxo = motion.isReduced() ? 0 : THREE.MathUtils.clamp(tune.graphSpeed / 0.25, 0, 1.6);
       quasars.tune({ flow: fluxo });
       const nucleosAcesos = quasars.update(nucleos, camera, canvas.height, elapsed, diskPx, {
         far: LOD_ARM_PX,
@@ -2860,9 +2920,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * forte de perto e invisível de longe. Ela alcança o interior da silhueta de propósito — ver o
      * bloco em `lensing.js`, e a escolha foi do usuário.
      */
-    const corpoDaLente = pouso && decisao?.surface === SUPERFICIE.PULSAR
-      ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SUPERFICIE.PULSAR] * RS_POR_RAIO.pulsar }
-      : null;
+    const corpoDaLente =
+      pouso && decisao?.surface === SUPERFICIE.PULSAR
+        ? { center: pouso.position, rs: pouso.radius * BODY_SPAN[SUPERFICIE.PULSAR] * RS_POR_RAIO.pulsar }
+        : null;
 
     /*
      * O CORPO EM FOCO TAMBEM OCLUI — e ele cobre QUATRO das seis peles, nao as seis.
@@ -2900,11 +2961,16 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      */
     const peleEmFoco = pouso ? decisao?.surface : null;
     const peleDesenhada = peleEmFoco != null && peleEmFoco in BODY_SPAN;
-    const extensaoDaPele = peleDesenhada ? SKIN_EXTENT[peleEmFoco] ?? 0 : 0;
+    const extensaoDaPele = peleDesenhada ? (SKIN_EXTENT[peleEmFoco] ?? 0) : 0;
     if (peleDesenhada && extensaoDaPele === 0) {
       candidatosAoOclusor.push({
-        quem: focusedNode, tipo: 'pele', pele: peleEmFoco, raio: 0, b: null,
-        dist: +pouso.position.distanceTo(camera.position).toFixed(2), cobre: false,
+        quem: focusedNode,
+        tipo: 'pele',
+        pele: peleEmFoco,
+        raio: 0,
+        b: null,
+        dist: +pouso.position.distanceTo(camera.position).toFixed(2),
+        cobre: false,
         motivo: 'pele desenhada sem régua de extensão em SKIN_EXTENT',
       });
     }
@@ -2916,11 +2982,19 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       const distBh = Math.max(aoBh.length(), 1e-4);
       if (distCorpo < distBh) {
         const versorBh = aoBh.divideScalar(distBh);
-        const b = doCorpo.clone().sub(versorBh.clone().multiplyScalar(doCorpo.dot(versorBh))).length();
+        const b = doCorpo
+          .clone()
+          .sub(versorBh.clone().multiplyScalar(doCorpo.dot(versorBh)))
+          .length();
         const raioDaPele = pouso.radius * extensaoDaPele;
         candidatosAoOclusor.push({
-          quem: focusedNode, tipo: 'pele', pele: peleEmFoco, raio: +raioDaPele.toFixed(2),
-          b: +b.toFixed(2), dist: +distCorpo.toFixed(2), cobre: b <= raioDaPele,
+          quem: focusedNode,
+          tipo: 'pele',
+          pele: peleEmFoco,
+          raio: +raioDaPele.toFixed(2),
+          b: +b.toFixed(2),
+          dist: +distCorpo.toFixed(2),
+          cobre: b <= raioDaPele,
         });
         /*
          * ☠️ **VENCE O MAIOR RAIO APARENTE, não o mais próximo.** «O mais próximo oclui os outros»
@@ -2939,13 +3013,20 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
         }
       }
     }
-    lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), { glitch, lente: corpoDaLente, oclusor: oclusorMacio });
+    lensing.sync(camera, blackHole, renderer.getSize(new THREE.Vector2()), {
+      glitch,
+      lente: corpoDaLente,
+      oclusor: oclusorMacio,
+    });
     oclusorProbe = {
       escolhido: oclusorMacio
-        ? { raio: +oclusorMacio.radius.toFixed(2), dist: +oclusorMacio.dist.toFixed(2),
-            anguloAparente: +(oclusorMacio.radius / oclusorMacio.dist).toFixed(4) }
+        ? {
+            raio: +oclusorMacio.radius.toFixed(2),
+            dist: +oclusorMacio.dist.toFixed(2),
+            anguloAparente: +(oclusorMacio.radius / oclusorMacio.dist).toFixed(4),
+          }
         : null,
-      candidatos: candidatosAoOclusor.sort((a, b) => (b.raio / b.dist) - (a.raio / a.dist)).slice(0, 6),
+      candidatos: candidatosAoOclusor.sort((a, b) => b.raio / b.dist - a.raio / a.dist).slice(0, 6),
       cobrem: candidatosAoOclusor.filter((c) => c.cobre).length,
       considerados: candidatosAoOclusor.length,
       /*
@@ -3110,15 +3191,25 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       const sis = sistemaCorrente === null ? null : lista[sistemaCorrente];
       const porque = focusedNode ? 'corpo em foco' : objetoAnexado ? 'objeto anexado' : 'voo livre';
       return {
-        modo, porque, focado: focusedNode, anexado: objetoAnexado,
+        modo,
+        porque,
+        focado: focusedNode,
+        anexado: objetoAnexado,
         ancoraLivre: [+ancoraLivre.x.toFixed(2), +ancoraLivre.y.toFixed(2), +ancoraLivre.z.toFixed(2)],
-        sistema: sis ? { i: sistemaCorrente, id: sis.id, envelope: +sis.envelope.toFixed(3),
-          distanciaDaOrigem: +sis.pos.length().toFixed(2) } : null,
+        sistema: sis
+          ? {
+              i: sistemaCorrente,
+              id: sis.id,
+              envelope: +sis.envelope.toFixed(3),
+              distanciaDaOrigem: +sis.pos.length().toFixed(2),
+            }
+          : null,
         sistemas: lista.length,
         centroideDaOrigem: +universe.centroideDosSistemas().length().toFixed(2),
         ancoraAtual: [+anchor.x.toFixed(2), +anchor.y.toFixed(2), +anchor.z.toFixed(2)],
         ancoraDaOrigem: +anchor.length().toFixed(2),
-        distancia: +orbit.distance.toFixed(2), alvoDeDistancia: +orbit.targetDistance.toFixed(2),
+        distancia: +orbit.distance.toFixed(2),
+        alvoDeDistancia: +orbit.targetDistance.toFixed(2),
         /*
          * ⚠️ O ERRO DA ÂNCORA, e ele existe porque `distancia` MENTE sobre o que se vê.
          *
@@ -3482,7 +3573,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * @returns {{amostras: any[], estado: object}}
      */
     skinAB(condicoes = [], ler) {
-      const amostras = mesmoQuadro(condicoes, (c) => planet.termos(c), () => planet.termos({ limbo: 1, casca: 1 }), ler);
+      const amostras = mesmoQuadro(
+        condicoes,
+        (c) => planet.termos(c),
+        () => planet.termos({ limbo: 1, casca: 1 }),
+        ler
+      );
       return { amostras, estado: planet.termos() };
     },
 
@@ -3494,7 +3590,12 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
      * que um corpo REALMENTE tem nesta cena, que é a pergunta que decide se vale criá-lo.
      */
     universeAB(condicoes = [], ler) {
-      const amostras = mesmoQuadro(condicoes, (c) => universe.termos(c), () => universe.termos({ borda: 1 }), ler);
+      const amostras = mesmoQuadro(
+        condicoes,
+        (c) => universe.termos(c),
+        () => universe.termos({ borda: 1 }),
+        ler
+      );
       return { amostras, estado: universe.termos() };
     },
 

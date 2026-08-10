@@ -105,8 +105,7 @@ export function resolveBody(node, facts = {}) {
    * anel?" (sim) enquanto a tela desenhava um PULSAR, que não aceita. A pergunta tem de ser feita
    * sobre o corpo que o olho vai ver, senão a recusa protege o objeto errado.
    */
-  const corpo =
-    node?.type === 'file' ? klass.features?.body ?? morphologyOf(node?.kind).body : null;
+  const corpo = node?.type === 'file' ? (klass.features?.body ?? morphologyOf(node?.kind).body) : null;
   let temAnel = false;
   // Só ARQUIVO usa anel. Agregado não tem corpo — é o continente, e a mesma frase que o catálogo
   // usa para negar crosta a um diretório nega material orbital a ele. Na prática o `graph.js` nem
@@ -128,7 +127,10 @@ export function resolveBody(node, facts = {}) {
    */
   if (node?.type === 'file' && (node.supernova || 0) > SUPERNOVA_FLOOR) {
     if (temAnel) {
-      refuse(MODIFIER.ENVELOPE, 'anel e envoltório à volta do mesmo núcleo é o empilhamento que criou o catálogo');
+      refuse(
+        MODIFIER.ENVELOPE,
+        'anel e envoltório à volta do mesmo núcleo é o empilhamento que criou o catálogo'
+      );
     } else {
       const proibido = klass.forbids?.envelope;
       if (proibido) refuse(MODIFIER.ENVELOPE, proibido);

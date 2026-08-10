@@ -232,19 +232,31 @@ export function medirHud(env, opcoes = {}) {
       const y = Math.min(alturaPx - 0.5, (j + 0.5) * passoPx);
       const alvo = doc.elementFromPoint(x, y);
       // `null` é ponto fora do documento; contá-lo como canvas inventaria gesto que chega.
-      if (!alvo) { nulos++; continue; }
-      if (alvo === raiz || alvo === doc.body) { aoFundo++; continue; }
+      if (!alvo) {
+        nulos++;
+        continue;
+      }
+      if (alvo === raiz || alvo === doc.body) {
+        aoFundo++;
+        continue;
+      }
 
       let dono = null;
       let fenda = null;
       let noCanvas = false;
       for (let no = alvo; no; no = no.parentElement) {
-        if (no === tela3d) { noCanvas = true; break; }
+        if (no === tela3d) {
+          noCanvas = true;
+          break;
+        }
         if (!dono) dono = sondaIdentidade(no);
         if (!fenda && no.dataset?.slot) fenda = no.dataset.slot;
         if (no === raiz) break;
       }
-      if (noCanvas) { aoCanvas++; continue; }
+      if (noCanvas) {
+        aoCanvas++;
+        continue;
+      }
 
       reivindicados++;
       const chave = dono || sondaForma(alvo);
@@ -558,10 +570,14 @@ async function main() {
     let alvoY = 0;
     let atualX = 0;
     let atualY = 0;
-    window.addEventListener('pointermove', (event) => {
-      alvoX = (event.clientX / window.innerWidth) * 2 - 1;
-      alvoY = (event.clientY / window.innerHeight) * 2 - 1;
-    }, { passive: true });
+    window.addEventListener(
+      'pointermove',
+      (event) => {
+        alvoX = (event.clientX / window.innerWidth) * 2 - 1;
+        alvoY = (event.clientY / window.innerHeight) * 2 - 1;
+      },
+      { passive: true }
+    );
     const seguir = () => {
       // Mesma suavização por tempo da cena; ponteiro cru faria o texto tremer.
       atualX += (alvoX - atualX) * 0.06;
@@ -799,11 +815,12 @@ async function main() {
            * Devolver `SYSTEM_VIEW` aí inventaria nove `ausentes` — defeito onde só há ordem de
            * inicialização.
            */
-          declarados: atual.id === null
-            ? []
-            : atual.id === ROUTE_ROOT
-              ? SYSTEM_VIEW
-              : (getApp(atual.id)?.widgets ?? []),
+          declarados:
+            atual.id === null
+              ? []
+              : atual.id === ROUTE_ROOT
+                ? SYSTEM_VIEW
+                : (getApp(atual.id)?.widgets ?? []),
           armazem: window.localStorage,
         },
         opcoes
@@ -877,9 +894,10 @@ async function main() {
      * ⭑ **`composicao` é a que separa "preto por buffer" de "preto por câmera ou por laço"**: ela
      * diz onde a cena grava profundidade, onde a lente escreve, e se as duas colidem.
      */
-    cena: (modo) => (modo
-      ? scene.setMode(modo)
-      : { modo: scene.mode(), ...scene.universeStats(), composicao: scene.composicao() }),
+    cena: (modo) =>
+      modo
+        ? scene.setMode(modo)
+        : { modo: scene.mode(), ...scene.universeStats(), composicao: scene.composicao() },
     /**
      * A geometria da cena UNIVERSO, medida em vez de olhada.
      *
@@ -930,7 +948,10 @@ async function main() {
     saudeStore.publicar(health);
     // O botão de voz precisa do DESEJADO, que o health não carrega: sem ele, TTS desligado por
     // decisão e TTS caído chegam iguais e a tela promete uma voz que não vem.
-    api.units().then((units) => voice.applyHealth(health, units)).catch(() => voice.applyHealth(health));
+    api
+      .units()
+      .then((units) => voice.applyHealth(health, units))
+      .catch(() => voice.applyHealth(health));
     streams.showProviders(health.providers);
     scene.installProviders(health.providers);
   } catch (error) {
@@ -1035,12 +1056,13 @@ async function main() {
    * em `prefs` e AVISA; quem sabe desenhar é a cena. Aplicado uma vez no boot, para que a
    * escolha da sessão anterior já esteja no ar antes do primeiro quadro visível.
    */
-  const aplicarFundo = () => scene.applyBackdrop({
-    enabled: prefs.get('sky.backdrop'),
-    seconds: prefs.get('sky.backdropSeconds'),
-    fade: prefs.get('sky.backdropFade'),
-    quality: prefs.get('sky.backdropQuality'),
-  });
+  const aplicarFundo = () =>
+    scene.applyBackdrop({
+      enabled: prefs.get('sky.backdrop'),
+      seconds: prefs.get('sky.backdropSeconds'),
+      fade: prefs.get('sky.backdropFade'),
+      quality: prefs.get('sky.backdropQuality'),
+    });
   aplicarFundo();
   on('ui.apply-backdrop', aplicarFundo);
 
@@ -1058,8 +1080,9 @@ async function main() {
    * donos do mesmo booleano, e eles divergem no primeiro esquecimento.
    */
   document.querySelector('[data-time-toggle]')?.addEventListener('click', () => {
-    const secao = [...document.querySelectorAll('.widget .label')]
-      .find((l) => l.querySelector('.widget-title')?.textContent.trim() === 'JANELA DO TEMPO');
+    const secao = [...document.querySelectorAll('.widget .label')].find(
+      (l) => l.querySelector('.widget-title')?.textContent.trim() === 'JANELA DO TEMPO'
+    );
     secao?.click();
     // Desdobrar e não conseguir ver seria pior que não ter o botão: rola até ela.
     secao?.closest('.widget')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });

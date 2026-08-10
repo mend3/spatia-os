@@ -31,14 +31,23 @@
  *
  * Uso:  node scripts/lei-ancora.mjs
  */
-import { criarAncoraDeDocumento, MOTIVOS_DA_ANCORA, MARGEM_PX, FOLGA_EM_RAIOS, PASSO_DA_LUZ, LUZ_PLENA_PX }
-  from '../src/space/ancora-de-documento.js';
+import {
+  criarAncoraDeDocumento,
+  MOTIVOS_DA_ANCORA,
+  MARGEM_PX,
+  FOLGA_EM_RAIOS,
+  PASSO_DA_LUZ,
+  LUZ_PLENA_PX,
+} from '../src/space/ancora-de-documento.js';
 
 const C = { erro: '\x1b[31m', ok: '\x1b[32m', fraco: '\x1b[2m', forte: '\x1b[1m', fim: '\x1b[0m' };
 let falhas = 0;
 const checar = (secao, condicao, frase) => {
   if (condicao) console.log(`  ${C.ok}✓${C.fim} ${C.fraco}${secao}${C.fim} ${frase}`);
-  else { falhas += 1; console.log(`${C.erro}✗ ${secao} ${frase}${C.fim}`); }
+  else {
+    falhas += 1;
+    console.log(`${C.erro}✗ ${secao} ${frase}${C.fim}`);
+  }
 };
 
 // ─────────────────────────────────────────────────────────── o DOM de mentira, com geometria real
@@ -74,10 +83,18 @@ function painelDeMentira() {
     removidas: [],
     style: {
       props: {},
-      setProperty(k, v) { this.props[k] = v; painel.escritas.push(k); },
-      removeProperty(k) { delete this.props[k]; painel.removidas.push(k); },
+      setProperty(k, v) {
+        this.props[k] = v;
+        painel.escritas.push(k);
+      },
+      removeProperty(k) {
+        delete this.props[k];
+        painel.removidas.push(k);
+      },
     },
-    removeAttribute(k) { delete painel.dataset[k.replace(/^data-/, '').replace(/-(\w)/g, (_, c) => c.toUpperCase())]; },
+    removeAttribute(k) {
+      delete painel.dataset[k.replace(/^data-/, '').replace(/-(\w)/g, (_, c) => c.toUpperCase())];
+    },
     querySelector: (sel) => (sel.includes('widget-body') ? corpo : null),
   };
   return painel;
@@ -92,9 +109,11 @@ const ctx = (extra = {}) => ({
   ...extra,
 });
 
-console.log(`${C.forte}LEI DA ÂNCORA${C.fim}  ${C.fraco}janela ${JANELA.largura}×${JANELA.altura} · `
-  + `caixa ${CAIXA.largura}×${CAIXA.altura} · margem ${MARGEM_PX}px · `
-  + `folga ${FOLGA_EM_RAIOS}× o raio${C.fim}\n`);
+console.log(
+  `${C.forte}LEI DA ÂNCORA${C.fim}  ${C.fraco}janela ${JANELA.largura}×${JANELA.altura} · ` +
+    `caixa ${CAIXA.largura}×${CAIXA.altura} · margem ${MARGEM_PX}px · ` +
+    `folga ${FOLGA_EM_RAIOS}× o raio${C.fim}\n`
+);
 
 // ───────────────────────────────────────────── §1–§4 · AS QUATRO AUSÊNCIAS SAEM POR NOME
 
@@ -102,30 +121,45 @@ console.log(`${C.forte}§1–§4  AS QUATRO CAUSAS DE «NÃO SE MOVEU»${C.fim}`
 {
   const semPainel = criarAncoraDeDocumento(() => null);
   semPainel.atualizar(ctx());
-  checar('§1', semPainel.estado().motivo === MOTIVOS_DA_ANCORA.SEM_PAINEL,
-    'painel não montado sai como `painel-nao-montado`, e nada é escrito');
+  checar(
+    '§1',
+    semPainel.estado().motivo === MOTIVOS_DA_ANCORA.SEM_PAINEL,
+    'painel não montado sai como `painel-nao-montado`, e nada é escrito'
+  );
 
   const p = painelDeMentira();
   const a = criarAncoraDeDocumento(() => p);
   a.atualizar(ctx());
   const ancorou = p.dataset.ancorado === 'sim';
   a.atualizar(null);
-  checar('§2', ancorou && a.estado().motivo === MOTIVOS_DA_ANCORA.SEM_CORPO && !p.dataset.ancorado,
-    'sem corpo travado sai como `sem-corpo-em-foco` **e o atributo é RETIRADO do nó**');
-  checar('§2b', p.style.props['--ancora-dx'] === undefined,
-    'soltar apaga as variáveis — deslocamento congelado é como o painel abre torto na próxima rota');
+  checar(
+    '§2',
+    ancorou && a.estado().motivo === MOTIVOS_DA_ANCORA.SEM_CORPO && !p.dataset.ancorado,
+    'sem corpo travado sai como `sem-corpo-em-foco` **e o atributo é RETIRADO do nó**'
+  );
+  checar(
+    '§2b',
+    p.style.props['--ancora-dx'] === undefined,
+    'soltar apaga as variáveis — deslocamento congelado é como o painel abre torto na próxima rota'
+  );
 
   const p3 = painelDeMentira();
   const a3 = criarAncoraDeDocumento(() => p3);
   a3.atualizar(ctx({ ndc: { x: 0, y: 0, z: 1.4 } }));
-  checar('§3', a3.estado().motivo === MOTIVOS_DA_ANCORA.ATRAS && !p3.dataset.ancorado,
-    'corpo atrás da câmera (`z > 1`) solta — a projeção espelha, e o painel saltaria para o lado errado');
+  checar(
+    '§3',
+    a3.estado().motivo === MOTIVOS_DA_ANCORA.ATRAS && !p3.dataset.ancorado,
+    'corpo atrás da câmera (`z > 1`) solta — a projeção espelha, e o painel saltaria para o lado errado'
+  );
 
   const p4 = painelDeMentira();
   const a4 = criarAncoraDeDocumento(() => p4);
   a4.atualizar(ctx({ eclipsado: true }));
-  checar('§4', a4.estado().motivo === MOTIVOS_DA_ANCORA.ECLIPSADO && !p4.dataset.ancorado,
-    'corpo atrás do horizonte solta com motivo PRÓPRIO — não é o mesmo fato que «não há corpo»');
+  checar(
+    '§4',
+    a4.estado().motivo === MOTIVOS_DA_ANCORA.ECLIPSADO && !p4.dataset.ancorado,
+    'corpo atrás do horizonte solta com motivo PRÓPRIO — não é o mesmo fato que «não há corpo»'
+  );
 }
 
 // ───────────────────────────────────────────────────── §5 · A REALIMENTAÇÃO — a lei que dá o nome
@@ -148,16 +182,21 @@ console.log(`\n${C.forte}§5  A ÂNCORA NÃO FOGE${C.fim}  ${C.fraco}mesma câme
    * verdade anda `dx` INTEIRO por quadro (dezenas de px), não frações. Um limiar apertado
    * reprovaria arredondamento; este só reprova fuga.
    */
-  checar('§5', deriva < 1,
-    `com a câmera parada o deslocamento ESTABILIZA (${primeiro} → ${ultimo}, deriva ${deriva.toFixed(2)} px em 240 quadros) `
-    + '— `getBoundingClientRect` inclui o `transform`, e ler a caixa deslocada faria o painel fugir');
+  checar(
+    '§5',
+    deriva < 1,
+    `com a câmera parada o deslocamento ESTABILIZA (${primeiro} → ${ultimo}, deriva ${deriva.toFixed(2)} px em 240 quadros) ` +
+      '— `getBoundingClientRect` inclui o `transform`, e ler a caixa deslocada faria o painel fugir'
+  );
   const todosIguais = trilha.every((v) => Math.abs(v - primeiro) < 1);
   checar('§5b', todosIguais, 'e nenhum quadro do meio se desvia — fuga que volta sozinha ainda é fuga');
 }
 
 // ───────────────────────────────────────────────────────────────── §6 · O TETO: não perder o texto
 
-console.log(`\n${C.forte}§6  O DOCUMENTO NÃO SAI DO QUADRO${C.fim}  ${C.fraco}a CAIXA, nunca o deslocamento${C.fim}`);
+console.log(
+  `\n${C.forte}§6  O DOCUMENTO NÃO SAI DO QUADRO${C.fim}  ${C.fraco}a CAIXA, nunca o deslocamento${C.fim}`
+);
 {
   /*
    * ☠️ **ESTA SEÇÃO MEDIA UM PROXY E PASSAVA VERDE COM O DEFEITO NA TELA.** Ela conferia
@@ -187,39 +226,59 @@ console.log(`\n${C.forte}§6  O DOCUMENTO NÃO SAI DO QUADRO${C.fim}  ${C.fraco}
          * uma afirmação mais fraca de propósito.
          */
         casos.push({
-          x, y, px, esq, topo,
-          dentro: esq >= -0.05 && topo >= -0.05
-            && esq + CAIXA.largura <= JANELA.largura + 0.05
-            && topo + CAIXA.altura <= JANELA.altura + 0.05,
-          comMargem: esq >= MARGEM_PX - 0.05 && topo >= MARGEM_PX - 0.05
-            && esq + CAIXA.largura <= JANELA.largura - MARGEM_PX + 0.05
-            && topo + CAIXA.altura <= JANELA.altura - MARGEM_PX + 0.05,
+          x,
+          y,
+          px,
+          esq,
+          topo,
+          dentro:
+            esq >= -0.05 &&
+            topo >= -0.05 &&
+            esq + CAIXA.largura <= JANELA.largura + 0.05 &&
+            topo + CAIXA.altura <= JANELA.altura + 0.05,
+          comMargem:
+            esq >= MARGEM_PX - 0.05 &&
+            topo >= MARGEM_PX - 0.05 &&
+            esq + CAIXA.largura <= JANELA.largura - MARGEM_PX + 0.05 &&
+            topo + CAIXA.altura <= JANELA.altura - MARGEM_PX + 0.05,
         });
       }
     }
   }
   const fora = casos.filter((c) => !c.dentro);
   const pior = casos.reduce((a, b) => (Math.min(a.esq, a.topo) < Math.min(b.esq, b.topo) ? a : b));
-  checar('§6', fora.length === 0,
-    `a caixa PINTADA fica dentro da JANELA nos ${casos.length} enquadramentos varridos `
-    + `(pior borda: esq ${pior.esq.toFixed(0)} px, topo ${pior.topo.toFixed(0)} px)`
-    + (fora.length ? ` — ${fora.length} fora, o primeiro em ndc.x ${fora[0].x} px ${fora[0].px}` : ''));
+  checar(
+    '§6',
+    fora.length === 0,
+    `a caixa PINTADA fica dentro da JANELA nos ${casos.length} enquadramentos varridos ` +
+      `(pior borda: esq ${pior.esq.toFixed(0)} px, topo ${pior.topo.toFixed(0)} px)` +
+      (fora.length ? ` — ${fora.length} fora, o primeiro em ndc.x ${fora[0].x} px ${fora[0].px}` : '')
+  );
   const semMargem = casos.filter((c) => !c.comMargem);
-  checar('§6a', semMargem.length === 0,
-    `e respeita a margem DECLARADA de ${MARGEM_PX} px${semMargem.length ? ` — ${semMargem.length} não respeitam` : ''} `
-    + '(afirmação mais fraca: ela lê a constante do próprio módulo)');
+  checar(
+    '§6a',
+    semMargem.length === 0,
+    `e respeita a margem DECLARADA de ${MARGEM_PX} px${semMargem.length ? ` — ${semMargem.length} não respeitam` : ''} ` +
+      '(afirmação mais fraca: ela lê a constante do próprio módulo)'
+  );
 
   const p = painelDeMentira();
   const a = criarAncoraDeDocumento(() => p);
   a.atualizar(ctx({ ndc: { x: -9, y: 7, z: 0.5 }, px: 400 }));
-  checar('§6b', a.estado().noTeto === true,
-    'e a sonda DIZ que encostou na borda — «encostou» e «acompanhou» não podem ter a mesma leitura');
+  checar(
+    '§6b',
+    a.estado().noTeto === true,
+    'e a sonda DIZ que encostou na borda — «encostou» e «acompanhou» não podem ter a mesma leitura'
+  );
 
   const pc = painelDeMentira();
   const ac = criarAncoraDeDocumento(() => pc);
   ac.atualizar(ctx({ ndc: { x: 0.55, y: 0, z: 0.5 }, px: 40 }));
-  checar('§6c', ac.estado().noTeto === false,
-    'e o caso que CABE não é anunciado como encostado — um aviso que sai sempre não distingue nada');
+  checar(
+    '§6c',
+    ac.estado().noTeto === false,
+    'e o caso que CABE não é anunciado como encostado — um aviso que sai sempre não distingue nada'
+  );
 }
 
 // ─────────────────────────────────────────────── §7 · O LADO: o painel foge da borda, não para ela
@@ -236,8 +295,11 @@ console.log(`\n${C.forte}§7  O PAINEL ENCOSTA NO LADO COM MAIS JANELA${C.fim}`)
   ae.atualizar(ctx({ ndc: { x: -0.6, y: 0, z: 0.5 } }));
   const esq = ae.estado();
 
-  checar('§7', dir.lado === 'esquerda' && esq.lado === 'direita',
-    'corpo à direita → painel à ESQUERDA dele, e vice-versa; lado fixo poria o texto fora da janela');
+  checar(
+    '§7',
+    dir.lado === 'esquerda' && esq.lado === 'direita',
+    'corpo à direita → painel à ESQUERDA dele, e vice-versa; lado fixo poria o texto fora da janela'
+  );
   /*
    * ⚠️ **NÃO se confere pelo SINAL de `dx`, e a primeira versão desta lei se enganou aí.** O
    * painel nasce no CENTRO da janela; com o corpo a 80% da largura, pô-lo à esquerda DELE ainda
@@ -246,12 +308,18 @@ console.log(`\n${C.forte}§7  O PAINEL ENCOSTA NO LADO COM MAIS JANELA${C.fim}`)
    */
   const centroFinal = (e) => JANELA.largura / 2 + e.dx;
   const folgaMinima = (e) => Math.abs(centroFinal(e) - e.x) - CAIXA.largura / 2;
-  checar('§7b', centroFinal(dir) < dir.x && centroFinal(esq) > esq.x,
-    `o painel termina do lado escolhido DO CORPO (dir: ${centroFinal(dir).toFixed(0)} < ${dir.x}; `
-    + `esq: ${centroFinal(esq).toFixed(0)} > ${esq.x})`);
-  checar('§7c', folgaMinima(dir) >= dir.px && folgaMinima(esq) >= esq.px,
-    `e a borda do painel fica FORA do limbo (folga ${folgaMinima(dir).toFixed(0)} px ≥ raio ${dir.px} px) `
-    + '— encostar não é cobrir o corpo que é o assunto');
+  checar(
+    '§7b',
+    centroFinal(dir) < dir.x && centroFinal(esq) > esq.x,
+    `o painel termina do lado escolhido DO CORPO (dir: ${centroFinal(dir).toFixed(0)} < ${dir.x}; ` +
+      `esq: ${centroFinal(esq).toFixed(0)} > ${esq.x})`
+  );
+  checar(
+    '§7c',
+    folgaMinima(dir) >= dir.px && folgaMinima(esq) >= esq.px,
+    `e a borda do painel fica FORA do limbo (folga ${folgaMinima(dir).toFixed(0)} px ≥ raio ${dir.px} px) ` +
+      '— encostar não é cobrir o corpo que é o assunto'
+  );
 }
 
 // ─────────────────────────────────────────── §8 · ELE NÃO ESCREVE NO QUE MEDE
@@ -273,12 +341,18 @@ console.log(`\n${C.forte}§8  O QUE ELE ESCREVE, E NADA ALÉM${C.fim}`);
   a.atualizar(null);
   const escritas = [...new Set([...p.escritas, ...p.removidas])];
   const fora = escritas.filter((k) => !DO_MODULO.test(k));
-  checar('§8', fora.length === 0,
-    `as ${escritas.length} escritas são todas \`--ancora-*\` (fora do namespace: ${fora.join(', ') || 'nenhuma'}) `
-    + '— `pointer-events`, `display` ou `position` daqui derrubariam a regra do palco');
+  checar(
+    '§8',
+    fora.length === 0,
+    `as ${escritas.length} escritas são todas \`--ancora-*\` (fora do namespace: ${fora.join(', ') || 'nenhuma'}) ` +
+      '— `pointer-events`, `display` ou `position` daqui derrubariam a regra do palco'
+  );
   const atribFora = Object.keys(p.dataset).filter((k) => !ATRIBUTOS.has(k));
-  checar('§8b', atribFora.length === 0,
-    `e os atributos são só \`data-ancorado\` e \`data-ancora-lado\` (fora: ${atribFora.join(', ') || 'nenhum'})`);
+  checar(
+    '§8b',
+    atribFora.length === 0,
+    `e os atributos são só \`data-ancorado\` e \`data-ancora-lado\` (fora: ${atribFora.join(', ') || 'nenhum'})`
+  );
 }
 
 // ─────────────────────────────────── §10 · A LUZ VEM DO CORPO — profundidade e paralaxe
@@ -301,8 +375,11 @@ console.log(`\n${C.forte}§10  A LUZ VEM DO CORPO${C.fim}  ${C.fraco}um mecanism
   const a = criarAncoraDeDocumento(() => p);
   const parado = ctx({ ndc: { x: -0.3, y: 0.1, z: 0.5 }, px: 90 });
   for (let q = 0; q < 240; q++) a.atualizar(parado);
-  checar('§10', a.estado().luz.repinturas === 1,
-    `câmera parada, 240 quadros → ${a.estado().luz.repinturas} repintura do gradiente`);
+  checar(
+    '§10',
+    a.estado().luz.repinturas === 1,
+    `câmera parada, 240 quadros → ${a.estado().luz.repinturas} repintura do gradiente`
+  );
 
   /*
    * Corpo ANDANDO sem o painel encostar: a luz continua parada, porque o painel o acompanha.
@@ -314,15 +391,21 @@ console.log(`\n${C.forte}§10  A LUZ VEM DO CORPO${C.fim}  ${C.fraco}um mecanism
   const pA = painelDeMentira();
   const aA = criarAncoraDeDocumento(() => pA);
   let sempreLivre = true;
-  for (const x of [-0.50, -0.43, -0.36, -0.29, -0.22, -0.15]) {
+  for (const x of [-0.5, -0.43, -0.36, -0.29, -0.22, -0.15]) {
     aA.atualizar(ctx({ ndc: { x, y: 0.1, z: 0.5 }, px: 90 }));
     if (aA.estado().noTeto || aA.estado().lado !== 'direita') sempreLivre = false;
   }
-  checar('§10b-premissa', sempreLivre,
-    'a varredura mantém o painel LIVRE e do mesmo lado — é o cenário que a §10b afirma medir');
-  checar('§10b', aA.estado().luz.repinturas === 1,
-    `corpo atravessando o quadro com o painel livre: ${aA.estado().luz.repinturas} repintura `
-    + '— o painel segue o corpo, então a luz não anda sobre a caixa e não há paralaxe a mostrar');
+  checar(
+    '§10b-premissa',
+    sempreLivre,
+    'a varredura mantém o painel LIVRE e do mesmo lado — é o cenário que a §10b afirma medir'
+  );
+  checar(
+    '§10b',
+    aA.estado().luz.repinturas === 1,
+    `corpo atravessando o quadro com o painel livre: ${aA.estado().luz.repinturas} repintura ` +
+      '— o painel segue o corpo, então a luz não anda sobre a caixa e não há paralaxe a mostrar'
+  );
 
   /*
    * E ele APARECE quando o painel encosta na borda e o corpo continua: aí a superfície para e a
@@ -336,9 +419,12 @@ console.log(`\n${C.forte}§10  A LUZ VEM DO CORPO${C.fim}  ${C.fraco}um mecanism
     trilhaLuz.push(lerLuz(pB).x);
   }
   const deslizou = Math.abs(trilhaLuz[trilhaLuz.length - 1] - trilhaLuz[0]);
-  checar('§10c', aB.estado().noTeto === true && deslizou > PASSO_DA_LUZ,
-    `painel PRESO na borda e corpo andando: a luz desliza ${deslizou.toFixed(0)} px sobre a superfície `
-    + '— é aqui que o paralaxe existe, e ele sai do mesmo mecanismo da profundidade');
+  checar(
+    '§10c',
+    aB.estado().noTeto === true && deslizou > PASSO_DA_LUZ,
+    `painel PRESO na borda e corpo andando: a luz desliza ${deslizou.toFixed(0)} px sobre a superfície ` +
+      '— é aqui que o paralaxe existe, e ele sai do mesmo mecanismo da profundidade'
+  );
 
   /*
    * O RAIO cobre o canto mais distante da caixa. Sem isso o gradiente termina no meio do painel e a
@@ -357,9 +443,14 @@ console.log(`\n${C.forte}§10  A LUZ VEM DO CORPO${C.fim}  ${C.fraco}um mecanism
       }
     }
   }
-  checar('§10d', semCobrir.length === 0,
-    `o raio alcança o canto mais distante em todos os ${5 * 3 * 4} enquadramentos`
-    + (semCobrir.length ? ` — ${semCobrir.length} falham, o primeiro raio ${semCobrir[0].raio.toFixed(0)} < ${semCobrir[0].canto.toFixed(0)}` : ''));
+  checar(
+    '§10d',
+    semCobrir.length === 0,
+    `o raio alcança o canto mais distante em todos os ${5 * 3 * 4} enquadramentos` +
+      (semCobrir.length
+        ? ` — ${semCobrir.length} falham, o primeiro raio ${semCobrir[0].raio.toFixed(0)} < ${semCobrir[0].canto.toFixed(0)}`
+        : '')
+  );
 
   /*
    * ⚠️ A FORÇA é razão contra um limiar FIXO, saturada em 1 — nunca posto nem percentil. Grandeza
@@ -375,10 +466,13 @@ console.log(`\n${C.forte}§10  A LUZ VEM DO CORPO${C.fim}  ${C.fraco}um mecanism
   const fMeio = forcaDe(LUZ_PLENA_PX / 2);
   const fPleno = forcaDe(LUZ_PLENA_PX);
   const fAlem = forcaDe(LUZ_PLENA_PX * 9);
-  checar('§10e', f4 > 0 && Math.abs(fMeio - 0.5) < 0.01 && fPleno === 1 && fAlem === 1,
-    `força ${f4.toFixed(2)} · ${fMeio.toFixed(2)} · ${fPleno.toFixed(2)} · ${fAlem.toFixed(2)} `
-    + `para raio 4 · ${LUZ_PLENA_PX / 2} · ${LUZ_PLENA_PX} · ${LUZ_PLENA_PX * 9} px — `
-    + 'razão adimensional contra limiar FIXO, e ela SATURA em vez de crescer sem fim');
+  checar(
+    '§10e',
+    f4 > 0 && Math.abs(fMeio - 0.5) < 0.01 && fPleno === 1 && fAlem === 1,
+    `força ${f4.toFixed(2)} · ${fMeio.toFixed(2)} · ${fPleno.toFixed(2)} · ${fAlem.toFixed(2)} ` +
+      `para raio 4 · ${LUZ_PLENA_PX / 2} · ${LUZ_PLENA_PX} · ${LUZ_PLENA_PX * 9} px — ` +
+      'razão adimensional contra limiar FIXO, e ela SATURA em vez de crescer sem fim'
+  );
 
   /* A borda acesa é a que ENCOSTA no corpo, e o CSS a escolhe por este atributo. */
   const pd = painelDeMentira();
@@ -386,16 +480,23 @@ console.log(`\n${C.forte}§10  A LUZ VEM DO CORPO${C.fim}  ${C.fraco}um mecanism
   ad.atualizar(ctx({ ndc: { x: 0.6, y: 0, z: 0.5 } }));
   const ladoDir = pd.dataset.ancoraLado;
   ad.atualizar(ctx({ ndc: { x: -0.6, y: 0, z: 0.5 } }));
-  checar('§10f', ladoDir === 'esquerda' && pd.dataset.ancoraLado === 'direita',
-    'o lado viaja em `data-ancora-lado` e ACOMPANHA a troca — borda acesa fixa afirmaria uma '
-    + 'direção de luz que a cena não tem');
+  checar(
+    '§10f',
+    ladoDir === 'esquerda' && pd.dataset.ancoraLado === 'direita',
+    'o lado viaja em `data-ancora-lado` e ACOMPANHA a troca — borda acesa fixa afirmaria uma ' +
+      'direção de luz que a cena não tem'
+  );
 
   /* Soltar apaga a luz: gradiente congelado num painel que não está mais ancorado é afirmação velha. */
   ad.atualizar(null);
-  const sobrou = ['--ancora-luz-x', '--ancora-luz-y', '--ancora-luz-raio', '--ancora-luz-forca']
-    .filter((k) => pd.style.props[k] !== undefined);
-  checar('§10g', sobrou.length === 0 && !pd.dataset.ancoraLado,
-    `soltar apaga a luz inteira (sobrou: ${sobrou.join(', ') || 'nada'}) e o lado junto`);
+  const sobrou = ['--ancora-luz-x', '--ancora-luz-y', '--ancora-luz-raio', '--ancora-luz-forca'].filter(
+    (k) => pd.style.props[k] !== undefined
+  );
+  checar(
+    '§10g',
+    sobrou.length === 0 && !pd.dataset.ancoraLado,
+    `soltar apaga a luz inteira (sobrou: ${sobrou.join(', ') || 'nada'}) e o lado junto`
+  );
 }
 
 // ─────────────────────────────────────────── §9 · TROCA DE PAINEL: o anterior fica limpo
@@ -410,8 +511,11 @@ console.log(`\n${C.forte}§9  O PAINEL QUE SAI NÃO LEVA O DESLOCAMENTO${C.fim}`
   const p1Ancorou = p1.dataset.ancorado === 'sim';
   atual = p2;
   a.atualizar(ctx({ ndc: { x: 0.5, y: 0.3, z: 0.5 } }));
-  checar('§9', p1Ancorou && !p1.dataset.ancorado && p1.style.props['--ancora-dx'] === undefined,
-    'o painel anterior é SOLTO ao ser trocado — a rota desmonta e remonta `fs-content` a cada arquivo');
+  checar(
+    '§9',
+    p1Ancorou && !p1.dataset.ancorado && p1.style.props['--ancora-dx'] === undefined,
+    'o painel anterior é SOLTO ao ser trocado — a rota desmonta e remonta `fs-content` a cada arquivo'
+  );
   checar('§9b', p2.dataset.ancorado === 'sim', 'e o novo ancora no mesmo quadro');
 }
 
@@ -420,5 +524,7 @@ if (falhas) {
   console.log(`${C.erro}✗ ${falhas} falha(s)${C.fim}  a âncora do documento não vale.`);
   process.exit(1);
 }
-console.log(`${C.ok}✓ a lei vale${C.fim}  ${C.fraco}o documento tem endereço, não foge, não perde o texto `
-  + `e não muda quem recebe o gesto.${C.fim}`);
+console.log(
+  `${C.ok}✓ a lei vale${C.fim}  ${C.fraco}o documento tem endereço, não foge, não perde o texto ` +
+    `e não muda quem recebe o gesto.${C.fim}`
+);

@@ -203,7 +203,7 @@ const SINGLE = {
           // printing only one of the two would hide the clamp behind a slider that lies.
           conc: `${values.conc.toFixed(2)} → ${Number.isFinite(base.concentration) ? base.concentration.toFixed(2) : '—'}`,
           mass: base.mass,
-          'class': `${base.class.label} ${base.class.hubble} (${base.class.id})`,
+          class: `${base.class.label} ${base.class.hubble} (${base.class.id})`,
           arms: `${base.arms}${base.arms < base.class.arms ? ` (class asks ${base.class.arms}, capped by files)` : ''}`,
           pitch: base.arms ? `${base.pitchDeg}° · ${base.turns.toFixed(2)} turns` : '—',
           'B/T': base.bulgeFraction.toFixed(2),
@@ -247,7 +247,7 @@ function fabricateChildren(path, files, concentration) {
   return Array.from({ length: n }, (_, i) => ({ source: `${path}/#${i}`, chunks: i === 0 ? top : rest }));
 }
 
-const SPECIMEN_FILES =[2, 4, 6, 12];
+const SPECIMEN_FILES = [2, 4, 6, 12];
 /** Separation between bodies, in disc radii. 3.0 leaves a clear gap at every class. */
 const SHEET_STEP = 3.0;
 

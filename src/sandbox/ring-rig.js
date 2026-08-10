@@ -239,14 +239,22 @@ export function ringRig({ fragment, uniforms = {}, makeProfile = profileTexture 
 
     /** Aplica a família correspondente ao estado do git. Devolve o perfil escolhido. */
     apply(state) {
-      const family = state;   // o estado É a chave — ver o bloco no topo
+      const family = state; // o estado É a chave — ver o bloco no topo
       const profile = profileFor(family);
       // d_perfil = (d·reach − 1)/(reach − 1): a região dentro do limbo não existe no perfil.
       const radial = [profile.reach / (profile.reach - 1), -1 / (profile.reach - 1)];
-      write('uProfile', (u) => { u.value = profile.texture; });
-      write('uRadial', (u) => { u.value.set(radial[0], radial[1]); });
-      write('uForward', (u) => { u.value = profile.forward; });
-      write('uColor', (u) => { u.value.setHex(DIRTY_COLORS[state] ?? DIRTY_COLORS.modified); });
+      write('uProfile', (u) => {
+        u.value = profile.texture;
+      });
+      write('uRadial', (u) => {
+        u.value.set(radial[0], radial[1]);
+      });
+      write('uForward', (u) => {
+        u.value = profile.forward;
+      });
+      write('uColor', (u) => {
+        u.value.setHex(DIRTY_COLORS[state] ?? DIRTY_COLORS.modified);
+      });
       return { family, profile };
     },
 
@@ -259,11 +267,15 @@ export function ringRig({ fragment, uniforms = {}, makeProfile = profileTexture 
       group.rotateZ(roll);
       group.rotateX(tilt);
       group.scale.setScalar(spriteRadius * VISIBLE_CORE * SPAN_CAP);
-      write('uCosTilt', (u) => { u.value = Math.cos(tilt); });
+      write('uCosTilt', (u) => {
+        u.value = Math.cos(tilt);
+      });
     },
 
     setOpacity(value) {
-      write('uOpacity', (u) => { u.value = value; });
+      write('uOpacity', (u) => {
+        u.value = value;
+      });
     },
 
     dispose() {
@@ -293,4 +305,3 @@ export const BASE_WATCH = [
 
 /** Rolamento fixo: a bancada varre o tombo, e um rolamento variando junto embaralharia a leitura. */
 export const ROLL = 0.4;
-

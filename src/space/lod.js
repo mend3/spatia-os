@@ -42,8 +42,16 @@
  * (`graph.js`, a régua do sprite).
  */
 import { LOD_FAR_PX as PLANET_FAR, LOD_NEAR_PX as PLANET_NEAR, BODY_SPAN as PLANET_BODY } from './planet.js';
-import { LOD_FAR_PX as PHOTO_FAR, LOD_NEAR_PX as PHOTO_NEAR, BODY_SPAN as PHOTO_BODY } from './photosphere.js';
-import { LOD_FAR_PX as STATION_FAR, LOD_NEAR_PX as STATION_NEAR, BODY_SPAN as STATION_BODY } from './station.js';
+import {
+  LOD_FAR_PX as PHOTO_FAR,
+  LOD_NEAR_PX as PHOTO_NEAR,
+  BODY_SPAN as PHOTO_BODY,
+} from './photosphere.js';
+import {
+  LOD_FAR_PX as STATION_FAR,
+  LOD_NEAR_PX as STATION_NEAR,
+  BODY_SPAN as STATION_BODY,
+} from './station.js';
 import { LOD_FAR_PX as COMET_FAR, LOD_NEAR_PX as COMET_NEAR, BODY_SPAN as COMET_BODY } from './comet.js';
 import { LOD_FAR_PX as PULSAR_FAR, LOD_NEAR_PX as PULSAR_NEAR, BODY_SPAN as PULSAR_BODY } from './pulsar.js';
 import { LOD_FAR_PX as NEBULA_FAR, LOD_NEAR_PX as NEBULA_NEAR, BODY_SPAN as NEBULA_BODY } from './nebula.js';
@@ -226,8 +234,7 @@ const CROWN_FLOOR = 0.8;
 export const keepsCrown = (surface) => (BODY_SPAN[surface] ?? 0) >= CROWN_FLOOR;
 
 /** `k` da projeção: quantos pixels de framebuffer vale um raio de mundo a uma unidade de distância. */
-const projectionK = (fov, framebufferHeight) =>
-  framebufferHeight / (2 * Math.tan((fov * Math.PI) / 360));
+const projectionK = (fov, framebufferHeight) => framebufferHeight / (2 * Math.tan((fov * Math.PI) / 360));
 
 /**
  * O orçamento de pixel de cada pele — o que ela recebe na chegada e o que ela exige para existir.

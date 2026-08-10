@@ -90,8 +90,24 @@ export const MOON_SPEC = {
   name: 'SISTEMA DE LUAS',
   distance: 24,
   controls: [
-    { key: 'piso', label: 'PISO DE LEGIBILIDADE (px)', type: 'range', min: 0, max: 10, step: 0.25, value: 4.5 },
-    { key: 'idade', label: 'IDADE DO PAI (folga da janela)', type: 'range', min: 1.02, max: 1.8, step: 0.01, value: 1.4 },
+    {
+      key: 'piso',
+      label: 'PISO DE LEGIBILIDADE (px)',
+      type: 'range',
+      min: 0,
+      max: 10,
+      step: 0.25,
+      value: 4.5,
+    },
+    {
+      key: 'idade',
+      label: 'IDADE DO PAI (folga da janela)',
+      type: 'range',
+      min: 1.02,
+      max: 1.8,
+      step: 0.01,
+      value: 1.4,
+    },
     { key: 'secoes', label: 'SEÇÕES DO DOCUMENTO', type: 'range', min: 5, max: 24, step: 1, value: 9 },
     { key: 'massa', label: 'MASSA DO PAI (chunks)', type: 'range', min: 5, max: 120, step: 1, value: 11 },
     { key: 'enquadrar', label: 'ENQUADRAR O SISTEMA', type: 'bool', value: true },
@@ -211,13 +227,13 @@ export const MOON_SPEC = {
         const pxNoEnquadramento = (K * (raioLua / externa)) / dpr;
         const banda = moons.length > 1 ? moons[1].semiMajor - moons[0].semiMajor : 0;
         ctx.report({
-          'luas': `${moons.length}${dropped ? ` (−${dropped})` : ''}`,
+          luas: `${moons.length}${dropped ? ` (−${dropped})` : ''}`,
           'lua @ enquadramento': `${pxNoEnquadramento.toFixed(2)} px CSS`,
           'disco visível': `${(pxNoEnquadramento * 0.6).toFixed(2)} px CSS`,
-          'separação de banda': `${(K * (banda / externa) / dpr).toFixed(1)} px CSS`,
+          'separação de banda': `${((K * (banda / externa)) / dpr).toFixed(1)} px CSS`,
           'lua ÷ pai': `${((raioLua / raioDoPai(pai.chunks)) * 100).toFixed(2)}%`,
           'órbita ÷ raio do pai': (externa / raioDoPai(pai.chunks)).toFixed(1),
-          'excentricidade': moons.length ? moons[0].eccentricity.toFixed(4) : '—',
+          excentricidade: moons.length ? moons[0].eccentricity.toFixed(4) : '—',
           'piso pedido': values.piso > 0 ? `${values.piso.toFixed(2)} px` : 'DESLIGADO (modelo anterior)',
         });
       },

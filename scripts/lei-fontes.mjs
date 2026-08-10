@@ -84,7 +84,10 @@ function regrasDe(texto) {
     if (c === '{') {
       const seletor = buffer.trim();
       buffer = '';
-      if (seletor.startsWith('@')) { contexto.push(seletor); continue; }
+      if (seletor.startsWith('@')) {
+        contexto.push(seletor);
+        continue;
+      }
       let j = i + 1;
       let profundidade = 1;
       while (j < texto.length && profundidade > 0) {
@@ -96,7 +99,11 @@ function regrasDe(texto) {
       i = j - 1;
       continue;
     }
-    if (c === '}') { contexto.pop(); buffer = ''; continue; }
+    if (c === '}') {
+      contexto.pop();
+      buffer = '';
+      continue;
+    }
     buffer += c;
   }
   return saida;
@@ -116,14 +123,16 @@ function declaracoes(corpo) {
 }
 
 /** O último composto do seletor — é ele que diz sobre QUE elemento a regra fala. */
-const ultimoComposto = (sel) => sel.split(/[\s>+~]+/).filter(Boolean).pop() || '';
+const ultimoComposto = (sel) =>
+  sel
+    .split(/[\s>+~]+/)
+    .filter(Boolean)
+    .pop() || '';
 
 /** Toda regra cujo último composto casa a classe pedida, em ordem de documento. */
 function regrasDaClasse(classe) {
   const alvo = new RegExp(`\\.${classe}(?![\\w-])`);
-  return regras.filter((r) =>
-    r.seletor.split(',').some((sel) => alvo.test(ultimoComposto(sel.trim())))
-  );
+  return regras.filter((r) => r.seletor.split(',').some((sel) => alvo.test(ultimoComposto(sel.trim()))));
 }
 
 /**
@@ -223,14 +232,17 @@ const razao = Number(alturaDeLinha.valor);
 const respiro = px(efetivo('sources', 'gap').valor);
 const tetoPx = px(teto.valor);
 const paddingVertical = (() => {
-  const p = String(efetivo('sources', 'padding').valor || '').trim().split(/\s+/);
+  const p = String(efetivo('sources', 'padding').valor || '')
+    .trim()
+    .split(/\s+/);
   const topo = px(p[0]);
   return topo === null ? null : topo * 2;
 })();
 const passo = corpoDaFonte !== null && razao > 0 && respiro !== null ? corpoDaFonte * razao + respiro : null;
-const capacidade = passo && tetoPx !== null && paddingVertical !== null
-  ? Math.floor((tetoPx - paddingVertical) / passo)
-  : null;
+const capacidade =
+  passo && tetoPx !== null && paddingVertical !== null
+    ? Math.floor((tetoPx - paddingVertical) / passo)
+    : null;
 conferir(
   '§6 todas as parcelas da conta são DECLARADAS',
   capacidade !== null,
@@ -258,8 +270,7 @@ conferir(
  * comentário passaria por implementação. Comentário de linha inteira e bloco saem; `//` no fim de
  * linha fica, e se um dia ele fizer uma lei cair, ela cai NOMEADA — que é o desfecho bom.
  */
-const semComentarios = (fonte) =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+const semComentarios = (fonte) => fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
 
 const answer = semComentarios(readFileSync(`${RAIZ}/src/hud/answer.js`, 'utf8'));
 /*
@@ -296,9 +307,7 @@ conferir(
 );
 conferir(
   '§8 a lista INTEIRA entra na montagem: nenhum corte em JS',
-  Boolean(monta) &&
-    /montarFontes\(sources\b/.test(monta[0]) &&
-    !/\.(slice|splice)\(/.test(monta[0]),
+  Boolean(monta) && /montarFontes\(sources\b/.test(monta[0]) && !/\.(slice|splice)\(/.test(monta[0]),
   'cortar aqui apagaria o destino de um `[n]` já escrito na resposta'
 );
 /*

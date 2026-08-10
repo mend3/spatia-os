@@ -44,7 +44,9 @@ const VALORES = [null, 0, 0.001, 0.5, 0.999, 1];
 /** As dimensões que o Neo4j alimenta. Nenhuma delas pode aparecer numa decisão de classe. */
 const DO_GRAFO = ['centrality', 'usage', 'connectivity'];
 
-const graph = await fetch(`${SPATIA}/api/graph`).then((r) => r.json()).catch(() => null);
+const graph = await fetch(`${SPATIA}/api/graph`)
+  .then((r) => r.json())
+  .catch(() => null);
 if (!graph) {
   console.error(`sem resposta de ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
   process.exit(1);
@@ -54,7 +56,10 @@ if (!graph) {
 const assinatura = (node, extra) => {
   const fisica = entityPhysics({ ...node, ...extra }, { dominante: node.__dominante === true });
   const c = classificar(fisica, node);
-  const fen = fenomenos(fisica, node).map((f) => f.tipo).sort().join(',');
+  const fen = fenomenos(fisica, node)
+    .map((f) => f.tipo)
+    .sort()
+    .join(',');
   return `${c.familia}|${c.tipo}|${c.porte || ''}|${fen}|${fisica.scale}|${fisica.chunks}`;
 };
 
@@ -96,7 +101,9 @@ console.log(`  corpos: ${corpos.length} · dimensões do grafo: ${DO_GRAFO.join(
 console.log(`  perturbações testadas: ${provas}`);
 
 if (violacoes.length) {
-  console.log(`\n\x1b[31m✗ ${violacoes.length} VIOLAÇÕES — uma dimensão do grafo está decidindo identidade\x1b[0m`);
+  console.log(
+    `\n\x1b[31m✗ ${violacoes.length} VIOLAÇÕES — uma dimensão do grafo está decidindo identidade\x1b[0m`
+  );
   for (const v of violacoes.slice(0, 8)) {
     console.log(`  ${v.source}`);
     console.log(`    ${v.dim} = ${v.valor}:  ${v.base}  →  \x1b[31m${v.perturbada}\x1b[0m`);
@@ -106,7 +113,9 @@ if (violacoes.length) {
   process.exit(1);
 }
 
-console.log(`\n\x1b[32m✓ a lei vale\x1b[0m  nenhuma dimensão do grafo altera família, tipo, porte, fenômeno ou escala.`);
+console.log(
+  `\n\x1b[32m✓ a lei vale\x1b[0m  nenhuma dimensão do grafo altera família, tipo, porte, fenômeno ou escala.`
+);
 console.log(`  \x1b[2mo grafo pode cair entre dois quadros: o céu não se reclassifica.\x1b[0m`);
 
 /*
@@ -141,9 +150,7 @@ const hashDeProva = (texto, sal = 0) => {
 /** A saída inteira, chaves incluídas: campo novo no retorno também é divergência. */
 const lugar = (node, extra) =>
   JSON.stringify(
-    Object.entries(posicaoCanonica({ ...node, ...extra }, hashDeProva)).sort(([a], [b]) =>
-      a < b ? -1 : 1
-    )
+    Object.entries(posicaoCanonica({ ...node, ...extra }, hashDeProva)).sort(([a], [b]) => (a < b ? -1 : 1))
   );
 
 const desvios = [];
@@ -164,13 +171,19 @@ console.log(`\n\x1b[1m§2 — o grafo nunca move um corpo\x1b[0m`);
 console.log(`  perturbações testadas: ${provasDeLugar}`);
 
 if (desvios.length) {
-  console.log(`\n\x1b[31m✗ ${desvios.length} VIOLAÇÕES — uma dimensão do grafo está decidindo POSIÇÃO\x1b[0m`);
+  console.log(
+    `\n\x1b[31m✗ ${desvios.length} VIOLAÇÕES — uma dimensão do grafo está decidindo POSIÇÃO\x1b[0m`
+  );
   for (const d of desvios.slice(0, 8)) console.log(`  ${d.source}  ${d.dim} = ${d.valor}`);
   if (desvios.length > 8) console.log(`  … e mais ${desvios.length - 8}`);
-  console.log(`\n  \x1b[33mO mesmo arquivo estaria em X às 10h e em Y às 15h. A cena deixa de ser mapa.\x1b[0m`);
+  console.log(
+    `\n  \x1b[33mO mesmo arquivo estaria em X às 10h e em Y às 15h. A cena deixa de ser mapa.\x1b[0m`
+  );
   process.exit(1);
 }
-console.log(`\x1b[32m✓ a coordenada é surda ao grafo\x1b[0m  as seis grandezas saem idênticas nas ${VALORES.length} varreduras.`);
+console.log(
+  `\x1b[32m✓ a coordenada é surda ao grafo\x1b[0m  as seis grandezas saem idênticas nas ${VALORES.length} varreduras.`
+);
 
 /*
  * ═══════════════════════════════════════════════════════════ §3 — e a fuga por FORA do módulo
@@ -220,9 +233,7 @@ const infiltradas = DO_GRAFO.filter((d) => !MOTIVO_NO_DONO[d] && new RegExp(`\\b
 const orfas = Object.keys(MOTIVO_NO_DONO).filter((d) => !new RegExp(`\\b${d}\\b`).test(fonte));
 const homonimosSumidos = Object.keys(HOMONIMOS).filter((linha) => !fonte.includes(linha));
 const semHomonimos = Object.keys(HOMONIMOS).reduce((s, linha) => s.split(linha).join(''), fonte);
-const recalculadas = DERIVADAS.filter((k) =>
-  new RegExp(`(^|[{,;\\s])${k}\\s*:`, 'm').test(semHomonimos)
-);
+const recalculadas = DERIVADAS.filter((k) => new RegExp(`(^|[{,;\\s])${k}\\s*:`, 'm').test(semHomonimos));
 
 console.log(`\n\x1b[1m§3 — o dono da posição não conhece o grafo\x1b[0m`);
 if (!/posicaoCanonica\s*\(/.test(fonte)) {
@@ -236,8 +247,12 @@ if (homonimosSumidos.length) {
   process.exit(1);
 }
 if (recalculadas.length) {
-  console.log(`\n\x1b[31m✗ graph.js escreve ${recalculadas.join(', ')} por literal — recalculou por fora\x1b[0m`);
-  console.log(`  \x1b[33mDelegar e recalcular ao lado deixa as duas livres para divergir em silêncio.\x1b[0m`);
+  console.log(
+    `\n\x1b[31m✗ graph.js escreve ${recalculadas.join(', ')} por literal — recalculou por fora\x1b[0m`
+  );
+  console.log(
+    `  \x1b[33mDelegar e recalcular ao lado deixa as duas livres para divergir em silêncio.\x1b[0m`
+  );
   process.exit(1);
 }
 if (infiltradas.length) {
@@ -249,4 +264,6 @@ if (orfas.length) {
   console.log(`\n\x1b[31m✗ MOTIVO_NO_DONO é tabela velha: ${orfas.join(', ')} não está mais lá\x1b[0m`);
   process.exit(1);
 }
-console.log(`\x1b[32m✓ graph.js delega\x1b[0m  chama posicaoCanonica, não recalcula ${DERIVADAS.length} grandezas e não cita ${DO_GRAFO.join(' · ')}.`);
+console.log(
+  `\x1b[32m✓ graph.js delega\x1b[0m  chama posicaoCanonica, não recalcula ${DERIVADAS.length} grandezas e não cita ${DO_GRAFO.join(' · ')}.`
+);

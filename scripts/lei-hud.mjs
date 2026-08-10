@@ -74,9 +74,7 @@ if (iA < 0 || iF < 0 || iF < iA) {
   process.exit(1);
 }
 const bloco = fonteMain.slice(iA, iF);
-const sonda = await import(
-  `data:text/javascript;base64,${Buffer.from(bloco, 'utf8').toString('base64')}`
-);
+const sonda = await import(`data:text/javascript;base64,${Buffer.from(bloco, 'utf8').toString('base64')}`);
 conferir('§0 o bloco exporta medirHud', typeof sonda.medirHud === 'function');
 if (typeof sonda.medirHud !== 'function') {
   console.error('\x1b[31m✗ o bloco recortado não exporta medirHud\x1b[0m');
@@ -87,7 +85,8 @@ const { medirHud } = sonda;
 // A sonda tem de estar LIGADA: função que ninguém alcança não mede nada.
 conferir(
   '§0 window.spatia expõe hud()',
-  /\bhud:\s*\(opcoes\)\s*=>/.test(fonteMain) && /medirHud\(/.test(fonteMain.slice(fonteMain.indexOf('window.spatia')))
+  /\bhud:\s*\(opcoes\)\s*=>/.test(fonteMain) &&
+    /medirHud\(/.test(fonteMain.slice(fonteMain.indexOf('window.spatia')))
 );
 
 // ═══════════════════════════════════════════════════════ o mundo de mentira
@@ -97,12 +96,18 @@ const escritas = [];
 function selavel(alvo, nome, estado) {
   return new Proxy(alvo, {
     set(t, k, v) {
-      if (estado.selado) { escritas.push(`${nome}.${String(k)}`); return true; }
+      if (estado.selado) {
+        escritas.push(`${nome}.${String(k)}`);
+        return true;
+      }
       t[k] = v;
       return true;
     },
     deleteProperty(t, k) {
-      if (estado.selado) { escritas.push(`delete ${nome}.${String(k)}`); return true; }
+      if (estado.selado) {
+        escritas.push(`delete ${nome}.${String(k)}`);
+        return true;
+      }
       delete t[k];
       return true;
     },
@@ -115,7 +120,10 @@ function casa(no, sel) {
   const attr = /^\[([a-z-]+)\]$/.exec(sel);
   if (attr) return no.dataset[camel(attr[1].replace(/^data-/, ''))] !== undefined;
   const classe = /^\.([a-z-]+)$/.exec(sel);
-  if (classe) return String(no.className || '').split(/\s+/).includes(classe[1]);
+  if (classe)
+    return String(no.className || '')
+      .split(/\s+/)
+      .includes(classe[1]);
   // ☠️ Seletor que este mundo não modela ABORTA. Devolver [] daria zero com cara de medida.
   throw new Error(`o mundo de mentira não modela o seletor "${sel}" — modele-o ou a lei mente`);
 }
@@ -143,15 +151,25 @@ function criarMundo({ largura, altura, dpr = 2, armazenado = null }) {
       },
       querySelectorAll(sel) {
         const saida = [];
-        const desce = (n) => { for (const f of n.filhos) { if (casa(f, sel)) saida.push(f); desce(f); } };
+        const desce = (n) => {
+          for (const f of n.filhos) {
+            if (casa(f, sel)) saida.push(f);
+            desce(f);
+          }
+        };
         desce(this);
         return saida;
       },
-      querySelector(sel) { return this.querySelectorAll(sel)[0] ?? null; },
+      querySelector(sel) {
+        return this.querySelectorAll(sel)[0] ?? null;
+      },
     };
     const no = selavel(alvo, tag, estado);
     nos.push(no);
-    if (cfg.pai) { cfg.pai.filhos.push(no); no.parentElement = cfg.pai; }
+    if (cfg.pai) {
+      cfg.pai.filhos.push(no);
+      no.parentElement = cfg.pai;
+    }
     return no;
   };
 
@@ -207,10 +225,21 @@ function criarMundo({ largura, altura, dpr = 2, armazenado = null }) {
 
   const armazem = {
     getItem: () => armazenado,
-    setItem: (k) => { escritas.push(`localStorage.setItem(${k})`); },
+    setItem: (k) => {
+      escritas.push(`localStorage.setItem(${k})`);
+    },
   };
 
-  return { criar, doc, win, armazem, body, selar: () => { estado.selado = true; } };
+  return {
+    criar,
+    doc,
+    win,
+    armazem,
+    body,
+    selar: () => {
+      estado.selado = true;
+    },
+  };
 }
 
 /*
@@ -237,9 +266,10 @@ function cenaPadrao(opcoes = {}) {
     largura: LARGURA,
     altura: ALTURA,
     // ⚠️ `??` aqui apagaria o caso `null`, que é justamente o operador que nunca decidiu.
-    armazenado: 'armazenado' in opcoes
-      ? opcoes.armazenado
-      : JSON.stringify({ fechadas: ['alfa', 'epsilon'], abertas: ['beta'] }),
+    armazenado:
+      'armazenado' in opcoes
+        ? opcoes.armazenado
+        : JSON.stringify({ fechadas: ['alfa', 'epsilon'], abertas: ['beta'] }),
   });
   const { criar, body } = mundo;
 
@@ -258,47 +288,66 @@ function cenaPadrao(opcoes = {}) {
   });
 
   const esquerda = criar('aside', {
-    classe: 'slot', dados: { slot: 'left' }, pai: hud,
+    classe: 'slot',
+    dados: { slot: 'left' },
+    pai: hud,
     caixa: { x: 0, y: 0, w: 192, h: ALTURA },
   });
   const alfa = criar('section', {
-    classe: 'widget', dados: { widget: 'alfa', collapsed: 'true' }, pai: esquerda,
+    classe: 'widget',
+    dados: { widget: 'alfa', collapsed: 'true' },
+    pai: esquerda,
     caixa: { x: 0, y: 0, w: 192, h: 96 },
   });
   criar('button', {
-    classe: 'label', pai: alfa,
-    caixa: { x: 0, y: 0, w: 192, h: 32 }, estilo: { pointerEvents: 'auto' },
+    classe: 'label',
+    pai: alfa,
+    caixa: { x: 0, y: 0, w: 192, h: 32 },
+    estilo: { pointerEvents: 'auto' },
   });
   const beta = criar('section', {
-    classe: 'widget', dados: { widget: 'beta', collapsed: 'false' }, pai: esquerda,
+    classe: 'widget',
+    dados: { widget: 'beta', collapsed: 'false' },
+    pai: esquerda,
     caixa: { x: 0, y: 96, w: 192, h: 544 },
   });
   criar('div', {
-    classe: 'scroll', pai: beta,
-    caixa: { x: 0, y: 128, w: 192, h: 512 }, estilo: { pointerEvents: 'auto' },
+    classe: 'scroll',
+    pai: beta,
+    caixa: { x: 0, y: 128, w: 192, h: 512 },
+    estilo: { pointerEvents: 'auto' },
   });
 
   const palco = criar('div', {
-    classe: 'stage slot', dados: { slot: 'stage' }, pai: hud,
+    classe: 'stage slot',
+    dados: { slot: 'stage' },
+    pai: hud,
     caixa: { x: 192, y: 0, w: 576, h: ALTURA },
   });
   if (!opcoes.semPainel) {
     criar('section', {
-      classe: 'widget', dados: { widget: 'gama', panelSurface: 'true' }, pai: palco,
+      classe: 'widget',
+      dados: { widget: 'gama', panelSurface: 'true' },
+      pai: palco,
       caixa: { x: 320, y: 160, w: 320, h: 320 },
       estilo: { pointerEvents: opcoes.painelCede ? 'none' : 'auto', zIndex: '8' },
       z: 8,
     });
   }
   criar('aside', {
-    classe: 'slot', dados: { slot: 'right' }, pai: hud,
+    classe: 'slot',
+    dados: { slot: 'right' },
+    pai: hud,
     caixa: { x: 768, y: 0, w: 192, h: ALTURA },
   });
 
   // Sem identidade nenhuma, e FORA do `#hud`: é o retângulo que uma lista branca deixaria passar.
   criar('div', {
-    classe: 'intruso', pai: body,
-    caixa: { x: 800, y: 608, w: 32, h: 32 }, estilo: { pointerEvents: 'auto' }, z: 5,
+    classe: 'intruso',
+    pai: body,
+    caixa: { x: 800, y: 608, w: 32, h: 32 },
+    estilo: { pointerEvents: 'auto' },
+    z: 5,
   });
 
   mundo.selar();
@@ -322,10 +371,13 @@ const ambiente = (mundo, extra = {}) => ({
 const base = cenaPadrao();
 const m = medirHud(ambiente(base));
 
-conferir('§1 a janela inteira está PINTADA pela HUD', (() => {
-  const r = base.hud.getBoundingClientRect();
-  return r.width === LARGURA && r.height === ALTURA;
-})());
+conferir(
+  '§1 a janela inteira está PINTADA pela HUD',
+  (() => {
+    const r = base.hud.getBoundingClientRect();
+    return r.width === LARGURA && r.height === ALTURA;
+  })()
+);
 conferir(
   '§1 e mesmo assim o ponteiro reivindicado é a fração geométrica',
   Math.abs(m.ponteiro.fracaoReivindicada - FRACAO_EXATA) < 5e-4,
@@ -362,8 +414,7 @@ const mSemPainel = medirHud(ambiente(semPainel));
 conferir(
   '§2 tirar um painel do DOM baixa a fração pela área DELE',
   Math.abs(
-    (m.ponteiro.fracaoReivindicada - mSemPainel.ponteiro.fracaoReivindicada) -
-      (320 * 320) / (LARGURA * ALTURA)
+    m.ponteiro.fracaoReivindicada - mSemPainel.ponteiro.fracaoReivindicada - (320 * 320) / (LARGURA * ALTURA)
   ) < 5e-4,
   `${m.ponteiro.fracaoReivindicada} → ${mSemPainel.ponteiro.fracaoReivindicada}`
 );
@@ -459,8 +510,7 @@ conferir(
 // ══════ §7 decisão do operador sobre widget ausente não vira «recolhido aqui»
 conferir(
   '§7 `epsilon` está fechado no armazém e não está montado nesta rota',
-  m.widgets.recolhidosForaDaRota.join() === 'epsilon' &&
-    !m.widgets.recolhidos.includes('epsilon'),
+  m.widgets.recolhidosForaDaRota.join() === 'epsilon' && !m.widgets.recolhidos.includes('epsilon'),
   JSON.stringify({
     fora: m.widgets.recolhidosForaDaRota,
     recolhidos: m.widgets.recolhidos,
@@ -500,11 +550,18 @@ const comFontes = criarMundo({ largura: LARGURA, altura: ALTURA });
 {
   const { criar, body } = comFontes;
   const cv = criar('canvas', { id: 'space', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA } });
-  const h = criar('div', { id: 'hud', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA }, estilo: { pointerEvents: 'none' } });
+  const h = criar('div', {
+    id: 'hud',
+    pai: body,
+    caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+    estilo: { pointerEvents: 'none' },
+  });
   comFontes.canvas = cv;
   comFontes.hud = h;
   comFontes.vazia = criar('div', {
-    classe: 'sources', dados: { sources: '' }, pai: h,
+    classe: 'sources',
+    dados: { sources: '' },
+    pai: h,
     caixa: { x: 200, y: 400, w: 400, h: 0 },
   });
   comFontes.selar();
@@ -521,11 +578,23 @@ conferir(
 const comLinhas = criarMundo({ largura: LARGURA, altura: ALTURA });
 {
   const { criar, body } = comLinhas;
-  comLinhas.canvas = criar('canvas', { id: 'space', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA } });
-  comLinhas.hud = criar('div', { id: 'hud', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA }, estilo: { pointerEvents: 'none' } });
+  comLinhas.canvas = criar('canvas', {
+    id: 'space',
+    pai: body,
+    caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+  });
+  comLinhas.hud = criar('div', {
+    id: 'hud',
+    pai: body,
+    caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+    estilo: { pointerEvents: 'none' },
+  });
   const cont = criar('div', {
-    classe: 'sources', dados: { sources: '' }, pai: comLinhas.hud,
-    caixa: { x: 200, y: 400, w: 400, h: 35 }, estilo: { fontSize: '9px', maxHeight: 'none', overflowY: 'visible' },
+    classe: 'sources',
+    dados: { sources: '' },
+    pai: comLinhas.hud,
+    caixa: { x: 200, y: 400, w: 400, h: 35 },
+    estilo: { fontSize: '9px', maxHeight: 'none', overflowY: 'visible' },
   });
   for (let i = 0; i < 3; i++) {
     criar('div', { classe: 'source', pai: cont, caixa: { x: 200, y: 400 + i * 11, w: 400, h: 11 } });
@@ -536,9 +605,16 @@ conferir(
   '§9 com linhas, a altura é MEDIDA da caixa e a razão sai dela',
   (() => {
     const f = medirHud(ambiente(comLinhas)).fontes;
-    return f.n === 3 && f.alturaLinhaPx === 11 && f.fontePx === 9 &&
-      Math.abs(f.razaoLinha - 11 / 9) < 1e-3 && f.lineHeightComputado === 'normal' &&
-      f.maxHeight === 'none' && f.overflowY === 'visible' && f.ancorado === true;
+    return (
+      f.n === 3 &&
+      f.alturaLinhaPx === 11 &&
+      f.fontePx === 9 &&
+      Math.abs(f.razaoLinha - 11 / 9) < 1e-3 &&
+      f.lineHeightComputado === 'normal' &&
+      f.maxHeight === 'none' &&
+      f.overflowY === 'visible' &&
+      f.ancorado === true
+    );
   })(),
   JSON.stringify(medirHud(ambiente(comLinhas)).fontes)
 );
@@ -547,8 +623,18 @@ const noSotao = criarMundo({ largura: LARGURA, altura: ALTURA });
 {
   const { criar, body } = noSotao;
   noSotao.canvas = criar('canvas', { id: 'space', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA } });
-  noSotao.hud = criar('div', { id: 'hud', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA }, estilo: { pointerEvents: 'none' } });
-  criar('div', { classe: 'sources', dados: { sources: '' }, pai: body, caixa: { x: -9999, y: 0, w: 320, h: 200 } });
+  noSotao.hud = criar('div', {
+    id: 'hud',
+    pai: body,
+    caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+    estilo: { pointerEvents: 'none' },
+  });
+  criar('div', {
+    classe: 'sources',
+    dados: { sources: '' },
+    pai: body,
+    caixa: { x: -9999, y: 0, w: 320, h: 200 },
+  });
   noSotao.selar();
 }
 conferir(
@@ -613,21 +699,29 @@ function cenaDeAltura({ alturaDoEspremido = 4, alturaDaFenda = 640 } = {}) {
   const { criar, body } = mundo;
   criar('canvas', { id: 'space', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA } });
   const hud = criar('div', {
-    id: 'hud', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
-    estilo: { pointerEvents: 'none' }, z: 1,
+    id: 'hud',
+    pai: body,
+    caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+    estilo: { pointerEvents: 'none' },
+    z: 1,
   });
   const trilho = criar('aside', {
-    classe: 'slot', dados: { slot: 'left' }, pai: hud,
+    classe: 'slot',
+    dados: { slot: 'left' },
+    pai: hud,
     caixa: { x: 0, y: 0, w: 192, h: alturaDaFenda },
   });
   const secao = (id, alturaCorpo, y, recolhido = 'false') => {
     const w = criar('section', {
-      classe: 'widget', dados: { widget: id, collapsed: recolhido }, pai: trilho,
+      classe: 'widget',
+      dados: { widget: id, collapsed: recolhido },
+      pai: trilho,
       caixa: { x: 0, y, w: 192, h: alturaCorpo + 20 },
     });
     criar('button', { classe: 'label', pai: w, caixa: { x: 0, y, w: 192, h: 20 } });
     criar('div', {
-      classe: 'widget-body', pai: w,
+      classe: 'widget-body',
+      pai: w,
       caixa: { x: 0, y: y + 20, w: 192, h: alturaCorpo },
       estilo: { fontSize: '10px', lineHeight: '14px' },
     });
@@ -641,12 +735,19 @@ function cenaDeAltura({ alturaDoEspremido = 4, alturaDaFenda = 640 } = {}) {
 
 {
   const mundo = cenaDeAltura();
-  const med = medirHud(ambiente(mundo, { montados: ['legenda', 'grafico', 'fechado'], registrados: ['legenda', 'grafico', 'fechado'], declarados: ['legenda', 'grafico', 'fechado'] }));
+  const med = medirHud(
+    ambiente(mundo, {
+      montados: ['legenda', 'grafico', 'fechado'],
+      registrados: ['legenda', 'grafico', 'fechado'],
+      declarados: ['legenda', 'grafico', 'fechado'],
+    })
+  );
   const trilho = med.fendas.find((f) => f.fenda === 'left');
   conferir(
     '§12 widget ABERTO abaixo de uma linha sai em `espremidos` — e continua em `montados` e `abertos`',
     med.widgets.espremidos.join(',') === 'grafico' &&
-      med.widgets.montados.includes('grafico') && med.widgets.abertos.includes('grafico')
+      med.widgets.montados.includes('grafico') &&
+      med.widgets.abertos.includes('grafico')
   );
   conferir(
     '§12 a régua é a LINHA DELE: 4 px de corpo contra `line-height: 14px`',
@@ -658,8 +759,10 @@ function cenaDeAltura({ alturaDoEspremido = 4, alturaDaFenda = 640 } = {}) {
   );
   conferir(
     '§12 a fenda publica o ORÇAMENTO: altura, abertos e o piso que eles exigem',
-    trilho.orcamento.alturaPx === 640 && trilho.orcamento.abertos === 2 &&
-      trilho.orcamento.pisoPx === 68 && trilho.orcamento.cabe === true
+    trilho.orcamento.alturaPx === 640 &&
+      trilho.orcamento.abertos === 2 &&
+      trilho.orcamento.pisoPx === 68 &&
+      trilho.orcamento.cabe === true
   );
 }
 
@@ -685,27 +788,38 @@ function cenaDeAltura({ alturaDoEspremido = 4, alturaDaFenda = 640 } = {}) {
   const { criar, body } = mundo;
   criar('canvas', { id: 'space', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA } });
   const hud = criar('div', {
-    id: 'hud', pai: body, caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
-    estilo: { pointerEvents: 'none' }, z: 1,
+    id: 'hud',
+    pai: body,
+    caixa: { x: 0, y: 0, w: LARGURA, h: ALTURA },
+    estilo: { pointerEvents: 'none' },
+    z: 1,
   });
   const trilho = criar('aside', {
-    classe: 'slot', dados: { slot: 'left' }, pai: hud, caixa: { x: 0, y: 0, w: 192, h: 640 },
+    classe: 'slot',
+    dados: { slot: 'left' },
+    pai: hud,
+    caixa: { x: 0, y: 0, w: 192, h: 640 },
   });
   /* `font-size: 10px` sem `line-height` → piso 12 px. 8 px espreme; 20 px não. */
   const secaoNormal = (id, alturaCorpo, y) => {
     const w = criar('section', {
-      classe: 'widget', dados: { widget: id, collapsed: 'false' }, pai: trilho,
+      classe: 'widget',
+      dados: { widget: id, collapsed: 'false' },
+      pai: trilho,
       caixa: { x: 0, y, w: 192, h: alturaCorpo },
     });
     criar('div', {
-      classe: 'widget-body', pai: w, caixa: { x: 0, y, w: 192, h: alturaCorpo },
+      classe: 'widget-body',
+      pai: w,
+      caixa: { x: 0, y, w: 192, h: alturaCorpo },
       estilo: { fontSize: '10px' },
     });
   };
   secaoNormal('curto', 8, 0);
   secaoNormal('alto', 20, 40);
-  const med = medirHud(ambiente({ ...mundo, canvas: body.filhos[0], hud },
-    { montados: [], registrados: [], declarados: [] }));
+  const med = medirHud(
+    ambiente({ ...mundo, canvas: body.filhos[0], hud }, { montados: [], registrados: [], declarados: [] })
+  );
   conferir(
     '§12 com `line-height: normal` o piso é `font-size × 1,2` — 8 px espreme, 20 px não',
     med.widgets.espremidos.join(',') === 'curto'
@@ -726,8 +840,11 @@ function cenaDeAltura({ alturaDoEspremido = 4, alturaDaFenda = 640 } = {}) {
 // ─────────────────────────────────────────────────────── o carimbo e a saída
 conferir(
   '§0 o resultado carimba rota, janela e o instante',
-  m.rota.id === 'files' && m.janela.larguraPx === LARGURA && m.janela.dpr === 2 &&
-    typeof m.quando === 'string' && m.quando.endsWith('Z')
+  m.rota.id === 'files' &&
+    m.janela.larguraPx === LARGURA &&
+    m.janela.dpr === 2 &&
+    typeof m.quando === 'string' &&
+    m.quando.endsWith('Z')
 );
 
 console.log(`\x1b[1mA LEI DA SONDA DA HUD\x1b[0m  ${ok.length + falhas.length} leis`);

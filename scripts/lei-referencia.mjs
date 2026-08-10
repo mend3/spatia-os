@@ -64,8 +64,7 @@ const answerSrc = readFileSync(`${RAIZ}/src/hud/answer.js`, 'utf8');
  * o `ui.route` está proibido contém o nome do evento, e o que nomeia os painéis contém o rótulo
  * que a §7 proíbe transcrever.
  */
-const semComentarios = (fonte) =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+const semComentarios = (fonte) => fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
 const answer = semComentarios(answerSrc);
 
 const { SEGUNDA_TESTEMUNHA, testemunhaVisivel, montarFontes, apontadasEm } = await import(
@@ -74,8 +73,10 @@ const { SEGUNDA_TESTEMUNHA, testemunhaVisivel, montarFontes, apontadasEm } = awa
 
 conferir(
   '§0 o módulo expõe a declaração, a medida e a montagem',
-  SEGUNDA_TESTEMUNHA && typeof testemunhaVisivel === 'function'
-    && typeof montarFontes === 'function' && typeof apontadasEm === 'function',
+  SEGUNDA_TESTEMUNHA &&
+    typeof testemunhaVisivel === 'function' &&
+    typeof montarFontes === 'function' &&
+    typeof apontadasEm === 'function',
   'sem os três não há o que provar por execução, e provar por regex foi como esta base perdeu guarda'
 );
 if (typeof montarFontes !== 'function' || typeof testemunhaVisivel !== 'function') {
@@ -98,7 +99,10 @@ function casa(no, sel) {
   const presenca = /^\[([a-zA-Z-]+)\]$/.exec(sel);
   if (presenca) return atributo(no, presenca[1]) !== undefined;
   const classe = /^\.([\w-]+)$/.exec(sel);
-  if (classe) return String(no.className || '').split(/\s+/).includes(classe[1]);
+  if (classe)
+    return String(no.className || '')
+      .split(/\s+/)
+      .includes(classe[1]);
   // ☠️ Seletor que este mundo não modela ABORTA. Devolver null daria «não achei» com cara de medida.
   throw new Error(`o mundo de mentira não modela o seletor "${sel}" — modele-o ou a lei mente`);
 }
@@ -117,18 +121,28 @@ function no(tag, cfg = {}) {
     },
     querySelectorAll(sel) {
       const saida = [];
-      const desce = (n) => { for (const f of n.filhos) { if (casa(f, sel)) saida.push(f); desce(f); } };
+      const desce = (n) => {
+        for (const f of n.filhos) {
+          if (casa(f, sel)) saida.push(f);
+          desce(f);
+        }
+      };
       desce(this);
       return saida;
     },
-    querySelector(sel) { return this.querySelectorAll(sel)[0] ?? null; },
+    querySelector(sel) {
+      return this.querySelectorAll(sel)[0] ?? null;
+    },
     closest(sel) {
       for (let n = this; n; n = n.parentElement) if (casa(n, sel)) return n;
       return null;
     },
     getBoundingClientRect: () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 }),
   };
-  for (const filho of cfg.filhos || []) { alvo.filhos.push(filho); filho.parentElement = alvo; }
+  for (const filho of cfg.filhos || []) {
+    alvo.filhos.push(filho);
+    filho.parentElement = alvo;
+  }
   return alvo;
 }
 
@@ -163,7 +177,11 @@ function tela({ corpus = null, web = null } = {}) {
   const sotao = no('div', { classe: 'attic', filhos: [] });
   const raiz = no('html', { filhos: [sotao] });
   const guardar = (deposito, painel) => {
-    if (!painel) { sotao.filhos.push(deposito); deposito.parentElement = sotao; return; }
+    if (!painel) {
+      sotao.filhos.push(deposito);
+      deposito.parentElement = sotao;
+      return;
+    }
     const m = moldura(painel.widget, painel.titulo, deposito, { recolhido: painel.recolhido });
     if (painel.semTitulo) m.querySelector('.widget-title').texto = '';
     raiz.filhos.push(m);
@@ -189,11 +207,16 @@ const numerosDe = (blocos) =>
 const especies = Object.keys(SEGUNDA_TESTEMUNHA);
 conferir(
   '§1 toda espécie declarada nomeia painel, depósito e leitor de linha',
-  especies.length > 0 && especies.every((k) => {
-    const d = SEGUNDA_TESTEMUNHA[k];
-    return typeof d.widget === 'string' && d.widget && /^\[data-[\w-]+\]$/.test(d.deposito)
-      && typeof d.daLinha === 'function';
-  }),
+  especies.length > 0 &&
+    especies.every((k) => {
+      const d = SEGUNDA_TESTEMUNHA[k];
+      return (
+        typeof d.widget === 'string' &&
+        d.widget &&
+        /^\[data-[\w-]+\]$/.test(d.deposito) &&
+        typeof d.daLinha === 'function'
+      );
+    }),
   JSON.stringify(especies)
 );
 
@@ -208,8 +231,10 @@ conferir(
 const inedita = { n: 1, kind: 'grafo', label: 'a/b.md' };
 conferir(
   '§1 espécie NÃO declarada nunca perde a linha',
-  montar([inedita], tela({ corpus: { widget: 'memory', titulo: 'MEMÓRIA RECUPERADA', linhas: ['a/b.md'] } }))
-    .every((b) => b.tipo === 'linha'),
+  montar(
+    [inedita],
+    tela({ corpus: { widget: 'memory', titulo: 'MEMÓRIA RECUPERADA', linhas: ['a/b.md'] } })
+  ).every((b) => b.tipo === 'linha'),
   'absorver o desconhecido pela testemunha mais próxima afirmaria uma redundância que ninguém mediu'
 );
 
@@ -250,14 +275,13 @@ conferir(
 
 // ═════════════════════ §3 nenhuma fonte se perde: todo `[n]` sai da montagem
 const WEB = ['https://a.example/1', 'https://b.example/2', 'https://c.example/3'];
-const todas = [
-  ...fontesDeCorpus,
-  ...WEB.map((u, i) => fonteDeWeb(fontesDeCorpus.length + i + 1, u)),
-];
+const todas = [...fontesDeCorpus, ...WEB.map((u, i) => fonteDeWeb(fontesDeCorpus.length + i + 1, u))];
 const cenarios = {
   'sem painel nenhum': tela({}),
   'só o corpus': tela({ corpus: painelCheio }),
-  'só a web, podada': tela({ web: { widget: 'web-results', titulo: 'SATÉLITES DE BUSCA', linhas: WEB.slice(1) } }),
+  'só a web, podada': tela({
+    web: { widget: 'web-results', titulo: 'SATÉLITES DE BUSCA', linhas: WEB.slice(1) },
+  }),
   'os dois abertos': tela({
     corpus: painelCheio,
     web: { widget: 'web-results', titulo: 'SATÉLITES DE BUSCA', linhas: WEB },
@@ -321,16 +345,16 @@ const streams = readFileSync(`${RAIZ}/src/hud/streams.js`, 'utf8');
 const agent = readFileSync(`${RAIZ}/server/agent.py`, 'utf8');
 conferir(
   '§5 corpus: o painel carimba `data-source` e a fonte traz o mesmo `hit["source"]`',
-  /\.dataset\.source\s*=\s*hit\.source/.test(streams)
-    && /"kind":\s*"memory"[\s\S]{0,120}?"label":\s*hit\["source"\]/.test(agent)
-    && SEGUNDA_TESTEMUNHA.memory.daLinha({ label: 'x/y.md' }) === '[data-source="x/y.md"]',
+  /\.dataset\.source\s*=\s*hit\.source/.test(streams) &&
+    /"kind":\s*"memory"[\s\S]{0,120}?"label":\s*hit\["source"\]/.test(agent) &&
+    SEGUNDA_TESTEMUNHA.memory.daLinha({ label: 'x/y.md' }) === '[data-source="x/y.md"]',
   'renomear o campo de um lado só faria a lista parar de ceder — ou pior, ceder para a fonte errada'
 );
 conferir(
   '§5 web: o painel carimba o `href` e a fonte traz o mesmo `hit["url"]`',
-  /\.href\s*=\s*result\.url/.test(streams)
-    && /"kind":\s*"web"[\s\S]{0,120}?"url":\s*hit\["url"\]/.test(agent)
-    && SEGUNDA_TESTEMUNHA.web.daLinha({ url: 'https://a/b' }) === '[href="https://a/b"]',
+  /\.href\s*=\s*result\.url/.test(streams) &&
+    /"kind":\s*"web"[\s\S]{0,120}?"url":\s*hit\["url"\]/.test(agent) &&
+    SEGUNDA_TESTEMUNHA.web.daLinha({ url: 'https://a/b' }) === '[href="https://a/b"]',
   'o `<a>` é o único campo que identifica um resultado no painel — não há `data-*` lá'
 );
 conferir(
@@ -353,15 +377,19 @@ conferir(
 const observadores = new Set(
   [...answer.matchAll(/const\s+(\w+)\s*=\s*new MutationObserver\(/g)].map((m) => m[1])
 );
-const observam = [...answer.matchAll(/(\w+)\.observe\(([^;]*?)\)/g)]
-  .map((m) => ({ nome: m[1], opcoes: m[2] }));
-const observaCom = (marca) =>
-  observam.some((o) => marca.test(o.opcoes) && observadores.has(o.nome));
+const observam = [...answer.matchAll(/(\w+)\.observe\(([^;]*?)\)/g)].map((m) => ({
+  nome: m[1],
+  opcoes: m[2],
+}));
+const observaCom = (marca) => observam.some((o) => marca.test(o.opcoes) && observadores.has(o.nome));
 
 conferir(
   '§6 quem observa é um `MutationObserver` de verdade',
   observam.length > 0 && observam.every((o) => observadores.has(o.nome)),
-  observam.filter((o) => !observadores.has(o.nome)).map((o) => o.nome).join(', ')
+  observam
+    .filter((o) => !observadores.has(o.nome))
+    .map((o) => o.nome)
+    .join(', ')
 );
 conferir(
   '§6 a lista se repinta quando a moldura entra ou sai da fenda',
@@ -380,16 +408,37 @@ conferir(
 );
 conferir(
   '§6 a citação alcança a linha do PAINEL, pelo mesmo cálculo da lista',
-  /function rolarNoPainel\(/.test(answer)
-    && /rolarNoPainel\(/.test(answer.slice(answer.indexOf('function highlight')))
-    && /deslocamentoAte\(/.test(answer.slice(answer.indexOf('function rolarNoPainel'))),
+  /function rolarNoPainel\(/.test(answer) &&
+    /rolarNoPainel\(/.test(answer.slice(answer.indexOf('function highlight'))) &&
+    /deslocamentoAte\(/.test(answer.slice(answer.indexOf('function rolarNoPainel'))),
   'declarar não implementa: sem a chamada em `highlight`, `[n]` apontaria para um nome de painel'
 );
 
 // ═════════════════════ §7 o nome do painel vem da MOLDURA, nunca transcrito
+
+/*
+ * ☠️ **O rótulo é procurado DENTRO da declaração daquele widget, e as duas formas óbvias falham.**
+ *
+ * Exigir `id:` e `title:` na mesma linha (`[^\n]*`) não é a lei — é a formatação de um dia: quebrada
+ * a chamada em várias linhas, a lei cai sobre um registro que continua correto.
+ *
+ * Trocar por uma janela de N caracteres é PIOR, e foi visto por mutação: apagado o `title` do
+ * painel, a janela alcança o `title` do widget SEGUINTE e a lei passa verde sobre um rótulo que não
+ * existe mais — ela atesta a coisa errada em vez de acusar.
+ *
+ * O recorte é o BLOCO: do `id:` daquele widget até o próximo `id:` do arquivo.
+ */
+const blocoDoWidget = (widget) => {
+  const re = new RegExp(`id:\\s*'${widget}'`);
+  const a = coreWidgets.search(re);
+  if (a === -1) return null;
+  const resto = coreWidgets.slice(a + 1);
+  const b = resto.search(/id:\s*'/);
+  return b === -1 ? resto : resto.slice(0, b);
+};
 const rotulos = especies
-  .map((k) => new RegExp(`id:\\s*'${SEGUNDA_TESTEMUNHA[k].widget}'[^\\n]*title:\\s*'([^']+)'`))
-  .map((re) => re.exec(coreWidgets)?.[1])
+  .map((k) => blocoDoWidget(SEGUNDA_TESTEMUNHA[k].widget))
+  .map((bloco) => bloco && /title:\s*'([^']+)'/.exec(bloco)?.[1])
   .filter(Boolean);
 conferir(
   '§7 os rótulos dos painéis são legíveis no registro',
@@ -427,10 +476,18 @@ console.log(`\n\x1b[1m§8 O CENSO\x1b[0m  \x1b[2m(medida, não lei — os númer
 console.log(
   `  \x1b[2mgrep -n "MEMORY_LIMIT = \\|MAX_RESULTS = " server/agent.py server/websearch.py src/hud/streams.js\x1b[0m`
 );
-console.log(`  fontes de corpus por resposta   ${doServidorCorpus}   \x1b[2mserver/agent.py · MEMORY_LIMIT\x1b[0m`);
-console.log(`  resultados de web por provedor  ${porProvedor}   \x1b[2mserver/websearch.py · MAX_RESULTS\x1b[0m`);
-console.log(`  o painel de corpus guarda       ${noPainelCorpus}   \x1b[2msrc/hud/streams.js · MEMORY_LIMIT\x1b[0m`);
-console.log(`  o painel de web guarda          ${noPainelWeb}   \x1b[2msrc/hud/streams.js · WEB_LIMIT\x1b[0m`);
+console.log(
+  `  fontes de corpus por resposta   ${doServidorCorpus}   \x1b[2mserver/agent.py · MEMORY_LIMIT\x1b[0m`
+);
+console.log(
+  `  resultados de web por provedor  ${porProvedor}   \x1b[2mserver/websearch.py · MAX_RESULTS\x1b[0m`
+);
+console.log(
+  `  o painel de corpus guarda       ${noPainelCorpus}   \x1b[2msrc/hud/streams.js · MEMORY_LIMIT\x1b[0m`
+);
+console.log(
+  `  o painel de web guarda          ${noPainelWeb}   \x1b[2msrc/hud/streams.js · WEB_LIMIT\x1b[0m`
+);
 if (doServidorCorpus !== null && noPainelCorpus !== null) {
   const cabem = Math.min(doServidorCorpus, noPainelCorpus);
   console.log(

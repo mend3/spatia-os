@@ -110,7 +110,13 @@ export function createAudio() {
   function pinkNoise(context, seconds = 6) {
     const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
     const data = buffer.getChannelData(0);
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    let b0 = 0,
+      b1 = 0,
+      b2 = 0,
+      b3 = 0,
+      b4 = 0,
+      b5 = 0,
+      b6 = 0;
     for (let i = 0; i < data.length; i++) {
       const white = Math.random() * 2 - 1;
       b0 = 0.99886 * b0 + white * 0.0555179;

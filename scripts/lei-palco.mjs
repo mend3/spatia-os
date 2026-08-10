@@ -100,7 +100,10 @@ function regrasDe(texto) {
     if (c === '{') {
       const seletor = buffer.trim();
       buffer = '';
-      if (seletor.startsWith('@')) { contexto.push(seletor); continue; }
+      if (seletor.startsWith('@')) {
+        contexto.push(seletor);
+        continue;
+      }
       let j = i + 1;
       let profundidade = 1;
       while (j < texto.length && profundidade > 0) {
@@ -112,7 +115,11 @@ function regrasDe(texto) {
       i = j - 1;
       continue;
     }
-    if (c === '}') { contexto.pop(); buffer = ''; continue; }
+    if (c === '}') {
+      contexto.pop();
+      buffer = '';
+      continue;
+    }
     buffer += c;
   }
   return saida;
@@ -173,7 +180,14 @@ const ultimoComposto = (sel) => compostos(sel).pop() || '';
  * por outra coisa, e por isso não casam com ninguém aqui.
  */
 const PSEUDO_ELEMENTOS = new Set([
-  'before', 'after', 'marker', 'placeholder', 'selection', 'backdrop', 'first-line', 'first-letter',
+  'before',
+  'after',
+  'marker',
+  'placeholder',
+  'selection',
+  'backdrop',
+  'first-line',
+  'first-letter',
 ]);
 
 function analisar(composto) {
@@ -215,8 +229,7 @@ function casa(composto, elemento) {
 /** Pseudo que NÃO condiciona a caixa: seleciona o mesmo elemento em qualquer estado. */
 const PSEUDOS_INOCENTES = new Set(['root']);
 const condicional = (sel, contexto) =>
-  Boolean(contexto) ||
-  compostos(sel).some((c) => analisar(c).pseudos.some((p) => !PSEUDOS_INOCENTES.has(p)));
+  Boolean(contexto) || compostos(sel).some((c) => analisar(c).pseudos.some((p) => !PSEUDOS_INOCENTES.has(p)));
 
 /**
  * O valor EFETIVO de uma propriedade para um elemento, e quantas regras a disputam.
@@ -328,8 +341,8 @@ const fundoDoCorpo = efetivo(CORPO, 'background');
 conferir(
   '§3 o CORPO do painel reivindica o ponteiro',
   ponteiroDoCorpo.valor === 'auto',
-  `pointer-events = ${ponteiroDoCorpo.valor} — sem isto a moldura cede, o corpo herda o `
-    + '`none` do `#hud` e o painel inteiro fica sem rolagem, seleção nem clique'
+  `pointer-events = ${ponteiroDoCorpo.valor} — sem isto a moldura cede, o corpo herda o ` +
+    '`none` do `#hud` e o painel inteiro fica sem rolagem, seleção nem clique'
 );
 conferir(
   '§3 e ele PINTA: fundo declarado, em gradiente',
@@ -374,7 +387,11 @@ function especificidade(sel) {
       if (m[1] === 'where') continue;
       const filhos = porVirgula(m[2]).map(especificidade);
       const maior = filhos.sort((x, y) => y.a - x.a || y.b - x.b || y.c - x.c)[0];
-      if (maior) { a += maior.a; b += maior.b; c += maior.c; }
+      if (maior) {
+        a += maior.a;
+        b += maior.b;
+        c += maior.c;
+      }
     }
     const p = analisar(resto);
     a += p.ids.size;
@@ -383,7 +400,7 @@ function especificidade(sel) {
   }
   return { a, b, c };
 }
-const vence = (x, y) => x.a !== y.a ? x.a > y.a : x.b !== y.b ? x.b > y.b : x.c > y.c;
+const vence = (x, y) => (x.a !== y.a ? x.a > y.a : x.b !== y.b ? x.b > y.b : x.c > y.c);
 const mostrar = (e) => `${e.a}-${e.b}-${e.c}`;
 
 const doVazio = (alvo) =>
@@ -474,7 +491,9 @@ const injustificados = reivindicantes.filter((r) => !r.veredito);
 conferir(
   '§6 todo `pointer-events: auto` do `index.html` se justifica por MEDIDA ou está DECLARADO',
   injustificados.length === 0,
-  injustificados.map((r) => `\`${r.seletor}\` não pinta, não é controle e não está em CEDEM_SEM_PINTAR`).join(' · ')
+  injustificados
+    .map((r) => `\`${r.seletor}\` não pinta, não é controle e não está em CEDEM_SEM_PINTAR`)
+    .join(' · ')
 );
 conferir(
   '§6 a varredura encontrou reivindicantes — ela não está muda',
@@ -494,7 +513,9 @@ console.log(`\x1b[1mA LEI DO PALCO\x1b[0m  ${ok.length + falhas.length} leis`);
 for (const nome of ok) console.log(`  \x1b[32m✓\x1b[0m ${nome}`);
 for (const f of falhas) console.log(`  \x1b[31m✗\x1b[0m ${f}`);
 
-console.log(`\n\x1b[1m§7 CENSO\x1b[0m — quem reivindica o ponteiro no \`index.html\` (${reivindicantes.length})`);
+console.log(
+  `\n\x1b[1m§7 CENSO\x1b[0m — quem reivindica o ponteiro no \`index.html\` (${reivindicantes.length})`
+);
 for (const r of reivindicantes) {
   const marca = r.veredito ? '\x1b[32m·\x1b[0m' : '\x1b[31m!\x1b[0m';
   console.log(`  ${marca} ${r.seletor.padEnd(44)} ${r.veredito ?? 'SEM JUSTIFICATIVA'}`);

@@ -49,9 +49,7 @@ export function createControls(root) {
     motionNote.hidden = !reduced;
     set(
       motionNote,
-      reduced
-        ? 'MOVIMENTO REDUZIDO (preferência do sistema) · GRÃO e RESPIRAÇÃO em 0 · DERIVAS a 25%'
-        : ''
+      reduced ? 'MOVIMENTO REDUZIDO (preferência do sistema) · GRÃO e RESPIRAÇÃO em 0 · DERIVAS a 25%' : ''
     );
   });
 

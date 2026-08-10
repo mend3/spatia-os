@@ -139,7 +139,10 @@ console.log(`\x1b[1marestas\x1b[0m   ${linhas.length} pontas lidas (cada aresta 
 const porCorpo = new Map();
 let foraDoCeu = 0;
 for (const [de, para, tipo, sentido, valor] of linhas) {
-  if (!doCeu.has(de) || !doCeu.has(para)) { foraDoCeu++; continue; }
+  if (!doCeu.has(de) || !doCeu.has(para)) {
+    foraDoCeu++;
+    continue;
+  }
   if (!porCorpo.has(de)) porCorpo.set(de, new Map());
   const porTipo = porCorpo.get(de);
   if (!porTipo.has(tipo)) porTipo.set(tipo, new Map());
@@ -156,7 +159,8 @@ for (const [de, para, tipo, sentido, valor] of linhas) {
     });
   }
 }
-if (foraDoCeu) console.log(`  ${foraDoCeu} pontas descartadas: o Neo4j conhece um corpo que este céu não tem`);
+if (foraDoCeu)
+  console.log(`  ${foraDoCeu} pontas descartadas: o Neo4j conhece um corpo que este céu não tem`);
 
 // ─────────────────────────────────────────────────────── 4. o corte, por RODÍZIO
 /*
@@ -165,12 +169,14 @@ if (foraDoCeu) console.log(`  ${foraDoCeu} pontas descartadas: o Neo4j conhece u
  * que impede o teto de silenciar o tipo menos numeroso.
  */
 function cortar(porTipo) {
-  const filas = [...porTipo.entries()].map(([tipo, alvos]) => ({
-    tipo,
-    fila: [...alvos.entries()]
-      .map(([para, v]) => ({ para, tipo, valor: v.valor, sentido: v.sentido }))
-      .sort((x, y) => y.valor - x.valor),
-  })).sort((a, b) => a.tipo.localeCompare(b.tipo));
+  const filas = [...porTipo.entries()]
+    .map(([tipo, alvos]) => ({
+      tipo,
+      fila: [...alvos.entries()]
+        .map(([para, v]) => ({ para, tipo, valor: v.valor, sentido: v.sentido }))
+        .sort((x, y) => y.valor - x.valor),
+    }))
+    .sort((a, b) => a.tipo.localeCompare(b.tipo));
   const saida = [];
   for (let volta = 0; saida.length < TETO; volta++) {
     let acrescentou = false;
@@ -231,15 +237,28 @@ for (const [fonte, porTipo] of porCorpo) {
 const q = (v, p) => [...v].sort((a, b) => a - b)[Math.floor(p * v.length)] ?? 0;
 const isolados = doCeu.size - graus.length;
 console.log(`\n\x1b[1mGRAU (vínculos laterais por corpo, todos os tipos)\x1b[0m`);
-console.log(`  com vizinho: ${graus.length}/${doCeu.size} (${((graus.length / doCeu.size) * 100).toFixed(1)}%) · isolados ${isolados}`);
-console.log(`  min ${q(graus, 0)} · MED ${q(graus, 0.5)} · P90 ${q(graus, 0.9)} · máx ${Math.max(...graus, 0)}`);
-console.log(`  acima do teto de ${TETO}: \x1b[1m${truncados}\x1b[0m corpos (${((truncados / doCeu.size) * 100).toFixed(1)}%) — e o corte viaja publicado em \`total\``);
+console.log(
+  `  com vizinho: ${graus.length}/${doCeu.size} (${((graus.length / doCeu.size) * 100).toFixed(1)}%) · isolados ${isolados}`
+);
+console.log(
+  `  min ${q(graus, 0)} · MED ${q(graus, 0.5)} · P90 ${q(graus, 0.9)} · máx ${Math.max(...graus, 0)}`
+);
+console.log(
+  `  acima do teto de ${TETO}: \x1b[1m${truncados}\x1b[0m corpos (${((truncados / doCeu.size) * 100).toFixed(1)}%) — e o corte viaja publicado em \`total\``
+);
 for (const [tipo, f] of [...faixa].sort()) {
   const quantos = Object.values(vizinhanca).filter((x) => x.total[tipo]).length;
-  console.log(`  \x1b[1m${tipo.padEnd(11)}\x1b[0m ${String(quantos).padStart(4)} corpos · ${TIPOS[tipo].unidade} de ${f.min.toFixed(2)} a ${f.max.toFixed(2)}`);
+  console.log(
+    `  \x1b[1m${tipo.padEnd(11)}\x1b[0m ${String(quantos).padStart(4)} corpos · ${TIPOS[tipo].unidade} de ${f.min.toFixed(2)} a ${f.max.toFixed(2)}`
+  );
 }
 const desenhados = Object.values(vizinhanca).reduce((a, x) => a + x.v.length, 0);
-console.log(`\n  desenháveis: ${desenhados} vínculos em ${Object.keys(vizinhanca).length} corpos · MED ${q(Object.values(vizinhanca).map((x) => x.v.length), 0.5)} por corpo`);
+console.log(
+  `\n  desenháveis: ${desenhados} vínculos em ${Object.keys(vizinhanca).length} corpos · MED ${q(
+    Object.values(vizinhanca).map((x) => x.v.length),
+    0.5
+  )} por corpo`
+);
 
 /*
  * ⚠️ A FORÇA, medida na saída. Serve a uma pergunta só, e ela é a que já deu defeito: quantos
@@ -248,11 +267,17 @@ console.log(`\n  desenháveis: ${desenhados} vínculos em ${Object.keys(vizinhan
  */
 console.log(`\n\x1b[1mFORÇA (por tipo, na escala da unidade — tipos não se comparam)\x1b[0m`);
 for (const [tipo] of [...faixa].sort()) {
-  const fs_ = Object.values(vizinhanca).flatMap((x) => x.v.filter((v) => v.tipo === tipo).map((v) => v.forca));
+  const fs_ = Object.values(vizinhanca).flatMap((x) =>
+    x.v.filter((v) => v.tipo === tipo).map((v) => v.forca)
+  );
   const zeros = fs_.filter((f) => f === 0).length;
   const cor = zeros ? '\x1b[31m' : '\x1b[32m';
-  console.log(`  \x1b[1m${tipo.padEnd(11)}\x1b[0m ${String(fs_.length).padStart(4)} vínculos · ${ESCALAS[TIPOS[tipo].escala].lei}`);
-  console.log(`              mín ${q(fs_, 0).toFixed(3)} · MED ${q(fs_, 0.5).toFixed(3)} · P90 ${q(fs_, 0.9).toFixed(3)} · máx ${Math.max(...fs_).toFixed(3)} · distintos ${new Set(fs_).size} · ${cor}em zero ${zeros}\x1b[0m`);
+  console.log(
+    `  \x1b[1m${tipo.padEnd(11)}\x1b[0m ${String(fs_.length).padStart(4)} vínculos · ${ESCALAS[TIPOS[tipo].escala].lei}`
+  );
+  console.log(
+    `              mín ${q(fs_, 0).toFixed(3)} · MED ${q(fs_, 0.5).toFixed(3)} · P90 ${q(fs_, 0.9).toFixed(3)} · máx ${Math.max(...fs_).toFixed(3)} · distintos ${new Set(fs_).size} · ${cor}em zero ${zeros}\x1b[0m`
+  );
 }
 
 if (SO_MEDIR) process.exit(0);
@@ -276,22 +301,30 @@ const snapshot = {
   tipos: Object.fromEntries(
     [...faixa].map(([tipo, f]) => {
       const t = TIPOS[tipo];
-      return [tipo, {
-        propriedade: t.propriedade,
-        unidade: t.unidade,
-        simetrica: t.simetrica,
-        escala: t.escala,
-        lei: ESCALAS[t.escala].lei,
-        min: f.min,
-        max: f.max,
-      }];
+      return [
+        tipo,
+        {
+          propriedade: t.propriedade,
+          unidade: t.unidade,
+          simetrica: t.simetrica,
+          escala: t.escala,
+          lei: ESCALAS[t.escala].lei,
+          min: f.min,
+          max: f.max,
+        },
+      ];
     })
   ),
   // Por que `TOUCHED` não está aqui. Sem esta linha, a ausência dele lê como esquecimento.
-  fora: { TOUCHED: 'liga Run→Astro: as duas pontas não são corpos, e desenhá-la entre astros afirmaria um fato não medido' },
+  fora: {
+    TOUCHED:
+      'liga Run→Astro: as duas pontas não são corpos, e desenhá-la entre astros afirmaria um fato não medido',
+  },
   vizinhanca,
 };
 fs.mkdirSync('.cache', { recursive: true });
 fs.writeFileSync(SAIDA, JSON.stringify(snapshot));
 const kb = (fs.statSync(SAIDA).size / 1024).toFixed(0);
-console.log(`\n\x1b[1mescrito\x1b[0m  ${SAIDA} · ${snapshot.corpos} corpos · ${desenhados} vínculos · ${kb} kB`);
+console.log(
+  `\n\x1b[1mescrito\x1b[0m  ${SAIDA} · ${snapshot.corpos} corpos · ${desenhados} vínculos · ${kb} kB`
+);
