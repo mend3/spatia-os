@@ -134,22 +134,22 @@ export const APARENCIAS = Object.freeze({
     ])
   ),
   /*
-   * As quatro superfícies ROCHOSAS. `space/asteroide.js` LÊ esta lista — a pele que a rocha veste
-   * por hash e a que o operador escolhe são a MESMA tabela, e uma segunda lista em qualquer um dos
-   * dois lados divergiria na primeira edição.
+   * Todas as texturas do disco menos a TERRA. `space/asteroide.js` LÊ esta lista — a pele que a
+   * rocha veste por hash e a que o operador escolhe são a MESMA tabela, e uma segunda lista em
+   * qualquer um dos dois lados divergiria na primeira edição.
    *
-   * ☠️ **Os quatro gigantes GASOSOS ficam de fora, e o motivo é o que a pele afirma.** `jupiter`,
-   * `saturn`, `uranus` e `neptune` são mapas de ATMOSFERA: numa rocha eles leem como listras
-   * pintadas, não como superfície. Visto na bancada ao lado de `mercury` na mesma malha — a
-   * diferença não é de gosto, é de o que o corpo passa a dizer que é.
+   * ⭑ **Elas são GENÉRICAS: descrevem superfície, não identidade.** É por isso que Júpiter numa
+   * rocha não é erro de catálogo — o que o operador escolhe é uma pele, e o corpo continua sendo o
+   * arquivo dele. A marca grava PROCEDÊNCIA (quem, quando, de que céu), então nada aqui afirma que
+   * o corpo É aquele planeta.
    *
-   * ⚠️ **Mercúrio SERVE aos dois contextos, e isso deixou de ser ambíguo** desde que o asteroide
-   * ganhou pele própria: a marca grava o CONTEXTO junto da aparência, então "mercúrio num corpo
-   * rochoso" e "mercúrio num planeta" são registros distintos. A recusa anterior valia quando o
-   * asteroide não tinha pele e a textura ACRESCENTAVA em vez de vestir.
+   * ☠️ **A TERRA fica fora, e é a única exclusão.** Ela é a mais reconhecível do conjunto: um corpo
+   * do corpus vestindo continentes lê como "isto é a Terra" antes de ler como "alguém escolheu esta
+   * pele" — a única do lote em que a textura vence a procedência.
    *
-   * ⭑ Ceres continua primeiro na lista por ser o único que é um asteroide DE VERDADE — `CREDITS.md`
-   * chama a diferença de "o mais defensável".
+   * ⚠️ **COMETA cai neste contexto junto com ASTEROIDE**, e não é licença: os dois são o mesmo
+   * corpo em estados diferentes (`superficies.js` §2.3 — *"cometa que esgotou os voláteis é dormente
+   * e indistinguível de um asteroide"*). A coma expira; o núcleo por baixo é sólido nos dois.
    */
   [CONTEXTO.ROCHOSO]: Object.freeze(
     Object.fromEntries([
@@ -157,6 +157,11 @@ export const APARENCIAS = Object.freeze({
       planetario('mercurio', 'MERCÚRIO', 'mercury'),
       planetario('marte', 'MARTE', 'mars'),
       planetario('venus', 'VÊNUS', 'venus_surface'),
+      planetario('jupiter', 'JÚPITER', 'jupiter'),
+      planetario('saturno', 'SATURNO', 'saturn'),
+      planetario('urano', 'URANO', 'uranus'),
+      planetario('netuno', 'NETUNO', 'neptune'),
+      planetario('sol', 'SOL', 'sun'),
     ])
   ),
   [CONTEXTO.NENHUM]: Object.freeze({}),
@@ -184,10 +189,6 @@ export const SEM_APARENCIA = Object.freeze({
     'céu, tingida por temperatura em `photosphere.js`. Uma aparência "Sol" seria escolher o que já ' +
     'está lá: parâmetro sem leitor. Abre contexto no dia em que houver uma SEGUNDA textura ' +
     'estelar (a K/M fria do item 7 do handoff), e aí a escolha passa a mudar um pixel',
-  cometa:
-    'coma e cauda são ESTADO, não corpo — existem só enquanto há trabalho ' +
-    'recente e somem quando ele passa. Uma marca nomeada aqui prenderia aparência a uma condição ' +
-    'que expira sozinha, e o corpo por baixo já tem contexto próprio (planetário ou rochoso)',
   pulsar:
     'não existe foto de superfície de estrela de nêutrons: o que se vê dela é ' +
     'EMISSÃO, e emissão é o que o shader calcula. Textura aqui seria ilustração, não medida ' +
@@ -225,7 +226,16 @@ export function contextoDe(classe, pele) {
    * Com `SUPERFICIE.ASTEROIDE` existindo, o teste vira positivo e a linha fica igual à de cima: a
    * pele decide o contexto, e `classe` deixa de ser consultada.
    */
-  if (pele === SUPERFICIE.ASTEROIDE) return CONTEXTO.ROCHOSO;
+  /*
+   * ⭑ **COMETA entra aqui junto com ASTEROIDE, e o argumento é o da própria recusa que ele tinha:**
+   * *"o corpo por baixo já tem contexto próprio"*. Os dois são o mesmo corpo em estados diferentes
+   * (`superficies.js` §2.3), e a coma é o estado que expira — o núcleo sólido não.
+   *
+   * ⚠️ A marca vale para o NÚCLEO. Quando a atividade passa e a pele volta a ser `asteroide`, a
+   * escolha continua valendo, porque o contexto é o mesmo: era isso que a recusa antiga temia
+   * ("prenderia aparência a uma condição que expira") e é isso que compartilhar o contexto resolve.
+   */
+  if (pele === SUPERFICIE.ASTEROIDE || pele === SUPERFICIE.COMETA) return CONTEXTO.ROCHOSO;
   return CONTEXTO.NENHUM;
 }
 
@@ -247,7 +257,6 @@ export function casoSemAparencia(classe, pele) {
   /** Cada pele que não abre contexto, ligada ao caso. ⚠️ `none` fica fora: ela é dois casos. */
   const PELE_PARA_CASO = {
     [SUPERFICIE.FOTOSFERA]: 'fotosfera',
-    [SUPERFICIE.COMETA]: 'cometa',
     [SUPERFICIE.PULSAR]: 'pulsar',
     [SUPERFICIE.NEBULOSA]: 'nebulosa',
     [SUPERFICIE.ESTACAO]: 'estacao',
