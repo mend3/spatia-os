@@ -113,9 +113,13 @@ controle fechado é a forma mais convincente de estar errado.
 ⭑ **A auditoria de *"declarado sem leitor"* / *"dois donos para um estado"* é a que mais rende
 aqui, e o corolário da REGRA DO CATÁLOGO (`CLAUDE.md`) diz como se faz.** Feita em bloco, cobra uma
 varredura só — o cluster de cinco saiu assim.
-⭑ **O CLUSTER FECHOU (09/08)** — T-41, T-42, T-43, T-45 e T-64 entregues, T-88 arquivada por já
-estar respondida. Ele deixou duas ferramentas: `scripts/lei-tom.mjs` (tom emitido × regra que o
-pinta) e `core/saude.js` (um dono para `/api/health`).
+⭑ **O CLUSTER FECHOU (09/08)** — T-41, T-42, T-43, T-45, T-64 e T-89 entregues, T-88 arquivada por
+já estar respondida. Ele deixou três ferramentas: `scripts/lei-tom.mjs` (tom emitido × regra que o
+pinta), `core/saude.js` (um dono para `/api/health`) e `core/attention.js:aoMudar` (uma fonte para
+quem está sob atenção).
+⭑ **O padrão que os três repetem:** estado com `aoMudar` + cancelamento, notificando DEPOIS de
+trocar. `favoritos-ui.js` já era assim; agora `saude.js` e `attention.js` também, e cada um tem
+oráculo que exige a assinatura SOLTAR na destruição.
 ☠️ **A varredura já corrigiu DUAS linhas do roadmap, e a lição vale para as outras quatro:** o
 número declarado em T-45 estava errado nos dois sentidos, e **T-88 já tinha resposta escrita** no
 próprio roadmap (*"`connectivity` no pixel … seria segunda codificação do mesmo fato"*). **Meça o

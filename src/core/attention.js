@@ -30,9 +30,28 @@ import { on } from './bus.js';
 const EMPTY = Object.freeze({ subject: null, dirty: null, origin: null, links: Object.freeze([]), rede: null, conceitos: null });
 
 let current = EMPTY;
+const ouvintes = new Set();
 
 /** What is under attention now. Never `null`. */
 export const snapshot = () => current;
+
+/**
+ * Assina a mudança de atenção. Devolve o cancelamento.
+ *
+ * ☠️ **É por aqui que um painel escuta, nunca pelo `ui.links` cru** — e a diferença não é de estilo.
+ * Quem pinta do PAYLOAD do evento e quem lê o STORE são duas fontes para o mesmo fato, e a ordem de
+ * registro no barramento decide qual está adiantada. Um painel adiantado em relação ao store
+ * mostraria um corpo e a tecla de marcar agiria sobre outro — sem erro, e por um quadro só.
+ *
+ * Aqui a ordem não pode discordar: `current` já está trocado quando os ouvintes correm.
+ *
+ * ⚠️ Quem assina numa montagem SOLTA na destruição: ouvinte de painel destruído pinta um DOM fora
+ * da árvore, sem erro e sem sintoma.
+ */
+export function aoMudar(fn) {
+  ouvintes.add(fn);
+  return () => ouvintes.delete(fn);
+}
 
 /** Wired once at boot, next to `state.install()` and `session.install()`. */
 export function install() {
@@ -50,5 +69,7 @@ export function install() {
           conceitos: conceitos ?? null,
         })
       : EMPTY;
+    // Depois de trocar `current`, nunca antes: é isso que impede um ouvinte de ler o estado velho.
+    for (const fn of [...ouvintes]) fn(current);
   });
 }

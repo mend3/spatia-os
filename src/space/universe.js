@@ -1087,7 +1087,8 @@ export function createUniverse() {
     /**
      * Os corpos que cederam, em bloco. `cederPara` continua valendo para o caso de um só.
      *
-     * @param {Array<string>} sources
+     * @param {Array<string|{source: string, span?: number}>} entradas  string cede com `span` 1
+     * @param {string|null} focoSource  quem está sendo inspecionado — entra por FORA da lista
      */
     cederParaVarios(entradas = [], focoSource = null) {
       cedidos.clear();

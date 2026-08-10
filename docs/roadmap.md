@@ -208,6 +208,7 @@ com ou sem produtor.
 | **T-86** | O BARICENTRO — sistema duplo com dois corpos, ambos `f(t)` em torno do centro de massa | `todo` | — | — | KR3.2 |
 | **T-87** | Acoplamento entre agentes como VÍNCULO, nunca como trajetória | `blocked` | T-23 | — | — |
 | **T-88** | Consumidores de influência — ☠️ **JÁ ESTAVA RESPONDIDA** neste arquivo quando foi aberta | `archived` | — | — | KR3.4 |
+| **T-89** | Atenção com DUAS fontes — o painel pintava do payload, a tecla lia o store | `done` | — | — | KR2.2 |
 
 - **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
   foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
@@ -846,6 +847,16 @@ mesmo fato).
   MAIS perguntas — *"quais eu marquei?"*, *"como volto lá?"* — que é o Princípio Final ao
   contrário. As três condições de T-35 estão fechadas e **nenhuma delas é a que faz a marca VALER:
   alguém ler.**
+- **T-89 FECHADA — a atenção tem UMA resposta, na tela e no gesto.** O painel de contexto pintava
+  do PAYLOAD de `ui.links` na notificação e do STORE na montagem e na marca; a tecla de marcar lê o
+  store. Duas fontes para o mesmo fato, e quem está adiantado dependia da ordem de registro no
+  barramento — o painel nomearia um corpo e a marca cairia em outro, por um quadro e sem erro.
+  ⚠️ **NÃO era alcançável hoje** (`attention.install()` está no boot, muito antes de qualquer
+  widget montar), e por isso não havia o que reproduzir: era dependência de ordem NÃO GUARDADA, que
+  a primeira reordenação transformaria em defeito.
+  ⭑ **Guardar a ordem seria guardar o sintoma.** `core/attention.js` ganhou `aoMudar`, notificando
+  DEPOIS de trocar `current`, e o painel passou a assinar o estado — aí não há adiantado nem
+  atrasado a ordenar. A classe inteira deixou de existir em vez de ficar vigiada.
 - **T-45 FECHADA — o par EMISSOR × REGRA agora é conferido, e o defeito era maior do que a linha
   dizia.** `streams.note(…, 'warn')` desenhava `class="row warn"` sem `.row.warn` no CSS: a linha
   saía na cor padrão, indistinguível de uma comum.
@@ -1007,11 +1018,9 @@ mesmo fato).
   do painel nomeava `bloco-04.md · PLANETA · TRAVADO` enquanto a seção FAVORITO ainda desenhava o
   texto do AGREGADO, e o `F` daquele instante marcou um `dir:`. **Reproduzido com eventos de ponteiro
   SINTÉTICOS**, que não são o gesto do operador — então isto é indício, não defeito medido. Se
-  confirmar-se com gesto real, é a DIVERGÊNCIA ENTRE DOIS SINAIS: o cabeçalho pinta do payload de
-  `ui.links` e a seção da marca pinta de `attention.snapshot()`, e os dois podem apontar corpos
-  diferentes entre quadros.
-  ⚠️ **`lei-favoritos-ui.mjs` §11 NÃO cobre isto** — ela prova que a marca notifica e solta, que é
-  outra pergunta. Guardar a concordância exigiria uma lei sobre `attention` × `ui.links`.
+  confirmar-se com gesto real, era a DIVERGÊNCIA ENTRE DOIS SINAIS — e ela deixou de ser possível
+  em **T-89**: o painel assina `attention.aoMudar` em vez de pintar do payload cru, e o store
+  notifica DEPOIS de trocar. `scripts/lei-atencao.mjs` guarda.
   ⚠️ **Nada da marca alcança o pixel do CÉU** — a escolha é registrada e `emDisco` é `null` porque
   ninguém mediu o disco. Quem transformar `null` em medida é o carregador de textura de T-34, por
   `declararEmDisco()`.

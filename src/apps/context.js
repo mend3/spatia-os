@@ -37,7 +37,7 @@
 import { listWidget } from './widgets-core.js';
 import { tipoDeCorpo } from '../core/cena-atual.js';
 import { el, plural, shortPath } from '../hud/dom.js';
-import { on, emit } from '../core/bus.js';
+import { emit } from '../core/bus.js';
 import * as attention from '../core/attention.js';
 import { button } from '../hud/button.js';
 import { classify, morphologyOf } from '../space/catalog.js';
@@ -76,9 +76,19 @@ export function registerContextWidget() {
         view.set(desenhar(subject, dirty, origin, links || [], rede || null, conceitos || null));
       };
 
-      const off = on('ui.links', ({ subject, dirty, origin, nodes, rede, conceitos }) =>
-        pintar({ subject, dirty, origin, links: nodes, rede, conceitos })
-      );
+      /*
+       * ☠️ **UMA FONTE SÓ, e a segunda era o payload cru de `ui.links`.**
+       *
+       * Este painel pintava do EVENTO aqui e do STORE na montagem e na marca. As duas dizem a mesma
+       * coisa enquanto `attention` estiver registrado no barramento antes deste widget — e nada
+       * garantia isso. Invertida a ordem, o painel nomearia um corpo e a tecla de marcar, que lê
+       * `attention.snapshot()`, agiria sobre outro. Sem erro, e por um quadro.
+       *
+       * Assinando a atenção, a pergunta *"quem está sob atenção"* tem uma resposta só na tela e no
+       * gesto. `attention.js` notifica DEPOIS de trocar o estado, então não há adiantado nem
+       * atrasado.
+       */
+      const off = attention.aoMudar(pintar);
 
       /*
        * A MARCA repinta do STORE, não de um evento próprio.

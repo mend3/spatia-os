@@ -28,10 +28,13 @@ function stow() {
 
 /**
  * Registra um widget que adota um nó já existente na página.
- * @param {string} id
- * @param {string} title
- * @param {string} slot
- * @param {string} selector  o nó que o módulo antigo criou
+ *
+ * ⚠️ Os `@param` nomeavam as chaves como se fossem quatro parâmetros; a função recebe UM objeto
+ * desestruturado, e a inferência lia o primeiro nome como o tipo do parâmetro — `String` — o que
+ * fazia toda chamada acusar. Chave desestruturada é `@param {{…}}`, nunca um `@param` por chave.
+ *
+ * @param {{id: string, title: string, hint?: string, slot: 'left'|'right'|'stage'|'strip',
+ *          grow?: number, selector: string}} contrato  `selector` é o nó que o módulo antigo criou
  */
 function adopt({ id, title, hint = '', slot, grow = 0, selector }) {
   return registerWidget({
@@ -88,6 +91,17 @@ export function registerCoreWidgets() {
  * que `br-deliveries` nasceu no palco sem moldura e o disco de acreção atravessou o texto.
  * Sem padrão, a ausência chega inteira ao registro e estoura no boot, com o nome do culpado.
  * `scripts/lei-catalogo.mjs` §4 acusa qualquer padrão para chave que alguma fenda exija.
+ * 
+ * ⚠️ **O tipo diz o que a FENDA diz, e não "obrigatória sempre".** Sem `surface` na desestruturação
+ * ter padrão — que é o contrato acima —, a inferência a lê como exigida em toda fenda e acusa os
+ * ~20 widgets de `left`/`right` que legitimamente não a declaram. A união discriminada põe a
+ * exigência onde `FENDAS.stage.exige` a põe, e passa a acusar no editor o widget de palco que a
+ * omitir, em vez de só no boot.
+ *
+ * @typedef {{id: string, title: string, hint?: string, grow?: number,
+ *            collapsed?: boolean, render: (view: any, ctx?: any) => any}} BaseDoWidget
+ * @param {(BaseDoWidget & {slot: 'stage', surface: boolean})
+ *       | (BaseDoWidget & {slot: 'left'|'right'|'strip', surface?: boolean})} contrato
  */
 export function listWidget({ id, title, hint = '', slot, grow = 0, surface, collapsed = false, render }) {
   return registerWidget({
