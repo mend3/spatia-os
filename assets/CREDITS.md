@@ -30,6 +30,25 @@ Reconferir é uma linha: `shasum -a 256 assets/textures/sun.jpg`.
 declara licença nenhuma**. Intermediário não licencia o que não é dele — quem licencia é o autor, e
 é a ele que o crédito vai.
 
+### `sky/stars.jpg` — o fundo do universo
+
+| | |
+|---|---|
+| obra | ***8k Stars Milky Way***, **8192×4096** |
+| autor | **Solar System Scope** — <https://www.solarsystemscope.com/textures/> |
+| licença | **CC BY 4.0** |
+| modificações | **nenhuma.** O escurecimento é do shader, em tempo real |
+
+**Atribuição exigida na publicação:** *Mapa estelar por Solar System Scope
+(solarsystemscope.com), CC BY 4.0.*
+
+⭑ **Provado por hash**, como o `sun.jpg`: `1fd005ddd6d53364cc5106e0121b83fd3bca236b1503f6b51f5501d9d51eafaf`,
+1 905 513 bytes, idêntico ao download do autor. Chegou pelo mesmo intermediário que **não declara
+licença nenhuma**, e pela mesma razão o crédito vai ao autor. Detalhe em [`sky/CREDITS.md`](sky/CREDITS.md).
+
+☠️ **O nome em disco MENTE**: é o mapa *Milky Way*, não o `8k_stars.jpg` liso do mesmo autor. Obras
+diferentes, e o hash é o que desempata.
+
 ### `textures/*.jpg` — as nove aparências nomeadas (T-35)
 
 | | |
@@ -102,12 +121,6 @@ publicação — e ele vale para o repositório, não só para o build.
 ⚠️ **O git guarda o histórico.** Se o arquivo sair, ele continua nos objetos — publicar limpo
 exigiria `git filter-repo`. Decidir cedo é mais barato que decidir depois.
 
-### `sky/CREDITS.md` afirma o que não é mais verdade
-
-Ele diz: *"São os únicos binários do projeto. Todo o resto — áudio, anéis, buraco negro, campo
-estelar — é procedural."* Havia **três binários** fora dali quando isto foi escrito. A frase sobre o
-áudio é a parte certa (o motor é procedural); a contagem é a errada.
-
 ---
 
 ## Mapa de texturas candidatas
@@ -128,8 +141,8 @@ afirmação de um fato sobre um arquivo. Isso decide o que entra:
 | **asteroide** | ⭑ **entregue** | veste as peles do catálogo ROCHOSO sobre **malha de levantamento real**, com a UV gerada (o `.stl` não traz uma). A pele é PADRÃO emprestado, e a forma é que carrega o fato |
 | **estação** | ⭑ **sim** | é objeto CONSTRUÍDO. Modelo de satélite/sonda real é o análogo honesto, e a NASA publica dezenas |
 | **pulsar · quasar · buraco negro** | ☠️ **NÃO** | não existe foto de superfície de estrela de nêutrons ou de quasar. O que se vê deles é **emissão**, e emissão é o que o shader já calcula. Uma "textura de pulsar" seria ilustração, não medida |
-| **nebulosa** | ⚠️ já resolvido | os fundos JWST em `sky/` são exatamente isso, e o crédito está lá |
-| **campo estelar** | ⚠️ procedural, e é melhor | o campo tem de responder à câmera; imagem equiretangular fixa não responde |
+| **nebulosa** | ⚠️ **em aberto** | o fundo é a casca estelar, e ela não é nebulosa. O corpo `nebula` segue procedural |
+| **campo estelar** | ⭑ **os dois, e a razão de antes estava errada** | dizia-se que *"imagem equirretangular fixa não responde à câmera"* — ela não responde numa TELA, e responde numa CASCA de raio finito: o trecho à frente está a `R + r` e dilata 1,60× na faixa de zoom. Hoje há duas camadas — o mapa na casca 420 e o campo procedural de `stars.js` em 150–400 |
 
 ### Fonte 1 — Solar System Scope · **CC BY 4.0**, uso comercial permitido
 

@@ -81,6 +81,11 @@ impõe é `scripts/lei-tooling.mjs`, que a DERIVA do fonte em vez de confiar num
 `.cache/*.json` são fotos; o servidor relê por `mtime` (não precisa reiniciar), mas **rematerializar
 exige rodar o script de novo**. `make conceitos` fica de fora: é inferência, não fato.
 
+☠️ **`sky.backdrop` nasce `false`** (`core/prefs.js`), então num perfil novo o céu não tem fundo e
+qualquer medida sobre ele mede o preto — a foto disso é idêntica à de um fundo quebrado. A
+testemunha é de REDE (`stars.jpg` **e** a placa do momento em `getEntriesByType('resource')`), e o
+resto da armadilha está em [`armadilhas.md`](./armadilhas.md) §A.
+
 ☠️ **Antes de medir qualquer coisa na tela, leia
 [`armadilhas.md`](./armadilhas.md) §A.** As duas guardas de ambiente (`document.hidden` **e**
 `document.hasFocus()`), o `quadros` que tem de ANDAR, o A/B que só funciona no mesmo quadro e a

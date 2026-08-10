@@ -49,17 +49,16 @@ export const DEFAULTS = Object.freeze({
   'route.last': '',
 
   /*
-   * FUNDO DO UNIVERSO — imagens reais do Webb, alternando.
+   * FUNDO DO UNIVERSO — a casca estelar, ligada ou desligada. É a única chave que ele tem.
    *
    * Desligado por padrão, e não por cautela de performance: o fundo muda o caráter da cena
    * inteira, e uma escolha dessas não pode chegar já tomada na primeira abertura. Quem quiser
    * liga em CONFIG › FUNDO.
+   *
+   * ⚠️ Nascer `false` é o que faz uma medida de fundo num perfil novo medir o PRETO — a armadilha
+   * está em `docs/armadilhas.md` §A, e a testemunha é de rede (`stars.jpg` pedida), não de olho.
    */
   'sky.backdrop': false,
-  // Segundos que cada imagem fica no ar. 90s é longo o bastante para não virar slideshow.
-  'sky.backdropSeconds': 90,
-  'sky.backdropFade': true,
-  'sky.backdropQuality': 'high', // 'high' (3200×1800) | 'low' (1280×720)
 
   /*
    * O ASTRO EM FOCO atravessa o refresh, e isso é feature, não persistência acidental.

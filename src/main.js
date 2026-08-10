@@ -844,6 +844,13 @@ async function main() {
     ancora: () => scene.ancoraDoDocumento(),
     /** Quem oclui a emissão do buraco negro neste quadro, e quem competiu. */
     oclusor: () => scene.oclusor(),
+    /**
+     * O FUNDO, separando as cinco causas de "não vejo o background" — que a foto NÃO separa.
+     *
+     * `preferencia` desligada, `montado` falso, `visivel` falso, `ganho` zero e `textura` não
+     * carregada produzem a MESMA tela preta, e cada uma tem conserto diferente. Ver `space/backdrop.js`.
+     */
+    fundo: () => scene.fundoProbe(),
     /** Tempo, taxa e instâncias que o campo de galáxias está de fato recebendo. */
     galaxy: () => scene.galaxyProbe(),
     /** Recuo × piso de detalhe de cada pele, com a tela de verdade. Ver `space/lod.js`. */
@@ -1057,13 +1064,7 @@ async function main() {
    * em `prefs` e AVISA; quem sabe desenhar é a cena. Aplicado uma vez no boot, para que a
    * escolha da sessão anterior já esteja no ar antes do primeiro quadro visível.
    */
-  const aplicarFundo = () =>
-    scene.applyBackdrop({
-      enabled: prefs.get('sky.backdrop'),
-      seconds: prefs.get('sky.backdropSeconds'),
-      fade: prefs.get('sky.backdropFade'),
-      quality: prefs.get('sky.backdropQuality'),
-    });
+  const aplicarFundo = () => scene.applyBackdrop({ enabled: prefs.get('sky.backdrop') });
   aplicarFundo();
   on('ui.apply-backdrop', aplicarFundo);
 

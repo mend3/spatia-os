@@ -37,7 +37,6 @@ import * as keys from '../core/keys.js';
 import * as prefs from '../core/prefs.js';
 import { PROFILES } from '../core/profiles.js';
 import { SPEC as TUNING_SPEC } from '../core/tuning.js';
-import { PLATES } from '../space/backdrop.js';
 import { DIRTY_LABELS } from '../space/rings.js';
 import { KIND_COLORS as SKY_COLORS } from '../space/graph.js';
 import { morphologyOf } from '../space/catalog.js';
@@ -547,7 +546,7 @@ function registerFilesWidgets() {
           id: 'fundo',
           name: 'FUNDO',
           render: renderBackdrop,
-          note: 'imagens reais do Webb por trás do sistema',
+          note: 'a casca estelar por trás do sistema',
         },
         { id: 'atalhos', name: 'ATALHOS', render: renderShortcuts },
         {
@@ -610,101 +609,31 @@ function registerFilesWidgets() {
       }
 
       /**
-       * FUNDO — rotação de imagens reais do Webb.
+       * FUNDO — a casca estelar, ligada ou desligada.
        *
-       * Todos os controles escrevem em `prefs` e emitem UM evento; a cena escuta e aplica. A
-       * seção não conhece `scene`, pelo mesmo motivo que a de perfil não conhece: widget que
-       * alcança a cena por referência direta só funciona montado no app que a tem.
+       * ⭑ **Um controle só, e isso é a feature.** A rotação entre placas, o tempo no ar, a fusão
+       * cruzada e a escolha de resolução eram quatro perguntas para uma decisão que tem duas
+       * respostas: com fundo, ou sem. Cada uma delas custava uma pergunta ao operador e não
+       * respondia nenhuma.
+       *
+       * O controle escreve em `prefs` e emite UM evento; a cena escuta e aplica. A seção não
+       * conhece `scene`, pelo mesmo motivo que a de perfil não conhece: widget que alcança a cena
+       * por referência direta só funciona montado no app que a tem.
        */
       function renderBackdrop(into) {
-        const ligado = prefs.get('sky.backdrop');
-        const blocks = [el('div', 'controls-group', 'FUNDO DO UNIVERSO')];
-
-        const troca = (chave, valor) => {
-          prefs.set(chave, valor);
+        const linha = el('div', 'config-profile');
+        const b = button({ variant: 'select', size: 'sm', on: prefs.get('sky.backdrop') });
+        b.textContent = prefs.get('sky.backdrop') ? 'LIGADO' : 'DESLIGADO';
+        b.addEventListener('click', () => {
+          prefs.set('sky.backdrop', !prefs.get('sky.backdrop'));
           emit({ t: 'ui.apply-backdrop' });
           setTimeout(() => renderBackdrop(into), 60);
-        };
-
-        const alterna = (rotulo, chave, nota) => {
-          const linha = el('div', 'config-profile');
-          const b = button({ variant: 'select', size: 'sm', on: prefs.get(chave) });
-          b.textContent = prefs.get(chave) ? 'LIGADO' : 'DESLIGADO';
-          b.addEventListener('click', () => troca(chave, !prefs.get(chave)));
-          linha.append(b, el('span', 'config-profile-note', `${rotulo} · ${nota}`));
-          return linha;
-        };
-
-        blocks.push(alterna('exibir', 'sky.backdrop', 'desligado, o céu volta ao fundo preto'));
-
-        if (ligado) {
-          blocks.push(
-            alterna('transição', 'sky.backdropFade', 'fusão cruzada de 4s; desligada, a troca é seca')
-          );
-
-          // Tempo de rotação: passos NOMEADOS, não um slider. A grandeza tem poucas respostas
-          // úteis, e um contínuo aqui convidaria a ajustar segundo a segundo algo que ninguém
-          // percebe em menos de meio minuto de diferença.
-          const tempos = [
-            [30, '30s'],
-            [90, '1min30'],
-            [300, '5min'],
-            [900, '15min'],
-          ];
-          const linhaTempo = el('div', 'config-profile config-row-choices');
-          const grupoTempo = el('div', 'config-choices');
-          for (const [valor, rotulo] of tempos) {
-            const b = button({
-              variant: 'select',
-              size: 'sm',
-              on: prefs.get('sky.backdropSeconds') === valor,
-            });
-            b.textContent = rotulo;
-            b.addEventListener('click', () => troca('sky.backdropSeconds', valor));
-            grupoTempo.append(b);
-          }
-          linhaTempo.append(grupoTempo, el('span', 'config-profile-note', 'quanto cada imagem fica no ar'));
-          blocks.push(linhaTempo);
-
-          const linhaQ = el('div', 'config-profile config-row-choices');
-          const grupoQ = el('div', 'config-choices');
-          for (const [valor, rotulo] of [
-            ['high', 'ALTA'],
-            ['low', 'BAIXA'],
-          ]) {
-            const b = button({
-              variant: 'select',
-              size: 'sm',
-              on: prefs.get('sky.backdropQuality') === valor,
-            });
-            b.textContent = rotulo;
-            b.addEventListener('click', () => troca('sky.backdropQuality', valor));
-            grupoQ.append(b);
-          }
-          linhaQ.append(grupoQ, el('span', 'config-profile-note', 'alta 3200×1800 · baixa 1280×720'));
-          blocks.push(linhaQ);
-
-          /*
-           * O crédito é OBRIGAÇÃO de licença (CC BY 4.0), não cortesia — e é também informação:
-           * saber que aquilo é um berçário estelar real, e não textura, é parte do que a imagem
-           * comunica.
-           */
-          blocks.push(el('div', 'controls-group', 'AS TRÊS IMAGENS'));
-          for (const plate of PLATES) {
-            const linha = el('div', 'config-key');
-            linha.append(
-              el('span', 'config-key-label', plate.name),
-              el('span', 'config-profile-note', plate.note),
-              el('span', 'config-profile-note', plate.credit)
-            );
-            blocks.push(linha);
-          }
-          blocks.push(
-            el('div', 'widget-hint', 'ESA/Webb, NASA & CSA · CC BY 4.0 · os únicos binários do projeto')
-          );
-        }
-
-        into.replaceChildren(...blocks);
+        });
+        linha.append(
+          b,
+          el('span', 'config-profile-note', 'exibir · desligado, o céu volta ao fundo preto')
+        );
+        into.replaceChildren(el('div', 'controls-group', 'FUNDO DO UNIVERSO'), linha);
       }
 
       function renderShortcuts(into) {

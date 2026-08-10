@@ -111,6 +111,8 @@ declare module 'three' {
   export type RingGeometry = any;
   export const SRGBColorSpace: any;
   export type SRGBColorSpace = any;
+  export const LinearSRGBColorSpace: any;
+  export type LinearSRGBColorSpace = any;
   export const Scene: any;
   export type Scene = any;
   export const ShaderMaterial: any;

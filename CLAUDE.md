@@ -744,6 +744,51 @@ anterior, e aplicá-la a um corpo pedido por endereço enquadra o novo com o zoo
 a origem viaja com o alvo até a aplicação, e o ramo que a lê está varrido no fonte.
 ⭑ Quem arbitra é `space/foco-de-entrada.js`, PURO: ele devolve a decisão, e a cena é quem age.
 
+## Ao mexer no fundo do universo
+
+    node scripts/lei-fundo.mjs
+
+Prova que o fundo está no MUNDO e que o zoom o alcança. ☠️ **Quad em espaço de recorte é imune ao
+zoom por CONSTRUÇÃO** — ele mora na tela, a única paralaxe possível é calculada à mão, e a que
+existia lia `camera.position.x / hypot(x, z)`, um vetor NORMALIZADO: direção sem módulo, então
+aproximar e afastar entravam como o mesmo número. Numa casca de raio finito o fenômeno sai de graça,
+porque o trecho à frente está a `R + r` — 1,60× de dilatação na faixa de zoom do UNIVERSO.
+⚠️ **O RAIO é a AMPLITUDE do efeito, nunca a ordem de desenho** — `depthTest: false` mais
+`renderOrder` mínimo já garantem que tudo o tapa, o que libera o raio para ser escolhido pela
+paralaxe. ☠️ **E o limite da degradação tem de passar do alcance REAL da câmera** (`ZOOM_RANGE.max`
+MAIS a âncora, ~302, não 260): abaixo disso a casca escorrega dentro do gesto normal e o efeito morre
+onde deveria ser mais forte. O oráculo lê o `ZOOM_RANGE` do `scene.js` e o limite do módulo — nenhum
+dos dois é literal nele.
+⚠️ **`stars.jpg` é equirretangular (2:1), e a lei recusa recorte nele:** janela, corte ou borda
+dissolvida abrem buraco no céu ou emenda na volta.
+☠️ **A COLORIMETRIA DECIDE SE O FUNDO APARECE, e o GANHO não decide nada** — com o mapa carregado, o
+uniform certo e a casca cobrindo o quadro, o céu ainda sai PRETO. O mapa tem média **1,43/255** e
+2,4% dos pixels acima de 8/255: decodificar sRGB→linear o põe sob o *toe* do ACES. Ele entra
+**display-referred** (`LinearSRGBColorSpace`), e a §3b guarda isso. ⚠️ **Multiplicador que não
+multiplica é sinal de perda ANTES dele:** subir o ganho 15,6× moveu a média do céu de 1,89 para 2,18
+em 255 — foi o que provou que o defeito era colorimetria, não exposição.
+⭑ **A NÉVOA é o que dá PROFUNDIDADE, e ela é feature, não defeito** (§3c). O trecho de casca à
+frente está a `R + r` e o de trás a `R − r`: afastar mergulha o centro da vista na névoa e aproximar
+a dissolve, então o zoom informa distância **duas vezes** — por tamanho e por extinção.
+☠️ **Não copie os limiares do app de referência escalando pelo raio.** Lá a câmera chega à PAREDE com
+fov 75°; aqui ela alcança 0,62 R com fov 46°, e a 260 o quadro inteiro vê a casca entre 647 e 680 —
+33 unidades. A rampa deles cai toda além disso e o resultado é névoa CHAPADA no quadro. E a cor é
+**preta**: `0x000814` é o fundo de cena DELES.
+
+## Ao mexer na roda, ou no passo do zoom
+
+    node scripts/lei-roda.mjs
+
+Prova que o zoom responde ao GESTO e não à contagem de eventos. `WheelEvent` mede quanto o dedo
+andou e diz em que unidade mediu; quem lê só o SINAL descarta a medida, e o passo passa a valer por
+EVENTO — grandeza do dispositivo, não do gesto. ☠️ **Um segundo de trackpad são ~60 eventos contra 1
+de um entalhe de mouse**, então passo fixo faz o mesmo gesto andar 60× mais no trackpad, sem sintoma
+além de *"o zoom dispara"*. ☠️ **E passo LINEAR não volta:** `1,08 × 0,92 = 0,9936`, então o vaivém
+encolhe a distância sozinho — só a forma exponencial é reversível. ⚠️ `deltaMode` é a terceira: o
+Firefox reporta em LINHAS (`deltaY ≈ 3`), e lido como pixel o zoom simplesmente não anda. O portão é
+`space/roda-de-zoom.js`, PURO — ele devolve um multiplicador, e o piso continua sendo da CENA
+(`clampDistance` lê o raio do corpo mais próximo, que o módulo não pode conhecer).
+
 ## Ao mexer no teclado
 
     node scripts/lei-teclado.mjs

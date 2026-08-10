@@ -46,6 +46,7 @@ import {
   LOD_FULL_PX,
 } from './galaxy.js';
 import { createQuasars, quasarParams } from './quasar.js';
+import { fatorDeZoom } from './roda-de-zoom.js';
 import { MOTION, rateOf } from './motion-catalog.js';
 import { trace } from '../core/trace.js';
 import { resolveBody } from './solver.js';
@@ -1536,7 +1537,13 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
       event.preventDefault();
       userControlled = true;
       orbitMoved = true;
-      orbit.targetDistance = clampDistance(orbit.targetDistance * (1 + Math.sign(event.deltaY) * 0.08));
+      /*
+       * O QUANTO do gesto vem do evento; o passo e o teto moram em `roda-de-zoom.js`, que é puro.
+       *
+       * ⚠️ Aqui só sobra `clampDistance` — o piso é geometria da CENA (raio do corpo mais próximo),
+       * e é a única coisa nesta linha que o módulo não pode saber.
+       */
+      orbit.targetDistance = clampDistance(orbit.targetDistance * fatorDeZoom(event));
     },
     { passive: false }
   );
@@ -3539,10 +3546,10 @@ export function createScene(canvas, { labelLayer, signals } = {}) {
     /** Janela temporal do céu, em espaço de recência — o mesmo eixo que já define o raio. */
     revealSky: (value) => graph.reveal(value),
     /** Anéis de Saturno nos arquivos alterados no disco. Recebe o `{caminho: estado}` cru. */
-    /** Fundo do universo: liga/desliga, tempo de rotação, transição e qualidade. */
+    /** Fundo do universo: liga e desliga a casca estelar. É a única coisa que ele configura. */
     applyBackdrop: (options) => backdrop.apply(options),
-    /** Qual imagem está no ar — a tela de configuração precisa dela para creditar. */
-    backdropPlate: () => backdrop.plate(),
+    /** As causas de "não vejo o fundo", separadas. Ver `space/backdrop.js`. */
+    fundoProbe: () => backdrop.sonda(),
     markDirty: (table) => {
       const resultado = graph.markDirty(table);
       /*

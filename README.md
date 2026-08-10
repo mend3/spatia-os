@@ -213,7 +213,7 @@ espessura, continuidade ou posição — que não seja "aro".
 | `Home` | volta à raiz |
 | `Alt+R` | devolve a câmera à deriva automática |
 | `⌘M` | mudo |
-| arrastar / roda | orbitar / aproximar |
+| arrastar / roda | orbitar / aproximar — a roda lê **quanto** o dedo andou, então mouse, trackpad e Firefox andam o mesmo gesto, e ida-e-volta devolve a distância exata. O fundo é um mapa estelar numa casca em volta da cena: aproximar **abre** o céu e dissolve a névoa, recuar o comprime e o afunda nela — o zoom informa distância duas vezes, por tamanho e por extinção. Liga e desliga em CONFIG › FUNDO, e é o único controle que ele tem |
 | clicar num nó | trava a câmera nele **e** abre o conteúdo indexado, ancorado no astro |
 
 ## As telas

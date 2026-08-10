@@ -26,6 +26,34 @@ ela diz em que alvo a cena grava profundidade (`gravaACena`), em qual a lente es
 `universo.ancora()`; laço parado é o `requestAnimationFrame`. ⚠️ `leitura` é RESÍDUO do quadro que
 acabou — numa cena de paridade ímpar ela sai no outro alvo por construção, e isso está certo.
 
+☠️ **"NÃO VEJO O FUNDO" TEM SEIS CAUSAS, E A FOTO PRETA NÃO SEPARA NENHUMA.** Quem separa é
+`spatia.fundo()`: preferência desligada · não montado · invisível · fora da árvore · ganho zero ·
+uniform apontando para o pixel preto. ⚠️ **A sonda tem de ler o UNIFORM, não a variável que guarda a
+textura** — o mapa pode estar pronto e o shader continuar amostrando preto, e as duas telas são
+idênticas.
+
+☠️ **E há uma SÉTIMA que nenhuma sonda de estado alcança: a imagem atravessa a cadeia?** Com tudo
+verde e a casca cobrindo o quadro, o céu ainda sai preto se a textura for decodificada de sRGB — o
+*toe* do ACES engole um mapa cuja média é 1,43/255. ⭑ **O teste que separa em UMA rodada: troque a
+amostragem por uma cor CONSTANTE no fragmento.** Tela vermelha = rasteriza, o defeito é a textura;
+tela preta = não rasteriza, o defeito é geometria ou ordem. Isso custa um reload e substitui uma
+tarde de palpite.
+
+☠️ **"FALTA X" PEDE X; NÃO É QUEIXA DE X.** Ler *"falta aquela parte preta"* como defeito faz
+REMOVER a feature — e o conserto vem acompanhado de um culpado inocente, porque a hipótese errada
+sempre encontra um. ⭑ **Antes de consertar sintoma visual copiado de outro app, procure o mecanismo
+no fonte DELE:** `scene.fog = new THREE.Fog(…)` responde em uma linha o que hipótese não responde.
+⚠️ Relato que admite dois sentidos opostos: perguntar custa menos que desfazer.
+
+⚠️ **`sky.backdrop` nasce `false`**, então num perfil novo a casca nunca pede textura. A testemunha é
+de REDE: `performance.getEntriesByType('resource').filter(e => /\.jpg/.test(e.name))` tem de listar
+`stars.jpg`. Vazio ali é fundo desligado, nunca fundo quebrado.
+
+⭑ **Para AFIRMAR sobre brilho de céu, meça pixel — a foto engana.** `drawImage(canvas, …)` DENTRO de
+um `requestAnimationFrame` funciona sem `preserveDrawingBuffer`, e daí saem média, fração acima de um
+piso e perfil radial por anel. Foi a mediana por anel que separou *"o céu está escuro"* de *"há uma
+mancha no centro"* — que têm causas diferentes.
+
 **⚠️ A aba precisa estar VISÍVEL.** Aba em segundo plano é estrangulada no MOTOR: `rAF` não dispara e
 a sonda devolve um quadro velho. **E a sonda congelada é PLAUSÍVEL** — já se leu `raioDaCamera = 33.938`
 três vezes seguidas e se foi caçar defeito na câmera; o valor era de um voo antigo.

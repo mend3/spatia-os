@@ -211,6 +211,80 @@ com ou sem produtor.
 | **T-87** | Acoplamento entre agentes como VÍNCULO, nunca como trajetória | `blocked` | T-23 (ENTREGA, não mais decisão) | — | — |
 | **T-88** | Consumidores de influência — ☠️ **JÁ ESTAVA RESPONDIDA** neste arquivo quando foi aberta | `archived` | — | — | KR3.4 |
 | **T-89** | Atenção com DUAS fontes — o painel pintava do payload, a tecla lia o store | `done` | — | — | KR2.2 |
+| **T-92** | A roda lia o SINAL do `deltaY` e descartava a magnitude — passo por EVENTO, não por gesto | `done` | — | T-93 | KR2.2 |
+| **T-93** | O fundo era quad em espaço de RECORTE — imune ao zoom por construção | `done` | T-92 | T-94 | KR2.2 |
+| **T-94** | O fundo vira UM toggle, e a casca ganha o mapa estelar com névoa | `done` | T-93 | — | KR2.2 |
+
+- **T-94** — ⭑ **UM CONTROLE, e o resto do fundo virou geometria.** Rotação entre placas, tempo no
+  ar, fusão cruzada e resolução eram quatro perguntas para uma decisão de duas respostas: com fundo,
+  ou sem. Sobrou `sky.backdrop`, e as três chaves irmãs saíram de `prefs`.
+  ⭑ A casca passou a levar `8k_stars_milky_way.jpg` da **Solar System Scope**, CC BY 4.0, **provado
+  por `sha256`** contra o download do autor — a mesma rota e a mesma conclusão do `sun.jpg`.
+  ☠️ **O CÉU SAÍA PRETO COM TUDO CERTO, e o ganho não tinha nada com isso.** Sonda verde (ligado,
+  visível, na árvore, uniform apontando para o mapa 8192×4096) e ainda assim nada na tela. Subir o
+  ganho **15,6×** moveu a média da região de céu de **1,89 para 2,18** em 255 — multiplicador que não
+  multiplica é sinal de perda ANTES dele. A causa é colorimetria: o mapa tem média **1,43/255** e só
+  2,4% dos pixels acima de 8/255, e decodificar sRGB→linear o põe sob o *toe* do ACES. Ele entra
+  **display-referred**, que é o que o app de referência obtém com `toneMapped: false`.
+  ⭑ **A régua é MEDIDA:** amostrando a mesma região de céu, a referência dá **12,54** de média; aqui
+  o ganho 0,8 dá **8,76** — ~30% abaixo de propósito, porque a HUD desta base é hairline e mora
+  SOBRE o céu.
+  ⭑ **A NÉVOA é o que dá profundidade**, e é `scene.fog` na referência: o trecho de casca à frente
+  está a `R + r` e o de trás a `R − r`, então afastar mergulha o centro da vista e aproximar
+  dissolve. Medido, do centro à borda: afastado `6,67 · 0,67 · 0 · 0,33 · 0,67 · 0`; a 50 unidades
+  `17,33 · 14,67 · 2,67 · 3,67 · 4,33 · 1,67`.
+  ☠️ **Copiar os limiares de lá escalando pelo raio CHAPA o quadro** — lá a câmera chega à parede com
+  fov 75°; aqui alcança 0,62 R com fov 46°, e a 260 o quadro inteiro vê a casca entre 647 e 680. A
+  rampa é `R → 2R`, e a cor é PRETA: `0x000814` é o fundo de cena deles.
+  ⚠️ **Refutado:** o mipmap **não** causa a região escura no centro — a névoa causa, e ela é
+  desejada. Desligá-lo remove o efeito junto. A armadilha de leitura está em `armadilhas.md` §A.
+
+- **T-93** — ☠️ **O FUNDO ERA UM QUAD EM ESPAÇO DE RECORTE, e a imunidade ao zoom era ESTRUTURAL.**
+  `gl_Position = vec4(position.xy, …)` põe a imagem na TELA: a única paralaxe possível é calculada à
+  mão, e a que havia lia `camera.position.x / hypot(x, z)` — vetor NORMALIZADO. **Direção sem
+  módulo**, então aproximar e afastar entravam na conta como o mesmo número, e a maior massa visual
+  da cena ficava pregada enquanto tudo mergulhava. Não é erro: é a ausência de profundidade, que não
+  tem onde ser procurada.
+  ⭑ **A saída é geometria, não curva:** casca `BackSide` de raio 420 (T-94 reduziu a uma). O
+  trecho à frente da câmera está a `R + r`, então o zoom do UNIVERSO (piso ~5 → 260) dá **1,60× de
+  excursão** no tamanho aparente — a referência entrega 1,92× com 8–200 numa casca de 200.
+  ⚠️ **O RAIO é a AMPLITUDE, nunca a ordem de desenho:** `depthTest: false` + `renderOrder` mínimo já
+  garantem que tudo tapa as cascas, o que libera o raio para ser escolhido pela paralaxe.
+  ⚠️ **E o limite da degradação se mede contra o alcance REAL da câmera** — `ZOOM_RANGE.max` (260)
+  MAIS a âncora dos sistemas (o universo cabe em ±41,6) dá ~302, e o limite é 342. Ler só o 260
+  faria as cascas escorregarem dentro do gesto normal, matando o efeito onde ele é mais forte.
+  ⭑ Cada imagem na projeção que ela É: as placas do Webb são fotos 16:9 e vão numa JANELA de
+  longitude/latitude com borda dissolvida (esticá-las na esfera borraria os polos); `stars.jpg` é
+  2048×1024, razão 2:1 — equirretangular, e vai na esfera inteira.
+  **Custo medido em 2026-08-10** (UNIVERSO, mesma pose, 3 repetições por versão): o passe de cena vai
+  de **0,475 ms** para **0,651 ms**; o quadro com a cadeia não piora, porque o pós é por PIXEL e
+  casca não muda contagem de pixel. O guarda é `scripts/lei-fundo.mjs`.
+  ☠️ **A armadilha de medida está em `armadilhas.md` §A:** `sky.backdrop` nasce `false`, então num
+  perfil novo mede-se o preto. A testemunha é de REDE, não de olho.
+
+- **T-92** — ⭑ **O BRIEFING DO ZOOM NASCE TRIADO, e quase tudo nele já estava no código.** Damping
+  (`RATE.zoom`, exponencial em 1/s — **167 ms** de constante de tempo contra os 200 ms de um
+  `dampingFactor 0,08` a 60fps), zoom em torno da ÂNCORA e não do eixo Z, piso de zoom derivado do
+  RAIO do corpo mais próximo (`clampDistance` → `porteLocal`), enquadramento por `k·raio/FOCUS_FIT_PX`
+  e LOD ligado à distância — os seis já existiam. ⚠️ **Não reabra a lista inteira: a única peça
+  ausente era a roda.**
+  ☠️ **O defeito era ler `Math.sign(event.deltaY)` e jogar fora a magnitude** — o passo virava por
+  EVENTO, que é grandeza do dispositivo. Medido na tela em 2026-08-10, dispando `WheelEvent`
+  sintético no canvas e lendo `spatia.universo.ancora().alvoDeDistancia`:
+
+  | gesto | agora | o passo fixo de 8%/evento dava |
+  |---|---|---|
+  | um entalhe de mouse (`deltaY 100`) | ×0,9598 | ×0,92 |
+  | um entalhe de Firefox (`deltaY 3`, `deltaMode 1`) | ×0,9598 — o MESMO | ×0,92 |
+  | um segundo de trackpad (60 × `deltaY 4`) | ×0,906 | **×0,0067** — 99,3% da distância num segundo |
+  | 20 vaivéns de um entalhe | ×1 exato | ×0,880 — deriva de 12% sem ninguém pedir zoom |
+  | pico de inércia (`deltaY 5000`) | ×0,8486, o teto de 4 entalhes | ×0,92 |
+
+  ⭑ **A reversibilidade é consequência da FORMA, não de um cuidado:** `1,08 × 0,92 = 0,9936`, então
+  todo passo linear deriva. Só a potência é inversível, e é por isso que o fator é `0,95^0,8` elevado
+  a entalhes. Quem arbitra é `space/roda-de-zoom.js`, PURO; o guarda é `scripts/lei-roda.mjs`.
+  ⚠️ **O §12 do briefing — *progressive disclosure* por zoom — continua REFUTADO** (tabela abaixo);
+  o zoom passar a responder ao gesto não é medida nova sobre alcance de pele.
 
 - **T-71** — ⭑ **DEIXOU DE SER PROPOSTA: virou LEI.** *"Nada deve competir com o objeto que está em
   foco"* está no `CLAUDE.md` como **A REGRA DO FOCO**, com a tabela de quem domina em cada gesto
