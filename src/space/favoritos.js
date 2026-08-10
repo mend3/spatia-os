@@ -143,9 +143,11 @@ export const APARENCIAS = Object.freeze({
    * arquivo dele. A marca grava PROCEDÊNCIA (quem, quando, de que céu), então nada aqui afirma que
    * o corpo É aquele planeta.
    *
-   * ☠️ **A TERRA fica fora, e é a única exclusão.** Ela é a mais reconhecível do conjunto: um corpo
-   * do corpus vestindo continentes lê como "isto é a Terra" antes de ler como "alguém escolheu esta
-   * pele" — a única do lote em que a textura vence a procedência.
+   * ☠️ **Duas ficam fora, por motivos diferentes.** A TERRA é a mais reconhecível do conjunto: um
+   * corpo vestindo continentes lê como "isto é a Terra" antes de ler como "alguém escolheu esta
+   * pele" — a única em que a textura vence a procedência. O SOL é de outra natureza: ele não retrata
+   * superfície, e sim PLASMA em convecção. Ele pertence ao lado gasoso, com estrela, supernova e
+   * núcleo de quasar/pulsar.
    *
    * ⚠️ **COMETA cai neste contexto junto com ASTEROIDE**, e não é licença: os dois são o mesmo
    * corpo em estados diferentes (`superficies.js` §2.3 — *"cometa que esgotou os voláteis é dormente
@@ -161,7 +163,6 @@ export const APARENCIAS = Object.freeze({
       planetario('saturno', 'SATURNO', 'saturn'),
       planetario('urano', 'URANO', 'uranus'),
       planetario('netuno', 'NETUNO', 'neptune'),
-      planetario('sol', 'SOL', 'sun'),
     ])
   ),
   [CONTEXTO.NENHUM]: Object.freeze({}),
