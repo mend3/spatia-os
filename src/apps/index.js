@@ -27,6 +27,7 @@ import { registerMetrics } from './metrics.js';
 import { registerSecurity } from './security.js';
 import { registerActivity } from './activity.js';
 import { registerStorage } from './storage.js';
+import { desenharMarcados, aoMudar as aoMudarMarca } from '../hud/favoritos-ui.js';
 import { el, set, shortPath, money, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { on, emit } from '../core/bus.js';
@@ -64,7 +65,17 @@ export function registerApps() {
     claims: ['ui.select:file', 'ui.select:dir'],
     // A janela do tempo entra aqui também: este é o app sobre o corpus, e navegar o corpus por
     // data é a mesma operação que navegá-lo por pasta.
-    widgets: ['context', 'fs-tree', 'fs-shape', 'fs-locate', 'fs-content', 'answer', 'sky-time', 'timeline'],
+    widgets: [
+      'context',
+      'fs-tree',
+      'fs-marks',
+      'fs-shape',
+      'fs-locate',
+      'fs-content',
+      'answer',
+      'sky-time',
+      'timeline',
+    ],
   });
 
   declararApp({
@@ -275,6 +286,45 @@ function registerFilesWidgets() {
       listeners.add(draw);
       draw();
       return { destroy: () => listeners.delete(draw) };
+    },
+  });
+
+  /**
+   * MARCADOS — a metade de T-40 que o céu não responde.
+   *
+   * ☠️ **O céu vestir a textura escolhida não é a LISTA.** A marca só aparecia no painel do corpo em
+   * que o operador JÁ ESTAVA, então ela respondia uma pergunta que ele não pode ter. Depois de
+   * marcar ele precisava fazer MAIS perguntas — *"quais eu marquei?"*, *"como volto lá?"* — que é o
+   * Princípio Final ao contrário.
+   *
+   * ⭑ **O trilho ESQUERDO, ao lado da ÁRVORE, e não o painel de CONTEXTO.** Este é o trilho de
+   * NAVEGAR o corpus, e a lista é uma segunda porta para o mesmo lugar — o clique dela é o `reveal`
+   * que a árvore já usa. No CONTEXTO ela seria a quinta seção de um painel que T-44 já mede como
+   * empurrando VÍNCULOS para baixo da dobra.
+   *
+   * ⚠️ **E ela NÃO é residente.** A REGRA DO FOCO diz *"some o que INFORMA; fica o que COMANDA algo
+   * que está ligado"* — a lista informa, e nada nela continua agindo fora da tela. Residente aqui
+   * seria cobrar altura das dez rotas por uma pergunta que só se faz navegando.
+   */
+  listWidget({
+    id: 'fs-marks',
+    title: 'MARCADOS',
+    slot: 'left',
+    render(view) {
+      /*
+       * `reveal` é INJETADO no desenho, e é o que mantém o pixel da marca num módulo só
+       * (`hud/favoritos-ui.js`, onde o painel de CONTEXTO já desenha). Navegar é do app; desenhar a
+       * marca não é.
+       */
+      const pintar = () => view.set(desenharMarcados(reveal));
+      pintar();
+      /*
+       * ⚠️ **Repintar por MUDANÇA, e SOLTAR na destruição.** Sem o cancelamento o ouvinte sobrevive
+       * ao widget e escreve num `view` órfão a cada marca — `lei-favoritos-ui.mjs` §11 guarda os
+       * dois lados, e é a mesma assinatura que o painel de CONTEXTO usa.
+       */
+      const soltar = aoMudarMarca(pintar);
+      return { destroy: soltar };
     },
   });
 

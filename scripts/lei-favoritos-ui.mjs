@@ -2,15 +2,15 @@
 /**
  * A LEI DA INTERFACE DO FAVORITO — a TELA diz que é escolha, e diz qual dos quatro estados é.
  *
- *     node scripts/lei-favoritos-ui.mjs        # sai 0 quando as onze leis valem
+ *     node scripts/lei-favoritos-ui.mjs        # sai 0 quando as doze leis valem
  *
- * A fase 1 provou o MODELO (`scripts/lei-favoritos.mjs`, 51 leis): a marca não entra em
- * `classificar()` e mora no operador. Ficou de fora a terceira condição, porque ela não é do modelo:
+ * A fase 1 provou o MODELO (`scripts/lei-favoritos.mjs`): a marca não entra em `classificar()` e
+ * mora no operador. Ficou de fora a terceira condição, porque ela não é do modelo:
  *
  * > ☠️ **um corpo com cara de Júpiter sem dizer *"você marcou"* é a única forma de isto virar
  * > mentira.** O resto da HUD publica procedência de tudo; a marca não pode ser a exceção.
  *
- * As onze leis, e o que cada uma impede:
+ * As doze leis, e o que cada uma impede:
  *
  * | § | a lei | o que ela impede |
  * |---|---|---|
@@ -25,6 +25,7 @@
  * | 9 | toda proibição do catálogo tem LEITOR no pixel | tabela de motivos que ninguém consulta |
  * | 10 | marca sem carimbo de corpus é RECUSADA, com o conserto no motivo | marca que não sabe de que céu veio |
  * | 11 | a marca REPINTA quem a desenha, e SOLTA quando ele some | o painel oferecendo MARCAR depois de marcar · ouvinte de widget destruído |
+ * | 12 | a LISTA responde *"quais marquei"* **e** *"como volto lá"* | a marca só existir no painel do corpo em que o operador JÁ está |
  *
  * ## Por que a RAIZ sai de `import.meta.url` e só dela
  *
@@ -38,8 +39,9 @@
  * - **Legibilidade.** Que o âmbar de `--busy` se leia como anúncio sobre o disco de acreção só a
  *   FOTO julga. Aqui se prova que os quatro estados produzem textos distintos, não que eles se
  *   distinguem a olho.
- * - **Que a textura desenhe.** Nenhuma das 9 está em disco (T-34), e nada no renderer consome a
- *   escolha ainda. O §6 mede exatamente isso em vez de supor.
+ * - **Que a textura desenhe.** A cena consome a escolha (planeta e rocha), mas isso é PIXEL e quem
+ *   responde é `spatia.planet().morfologica` na tela. Aqui o §6 prova que os TRÊS valores de
+ *   `disponivel` sobrevivem — que é a parte que um oráculo alcança.
  * - **O gesto chegando ao canvas.** A tecla é provada no REGISTRO (colisão), não no dedo.
  */
 import fs from 'node:fs';
@@ -718,6 +720,134 @@ if (ligacao) {
   );
 }
 
+// ───────────────────────────────────────────── §12 · a LISTA responde «quais» e «como volto lá»
+
+/*
+ * ☠️ **O céu vestir a textura escolhida NÃO é a lista.** A marca só aparecia no painel do corpo em
+ * que o operador JÁ ESTAVA, então ela respondia uma pergunta que ele não pode ter — depois de marcar
+ * ele precisava fazer MAIS perguntas, que é o Princípio Final ao contrário.
+ *
+ * Os casos abaixo não saem de um gesto: corpo que sumiu do céu e marca degradada exigem estado CRU,
+ * e é para isso que `gravar()` existe. O que um gesto produz já está provado nos §3–§5.
+ */
+{
+  const rochoso = um('rochoso');
+  const planetario = um('planetario');
+
+  limpar();
+  const vazia = texto(UI.desenharMarcados(() => {}));
+  conferir('§12 lista vazia NÃO é só «nenhum»', vazia.includes('nenhum corpo marcado'), vazia);
+  /*
+   * ⚠️ A lista vazia é o estado em que o operador MAIS precisa saber que a marca existe — desenhar
+   * só a ausência é a tela dizendo "não há" para quem nem sabia que havia.
+   */
+  conferir('§12 e diz o PRÓXIMO PASSO, com a tecla', /\bF\b/.test(vazia) && vazia.includes('trave'), vazia);
+
+  gravar({ [rochoso.id]: marcaCrua({ [F.CONTEXTO.ROCHOSO]: 'marte' }) });
+  const abertos = [];
+  const linhas = UI.desenharMarcados((id) => abertos.push(id));
+  const t = texto(linhas);
+  const curto = rochoso.id.split('/').at(-1);
+  conferir('§12 a linha nomeia o corpo', t.includes(curto), t);
+  conferir(
+    '§12 e nomeia a APARÊNCIA escolhida',
+    t.includes(F.APARENCIAS[F.CONTEXTO.ROCHOSO].marte.rotulo),
+    t
+  );
+
+  /*
+   * ⭑ **O clique é o «como volto lá», e é a razão de a lista existir.** Uma lista que só INFORMA
+   * deixa a segunda pergunta sem resposta — e navegar é do app, então o que se prova aqui é que o
+   * desenho chama o que lhe entregaram, com o ID, sem conhecer rota nenhuma.
+   */
+  const clicavel = porClasse(linhas, 'fs-name')[0];
+  const linhaBotao = linhas.find((n) => n.tagName === 'BUTTON');
+  linhaBotao?.clicar();
+  conferir('§12 a linha é BOTÃO', Boolean(linhaBotao) && Boolean(clicavel), linhaBotao?.tagName ?? 'nenhum');
+  conferir('§12 o clique devolve o ID ao chamador', abertos[0] === rochoso.id, String(abertos[0]));
+
+  /*
+   * ☠️ **Corpo fora da topologia servida NÃO é clicável.** `reveal` pediria foco num astro que não
+   * existe: a câmera não se move, o leitor não abre, e a tela fica IDÊNTICA ao clique que funcionou.
+   * Botão morto que não se anuncia é pior que a ausência dele.
+   */
+  gravar({ 'nao/existe/sumiu.md': marcaCrua({}) });
+  const mortos = [];
+  const somem = UI.desenharMarcados((id) => mortos.push(id));
+  for (const n of somem) n.clicar?.();
+  conferir('§12 corpo ausente do céu NÃO é botão', !somem.some((n) => n.tagName === 'BUTTON'), texto(somem));
+  conferir('§12 e clicar nele não navega para lugar nenhum', mortos.length === 0, JSON.stringify(mortos));
+  conferir('§12 e a lista DIZ que ele sumiu', texto(somem).includes('não está no céu servido'), texto(somem));
+
+  /*
+   * ⚠️ **Degradada continua sendo ANÚNCIO na lista**, com o motivo do modelo — a mesma lei do §5,
+   * do outro lado da tela. Uma lista que a desenhasse igual a `marcada` faria a afinação evaporar
+   * calada no único lugar em que o operador vê todas as marcas de uma vez.
+   */
+  gravar({ [planetario.id]: marcaCrua({ [F.CONTEXTO.ROCHOSO]: 'marte' }) });
+  const deg = UI.desenharMarcados(() => {});
+  const leituraDeg = UI.leitura(porId.get(planetario.id));
+  conferir('§12 o modelo degrada este caso', leituraDeg.estado === F.ESTADO.DEGRADADA, leituraDeg.estado);
+  conferir('§12 a lista carrega o motivo do modelo', texto(deg).includes(leituraDeg.motivo), texto(deg));
+  conferir(
+    '§12 e carimba o estado na linha',
+    deg.some((n) => n.dataset?.estado === F.ESTADO.DEGRADADA),
+    JSON.stringify(deg.map((n) => n.dataset?.estado))
+  );
+
+  /*
+   * ⭑ A ORDEM é por RECÊNCIA de marcação: *"o que eu estava acompanhando"* é pergunta sobre o
+   * presente. Alfabética ordenaria por um fato do CAMINHO, que é o que a árvore ao lado já faz.
+   */
+  const [a, b] = espécimes.rochoso;
+  if (a && b) {
+    gravar({
+      [a.id]: { ...marcaCrua({}), em: '2026-08-01T00:00:00.000Z' },
+      [b.id]: { ...marcaCrua({}), em: '2026-08-09T00:00:00.000Z' },
+    });
+    const ordem = porClasse(UI.desenharMarcados(() => {}), 'fs-name').map((n) => n.textContent);
+    conferir(
+      '§12 o mais RECENTE vem primeiro',
+      ordem[0] === b.id.split('/').at(-1),
+      `${ordem[0]} antes de ${ordem[1]}`
+    );
+  }
+
+  /*
+   * ⚠️ **Homônimos.** `README.md` aparece em cada repositório do corpus, e cinco linhas idênticas
+   * não respondem *"quais eu marquei"*. Sem aparência escolhida, a coluna da direita leva a PASTA —
+   * nunca fica vazia, porque coluna vazia numa lista se lê como dado faltando.
+   */
+  gravar({ 'um/lugar/README.md': marcaCrua({}), 'outro/canto/README.md': marcaCrua({}) });
+  const homonimos = UI.desenharMarcados(() => {});
+  const metas = porClasse(homonimos, 'fs-meta').map((n) => n.textContent);
+  conferir(
+    '§12 homônimos se distinguem pela pasta',
+    metas.includes('lugar') && metas.includes('canto'),
+    JSON.stringify(metas)
+  );
+
+  limpar();
+}
+
+/*
+ * ⚠️ **A lista tem os MESMOS dois lados que o §11 exige do painel** — registrar a repintura e
+ * SOLTAR na destruição. Um ouvinte que sobrevive ao widget escreve num `view` órfão a cada marca, e
+ * o defeito é mudo.
+ */
+{
+  const app = src('src/apps/index.js');
+  const bloco = app.slice(app.indexOf("id: 'fs-marks'"));
+  const corpo = bloco.slice(0, bloco.indexOf('listWidget('));
+  const ligacao = corpo.match(/const\s+(\w+)\s*=\s*aoMudarMarca\(/);
+  conferir('§12 a lista registra a repintura', Boolean(ligacao), corpo.includes('aoMudar') ? 'sem `const X =`' : 'sem `aoMudar`');
+  conferir(
+    '§12 e devolve o cancelamento no `destroy`',
+    Boolean(ligacao) && new RegExp(`destroy:\\s*${ligacao[1]}\\b`).test(corpo),
+    corpo.match(/destroy:.*/)?.[0] ?? 'sem destroy'
+  );
+}
+
 limpar();
 
 // ───────────────────────────────────────────────────────── veredito
@@ -729,10 +859,16 @@ const CENSO = [
     `cometa ${espécimes.cometa.length} · pulsar ${espécimes.pulsar.length}`,
   // ⚠️ MEDIDO, nunca cravado: o `0` que estava aqui virou mentira no dia em que as texturas
   // chegaram, e continuava sendo impresso como se tivesse sido medido.
+  /*
+   * ⚠️ **ARQUIVOS DISTINTOS, não entradas — as duas contagens não são a mesma.** O mesmo arquivo
+   * serve dois contextos (`mars.jpg` é a MARTE do planetário e a do rochoso), e misturar as réguas
+   * imprimia `9/16` sobre um catálogo completo no oráculo do modelo. Aqui as duas saem lado a lado.
+   */
   (() => {
     const todas = Object.values(F.APARENCIAS).flatMap((c) => Object.values(c));
-    const emDisco = todas.filter((a) => fs.existsSync(`${RAIZ}/${a.arquivo}`)).length;
-    return `${todas.length} aparências no catálogo · ${emDisco} em disco`;
+    const arquivos = new Set(todas.map((a) => a.arquivo));
+    const emDisco = [...arquivos].filter((a) => fs.existsSync(`${RAIZ}/${a}`)).length;
+    return `${todas.length} entradas no catálogo · ${arquivos.size} arquivos distintos · ${emDisco} em disco`;
   })(),
 ];
 for (const linha of CENSO) console.log(`  ${linha}`);

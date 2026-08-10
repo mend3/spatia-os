@@ -26,12 +26,11 @@
  * ⚠️ Nó que o agrupamento não alcança fica FORA da tabela e o painel diz isso, em vez de assumir
  * `dominante: false` — assumir daria contexto `planetario` a uma estrela, com toda a cara de medida.
  *
- * ## `emDisco` é `null` até alguém medir
+ * ## `emDisco` tem TRÊS valores, e o do meio some primeiro
  *
- * Nenhuma das 9 texturas do catálogo está em disco (09/08: só `sun.jpg`, que é da fotosfera e está
- * fora do catálogo). `null` significa *"ninguém me disse o que existe"*, e não pode virar `false`
- * (que é *"medi e falta"*) nem sumiço. Quem souber carregar é quem declara — `declararEmDisco()` é a
- * porta, e ela não tem chamador hoje.
+ * `null` significa *"ninguém me disse o que existe"*, e não pode virar `false` (*"medi e falta"*) nem
+ * sumiço. A porta é `declararEmDisco()`, e quem a atravessa é `main.js` com a lista que o servidor
+ * publica em `/api/health`; sem essa lista o conjunto continua `null`, que é a resposta honesta.
  */
 import { el } from './dom.js';
 import { button } from './button.js';
@@ -101,7 +100,7 @@ export function carregarTopologia(payload) {
   });
 }
 
-/** Declara o que o carregador de textura sabe carregar. Sem chamador hoje — ver o cabeçalho. */
+/** Declara o que o carregador de textura sabe carregar. `null` religa o *"não medi"*. */
 export function declararEmDisco(conjunto) {
   emDisco = conjunto instanceof Set ? conjunto : null;
 }
@@ -358,5 +357,110 @@ export function desenharFavorito(node) {
   soltar.append(el('span', 'fs-name', 'DESMARCAR'));
   soltar.append(el('span', 'fs-meta', 'F'));
   linhas.push(soltar);
+  return linhas;
+}
+
+// ─────────────────────────────────────────────────────────── a LISTA — «quais eu marquei»
+
+/**
+ * O nome curto de um corpo, para a régua estreita do trilho.
+ *
+ * ⚠️ **Só o último segmento não basta:** `README.md` aparece em cada repositório do corpus, e uma
+ * lista de cinco `README.md` idênticos não responde *"quais eu marquei"*. A pasta imediata é o que
+ * separa os homônimos, e é o mesmo par que a árvore desenha.
+ */
+function nomeCurto(id) {
+  const partes = String(id).split('/').filter(Boolean);
+  return { nome: partes.at(-1) ?? id, pasta: partes.at(-2) ?? '' };
+}
+
+/**
+ * Uma marca, em uma linha CLICÁVEL — e o clique é o «como volto lá».
+ *
+ * ☠️ **Corpo fora da topologia servida NÃO é clicável, e isto não é polidez.** `reveal` pediria foco
+ * num astro que não existe: a câmera não se move, o leitor não abre, e a tela fica idêntica ao
+ * clique que funcionou — um botão morto que não se anuncia é pior que a ausência dele. `noCeu` é o
+ * fato, e ele vira `<div>` em vez de `<button>`.
+ */
+function linhaDaMarca(item, aoAbrir) {
+  const { nome, pasta } = nomeCurto(item.id);
+  const ausente = item.noCeu === false;
+  const degradada = item.estado === ESTADO.DEGRADADA;
+
+  const linha = ausente
+    ? el('div', 'fs-row-morta')
+    : button({
+        variant: 'row',
+        size: 'row',
+        title: `voltar a ${item.id}`,
+        onClick: () => aoAbrir(item.id),
+      });
+  linha.dataset.estado = item.estado ?? 'sem-topologia';
+
+  linha.append(el('span', 'fs-glyph', degradada ? '⚠' : '★'));
+  linha.append(el('span', 'fs-name', nome));
+  /*
+   * A coluna da direita responde *"que cara eu dei a ele"*, que é a outra metade da pergunta. Sem
+   * aparência ela fica com a PASTA, que é o que desempata os homônimos — nunca vazia, porque coluna
+   * vazia numa lista se lê como dado faltando.
+   */
+  const direita = item.aparencia
+    ? APARENCIAS[item.contexto]?.[item.aparencia]?.rotulo || item.aparencia
+    : pasta;
+  linha.append(el('span', 'fs-meta', direita));
+
+  const notas = [];
+  // Cada uma é um fato SEPARADO, e o modelo já os separa: juntá-los aqui desfaria isso no pixel.
+  if (ausente) notas.push('não está no céu servido — a marca fica, o corpo é que sumiu');
+  if (item.foraDoCeu) notas.push(`marcada no céu ${item.corpus}`);
+  if (degradada) notas.push(item.motivo);
+  return notas.length
+    ? [linha, ...notas.map((n) => el('div', 'marca-motivo', n))]
+    : [linha];
+}
+
+/**
+ * A LISTA DOS MARCADOS — a metade de T-40 que o céu não responde.
+ *
+ * ☠️ **O céu sabendo não é a lista.** Depois de marcar, o operador precisa fazer MAIS perguntas —
+ * *"quais eu marquei?"*, *"como volto lá?"* — e a marca só aparecia no painel do corpo em que ele
+ * JÁ ESTAVA, respondendo uma pergunta que ele não pode ter. É o Princípio Final ao contrário.
+ *
+ * ⭑ **A ORDEM é por RECÊNCIA de marcação**, e é a que serve à pergunta: *"o que eu estava
+ * acompanhando"* é uma pergunta sobre o presente. Alfabética ordenaria por um fato do caminho, que
+ * é justamente o que a árvore ao lado já faz melhor.
+ *
+ * ⚠️ **Vazio não é ausência de conteúdo, é o PRÓXIMO PASSO.** `answer` é o exemplar da regra e não
+ * desenha nada sem resposta; aqui há o que dizer, porque a lista vazia é o estado em que o operador
+ * mais precisa saber que a marca existe.
+ *
+ * @param {(source: string) => void} aoAbrir  o que fazer ao clicar — INJETADO, porque navegar é do
+ *   app: este módulo não conhece rota, e o mesmo desenho tem de ser exercitável por um oráculo sem
+ *   barramento nenhum
+ * @returns {HTMLElement[]} as linhas, na forma que `view.set` concatena
+ */
+export function desenharMarcados(aoAbrir) {
+  const s = sonda();
+  if (!s.ligado) return [el('div', 'widget-empty', s.motivo)];
+
+  if (!s.total) {
+    return [
+      el('div', 'widget-empty', 'nenhum corpo marcado'),
+      el('div', 'widget-hint', 'trave um astro e tecle F — a marca guarda onde ele está e a cara que você deu a ele'),
+    ];
+  }
+
+  const ordenados = [...s.itens].sort((a, b) => String(b.em).localeCompare(String(a.em)));
+  const linhas = ordenados.flatMap((item) => linhaDaMarca(item, aoAbrir));
+
+  /*
+   * O rodapé só afirma o que TEM medida. `degradadas` e `ausentes` vêm da sonda do modelo; `ausentes`
+   * é `null` quando ninguém entregou a topologia, e um `0` ali diria "medi e não há" sobre uma
+   * medida que não aconteceu.
+   */
+  const partes = [`${s.total} marcado${s.total > 1 ? 's' : ''}`];
+  if (s.degradadas) partes.push(`${s.degradadas} degradada${s.degradadas > 1 ? 's' : ''}`);
+  if (s.ausentes) partes.push(`${s.ausentes} fora do céu servido`);
+  linhas.push(el('div', 'widget-hint', partes.join(' · ')));
   return linhas;
 }

@@ -1210,6 +1210,25 @@
   .marca-aparencias { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
 
   /*
+    A LISTA DOS MARCADOS (trilho esquerdo). Ela é a linha de arquivo da ÁRVORE com duas diferenças,
+    e as duas são FATO, não estilo:
+
+    1. `degradada` herda o âmbar de atenção que a faixa do CONTEXTO já usa — a marca não quebrou,
+       ela continua guardada, então `--bad` seria a tinta errada.
+    2. ☠️ Corpo fora da topologia servida vira `.fs-row-morta` e NÃO é `<button>`: `reveal` pediria
+       foco num astro que não existe, e a tela ficaria idêntica ao clique que funcionou. Botão morto
+       que não se anuncia é pior que a ausência dele. Sem `cursor`, sem `:hover`, sem ponteiro — o
+       `#hud` é `pointer-events: none` e `div` não é um dos seletores que o reativam, então a
+       ausência de gesto vem por construção e não por uma regra que alguém pode remover.
+  */
+  .btn[data-variant="row"][data-estado="degradada"] .fs-glyph { color: var(--busy); }
+  .fs-row-morta { display: flex; align-items: baseline; gap: 6px; padding: 3px 0;
+                  opacity: 0.55; }
+  .fs-row-morta .fs-name { flex: 1; min-width: 0; }
+  /* Recuo para a nota se ler como pertencente à linha acima, e não como um item da lista. */
+  .scroll > .marca-motivo { padding-left: 14px; padding-bottom: 3px; }
+
+  /*
     Scrubber da janela temporal. Hairline: a pista é uma linha, a frente revelada é a mesma
     linha em âmbar, e o playhead é um traço vertical. Sem trilho, sem knob, sem caixa.
   */
