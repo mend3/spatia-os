@@ -358,7 +358,23 @@ function registerEffective() {
   listWidget({
     id: 'sec-effective',
     title: 'O COMANDO QUE SAI DISSO',
-    slot: 'strip',
+    /*
+     * ☠️ **`strip` é a fenda dos RESIDENTES — *"o que nunca deve sair da tela"* — e este painel
+     * existe em UMA das dez rotas.** Morando lá, ele dava à fenda um segundo significado sem que
+     * nada recusasse, e o censo de `lei-residentes.mjs` §5 imprimia o caso em amarelo a cada volta.
+     *
+     * ⭑ **`left` é onde ele pertence pela semântica declarada:** *"o que É — identidade,
+     * configuração, o estado declarado"*. O argv é exatamente a configuração desta tela
+     * materializada — todo interruptor daqui existe para virar um destes argumentos.
+     *
+     * ⚠️ **Não foi para o `stage`** apesar de ser A PROVA: a fenda diz *"a coisa ÚNICA que a tela
+     * serve para olhar"*, e `sec-catalog` já está lá. Duas coisas únicas não são únicas.
+     *
+     * ⚠️ A régua muda — a faixa é de largura inteira e o trilho é `minmax(230px, 20vw)`. Medido:
+     * `.chunk-text` já traz `pre-wrap` + `word-break`, e o argv real tem 77 caracteres, então ele
+     * quebra em duas linhas em vez de estourar.
+     */
+    slot: 'left',
     render(view, ctx) {
       function draw() {
         if (!describe) return view.empty(erro ? `indisponível: ${erro}` : 'carregando…');

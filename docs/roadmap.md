@@ -161,7 +161,7 @@ com ou sem produtor.
 | **T-39** | As duas cenas olham pela MESMA ontologia — a pele tem um dono só (`space/sistemas.js`) | `done` | — | — | KR2.4 |
 | **T-71** | **A REGRA DO FOCO no pixel — nas DEZ rotas**, não só na cena principal | `todo` | — | — | KR2.1 |
 | **T-72** | Orçamento de ALTURA por fenda — piso, pedido e a QUARTA causa de «o painel sumiu» | `done` | — | T-71 | KR2.1 |
-| **T-73** | `sec-effective` mora em `strip`, a fenda dos RESIDENTES — mover ou redeclarar | `todo` | decisão do usuário | — | KR2.1 |
+| **T-73** | `sec-effective` morava em `strip` — ⭑ **DECIDIDO: o painel muda de fenda**, a semântica fica | `done` | — | — | KR2.1 |
 | **T-74** | O custo do VIDRO — medido: CSS não derruba quadro; vidro 3D recusado por aritmética | `done` | — | T-14 | — |
 | **T-75** | O upload do atlas por token — medido: a saída barata existe e é CONDICIONAL | `done` | — | — | — |
 | **T-76** | Descoberta de MCP — o widget que LISTA servidores (instalar é T-78) | `todo` | — | — | — |
@@ -382,12 +382,20 @@ com ou sem produtor.
   apontando a mesma tela é a ordem por ganho que T-71 precisa. Ver [`medidas.md`](./medidas.md).
   ⚠️ **`cabe: false` é DEFEITO; `pressao > 1` NÃO É** — o segundo é rolagem ou poda, que é o
   comportamento normal de conteúdo longo. Confundir os dois faria a régua acusar o céu inteiro.
-- **T-73** — a fenda `strip` tem semântica declarada de RESIDENTES (*"o que nunca deve sair da
-  tela"*) e `sec-effective` mora nela existindo em **1 de 10 rotas** (medido; o censo de
-  `lei-residentes.mjs` §5 imprime o caso em amarelo toda vez). A fenda ganhou um segundo significado
-  sem que nada recusasse. ⚠️ **Não é renomeação:** ou o painel muda de fenda, ou a semântica de
-  `strip` passa a admitir o caso — e a régua da faixa (largura inteira) **não é** a do trilho de
-  230 px, então a decisão MUDA A TELA e tem de ser vista.
+- **T-73 FECHADA — o painel mudou de fenda; a semântica de `strip` fica intacta.** `sec-effective`
+  vive agora em `left`, cuja semântica declarada é *"o que É — identidade, configuração, o estado
+  declarado"*: o argv é a configuração desta tela materializada, e todo interruptor dela existe para
+  virar um daqueles argumentos.
+  ⚠️ **Não foi para o `stage` apesar de ser A PROVA** — a fenda diz *"a coisa ÚNICA que a tela serve
+  para olhar"* e `sec-catalog` já está lá. Duas coisas únicas não são únicas.
+  ⭑ **Alargar a semântica de `strip` era a outra saída, e é a que se recusou:** um segundo
+  significado numa fenda é exatamente como ela perde o primeiro. `strip` volta a ser **1 widget em
+  10 de 10 rotas** (`sky-time`), medido no censo.
+  ⚠️ **A régua muda e ainda não foi VISTA na tela:** a faixa é de largura inteira, o trilho é
+  `minmax(230px, 20vw)`. Medido no CSS e no dado — `.chunk-text` traz `pre-wrap` + `word-break` e o
+  argv real tem **77 caracteres** —, então ele quebra em duas linhas em vez de estourar. **Falta a
+  foto.**
+  ☠️ **Decidida POR AGENTE sob autorização de 09/08.**
 - **T-21 DECIDIDA, em duas metades** — e a partição é o que destrava sem gastar a recusa escrita. A
   frase de `OS-SCREENS.md` (*"instalar app de terceiro nisso é entregar a máquina"*) é sobre
   EXECUTAR código de terceiro. **LER o que existe não executa nada:** T-76 (listar servidores MCP) e
