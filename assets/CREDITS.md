@@ -92,6 +92,26 @@ shasum -a 256 assets/textures/*.jpg
 
 ---
 
+### `3d/hubble-space-telescope.glb` — a malha da sonda
+
+| | |
+|---|---|
+| obra | modelo 3D do Telescópio Espacial Hubble |
+| autor | **NASA** — [NASA 3D Resources](https://science.nasa.gov/3d-resources/) |
+| licença | sem copyright, sob as [Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) — valem as ressalvas da **Fonte 2**, abaixo |
+| modificações | convertido de `.3ds` para glTF binário no Blender (glTF I/O v4.2.57): malha comprimida com **DRACO**, texturas reencodadas em WebP com reserva PNG |
+| consumidor | `src/space/sonda.js` |
+
+**Atribuição na publicação:** *Modelo 3D do Hubble por NASA (NASA 3D Resources).*
+
+⚠️ **A conversão impede a prova por hash contra o original** — o `sha256` abaixo identifica ESTE
+arquivo, não o da NASA. O que corrobora a origem está gravado no próprio cabeçalho glTF: o nó
+`<3DSRoot>` (importação de um `.3ds`, o formato do acervo) e os materiais `hbltel_*`, a
+nomenclatura do modelo Hubble da NASA.
+
+`e5ba4de15c7d359ac8fa1ab7e286aff42dec09c0fadae3db99252587f39fa384` · 1 694 988 bytes —
+reconferir: `shasum -a 256 assets/3d/hubble-space-telescope.glb`
+
 ## ☠️ Pendências
 
 ### Música de fundo (**T-32**) — o canal é tarefa; a faixa NÃO está na árvore
