@@ -104,8 +104,11 @@ const EM_REPOUSO_VAZIO = {
     'olha para a ORIGEM a 120, onde a meia largura visível é ~51. No instante 0 o corpo está fora ' +
     'do quadro — medido: esfera envolvente centrada em x=75,4.',
   'buraco-negro':
-    'nenhum objeto desenhável no grupo do espécime — a sonda conta 0 entre malha, pontos, linha e ' +
-    'sprite. O que a cena desenha ali passa por caminho que o grupo não expõe.',
+    'ele NÃO é malha, é passe de tela. `blackhole.js` tem um único `group.add`, e as fatias que ele ' +
+    'adiciona nascem `visible = false`; quem desenha o corpo é o traçado de geodésicas dentro de ' +
+    '`lensing.js`. A bancada não tem pós-processamento por decisão fundadora, então o grupo montado ' +
+    'está vazio de visíveis. ⚠️ Isto é a REGRA DA INSPEÇÃO em aberto, não uma dispensa: enquanto ' +
+    'durar, o único lugar onde este corpo se revisa é a cena viva.',
 };
 
 /**

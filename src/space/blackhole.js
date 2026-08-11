@@ -472,21 +472,31 @@ export function createBlackHole() {
       const malha =
         i === 0 ? disk : new THREE.Mesh(new THREE.RingGeometry(DISK_INNER, DISK_OUTER, 256, 64), material);
       malha.rotation.x = -Math.PI / 2;
-      // A pilha é aditiva e sem `depthWrite`, então a ordem entre as fatias não importa — mas ela
-      // tem de vir DEPOIS do horizonte, que é opaco e escreve profundidade.
+      // A pilha é aditiva e sem `depthWrite`, então a ordem entre as fatias não importa.
       malha.position.y = material.uniforms.uHeight.value;
       /*
        * ⚠️ O DISCO DE GEOMETRIA ESTÁ DESLIGADO — quem o desenha agora é o traçado de geodésicas
-       * (`blackhole-geodesic.js`), dentro do passe de tela.
+       * (`blackhole-geodesic.js`), dentro do passe de tela (`lensing.js`).
        *
        * Ele não foi apagado ainda de propósito: a troca é grande e o raymarch precisa passar pelo
        * olho do usuário na máquina dele antes de a versão antiga sumir do repositório. Enquanto
        * isso ele custa zero — `visible: false` tira a malha do render list inteiro, não só do
        * desenho. Quando o raymarch for aprovado, este bloco e o `DISK_FRAGMENT` saem juntos.
        *
-       * A ESFERA DO HORIZONTE continua ligada, e não é esquecimento: ela é opaca e escreve
-       * profundidade, então é ela que oclui os corpos que passam ATRÁS do buraco negro. O passe de
-       * tela não lê profundidade e não saberia fazer isso.
+       * ☠️ **ESTAS FATIAS SÃO O ÚNICO CONTEÚDO DE `group`, e todas nascem invisíveis: o grupo não
+       * desenha NADA.** Não há malha de horizonte neste módulo — `group.add` aparece uma vez no
+       * arquivo, e é aqui. Então `group.visible` DECLARA a camada; ele não afirma que algo foi
+       * desenhado, e quem trata os dois como sinônimo erra em silêncio:
+       *
+       * - a OCLUSÃO do documento ancorado é conta de projeção em `scene.js`, portada por
+       *   `group.visible` — não há profundidade escrita por horizonte nenhum para ocluir por si;
+       * - ⚠️ o que de fato desenha é `passes.lensing`, e ele é OUTRA chave de `CENAS`. Hoje as duas
+       *   andam juntas (`agente` true/true, `universo` false/false); declará-las divergentes num
+       *   cena nova esconderia o texto atrás de um horizonte que ninguém pinta.
+       *
+       * ⚠️ **E é por isso que este corpo não se revisa na BANCADA:** ela não tem passe de tela por
+       * decisão fundadora, então o espécime monta um grupo vazio de visíveis. A REGRA DA INSPEÇÃO
+       * está aberta aqui, e `scripts/lei-pixel.mjs` o declara em `EM_REPOUSO_VAZIO` com esta razão.
        */
       malha.visible = false;
       slices.push(malha);

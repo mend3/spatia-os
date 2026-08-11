@@ -363,6 +363,15 @@ Ainda violam (auditado, nada consertado): `remnant.js:145`, `nebula.js`, `comet.
 `pulsar-pulse.js:169`, `bodies.js:236`, `satellites.js:189,263`. ⚠️ Varra o COMPORTAMENTO, não a
 string — a galáxia não tinha `quaternion.copy` e era billboard no vértice.
 
+☠️ **E o BURACO NEGRO viola o modo mais forte: ele não está na bancada de jeito nenhum.** Não é
+malha — `blackhole.js` tem um único `group.add`, e as fatias que ele adiciona nascem
+`visible = false`. Quem desenha o corpo é o traçado de geodésicas dentro de `lensing.js`, um passe
+de tela, e a bancada não tem pós-processamento por decisão fundadora. Consequência prática: **o
+único lugar onde este corpo se revisa é a cena viva**, que é onde a lente custa 3,8–5,1 ms e tudo
+se move entre um quadro e o seguinte. ⚠️ E `group.visible` **DECLARA a camada, nunca afirma que
+algo foi desenhado** — a oclusão do documento ancorado porta nele, enquanto quem pinta é
+`passes.lensing`, outra chave de `CENAS`.
+
 **A REGRA DO CATÁLOGO** — *Nomeie os tipos que a classe ACEITA; nunca exclua os que ela não aceita.
 Ponha a proibição em `forbids`.*
 Classificar por exclusão (`type !== 'file'`) fazia uma LUA em foco resolver como GALÁXIA.
