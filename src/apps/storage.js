@@ -66,6 +66,7 @@ function idade(segundos) {
 }
 
 export function registerStorage() {
+  registerSetup();
   registerCollection();
   registerCoverage();
   registerCaches();
@@ -76,7 +77,150 @@ export function registerStorage() {
     tagline: 'o corpus é confiável?',
     color: COLOR,
     key: '9',
-    widgets: ['context', 'st-collection', 'st-coverage', 'st-caches', 'answer', 'sky-time', 'timeline'],
+    widgets: ['context', 'st-setup', 'st-collection', 'st-coverage', 'st-caches', 'answer', 'sky-time', 'timeline'],
+  });
+}
+
+// ---------------------------------------------------------------- SETUP DO CORPUS
+
+/*
+ * A ESCOLHA DA RAIZ, e o seletor é do SERVIDOR.
+ *
+ * ☠️ Nenhuma API de navegador serve: `showDirectoryPicker()` esconde o caminho absoluto do JS por
+ * projeto, então não há o que entregar a quem vai indexar; e a permissão "apps no dispositivo"
+ * (Local Network Access) governa origem PÚBLICA alcançando loopback — esta tela já é servida de
+ * `127.0.0.1`, e mesmo assim ela governaria rede, não arquivo. `/api/setup/dirs` lista.
+ *
+ * ⚠️ A ORIGEM de cada chave aparece ao lado do valor. Três camadas decidindo a mesma chave sem a
+ * ordem legível é como esta base já perdeu um dia, com o `.env` dizendo uma coisa e a tela outra.
+ */
+let ambiente = null;
+let navegando = null;
+let previa = null;
+let ocupado = false;
+
+async function lerAmbiente() {
+  ambiente = await fetch('/api/setup').then((r) => r.json());
+  notify();
+}
+
+async function navegar(caminho) {
+  navegando = await fetch(`/api/setup/dirs?path=${encodeURIComponent(caminho ?? '')}`).then((r) => r.json());
+  previa = null;
+  notify();
+}
+
+async function prever(caminho) {
+  previa = { caminho, carregando: true };
+  notify();
+  const r = await fetch(`/api/setup/prever?path=${encodeURIComponent(caminho)}`).then((x) => x.json());
+  previa = { caminho, ...r };
+  notify();
+}
+
+const ORIGEM_ROTULO = { ui: 'TELA', env: '.env', default: 'PADRÃO' };
+
+function registerSetup() {
+  listWidget({
+    id: 'st-setup',
+    title: 'CORPUS',
+    hint: 'a pasta que este céu serve',
+    slot: 'left',
+    render(view) {
+      function draw() {
+        if (!ambiente) return view.empty('lendo…');
+        const blocks = [];
+        const raiz = ambiente.raiz;
+
+        blocks.push(kv('RAIZ', raiz || 'nenhuma escolhida'));
+        if (!raiz) {
+          blocks.push(el('div', 'widget-hint', 'sem raiz o céu não tem corpus — escolha uma pasta abaixo'));
+        }
+        const col = ambiente.chaves?.QDRANT_COLLECTION;
+        if (col?.valor) blocks.push(kv('COLEÇÃO', col.valor));
+        blocks.push(kv('ADMITE', `${ambiente.admite.length} tipos · teto ${ambiente.teto_kb} KB`));
+        blocks.push(
+          el('div', 'widget-hint', `código-fonte fora (fase 2) · ${ambiente.nunca.length} padrões de segredo nunca entram`)
+        );
+
+        // A precedência, VISÍVEL: quem decidiu cada chave.
+        for (const [chave, info] of Object.entries(ambiente.chaves)) {
+          if (info.origem === 'default' && !info.valor) continue;
+          const linha = kv(chave, info.valor || '(vazio)');
+          linha.append(el('span', 'widget-hint', ORIGEM_ROTULO[info.origem] ?? info.origem));
+          blocks.push(linha);
+        }
+
+        blocks.push(
+          button({
+            label: navegando ? 'FECHAR SELETOR' : 'ESCOLHER PASTA',
+            onClick: () => (navegando ? ((navegando = null), (previa = null), notify()) : navegar(raiz || '')),
+          })
+        );
+
+        if (navegando) {
+          blocks.push(kv('EM', navegando.caminho));
+          if (navegando.erro) blocks.push(el('div', 'widget-error', navegando.erro));
+          if (navegando.pai) {
+            blocks.push(button({ label: '↑ ACIMA', onClick: () => navegar(navegando.pai) }));
+          }
+          for (const e of navegando.entradas.slice(0, 40)) {
+            const b = button({
+              label: `${e.ruido ? '· ' : ''}${e.nome}`,
+              title: e.legivel ? e.caminho : `sem permissão: ${e.caminho}`,
+              onClick: () => navegar(e.caminho),
+            });
+            blocks.push(b);
+          }
+          blocks.push(
+            button({ label: 'PRÉ-VER ESTA PASTA', variant: 'solid', onClick: () => prever(navegando.caminho) })
+          );
+        }
+
+        if (previa) {
+          if (previa.carregando) blocks.push(el('div', 'widget-hint', 'contando…'));
+          else if (previa.error) blocks.push(el('div', 'widget-error', previa.error));
+          else {
+            blocks.push(kv('RENDERIA', `${previa.admitidos} arquivos · ${previa.mb} MB`));
+            blocks.push(kv('DESCARTA', `${previa.descartados}`));
+            blocks.push(
+              el('div', 'widget-hint', Object.entries(previa.por_tipo).map(([e, n]) => `${e} ${n}`).join(' · '))
+            );
+            blocks.push(
+              button({
+                label: ocupado ? 'APLICANDO…' : 'USAR ESTA PASTA',
+                variant: 'solid',
+                onClick: async () => {
+                  if (ocupado) return;
+                  ocupado = true;
+                  notify();
+                  await fetch('/api/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ CORPUS_ROOT: previa.raiz }),
+                  });
+                  ocupado = false;
+                  navegando = null;
+                  previa = null;
+                  await lerAmbiente();
+                },
+              })
+            );
+            /*
+             * ⚠️ Escolher a raiz NÃO indexa, e dizer isso é o ponto: a indexação é longa e o
+             * operador precisa saber que o céu só muda depois dela. `make indexar` constrói a
+             * coleção nova e troca o apelido no fim — até lá, o céu velho continua servindo.
+             */
+            blocks.push(el('div', 'widget-hint', 'escolher grava a raiz; o céu só muda depois de `make indexar`'));
+          }
+        }
+        view.set(blocks);
+      }
+      listeners.add(draw);
+      draw();
+      lerAmbiente();
+      return { destroy: () => listeners.delete(draw) };
+    },
   });
 }
 
