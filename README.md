@@ -808,6 +808,12 @@ gradação (`space/lensing.js`).
 declara os próprios controles e o que OLHAR; a bancada os desenha sozinha. É a REGRA DA INSPEÇÃO:
 camada sem controle é camada que ninguém confere.
 
+⭑ E o espécime passa a ser **guardado no pixel** sozinho: `make pixel` desenha os 27 da bancada num
+Chrome headless por software e afirma que cada um desenha, não vira mancha branca, se repete quadro
+a quadro e continua a menos de 2% do que já foi medido. Espécime novo sem número gravado **reprova**
+— silêncio pareceria cobertura. É o único oráculo desta base que olha para a imagem; os outros 37
+provam invariante de código e nenhum abre o shader.
+
 **Um script novo em `scripts/`** = o arquivo, e nada mais **se ele for um guarda**: o portão varre o
 diretório e o descobre sozinho. **Se ele materializar** — escrever em `.cache/` ou no grafo — ele
 precisa de um alvo no `Makefile`, e `scripts/lei-tooling.mjs` reprova enquanto não tiver: um

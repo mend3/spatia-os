@@ -348,6 +348,238 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
+// ---------------------------------------------------------------- sonda de pixel
+
+/**
+ * `window.bancada` — a superfície que `scripts/lei-pixel.mjs` mede.
+ *
+ * ☠️ **Ela NÃO desenha no canvas da bancada, e essa é a decisão que a torna medível.** O quadro
+ * visível carrega `devicePixelRatio`, o tamanho da janela e o antialias do driver — três grandezas
+ * que mudam de máquina para máquina e fariam o mesmo espécime render números diferentes sem nada
+ * ter mudado no shader. A sonda desenha num alvo FORA da tela, de lado fixo, e lê os pixels de lá.
+ *
+ * ⚠️ **O que ela mede é o material, nunca a soma.** É a mesma razão de a bancada não ter
+ * pós-processamento: bloom e lente reescrevem o pixel depois que o material terminou, e um
+ * oráculo que os incluísse acusaria a parcela errada quando o número saísse do lugar.
+ *
+ * ☠️ **Ela PERTURBA a bancada de propósito, e devolve o espécime anterior no fim.** Medir exige
+ * montar — não há como interrogar um espécime que não está montado. O que não pode é a perturbação
+ * ficar: quem estiver com a bancada aberta vê o painel piscar e volta para onde estava.
+ */
+const SONDA_LADO = 384;
+/** Acima do fundo, em 0–255. Abaixo disso é ruído de quantização do próprio fundo liso. */
+const SONDA_PISO = 6;
+let alvoDaSonda = null;
+const camDaSonda = new THREE.PerspectiveCamera(NEUTRAL.fov, 1, 0.1, 2000);
+
+/** Luminância Rec.709 de um pixel RGBA já em bytes. */
+const lumDe = (b, i) => 0.2126 * b[i] + 0.7152 * b[i + 1] + 0.0722 * b[i + 2];
+
+/**
+ * As grandezas que um quadro sustenta. Todas ADIMENSIONAIS ou em 0–255 — nenhuma carrega pixel,
+ * porque o lado do alvo é escolha da sonda e um número em pixel viraria função dela.
+ */
+function medirQuadro(buf, lado) {
+  // O fundo sai da BORDA do quadro, medido, nunca da constante de `globals.js`: o mapeamento de
+  // tom reescreve o valor entre a cor pedida e o byte lido, e conferir contra a cor pedida
+  // acusaria toda pele por um deslocamento que é do renderer.
+  const borda = [];
+  for (let x = 0; x < lado; x += 1) {
+    borda.push(lumDe(buf, 4 * x), lumDe(buf, 4 * ((lado - 1) * lado + x)));
+  }
+  borda.sort((a, b) => a - b);
+  const fundo = borda[borda.length >> 1];
+
+  let acesos = 0;
+  let claros = 0;
+  let saturados = 0;
+  let pico = 0;
+  let soma = 0;
+  let somaX = 0;
+  let somaY = 0;
+  let peso = 0;
+  let hash = 2166136261;
+  for (let i = 0, p = 0; p < lado * lado; p += 1, i += 4) {
+    const lum = lumDe(buf, i);
+    soma += lum;
+    if (lum > pico) pico = lum;
+    if (lum - fundo > SONDA_PISO) {
+      acesos += 1;
+      const excesso = lum - fundo;
+      somaX += (p % lado) * excesso;
+      somaY += ((p / lado) | 0) * excesso;
+      peso += excesso;
+    }
+    /*
+     * ☠️ **`claros` é a grandeza do quadro LAVADO; `saturados` não é, e a medida refutou o
+     * contrário.** Multiplicando a saída do planeta por 50 no fragmento, a saturação nos três
+     * canais ficou em ZERO — o mapeamento de tom ACES comprime o topo, então "estourado" quase
+     * nunca chega a 250 em R, G e B ao mesmo tempo. O que a mancha branca de fato faz é encher o
+     * quadro de luminância ALTA, e é isso que `claros` conta.
+     */
+    if (lum > 200) claros += 1;
+    if (buf[i] >= 250 && buf[i + 1] >= 250 && buf[i + 2] >= 250) saturados += 1;
+    hash = Math.imul(hash ^ buf[i], 16777619) ^ buf[i + 1] ^ buf[i + 2];
+  }
+
+  const total = lado * lado;
+  return {
+    fundo: Number(fundo.toFixed(2)),
+    cobertura: acesos / total,
+    claros: claros / total,
+    saturacao: saturados / total,
+    pico: Number(pico.toFixed(2)),
+    media: Number((soma / total).toFixed(3)),
+    // Em fração do lado, com a origem no centro: sobrevive à troca do lado do alvo.
+    centro: peso
+      ? { x: Number((somaX / peso / lado - 0.5).toFixed(4)), y: Number((somaY / peso / lado - 0.5).toFixed(4)) }
+      : null,
+    hash: hash >>> 0,
+  };
+}
+
+window.bancada = Object.freeze({
+  /** O catálogo, para o oráculo não manter uma lista à mão que envelhece sozinha. */
+  especimes: () => SPECS.map((s) => ({ id: s.id, name: s.name, distance: s.distance })),
+
+  /**
+   * Monta um espécime, enquadra, desenha UM quadro fora da tela e devolve as grandezas dele.
+   *
+   * @param {object} pedido
+   * @param {string} pedido.id        espécime do catálogo
+   * @param {number} [pedido.azimuth] em radianos — o mesmo eixo do arraste
+   * @param {number} [pedido.polar]   em radianos
+   * @param {number} [pedido.distance] default: a distância declarada pelo espécime
+   * @param {number} [pedido.elapsed] o instante do relógio, em segundos
+   * @param {number} [pedido.lado]    lado do alvo, em pixels de buffer
+   */
+  async medir(pedido) {
+    const anterior = spec;
+    const alvoSpec = SPECS.find((s) => s.id === pedido.id);
+    if (!alvoSpec) throw new Error(`espécime desconhecido: ${pedido.id}`);
+
+    const lado = pedido.lado ?? SONDA_LADO;
+    if (!alvoDaSonda || alvoDaSonda.width !== lado) {
+      alvoDaSonda?.dispose();
+      alvoDaSonda = new THREE.WebGLRenderTarget(lado, lado);
+      alvoDaSonda.texture.colorSpace = THREE.SRGBColorSpace;
+    }
+
+    /*
+     * ☠️ **A GRADE E A ESFERA SAEM, e sem isso a sonda mede a coisa errada.** As duas desenham
+     * independentemente do espécime montado: medido, `sonda`, `asteroide`, `particulas` e
+     * `planeta` devolviam cobertura IDÊNTICA (1,890% · pico 19,59) a uma distância em que só a
+     * grade aparecia. Um espécime que parasse de desenhar continuaria acusando cobertura, que é
+     * exatamente a afirmação que este oráculo existe para impedir.
+     */
+    const grade = globalValues.grade;
+    const referencia = globalValues.referencia;
+    globalValues.grade = false;
+    globalValues.referencia = false;
+    globals.apply(globalValues);
+
+    mount(alvoSpec);
+    clock.elapsed = pedido.elapsed ?? 0;
+
+    const azimuth = pedido.azimuth ?? 0.6;
+    const polar = pedido.polar ?? 1.15;
+
+    /** Põe a câmera a `distance` de `alvo`, no mesmo par de ângulos que o arraste usa. */
+    const enquadrar = (distance, alvo) => {
+      camDaSonda.position.set(
+        alvo.x + Math.sin(azimuth) * Math.sin(polar) * distance,
+        alvo.y + Math.cos(polar) * distance,
+        alvo.z + Math.cos(azimuth) * Math.sin(polar) * distance
+      );
+      camDaSonda.lookAt(alvo.x, alvo.y, alvo.z);
+      camDaSonda.updateMatrixWorld(true);
+      return distance;
+    };
+
+    let distance = enquadrar(pedido.distance ?? alvoSpec.distance, new THREE.Vector3());
+
+    /*
+     * ☠️ **UM quadro não basta, e medir num só chamava de "não desenha" o que ainda não tinha
+     * chegado.** Dois motivos, e são de naturezas diferentes: o ASTEROIDE carrega a malha de um
+     * arquivo (`.stl`), então antes da resposta o grupo está vazio; e as PARTÍCULAS integram
+     * estado, então no passo zero o ensemble ainda não saiu da origem. Os dois desenhariam
+     * cobertura NULA num quadro só, que é indistinguível de feição apagada — a confusão exata que
+     * este oráculo existe para não cometer.
+     *
+     * ⚠️ O número de quadros é DADO, nunca "até parecer pronto": espécime que integra estado
+     * responde diferente a 6 e a 60 passos, e um laço que parasse quando a imagem "acalmasse"
+     * mediria um instante distinto a cada corrida.
+     */
+    const quadros = pedido.quadros ?? 1;
+    for (let i = 0; i < quadros; i += 1) {
+      live?.update(values, camDaSonda, clock);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    live?.update(values, camDaSonda, clock);
+
+    /*
+     * ⚠️ **Cobertura zero tem DUAS causas, e elas pedem consertos opostos.** Ou o espécime não
+     * submeteu geometria nenhuma (feição apagada), ou submeteu e ela caiu fora do enquadramento
+     * (corpo longe da origem). Sem separá-las, quem lê o zero conserta a metade errada — então a
+     * sonda conta os objetos VISÍVEIS e mede a esfera envolvente em mundo.
+     */
+    let visiveis = 0;
+    const caixa = new THREE.Box3();
+    live?.object?.traverseVisible((o) => {
+      if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
+      visiveis += 1;
+      if (o.geometry) {
+        o.geometry.computeBoundingBox?.();
+        if (o.geometry.boundingBox) caixa.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
+      }
+    });
+    const esfera = caixa.isEmpty() ? null : caixa.getBoundingSphere(new THREE.Sphere());
+
+    /*
+     * ☠️ **ENQUADRAR PELO CORPO É OPÇÃO, e o default é a distância DECLARADA — a medida refutou o
+     * contrário.** Enquadrando pela esfera envolvente, `planeta` caiu de 48,2% de cobertura para
+     * ZERO: a esfera dá raio 1,906 e a conta põe a câmera a ~5,6, onde o corpo está abaixo do piso
+     * de LOD e legitimamente não desenha (o mesmo "nível AUSENTE" que o sorteio de raio já
+     * produziu). `fotosfera` deixou de ser determinístico junto.
+     *
+     * ⭑ A `distance` de cada espécime não é enfeite: é a pose em que o autor dele quis que fosse
+     * revisado, e para corpo com nível de detalhe ela É parte do que se revisa. Um oráculo que a
+     * sobrepõe mede um enquadramento que ninguém escolheu.
+     *
+     * Serve para o caso oposto — o corpo que a pose declarada não alcança (`satelites` desenha a
+     * 75,4 da origem no instante 0) —, e aí quem chama pede.
+     */
+    let auto = false;
+    if (pedido.enquadrar === 'corpo' && pedido.distance === undefined && esfera && esfera.radius > 0) {
+      const meio = THREE.MathUtils.degToRad(camDaSonda.fov) / 2;
+      distance = enquadrar((esfera.radius / Math.sin(meio)) * 1.15, esfera.center);
+      auto = true;
+      live?.update(values, camDaSonda, clock);
+    }
+
+    renderer.setRenderTarget(alvoDaSonda);
+    renderer.render(scene, camDaSonda);
+    const buf = new Uint8Array(lado * lado * 4);
+    renderer.readRenderTargetPixels(alvoDaSonda, 0, 0, lado, lado, buf);
+    renderer.setRenderTarget(null);
+
+    const medida = medirQuadro(buf, lado);
+    medida.enquadramento = auto ? 'corpo' : 'declarado';
+    medida.visiveis = visiveis;
+    medida.raio = esfera ? Number(esfera.radius.toFixed(3)) : null;
+    medida.centroMundo = esfera
+      ? [esfera.center.x, esfera.center.y, esfera.center.z].map((n) => Number(n.toFixed(2)))
+      : null;
+
+    globalValues.grade = grade;
+    globalValues.referencia = referencia;
+    globals.apply(globalValues);
+    if (anterior && anterior !== alvoSpec) mount(anterior);
+
+    return { id: pedido.id, lado, azimuth, polar, distance, elapsed: clock.elapsed, ...medida };
+  },
+});
+
 window.addEventListener('resize', resize);
 resize();
 mount(SPECS[0]);

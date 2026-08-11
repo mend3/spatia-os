@@ -24,7 +24,8 @@
  *
  * ⚠️ **Ele não escolhe quem roda por uma lista.** Lista branca é exatamente o defeito que deixou o
  * `splash.js` escrever na tela sem o oráculo saber. Aqui a regra é a INVERSA: **roda tudo que está
- * em `scripts/`, menos quem for MEDIDO como materializador** — quem muta estado COMPARTILHADO tem
+ * em `scripts/`, menos quem for MEDIDO inadmissível** — por EFEITO (muta estado compartilhado) ou
+ * por CUSTO DE ADMISSÃO (sobe navegador: ~15 s e um binário externo). Quem muta estado tem
  * efeito colateral e não pode entrar num portão que roda sempre.
  *
  * A medida está em `mutaCompartilhado`, e ela é conferida contra a lista: guarda novo entra
@@ -60,6 +61,7 @@ const NAO_RODAM = {
   'citacoes.mjs': 'escreve no Neo4j',
   'fixture.py': 'CRIA e APAGA o repositório do fixture',
   'baseline.js': 'é colado no console do navegador, não roda em node',
+  'lei-pixel.mjs': 'sobe um NAVEGADOR — 15s e um binário externo, num portão de ~5s',
   'leis.mjs': 'é este portão',
 };
 
@@ -89,12 +91,29 @@ const mutaCompartilhado = (nome) => {
   return emCache || noGrafo || apagaCorpus;
 };
 
+/**
+ * A SEGUNDA razão de ficar fora, e ela é de outra natureza: **custo de ADMISSÃO**, não efeito.
+ *
+ * ☠️ Um oráculo que sobe navegador não muta nada e ainda assim não cabe aqui: são ~15 s e um
+ * binário externo num portão que roda a cada commit em ~5 s. Foi por essa propriedade que
+ * `make tipos` ficou de fora, e a razão vale igual — o que muda é só qual dependência.
+ *
+ * ⚠️ **Ela é MEDIDA como a primeira, e por isso ainda é conferida contra a lista.** Declarar
+ * bastaria para alguém tirar um guarda do portão escrevendo uma linha, que é exatamente a fuga que
+ * a conferência existe para fechar. A régua é lançar um processo de navegador — `spawn` mais um
+ * binário do Chrome ou a porta de depuração.
+ */
+const precisaDeNavegador = (nome) => {
+  const src = readFileSync(`${RAIZ}/scripts/${nome}`, 'utf8');
+  return /\bspawn\(/.test(src) && /remote-debugging-port|CHROME_BIN|Google Chrome|chromium/i.test(src);
+};
+
 const guardas = [];
 const fora = [];
 const divergentes = [];
 for (const nome of arquivos) {
   const declaradoFora = nome in NAO_RODAM;
-  const mede = mutaCompartilhado(nome);
+  const mede = mutaCompartilhado(nome) || precisaDeNavegador(nome);
   // ⚠️ A lista e a medida têm de concordar. Divergirem em silêncio é como esta base perde guarda.
   if (declaradoFora !== mede && !['leis.mjs', 'baseline.js'].includes(nome)) {
     divergentes.push({ nome, declaradoFora, mede });
@@ -105,7 +124,7 @@ for (const nome of arquivos) {
 if (SO_LISTAR) {
   console.log(`\x1b[1mRODAM\x1b[0m (${guardas.length})`);
   for (const g of guardas) console.log(`  ${g}`);
-  console.log(`\n\x1b[1mNÃO RODAM\x1b[0m (${fora.length}) — efeito colateral`);
+  console.log(`\n\x1b[1mNÃO RODAM\x1b[0m (${fora.length}) — efeito colateral ou custo de admissão`);
   for (const f of fora) console.log(`  ${f.padEnd(24)} ${NAO_RODAM[f]}`);
   process.exit(0);
 }
@@ -140,9 +159,11 @@ for (const r of resultados) {
 }
 
 if (divergentes.length) {
-  console.log(`\n\x1b[33m⚠ a lista e a medida discordam\x1b[0m — quem escreve tem de estar em NAO_RODAM:`);
+  console.log(
+    `\n\x1b[33m⚠ a lista e a medida discordam\x1b[0m — quem escreve, ou sobe navegador, tem de estar em NAO_RODAM:`
+  );
   for (const d of divergentes) {
-    console.log(`  ${d.nome.padEnd(24)} declarado fora: ${d.declaradoFora} · escreve: ${d.mede}`);
+    console.log(`  ${d.nome.padEnd(24)} declarado fora: ${d.declaradoFora} · inadmissível: ${d.mede}`);
   }
 }
 

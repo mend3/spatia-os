@@ -666,6 +666,51 @@ Guarda estática dos blocos GLSL. Pega as duas armadilhas que já morderam quatr
 **falham em silêncio**: crase dentro de `/* glsl */` fechando o template literal, e o shader que
 compila mas perde a feição.
 
+## Ao mexer em shader, pele, ou qualquer coisa que se VÊ
+
+    make serve        # noutra aba — a lei exige a página no ar
+    make pixel        # ~15 s · 27 espécimes da bancada
+
+O único oráculo desta base que olha para o **quadro desenhado**. Os outros 37 provam invariante de
+CÓDIGO e nenhum abre o shader — `check-shaders.mjs` pega a crase que fecha o template, não o termo
+que passou a somar zero. O palco é a **bancada** (`canvas.html`), nunca a cena: lá o tempo é manual,
+o objeto está isolado e não há pós-processamento reescrevendo o pixel por cima do material.
+
+⭑ **Sem dependência nenhuma:** Chrome headless por CDP no `WebSocket` embutido do Node 22.
+**SwiftShader é escolha, não contorno** — rasterização por software dá o mesmo pixel em qualquer
+máquina, e um oráculo preso à GPU do dia afirmaria coisas diferentes no laptop e no CI.
+
+☠️ **FORA do portão, e a razão é CUSTO DE ADMISSÃO — a mesma de `make tipos`.** São ~15 s e um
+binário externo contra um `make leis` de ~5 s que roda a cada commit. `leis.mjs` ganhou uma SEGUNDA
+medida de inadmissibilidade (`precisaDeNavegador`) ao lado da de efeito colateral, e ela é **medida
+como a primeira**: declarar bastaria para alguém tirar um guarda do portão escrevendo uma linha.
+
+☠️ **PISO DE COBERTURA NÃO PEGA CAMADA QUE SOME — só corpo que some inteiro, e foi a mutação que
+mostrou.** Descartando a superfície do planeta no fragmento, a cobertura caiu de 48,2% para 18,4%:
+a casca de atmosfera sozinha segura 18% do quadro, quase mil vezes o piso, e a §1 passou verde com
+metade do planeta apagada. Quem fecha isso é a §5, contra `scripts/pixel-baseline.json` — linha de
+base de **escalares**, não de PNGs: três números por espécime cabem num diff, quadros dourados não.
+⚠️ **`make pixel-gravar` é DECISÃO, nunca conserto.** Regravar para calar a lei é baixar o limiar
+até o teste passar, e o corpo do commit é onde a mudança pretendida se justifica.
+
+☠️ **«Saturado nos três canais» era a grandeza errada para «lavado».** Multiplicando a saída do
+planeta por 50, a saturação assim medida deu **zero** — o ACES comprime o topo. A régua é fração do
+quadro acima de 200 de luminância: `fotosfera` em repouso dá 4,29% e o planeta mutado 42,2%.
+
+⚠️ **As duas tabelas de exceção são CONFERIDAS contra a medida** (§4), como o `NAO_RODAM` do portão:
+espécime declarado vazio que volte a desenhar, ou declarado instável que se estabilize, **derruba a
+lei** — lista que só perdoa nunca acusa nada. Hoje são 3 vazios em repouso (`particulas` é dirigido
+por ação; `satelites` orbita a raio 74 e a pose declarada olha para a origem a 120, onde a meia
+largura é ~51; `buraco-negro` não expõe objeto desenhável no grupo) e 2 instáveis (`ceu`,
+`fotosfera`).
+
+⚠️ **Um quadro só chamava de «não desenha» o que ainda não tinha CHEGADO** — o asteroide carrega
+malha de `.stl`. São 8 passos de `update`, e o joelho medido está em 6.
+
+A sonda é `window.bancada` em `src/sandbox/main.js`. ☠️ **A grade e a esfera de referência SAEM
+durante a medida:** com elas ligadas, quatro espécimes diferentes devolviam cobertura idêntica —
+era a grade que estava sendo medida, não o objeto.
+
 ## Ao mexer na sonda da HUD
 
     node scripts/lei-hud.mjs

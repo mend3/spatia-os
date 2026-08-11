@@ -10,7 +10,7 @@
 # `make` não muda como um arquivo é interpretado. É despachante, e só.
 
 .DEFAULT_GOAL := ajuda
-.PHONY: ajuda leis leis-lista hooks serve rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
+.PHONY: ajuda leis leis-lista pixel pixel-gravar hooks serve rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
 
 # ⚠️ CRASE em receita de make é SUBSTITUIÇÃO DE COMANDO no shell — a primeira versão desta
 # receita escreveu "o portão é `make leis`" e o `make ajuda` RODOU o portão inteiro para montar a
@@ -29,6 +29,12 @@ leis:  ## ☠️ TODOS os guardas, ~4 s. Sai 1 se qualquer um cair
 
 leis-lista:  ## o que roda, e o que NÃO roda com o motivo medido
 	@node scripts/leis.mjs --lista
+
+# ☠️ FORA do portão de propósito, e a razão é CUSTO DE ADMISSÃO, não desconfiança: ela sobe um
+# Chrome headless (~15 s) e exige o `serve.py` no ar. `make leis` roda a cada commit em ~5 s, e
+# essa propriedade vale mais — é a mesma decisão que deixou `make tipos` de fora.
+pixel:  ## o QUADRO desenhado, na bancada. Exige `make serve` no ar
+	@node scripts/lei-pixel.mjs
 
 hooks:  ## aponta o git para os hooks VERSIONADOS de .githooks/
 	@git config core.hooksPath .githooks
@@ -118,3 +124,6 @@ tipos:  ## confere os tipos por JSDoc (tsc --checkJs). MEDIDA, não lei — fora
 fixture-limpar:  ## apaga o repositório do fixture e a coleção
 	@FIXTURE_ROOT=$${FIXTURE_ROOT:-$$HOME/workspace/espatial-fixtures} \
 	  uv run --with fastembed python scripts/fixture.py --limpar
+
+pixel-gravar:  ## regrava a linha de base do quadro. DECISÃO, não conserto — justifique no commit
+	@node scripts/lei-pixel.mjs --gravar

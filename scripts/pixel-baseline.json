@@ -1,0 +1,142 @@
+{
+  "renderizador": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+  "lado": 384,
+  "quadros": 8,
+  "especimes": {
+    "anel": {
+      "cobertura": 0.156494140625,
+      "pico": 249.63,
+      "claros": 0.023308648003472224
+    },
+    "fotosfera": {
+      "cobertura": 0.4114040798611111,
+      "pico": 255,
+      "claros": 0.042867024739583336
+    },
+    "planeta": {
+      "cobertura": 0.4823133680555556,
+      "pico": 222,
+      "claros": 0.016072591145833332
+    },
+    "buraco-negro": {
+      "cobertura": 0,
+      "pico": 5.86,
+      "claros": 0
+    },
+    "corpos": {
+      "cobertura": 0.09991455078125,
+      "pico": 197.39,
+      "claros": 0
+    },
+    "satelites": {
+      "cobertura": 0,
+      "pico": 5.86,
+      "claros": 0
+    },
+    "ceu": {
+      "cobertura": 0.0005357530381944445,
+      "pico": 81.65,
+      "claros": 0
+    },
+    "particulas": {
+      "cobertura": 0,
+      "pico": 5.86,
+      "claros": 0
+    },
+    "cometa": {
+      "cobertura": 0.02392578125,
+      "pico": 255,
+      "claros": 0.005262586805555556
+    },
+    "nebulosa": {
+      "cobertura": 0.2581312391493056,
+      "pico": 72.51,
+      "claros": 0
+    },
+    "estacao": {
+      "cobertura": 0.048299153645833336,
+      "pico": 121.89,
+      "claros": 0
+    },
+    "sonda": {
+      "cobertura": 0.05510118272569445,
+      "pico": 118.25,
+      "claros": 0
+    },
+    "asteroide": {
+      "cobertura": 0.0638156467013889,
+      "pico": 157.77,
+      "claros": 0
+    },
+    "remanescente": {
+      "cobertura": 0.2066107855902778,
+      "pico": 64.38,
+      "claros": 0
+    },
+    "vinculos": {
+      "cobertura": 0.014817979600694444,
+      "pico": 163.83,
+      "claros": 0
+    },
+    "sistema-local": {
+      "cobertura": 0.012810601128472222,
+      "pico": 255,
+      "claros": 0.0029703776041666665
+    },
+    "universo": {
+      "cobertura": 0.3624945746527778,
+      "pico": 164.07,
+      "claros": 0
+    },
+    "anel-grao": {
+      "cobertura": 0.13096788194444445,
+      "pico": 249.63,
+      "claros": 0.006917317708333333
+    },
+    "anel-enxame": {
+      "cobertura": 0.1233249240451389,
+      "pico": 249.63,
+      "claros": 0.007269965277777778
+    },
+    "anel-pedregulho": {
+      "cobertura": 0.13100179036458334,
+      "pico": 249.63,
+      "claros": 0.009880913628472222
+    },
+    "anel-laje": {
+      "cobertura": 0.1326361762152778,
+      "pico": 249.63,
+      "claros": 0.0103759765625
+    },
+    "galaxia": {
+      "cobertura": 0.0157470703125,
+      "pico": 255,
+      "claros": 0.00008138020833333333
+    },
+    "galaxia-legibilidade": {
+      "cobertura": 0.04829237196180555,
+      "pico": 255,
+      "claros": 0.00021023220486111112
+    },
+    "quasar": {
+      "cobertura": 0.019463433159722224,
+      "pico": 227.45,
+      "claros": 0.000020345052083333332
+    },
+    "pulsar": {
+      "cobertura": 0.6201714409722222,
+      "pico": 255,
+      "claros": 0.009331597222222222
+    },
+    "coroa": {
+      "cobertura": 0.04928927951388889,
+      "pico": 255,
+      "claros": 0.004862467447916667
+    },
+    "luas": {
+      "cobertura": 0.056660970052083336,
+      "pico": 208.61,
+      "claros": 0.0006442599826388889
+    }
+  }
+}
