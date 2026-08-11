@@ -215,17 +215,19 @@ def indexar(
     # efeito era um falso positivo que recusava justamente o REINDEX, o caso normal.
     try:
         existente = net.get_json("qdrant", _url(f"/collections/{apelido}"))
-        if (existente.get("result") or {}).get("config") is not None:
-            registro = net.get_json("qdrant", _url("/aliases"))
-            nomes = {a.get("alias_name") for a in (registro.get("result") or {}).get("aliases", [])}
-            if apelido not in nomes:
-                raise ValueError(
-                    f"`{apelido}` já existe como COLEÇÃO, não como apelido. Escolha outro nome em "
-                    f"QDRANT_COLLECTION, ou apague a coleção antiga — trocar o apelido por cima "
-                    f"dela é o que o Qdrant recusa."
-                )
     except net.UpstreamError:
-        pass  # não existe: é o caso normal
+        existente = {}  # não existe: é o caso normal, e é o ÚNICO que este `except` deve cobrir
+    if (existente.get("result") or {}).get("config") is not None:
+        # ⚠️ Esta consulta fica FORA do `try` de propósito: englobá-la fazia uma falha de rede
+        # aqui parecer "o apelido existe", e a guarda deixava passar o caso que ela vigia.
+        registro = net.get_json("qdrant", _url("/aliases"))
+        nomes = {a.get("alias_name") for a in (registro.get("result") or {}).get("aliases", [])}
+        if apelido not in nomes:
+            raise ValueError(
+                f"`{apelido}` já existe como COLEÇÃO, não como apelido. Escolha outro nome em "
+                f"QDRANT_COLLECTION, ou apague a coleção antiga — trocar o apelido por cima dela "
+                f"é o que o Qdrant recusa."
+            )
 
     relatar(Progresso("carregando modelos", total=len(alvos)))
     denso = TextEmbedding(model_name=config.get("EMBED_MODEL"))

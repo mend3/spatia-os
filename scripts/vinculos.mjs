@@ -157,14 +157,17 @@ if (!repos.length) {
 }
 
 const blocos = [];
+const ilegiveis = [];
 for (const { prefixo, dir } of repos) {
   let bruto;
   try {
     bruto = execSync(`git -C ${JSON.stringify(dir)} log --format=%H --name-only -n ${JANELA}`, {
       maxBuffer: 1 << 28,
     }).toString();
-  } catch {
-    // Repo ilegível (submódulo vazio, permissão) não derruba os outros — ele deixa de contribuir.
+  } catch (e) {
+    // ⚠️ CONTADO e dito. Repo ilegível não derruba os outros, mas sumir com ele em silêncio faz
+    // "poucos pares" e "metade dos repos não abriu" ficarem indistinguíveis.
+    ilegiveis.push(`${prefixo || '.'}: ${String(e.message || e).slice(0, 60)}`);
     continue;
   }
   for (const b of bruto.split(/\n(?=[0-9a-f]{40}\n)/)) blocos.push({ prefixo, bloco: b });
@@ -202,6 +205,7 @@ for (const k of pares.keys()) {
 const graus = [...grau.values()].sort((a, b) => a - b);
 const q = (p) => graus[Math.floor(p * graus.length)] ?? 0;
 
+if (ilegiveis.length) console.log(`  \x1b[33m⚠ ${ilegiveis.length} repositório(s) ilegíveis: ${ilegiveis.join(' · ')}\x1b[0m`);
 console.log(`\x1b[1mCO_EDITED — derivação\x1b[0m`);
 console.log(`  janela ${JANELA} commits · úteis (2 a ${COMMIT_MAX} arquivos indexados): ${commitsUteis}`);
 console.log(

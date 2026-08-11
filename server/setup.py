@@ -168,10 +168,8 @@ def descrever() -> dict:
         "codigo_fonte": {"admitido": False, "extensoes": list(config.CORPUS_ADMITE_CODIGO)},
         "teto_kb": config.teto_bytes() // 1024,
         "raiz": str(raiz_atual()) if raiz_atual() else None,
-        # ⚠️ **Sem raiz, a coleção NÃO é anunciada.** Ela ainda vem do `.env`, e mostrá-la faria a
-        # tela nomear um corpus que ninguém escolheu — o cabeçalho afirmando sobre carga vazia, no
-        # exato lugar onde alguém está tentando entender o que fazer primeiro.
-        "indexado": bool(raiz_atual()) and config.get("QDRANT_COLLECTION") != "",
+        # ⚠️ **Sem raiz, a tela não anuncia coleção** — o valor viria do `.env` e nomearia um
+        # corpus que ninguém escolheu. Quem decide isso é o cliente, lendo `raiz`.
         "trabalho": progresso(),
     }
 
