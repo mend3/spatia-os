@@ -21,6 +21,17 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/guarda-shader.sh",
+            "timeout": 10,
+            "statusMessage": "conferindo os blocos GLSL"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/par-de-docs.sh",
             "timeout": 10
           }
