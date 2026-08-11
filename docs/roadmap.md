@@ -152,7 +152,7 @@ com ou sem produtor.
 | **T-27** | i18n | `postponed` | — | — | — |
 | **T-28** | Zonas por razão de massa — declaradas, sem leitor | `archived` | — | — | KR3.3 |
 | **T-29** | `core` do pulsar é PARÂMETRO SEM LEITOR — medido em T-03 | `done` | — | — | KR3.3 |
-| **T-32** | Música de fundo (`assets/interstellar.mp3`) — canal novo, e a LICENÇA é parte da tarefa | `todo` | — | publicação | — |
+| **T-32** | Música de fundo — canal novo, e a LICENÇA é parte da tarefa (a faixa candidata saiu da árvore por não tê-la) | `todo` | — | publicação | — |
 | **T-33** | O assinante de `notice` no cliente — a outra metade do T-09 | `done` | — | T-16 | KR1.2 |
 | **T-34** | Malha de arquivo para a ESTAÇÃO — ⭑ **o asteroide está entregue**; falta o CubeSat, que nem está em `assets/3d/` | `todo` | — | — | — |
 | **T-35** | **FAVORITOS** — modelo, persistência, interface e FOTO | `done` | — | T-34 | KR2.1 |
@@ -1144,11 +1144,12 @@ mesmo fato).
   **reescrever a tela de entrada**, não somar uma. `src/hud/splash.js` fica como material da
   reescrita; hoje não é montado.
 
-- **T-32** — o arquivo já está no disco e **não tem consumidor**; o motor de áudio é síntese pura,
-  então música de fundo é canal NOVO. ☠️ **A licença não se resolve por inspeção:** os metadados
-  foram removidos (só `TYER 2025` e o encoder sobraram) e a origem não declara direito nenhum.
-  Uso local não é distribuição — o bloqueio é a publicação, e vale para o repositório, não só para o
-  build. As saídas e as fontes licenciadas estão em [`../assets/CREDITS.md`](../assets/CREDITS.md).
+- **T-32** — o motor de áudio é síntese pura, então música de fundo é canal NOVO. ☠️ **Faixa sem
+  licença provável não entra na árvore:** a candidata anterior (`interstellar.mp3`) saiu porque a
+  licença não se resolve por inspeção — metadados removidos (só `TYER 2025` e o encoder sobraram) e
+  origem que não declara direito nenhum. ⚠️ O blob segue no HISTÓRICO do git; publicar o repositório
+  expõe o histórico junto. As saídas e as fontes licenciadas estão em
+  [`../assets/CREDITS.md`](../assets/CREDITS.md).
 - **T-35** — é a peça que torna corpo NOMEADO legítimo: quem escolhe *"este é o meu Marte"* é o
   operador, então a textura vira MARCA e não afirmação derivada do dado. ⚠️ **Três condições, e sem
   elas volta a ser o defeito:** (a) a marca **não entra em `classificar()`** — classe, física e pele

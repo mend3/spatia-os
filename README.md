@@ -858,6 +858,13 @@ As armadilhas de **medição** — o que mente ao medir, e o que falha calado �
   porta, o próximo sobe com `Errno 48` no log e o `curl` responde `000` — que lê como servidor
   travado e não é. Confira com `lsof -ti :8787`.
 
+## Licença
+
+MIT ([`LICENSE`](LICENSE)). O que veio de fora mantém a licença de origem: `vendor/` carrega o
+three.js (MIT) e o postprocessing (Zlib); a geodésica do buraco negro deriva do
+`black_hole_shader` (BSD-3), citado onde é usado; e cada textura e malha de `assets/` entra com
+licença, origem e hash registrados em [`assets/CREDITS.md`](assets/CREDITS.md).
+
 ## Referências e links
 
 ### As fontes estão EM DISCO — leia-as, não lembre delas
