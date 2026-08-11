@@ -26,6 +26,11 @@ decorativa**. Cada movimento na tela corresponde a um evento que aconteceu — u
 acende é um arquivo que foi recuperado, um wormhole verde é um `Read` que o agente executou,
 a timeline é o profile real da execução em milissegundos.
 
+Na prática: você pergunta em linguagem natural, e a resposta chega com as fontes acesas no céu —
+cada citação `[n]` aponta um arquivo que de fato entrou no prompt — junto com o custo, o tempo e
+cada ferramenta que o agente usou para chegar nela. Nada na tela pede que você acredite: tudo o
+que ela afirma dá para conferir.
+
 Projeto pessoal, independente. Não faz parte de nenhuma plataforma, não é serviço de
 ninguém, e a única coisa que ele assume do mundo externo é que Qdrant responde em
 `localhost:6333`. Todo o resto — voz, busca web, integrações — é opcional e se anuncia
@@ -104,7 +109,7 @@ Vale a pena ser explícito, porque uma interface bonita facilmente parece mais c
 | Real | Como |
 |---|---|
 | Os nós do céu | os arquivos agregados da coleção vetorial, com peso = nº de chunks (medido em 2026-08-07: 1.634 arquivos, 1.862 nós, 20.303 chunks) |
-| As luas | as seções de um arquivo, quando a massa dele as segura — 279 luas em 40 corpos, pela janela Roche→Hill (`src/space/orbital-zones.js`) |
+| As luas | as seções de um arquivo, quando a massa dele as segura — pela janela Roche→Hill (`src/space/orbital-zones.js`; a contagem do dia sai de `make censos`) |
 | A posição de cada nó | **raio = recência** (posto da data do último commit: recente junto ao núcleo, antigo à deriva); ângulo, inclinação e fase saem de hash determinístico do id. O mesmo conhecimento cai sempre no mesmo lugar — **nada a move**, e um oráculo prova isso perturbando o grafo |
 | O brilho de um corpo | quantos se parecem com ele (`centrality`) e quantas execuções o abriram (`usage`, com peso metade e só quando a evidência passa do piso). Sem o Neo4j materializado ele cai para a atividade sozinha, nunca para zero — apagar um corpo afirmaria periferia sobre um fato que ninguém mediu |
 | A recuperação | busca híbrida densa+BM25 fundida por RRF, ~8ms |
@@ -149,17 +154,19 @@ o formato deles é declarado.
 | <img src="docs/screenshots/estacao.jpg" width="150"> | **estação** | módulos enfileirados e painéis solares | ⚠️ **fora do céu, e por decisão**: ela representa um AGENTE, que não é corpo do corpus. Vive na bancada |
 | <img src="docs/screenshots/nebulosa.jpg" width="150"> | **nebulosa** | nuvem filamentar, **sem corpo central** | ⚠️ **fora do céu**: o berço exige uma contenção que o corpus não tem. A metade CADÁVER dela já é desenhada, como casca de supernova |
 
-⭑ **Asteroide fica sem pele de propósito** — o catálogo o define como corpo pequeno e IRREGULAR, e
-nenhuma das peles desenha irregularidade. Uma esfera com crosta afirmaria um mundo onde há uma
-pedra. Ele volta a ter pele quando entra em atividade extrema, e aí ele é um cometa: os dois são o
-mesmo corpo em estados diferentes.
+⭑ **O asteroide é uma pedra de verdade.** O catálogo o define como corpo pequeno e IRREGULAR, e
+esfera nenhuma com crosta desenharia isso — então ele veste a forma real: oito malhas de
+levantamento de asteroides catalogados (Bennu, Itokawa, Kleopatra, Toutatis, Geographos, Golevka,
+Mithra e 1996 HW1), e o hash do arquivo decide qual — o mesmo arquivo é sempre a mesma pedra.
+Quando a atividade passa a dominar o corpo, ele vira cometa: os dois são o mesmo corpo em estados
+diferentes.
 
 ⚠️ **A distribuição do dia sai de `make censos`, nunca deste parágrafo.** Toda pele roteada tem
 população — se alguma nascer vazia, o portão reprova.
 
-Falta desta lista, e é dívida assumida: **galáxia** (agregado — pasta ou repo, com braços quando há
-grupo a afirmar), **buraco negro** (o núcleo cognitivo, no centro), **casca de supernova** e
-**sistema de luas**. Os quatro existem na bancada; não estão fotografados aqui.
+Faltam desta lista, e é dívida assumida: **galáxia** (agregado — pasta ou repo, com braços quando há
+grupo a afirmar), **buraco negro** (o núcleo cognitivo, no centro), **casca de supernova**,
+**sistema de luas** e o **asteroide**. Todos já são desenhados; não estão fotografados aqui.
 
 ### O que está em volta — o que está ACONTECENDO
 
@@ -266,27 +273,23 @@ aqui"* — uma pergunta que o layout resolvia sozinho, sem nunca enunciar. `cabe
 
 ⚠️ Ela lê a rota que está na tela e **carimba qual é**. Para comparar as dez, navegue e colecione.
 
-### A câmera volta a responder por cima do painel
+### O céu continua respondendo por baixo dos painéis
 
-*"Não consigo dar zoom nem controlar a câmera quando o astro está em foco — se eu afastar o mouse
-para as laterais, funciona."* O painel de palco (o leitor de arquivo, a página de configuração, a
-tabela de execuções) tem uma **moldura** que estica pela coluna central inteira e **não desenha
-nada**; o que se vê é o corpo dela, que para na altura do conteúdo. A moldura transparente é que
-estava tirando o mouse do céu, bem em cima do corpo em foco.
+Os painéis flutuam sobre o céu, e a regra que decide quem fica com o mouse é uma só:
 
-> **Agora quem PINTA reivindica o ponteiro; quem só POSICIONA cede.**
+> **Quem PINTA reivindica o ponteiro; quem só POSICIONA cede.**
 
-Órbita, zoom e clique de seleção voltam a funcionar em toda a faixa onde não há painel desenhado —
-e continuam indo para o painel onde há texto para rolar, selecionar e clicar. Nada mudou de lugar:
-o painel ocupa o mesmo espaço, com o mesmo conteúdo. `scripts/lei-palco.mjs` impede a volta, e
-varre o CSS inteiro atrás de qualquer superfície nova que tome o mouse sem desenhar nada.
+A moldura invisível que posiciona um painel não toma o gesto: órbita, zoom e clique de seleção
+funcionam em toda a faixa onde não há nada desenhado, e vão para o painel exatamente onde há texto
+para rolar, selecionar e clicar. `scripts/lei-palco.mjs` guarda a regra, e varre o CSS inteiro
+atrás de qualquer superfície nova que tome o mouse sem desenhar nada.
 
 ### O documento pertence ao astro, e a tela mostra isso
 
-O conteúdo do arquivo travado abria como um retângulo no meio da tela, sem relação nenhuma com o
-corpo — dava para ler sem nunca saber se aquilo era do planeta, do sistema ou da cena.
+Clicar num corpo abre o conteúdo indexado dele — e o documento não é um retângulo solto no meio da
+tela, sem relação com o corpo:
 
-> **Agora ele nasce colado no limbo do astro e anda com a câmera.**
+> **Ele nasce colado no limbo do astro e anda com a câmera.**
 
 Orbite: o texto acompanha o corpo. Leve o corpo para trás do horizonte de eventos: o texto some
 junto, porque ele é do corpo. Destrave, e ele volta ao lugar de sempre.
@@ -301,9 +304,8 @@ Quando o corpo empurra o painel contra a borda da tela e continua, a luz **desli
 superfície: é aí que a profundidade tem o que mostrar, e é o mesmo mecanismo, não um segundo.
 
 **E o endereço leva as duas coisas junto.** `#/files/<caminho>` abre o documento **e** trava a
-câmera no astro dele — num link compartilhado, numa aba restaurada, num F5. Antes o endereço abria
-só o texto e a câmera voltava para onde você tinha parado da última vez, que costumava ser outro
-corpo: você lia o arquivo com o céu olhando para outra coisa.
+câmera no astro dele — num link compartilhado, numa aba restaurada, num F5. Você nunca lê um
+arquivo com o céu olhando para outra coisa.
 
 ⭑ **Sem endereço nada mudou** — abrir na raiz continua devolvendo você ao astro da sessão anterior,
 com o zoom que você gravou. Endereço PEDIDO e último visitado são fatos diferentes, e o pedido só
@@ -323,13 +325,13 @@ gradiente **não repinta**: zero repinturas em 601 quadros parado e em 480 quadr
 
 ### Você dá cara aos arquivos que importam — e o céu obedece
 
-Um céu deduzido inteiro é justo e é anônimo: nenhum dos 1 636 corpos é *o seu*. Marque um com **`F`**
+Um céu deduzido inteiro é justo e é anônimo: nenhum dos corpos é *o seu*. Marque um com **`F`**
 e ele passa a ter dono; escolha uma aparência na seção **FAVORITO** do painel de contexto e ele passa
 a ter cara.
 
 > **A escolha vence a dedução, e é a única coisa na tela que faz isso.**
 
-Um arquivo que o sistema desenharia como rocha cinza vira **Marte**; um que ele desenharia como
+Um arquivo que o sistema desenharia como pedra cinza vira **Marte**; um que ele desenharia como
 planeta genérico vira **Saturno**, com as bandas da textura real — e o anel de git por cima, que é
 fato do corpus e continua sendo dito. Trave o corpo, troque a aparência: **a troca é no mesmo
 quadro**, sem sair e voltar.
@@ -338,9 +340,12 @@ quadro**, sem sair e voltar.
 classe, nem física, nem tamanho, nem lugar. Ela mora em você (`prefs`), não no corpus: dois
 operadores veem marcas diferentes sobre a mesma topologia, e é exatamente isso que a torna marca.
 
-⭑ **O que cada corpo aceita sai do que ele É.** Rocha, cometa e planeta recebem as peles sólidas;
-estrela, supernova e núcleo de quasar recebem as gasosas. Corpo sem contexto de aparência **diz por
-quê** em vez de oferecer uma lista vazia.
+⭑ **O que cada corpo aceita sai do que ele É.** Planeta e lua escolhem entre oito aparências reais,
+da Terra a Netuno (texturas do Solar System Scope, CC BY 4.0). Rocha e núcleo de cometa recebem as
+mesmas superfícies — com Ceres no lugar da Terra, que numa pedra leria como "isto é a Terra" antes
+de ler como escolha de alguém. O Sol não veste corpo nenhum: ele retrata plasma em convecção, não
+superfície. E quem é emissão — estrela, pulsar — **diz por que não aceita aparência** em vez de
+oferecer uma lista vazia.
 
 ⚠️ **No cometa a marca veste o NÚCLEO.** Coma e cauda são gás que o corpo perdeu — pintá-las com uma
 foto de superfície seria falso.
@@ -757,10 +762,10 @@ Não há flag que separe as duas coisas, e o painel diz isso em vez de fingir qu
 
 ### As três fontes de settings, com o custo medido
 
-Um toggle só ("carregar `.claude` do repo") escondia que existem três fontes, e isso produziu um
-bug: `hub-board` e `graphiti` vivem no escopo **`local`** (`~/.claude.json` →
-`projects[<cwd>].mcpServers`, onde `claude mcp add` grava por default), que
-`--setting-sources project` não alcança. O painel de MCP não os listava e não dizia por quê.
+O CLI lê settings de três escopos, e eles não se equivalem: um servidor MCP adicionado com
+`claude mcp add` vive no escopo **`local`** (`~/.claude.json` → `projects[<cwd>].mcpServers`),
+que `--setting-sources project` não alcança. Por isso cada fonte é um toggle próprio, com o custo
+medido na linha.
 
 Medido em 2026-08-04 (`claude -p` com `claude-haiku-4-5`, `cache_creation_input_tokens` do frame
 `result`):
@@ -772,9 +777,8 @@ Medido em 2026-08-04 (`claude -p` com `claude-haiku-4-5`, `cache_creation_input_
 | `project,local` | 16.423 tk | 104 | 7 |
 | `project,local,user` | 25.489 tk | 159 | 8 |
 
-O escopo que faltava custa **~850 tokens**, não os ~9.100 do `user` — o medo de "trazer as
-regras globais de volta" era do escopo errado. Por isso `project,local` é o default e `user` é um
-toggle explícito com o custo escrito na própria linha.
+O escopo `local` custa **~850 tokens**; o `user`, ~9.100. Por isso `project,local` é o default e
+`user` é um toggle explícito com o custo escrito na própria linha.
 
 O painel `br-mcp` mostra **duas** listas: o **declarado em arquivo** (por escopo, com o motivo de
 cada exclusão) e o **reportado pela sessão**. As duas discordam de propósito — conectores da
@@ -836,8 +840,9 @@ como estado de React reintroduziria o acoplamento que ele existe para evitar.
 
 ## Armadilhas encontradas (e que voltam se alguém mexer)
 
-- **Backtick em comentário dentro de template literal de shader** fecha a string. Custou um
-  `SyntaxError: Unexpected identifier 'RingGeometry'` que parece erro de GLSL e não é.
+As armadilhas de **medição** — o que mente ao medir, e o que falha calado — moram em
+[`docs/armadilhas.md`](docs/armadilhas.md) e no [`CLAUDE.md`](CLAUDE.md). Estas são as de código:
+
 - **`RingGeometry` é gerada no plano XY**, não XZ. Ler `vLocal.xz` no shader do disco não dá
   erro: devolve raio errado e o disco simplesmente não aparece.
 - **Suavização em fração por quadro** (`x += (alvo-x) * 0.05`) parece funcionar e produz
@@ -849,24 +854,11 @@ como estado de React reintroduziria o acoplamento que ele existe para evitar.
 - **`height` num filho do `.scroll` vai a ZERO** quando outra seção do trilho disputa altura.
   O elemento fica no DOM com a largura certa e nenhuma altura, sem erro no console — um
   gráfico de 14px sumia inteiro com a legenda dele ainda na tela. Use `flex: 0 0 <altura>`.
-- **Cabeçalho que AFIRMA sobre uma carga vazia** é pior do que dado faltando, porque quem lê o
-  cabeçalho para de procurar. `/api/vizinhanca` respondia `disponivel: true · corpos: 188 ·
-  vinculos: 4226` e devolvia `null` para todo corpo — a cena não desenhava **um arco** e o painel
-  anunciava 4.226. Os snapshots eram de outro corpus, e **nenhum deles dizia de qual**. A guarda é
-  carimbar a origem no dado e **recusar** o que não é deste céu, com o motivo junto — inclusive o
-  que vem sem carimbo, porque "não tenho como saber" não autoriza afirmar.
-- **Grandeza derivada de POSTO para descrever um corpo de uma classe piora sozinha.** A classe vive
-  na cauda da distribuição, e a cauda ocupa uma fatia cada vez menor do posto conforme o corpus
-  cresce: o rig do pulsar varria 16,9% do eixo num corpus de 72 corpos e **0,36% num de 276**.
-  Ancore em limiar FIXO, não em população.
-- **Campo declarado no manifesto sem leitor** apodrece por imitação: `orbit` viveu em oito
-  apps depois que os corpos saíram do céu, copiado por cada app novo. A auditoria que acha
-  isso é barata — varrer cada chave declarada e procurar quem a lê.
 - **Reiniciar o servidor no macOS**: `pkill -f serve.py` não basta. Sobra processo segurando a
   porta, o próximo sobe com `Errno 48` no log e o `curl` responde `000` — que lê como servidor
   travado e não é. Confira com `lsof -ti :8787`.
 
-## Referencias e Links
+## Referências e links
 
 ### As fontes estão EM DISCO — leia-as, não lembre delas
 
