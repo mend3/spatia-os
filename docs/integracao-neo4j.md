@@ -49,7 +49,7 @@ A primeira lei protege a IDENTIDADE do corpo. Esta protege o QUADRO.
 Neo4j → materialização em background → snapshot de física → estado do universo → renderer
 ```
 
-E nunca `render entity → query → query → query`. Um céu de 1 636 corpos que consultasse o grafo por
+E nunca `render entity → query → query → query`. Um céu de MILHARES de corpos que consultasse o grafo por
 objeto teria o custo do banco multiplicado por corpo **e por quadro** — e ficaria refém da latência
 dele a 60 Hz.
 
@@ -75,7 +75,7 @@ no mesmo grafo `DEPENDS`.
 | nunca configurado | a dimensão não aparece na tela | idem |
 
 ⚠️ **Nunca inventar zero.** `centrality = 0` significa "medi e é periférico"; a ausência significa
-"não medi". Colapsar os dois faz o céu afirmar periferia sobre 1 636 corpos por causa de um
+"não medi". Colapsar os dois faz o céu afirmar periferia sobre o corpus INTEIRO por causa de um
 container. `null` é a resposta honesta e a tela sabe escrevê-la.
 
 ---
@@ -339,7 +339,7 @@ na seleção                        ●
                                   ●
 ```
 
-Isso não é preferência estética: é a única forma de a rede caber num céu de 1 636 corpos sem virar
+Isso não é preferência estética: é a única forma de a rede caber num céu desta ordem sem virar
 grafo-espaguete, e é o que o briefing já pedia ao separar contenção de relacionamento — *"posição
 comunica contenção; a linha aparece só na seleção"*.
 

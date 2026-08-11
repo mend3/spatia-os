@@ -515,6 +515,15 @@ prova**: são de quem opera.
 
 # Manter a documentação — o que ela é, e o que ela não é
 
+☠️ **A skill `context-hygiene` é OBRIGATÓRIA, e vale para todo texto — não só para `docs/`.**
+Invoque-a **antes** de escrever ou revisar comentário, docblock, doc, `HANDOFF`, roadmap, TODO,
+briefing, relatório de conclusão e corpo de commit. Ela é o desenvolvimento desta seção: decide
+PROPRIEDADE (de quem é este fato?) e DURABILIDADE (sobrevive ao próximo refactor?), e traz as sete
+perguntas de revisão. Para decidir TAMANHO da prosa, `documentation-minimalism`.
+
+⚠️ **Não transcreva a skill aqui.** Duas fontes para a mesma regra é o defeito que ela própria
+proíbe (§10); esta seção é o resumo executável, ela é o texto completo.
+
 Um doc desta base responde **duas** perguntas: *"o que é verdade AGORA"* e *"como não cair na
 armadilha"*. Ele **não** conta o que aconteceu. Isso não é gosto de estilo: contexto é finito, e
 cada linha de história desloca uma linha que teria evitado um erro.
@@ -568,16 +577,32 @@ seção de handoff chegou a 462 linhas com quase nada acionável dentro.
 ⚠️ **Orçamento de tamanho, e ele é uma medida, não uma meta:** se `HANDOFF.md` passar de ~800 linhas,
 alguma coisa está sendo contada duas vezes. Procure o duplicado antes de cortar o que parece velho.
 
-## Todo número num doc é uma mentira em potencial
+## Contagem do corpus não se escreve em doc — se aponta
 
-Número sem procedência **não envelhece — apodrece**, porque nada acusa quando ele deixa de valer.
-Todo número escrito carrega **de que corpus** e **quando**, ou vira "medida" com cara de fato:
+☠️ **A regra é: NÃO guarde o número; guarde o comando que o produz.** Contagem de corpus não é
+propriedade deste projeto — ela varia de ambiente para ambiente, de usuário para usuário e de
+corpus para corpus. Um número desses num doc não é medida: é a foto do índice de UMA máquina, num
+dia, apresentada como fato do sistema.
 
 - *"o fixture tem 14 arquivos"* sobreviveu até virar 71. Ninguém percebeu porque não havia data.
 - *"74 arquivos · 2.606 pontos"* passou a ser 72 · 2.514 e continuou sendo citado.
+- *"1 636 corpos"* atravessou seis documentos e virou **1 265**. Nada acusou.
 
-⭑ **A saída é dizer de onde o número sai**, para quem ler poder refazê-lo: *"a contagem do dia vem
-do `/api/graph`, nunca deste parágrafo"*.
+⭑ **A saída é escrever de onde o número sai:** *"a contagem do dia sai de `make censos`"*, *"a
+contagem do dia vem do `/api/graph`, nunca deste parágrafo"*. Quem lê refaz; ninguém herda a foto.
+
+⚠️ **E vale para a grandeza DERIVADA também** — percentual, razão e "N% do céu" carregam a contagem
+dentro e apodrecem junto, sem parecer número.
+
+### A exceção, e ela é estreita: o REGISTRO DE UMA MEDIÇÃO
+
+Um número que diz **sobre o que uma medição correu** fica, e tirá-lo destrói a prova: *"29 448
+perturbações sobre 1 636 corpos"* não afirma o tamanho do céu de hoje — afirma o que aquela corrida
+cobriu, e sem isso ninguém sabe o peso dela. O mesmo vale para `docs/medicoes-*.md`, cujo nome já
+carrega a data.
+
+**O teste que separa os dois:** o número está no PASSADO de uma corrida, ou no PRESENTE do sistema?
+*"medido em 08/08 sobre 1 636 nós"* fica. *"um céu de 1 636 corpos"* vira apontador.
 
 ## Briefing é ANDAIME
 
@@ -936,8 +961,9 @@ TypeScript e o índice não tem um único `.ts`. Confundir os dois já produziu 
 | `censo-planetas.mjs` | quantos formatos VISUALMENTE distintos o corpus produz, e qual eixo colapsou | ao mexer em `planetParams`, na paleta ou nas faixas da rampa |
 
 Ele **importa** `planetParams` e `resolveBody` em vez de transcrevê-los — a derivação é JS, então
-não há oráculo a manter em dia. Conta só os nós cuja pele resolvida é planeta (363 dos 1 636
-arquivos hoje); medir o corpus inteiro descreve um céu que ninguém vê.
+não há oráculo a manter em dia. Conta só os nós cuja pele resolvida é planeta — nunca o corpus
+inteiro, que descreveria um céu que ninguém vê. Quantos são hoje sai de `make censos`, no bloco
+PELE; a proporção varia com o corpus indexado.
 
 Ele cria sozinho `node_modules/three/` reexportando `vendor/three.module.js` — o Node não lê o
 importmap do `index.html` — e esboça `window`/`document` para o `motion.js` carregar. Nada vem da rede.

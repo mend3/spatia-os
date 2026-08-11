@@ -180,8 +180,8 @@ Cai daí um resultado melhor que o pedido: na razão Hill/Roche o `m^(1/3)` **ca
 decide se um corpo segura lua não é a massa — é só `a`, o raio orbital, que nesta cena é a
 RECÊNCIA. Arquivo antigo segura suas seções em órbita; arquivo recente não. É a física certa
 (Mercúrio não tem lua por estar perto do Sol, não por ser leve) e é exatamente o que o
-`catalogo-celeste.md` previa. Medido: corte em `a = 37,9` — **40 corpos, 279 luas**, 5 seções sem
-espaço.
+`catalogo-celeste.md` previa. O corte fica em `a = 37,9` — uma constante do modelo. Quantos corpos e
+quantas luas ele deixa passar é do CORPUS, e sai de `make censos`.
 
 **Cada lua tem a SUA órbita — uma banda radial por lua.** (Substituiu o modelo co-orbital em
 2026-08-05, depois de o usuário olhar a cena: todas na mesma elipse liam como fila de contas num

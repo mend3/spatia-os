@@ -45,7 +45,7 @@ Hoje a topologia é literalmente esta:
 
 ```
 buraco negro
-     └── todos os 1 636 arquivos, por recência
+     └── todos os arquivos do corpus, por recência
 ```
 
 O briefing já nomeou o defeito: *"não existe um centro absoluto; o universo possui bilhões de
@@ -682,7 +682,7 @@ terceiro caminho independente — o pós é 89–97% do quadro e a lente sozinha
 | fase | o que se faz | condição de saída |
 |---|---|---|
 | **A — congelar ontologia** | `Structure`, `Body`, `Phenomenon`, `EntityPhysics`, classificação derivada | os quatro fatos ausentes do §11 têm dono ou estão explicitamente adiados |
-| **B — recalcular o céu** | rodar os **1 636** objetos e medir distribuição por classe, massa, atividade, densidade, composição, centralidade, conectividade, linguagem, idade | um censo novo, na linha do `censo-corpus.mjs` |
+| **B — recalcular o céu** | rodar **todo o corpus** e medir distribuição por classe, massa, atividade, densidade, composição, centralidade, conectividade, linguagem, idade | um censo novo, na linha do `censo-corpus.mjs` |
 | **C — comparar antes/depois** | o mesmo corpus nos dois modelos | ver a métrica abaixo |
 | **D — shaders** | só aqui | — |
 
@@ -690,18 +690,20 @@ terceiro caminho independente — o pós é 89–97% do quadro e a lente sozinha
 
 > **Quantas entidades continuam recebendo uma classe cosmologicamente grande sem merecê-la?**
 
-O número de partida está medido e é brutal: **hoje TODO agregado é galáxia — 228 de 228.** Por
-contenção, o modelo declarado já separa `galáxia 17 · aglomerado 21 · sistema 71 · hub raso 119`.
+O número de partida é brutal e é uma RAZÃO, não uma contagem: **TODO agregado é galáxia — 100%
+deles.** Por contenção, o modelo declarado os separa em quatro classes.
 
 ```
-1 636 entidades + 228 agregados
-
-ANTES   ████████████████████  228 galáxias  (100% dos agregados)
-DEPOIS  █ 17 galáxias · ██ 21 aglomerados · ████ 71 sistemas · ██████ 119 hubs rasos
+ANTES   ████████████████████  100% dos agregados em UMA classe (galáxia)
+DEPOIS  galáxia · aglomerado · sistema · hub raso, por limiar de contenção
 ```
 
-⚠️ **Este é o teste da reforma inteira.** Se depois do recálculo os 228 continuarem grandes, a
-ontologia não mudou nada — só trocou os nomes.
+⭑ **As duas contagens saem lado a lado de `make censos` §5** — "por CONTENÇÃO" contra "hoje, TODO
+agregado é galáxia". É de lá que elas vêm, nunca deste parágrafo: contagem de corpus varia por
+ambiente, usuário e índice.
+
+⚠️ **Este é o teste da reforma inteira.** Se depois do recálculo os agregados continuarem todos
+grandes, a ontologia não mudou nada — só trocou os nomes.
 
 ### O pipeline de cobertura, na ordem certa
 
@@ -838,6 +840,10 @@ sistema, logo nenhum planeta pode ser maior que a sua estrela. É a diferença e
 implementada e invariante declarada, que esta base já pagou cinco vezes para aprender.
 
 ### Fase B — o céu recalculado
+
+⚠️ **Os números abaixo são um CENSO de um corpus e um dia — não uma propriedade do sistema.** Contagem de
+corpus varia por ambiente, usuário e índice; a do dia sai de `make censos`. O que dura aqui é a
+RAZÃO entre as classes antes e depois, e é ela que a comparação mede.
 
 | família | n | | corpo | n | % |
 |---|---|---|---|---|---|

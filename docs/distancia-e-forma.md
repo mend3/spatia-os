@@ -297,8 +297,8 @@ a forma — ou seja, (a).
 
 ### (d) Escada de LOD de verdade, com o sistema apertado virando agregado de longe
 
-É o que o briefing pede (§9.4 do replanejamento) e é a resposta certa para **escala** — 1 636 corpos
-no corpus real contra 71 no fixture.
+É o que o briefing pede (§9.4 do replanejamento) e é a resposta certa para **escala** — o corpus real é
+UMA ordem de grandeza acima do fixture (as duas contagens saem de `make censos`).
 
 **Custo: economiza no máximo 0,24 ms**, porque é isso que a passada de geometria inteira custa hoje.
 Contra um quadro de 2,58 ms cujo pós custa 2,33 ms, é economizar menos de 10% de onde não dói.
@@ -353,7 +353,7 @@ diz nada sobre o seguinte, e cada item aqui é do olho do usuário:
 - **FPS real.** Nada aqui é medida de FPS: `renderCost` é relógio de GPU por passada, e o
   `quadros` só prova que a cena não estava congelada. **Se o número de FPS importar, ele é medida do
   humano**, com `scripts/baseline.js` colado no console e a janela em primeiro plano.
-- **Se o corpus real (1 636 corpos, 221 sistemas) muda a tabela do §2.1.** Ele quase certamente a
+- **Se o corpus real muda a tabela do §2.1.** Ele quase certamente a
   piora — mais sistemas dentro do mesmo `OCUPACAO` significa envelopes menores, e o comentário de
   `OCUPACAO` já prevê 5,8 unidades de envelope contra os ~14 do fixture. A conclusão sobrevive; a
   magnitude, não. **Refazer a tabela no corpus real é passo obrigatório antes de calibrar o piso.**
@@ -422,7 +422,7 @@ DEPOIS DO PASSO 1, E SÓ DEPOIS
   passo 2 — §4c: aro de atmosfera em CORPO_FS e emissão por atividade. Custo estimado +0,00 a
   +0,02 ms (mesma chamada de desenho; a carga de fragmento da cena inteira é 0,086% da tela).
   Ele conserta a faixa dos 8 aos 90 px, que é a outra metade do relato.
-  passo 3 — refazer a tabela do §2.1 contra o CORPUS REAL (1 636 corpos, 221 sistemas) antes de
+  passo 3 — refazer a tabela do §2.1 contra o CORPUS REAL antes de
   congelar o PISO. Mais sistemas no mesmo OCUPACAO dão envelopes menores: a conclusão sobrevive,
   a magnitude não.
 

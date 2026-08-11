@@ -715,7 +715,8 @@ mesmo fato).
   1,73 ms**, contra 2,5–3,2 ms sem ele. Ele quase DOBRA o quadro sozinho. Volume e camadas entram
   no bolso caro; **conte `fatias × amostras` antes de empilhar** (o próprio rig avisa).
 - **T-61 / T-62** — ⚠️ **Textura fotográfica aqui é decisão de MODELO, não de acabamento.** O mapa
-  de `assets/CREDITS.md` separa onde ela acrescenta (asteroide: única classe sem pele) de onde ela
+  de `assets/CREDITS.md` separa onde ela acrescenta (asteroide: a pele é emprestada do catálogo
+  ROCHOSO e quem carrega o fato é a MALHA de levantamento) de onde ela
   MENTE (planeta é procedural por decisão; pulsar e buraco negro não têm foto de superfície — o que
   se vê deles é EMISSÃO, que é o que o shader calcula). Para T-62, "poeira e detritos" é **ruído
   volumétrico**, não imagem — e o disco já tem costura provada (`costura-disco.mjs`) que qualquer
