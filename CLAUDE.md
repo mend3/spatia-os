@@ -8,6 +8,29 @@
 
 ---
 
+## Path & Root Assumptions
+
+- The corpus/vault root is `~/vault` (via symlink mirror), NOT `$AGENT_CWD` and not the repo cwd. Scripts that read the corpus must resolve the vault root explicitly.
+- Before running any indexing/extraction script, echo the resolved root path and confirm it matches the live project — never index fixture or synthetic repos.
+- Verify env vars ($AGENT_CWD, NAMESPACE, compose project name = `workspace`) exist and point to real directories before use.
+
+⚠️ **`.env` (arquivo) vence o ambiente** — quem confere a raiz lê o `.env`, nunca o `export` do perfil.
+Hoje: `AGENT_CWD` aponta para um repo assistido, e `CORPUS_PREFIX=vault/` é o recipiente que a
+indexação podou. São duas raízes DIFERENTES, e `server/files.py` documenta qual decide o quê.
+⚠️ O corpus sintético do `scripts/fixture.py` mora em coleção PRÓPRIA (`espatial_fixture`) — indexar
+o fixture na coleção do céu servido é o defeito que a segunda regra existe para impedir.
+
+## Shader Editing Rules
+
+- NEVER use backticks (`) inside GLSL template literals — they break shader compilation silently. Use // comments with plain text only.
+- After ANY shader edit, run the shader compile check and verify visually in the browser before committing.
+
+⭑ A checagem é `node scripts/check-shaders.mjs` (detalhe em *Antes de commitar shader*), e ela roda
+dentro de `node scripts/leis.mjs`. Ela é ESTÁTICA: a verificação visual no navegador não é redundante
+com ela — o shader que compila e perde a feição passa pela guarda e só a tela acusa.
+
+---
+
 # Missão
 
 SpatIA não é um chat, um copiloto ou um painel.
@@ -469,6 +492,16 @@ segunda fonte para a mesma recusa.
 ⭑ **O corpo do commit é LONGO aqui de propósito**, com a medida que decidiu cada número: ele é o
 lugar da história, e é o que permite aos docs não a contarem.
 
+## Commits
+
+- Do NOT auto-commit. Show the diff and wait for explicit approval before running `git commit`.
+- Never commit work that includes in-progress changes from a subagent.
+- One commit per backlog item/task ID; use `git add <explicit paths>` (never `git add -A`) to avoid pathspec splits.
+
+⭑ A terceira regra é a mesma que `.claude/hooks/guarda-bash.sh` já RECUSA na máquina — ele checa
+`[ -d ]`, então `git add -A` e `git add docs/` morrem no hook. As duas primeiras **nenhum hook
+prova**: são de quem opera.
+
 ---
 
 # Manter a documentação — o que ela é, e o que ela não é
@@ -582,6 +615,19 @@ lista e a medida discordarem derruba o portão.
 
 As perguntas individuais continuam valendo para saber **o que** cada um responde — é para isso que
 serve o resto desta seção.
+
+## Diagnosis Discipline
+
+- Measure before hypothesizing. State the measurement, then the hypothesis, then the fix — never flip a constant's sign as a 'fix' without explaining why it holds from all camera angles / all inputs.
+- Wait for builds/rebuilds to fully settle before taking a validation measurement (e.g. galaxy 'montado' flags); a premature read is not evidence.
+- When a visual defect is reported, reproduce it in-browser with a screenshot BEFORE changing code, and re-screenshot after.
+
+⚠️ A segunda regra tem régua nesta base: medida de tela só vale com a aba VISÍVEL, a janela em FOCO
+e `quadros` ANDANDO entre duas leituras — e **`quadros` andando prova que a cena não congelou, nunca
+que ela chegou ao regime** (ver *E o que NÃO está aqui*).
+⭑ A primeira é o corolário da REGRA DA FÍSICA por outro lado: quando a medida diz que a física está
+certa, o defeito costuma estar em linguagem visual — e mexer na constante conserta o sintoma de um
+enquadramento e quebra os outros.
 
 ## Antes de mexer no buraco negro
 
@@ -989,3 +1035,12 @@ parou de se mover — grandeza que ainda se acomoda não é regime.
 `localStorage` (`espatial.trace`, `espatial.*.v1`) e as métricas `espatial_*`: essas mantêm o nome
 antigo **de propósito** — renomear a chave não migra o que está gravado, e a afinação feita à mão
 evapora em silêncio (a tabela de `docs/identidade.md` existe para proteger exatamente isso).
+
+---
+
+## Completion
+
+- Do not stop until every item in the handoff/backlog checklist is closed or explicitly blocked with a stated reason. If context is running low, say so and write the handoff rather than stopping silently.
+
+⭑ O par é `docs/HANDOFF.md` + `docs/roadmap.md`, e eles **mudam JUNTOS** — fechar item num obriga a
+fechar no outro. Fechar é MOVER, nunca anexar.
