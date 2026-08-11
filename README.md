@@ -595,28 +595,38 @@ para olhar.
 O payload de cada ponto precisa de `source` (o caminho) e o texto do chunk. `section` é
 opcional e vira lua no céu.
 
-### Obsidian — o vault como corpus
+### O corpus — uma pasta, escolhida na tela
 
-O SpatIA não lê o vault direto: ele lê o índice do vault. O caminho é
+Você aponta **um diretório** e o SpatIA o indexa. Ele não presume Obsidian, vault nem convenção
+nenhuma: qualquer pasta serve, e a escolha é feita com o app rodando.
 
 ```
-~/vault  ──▶  seu indexador  ──▶  coleção Qdrant  ──▶  SpatIA
+a pasta que você escolhe  ──▶  SpatIA indexa  ──▶  Qdrant  ──▶  o céu
 ```
 
-Se o seu indexador publica tudo dentro de um recipiente (`vault/wiki/...`,
-`vault/workspace/...`), declare-o:
+⭑ **A raiz é UMA.** Dela derivam onde o agente opera, o que o inspetor pode servir e onde o app de
+Arquivos abre — um segundo diretório para "onde o agente trabalha" foi o que já fez um arquivo
+resolver para o homônimo de outra árvore.
 
-```ini
-CORPUS_PREFIX=vault/
+**O que entra é NOMEADO, não o que fica de fora.** Prosa (`md · txt · rst · adoc`) e estrutura
+(`sql · yml · toml · json · tf · ini`), mais `Makefile`, `Dockerfile`, `LICENSE` e `README`. Há um
+teto por arquivo, porque tipo admitido não é sinônimo de conhecimento: o que ele corta primeiro são
+tipos gerados e specs de máquina.
+
+⚠️ **Código-fonte ainda não entra** — está declarado e desligado, para uma fase própria.
+
+☠️ **Duas listas de exclusão, e só uma é sua.** A de RUÍDO você edita (`node_modules`, `dist`,
+lockfiles). O piso de SEGREDO não: `.env`, `*.pem`, `id_rsa*`, `.ssh`. Indexar um segredo não é um
+arquivo a mais — é conteúdo dentro do vetor, recuperável por busca e citável numa resposta.
+
+Trocar de raiz derruba o que descrevia o corpus velho: a coleção é reconstruída, o grafo e os
+snapshots são invalidados. ⭑ **A coleção servida nunca é escrita:** a nova é construída ao lado e um
+apelido é movido no fim, então uma indexação interrompida não degrada o céu que está no ar.
+
 ```
-
-Sem isso o primeiro segmento do `source` deixa de ser o nome da raiz, e **quatro lugares
-quebram igual e em silêncio**: o leitor de arquivo, a chave de git para recência, a varredura
-de sujos e o registro de caminho do cliente. A poda mora na fronteira de entrada
-(`qdrant.strip_prefix`) para que todo consumidor receba o formato de sempre.
-
-Para o agente também *escrever* no vault, aponte `AGENT_CWD` para lá e adicione a raiz em
-`FILE_ROOTS` — o inspetor só serve o que estiver declarado ali.
+make serve                      # e escolha a pasta na tela
+RAIZ=/caminho make reconfigurar # ou pela linha de comando
+```
 
 ### Ollama — cérebro offline
 

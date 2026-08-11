@@ -10,7 +10,7 @@
 # `make` não muda como um arquivo é interpretado. É despachante, e só.
 
 .DEFAULT_GOAL := ajuda
-.PHONY: ajuda leis leis-lista pixel pixel-gravar hooks serve cerebro rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
+.PHONY: ajuda leis leis-lista pixel pixel-gravar smoke hooks serve cerebro indexar reconfigurar rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
 
 # ⚠️ CRASE em receita de make é SUBSTITUIÇÃO DE COMANDO no shell — a primeira versão desta
 # receita escreveu "o portão é `make leis`" e o `make ajuda` RODOU o portão inteiro para montar a
@@ -36,6 +36,12 @@ leis-lista:  ## o que roda, e o que NÃO roda com o motivo medido
 pixel:  ## o QUADRO desenhado, na bancada. Exige `make serve` no ar
 	@node scripts/lei-pixel.mjs
 
+# ☠️ FORA do portão e fora de `scripts/`: ele MUTA a configuração do operador (grava e restaura) e
+# exige o servidor no ar. Em `scripts/` o portão o rodaria a cada commit, trocando o corpus de quem
+# só queria commitar.
+smoke:  ## confere o setup contra o servidor VIVO. Exige `make serve` no ar
+	@./smoke.py
+
 hooks:  ## aponta o git para os hooks VERSIONADOS de .githooks/
 	@git config core.hooksPath .githooks
 	@chmod +x .githooks/*
@@ -54,6 +60,19 @@ serve:  ## sobe o servidor em 127.0.0.1:8787 (Qdrant 6333 · Neo4j 7474)
 # Ollama não tem ferramenta nenhuma. Ligar é decisão de quem opera, e são DUAS linhas no `.env`.
 cerebro:  ## cérebro MLX local falando Ollama nativo, em 127.0.0.1:11500
 	@./cerebro.py
+
+# ─────────────────────────────────────────────────────── o corpus, do disco ao céu
+
+# ⚠️ O indexador NUNCA escreve na coleção servida: ele constrói uma coleção física com carimbo e
+# move o APELIDO no fim. Falha no meio não degrada o céu — o rollback é não trocar o apelido.
+indexar:  ## (re)constrói o índice da raiz escolhida, em coleção nova + troca de apelido
+	@uv run --with fastembed python -m server.indexador
+
+# ⭑ A troca INTEIRA: escolhe a raiz, invalida o que descrevia o corpus velho, indexa e
+# rematerializa o grafo na ordem medida. `RAIZ=/caminho make reconfigurar`.
+reconfigurar:  ## troca o corpus: RAIZ=/caminho make reconfigurar
+	@test -n "$(RAIZ)" || { echo 'faltou RAIZ=/caminho'; exit 1; }
+	@uv run --with fastembed python -c "import sys;sys.path.insert(0,'.');from server import setup;	[print(e) for e in setup.reconfigurar('$(RAIZ)')]"
 
 # ─────────────────────────────────────────────────────── materializar o que a rede lê
 

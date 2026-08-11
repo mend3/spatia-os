@@ -18,6 +18,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import agent, ambient, attach, bridge, brain, budget, capabilities, config, credentials, dirty, embed, files, fio, graph, journal, llm, mcp_scopes, metrics, net, permissions, hookqueue, oauth, qdrant, recorder, running, speech, storage, units, webhooks, websearch, graphdb
+from . import setup as setup_ambiente
 
 logger = logging.getLogger("espatial.app")
 
@@ -49,6 +50,9 @@ ROUTE_LABELS = {
     "/api/dirty": "dirty",
     "/api/vizinhanca": "vizinhanca",
     "/api/thread": "thread",
+    "/api/setup": "setup",
+    "/api/setup/dirs": "setup-dirs",
+    "/api/setup/prever": "setup-prever",
     "/metrics": "metrics",
 }
 
@@ -84,12 +88,12 @@ class Handler(BaseHTTPRequestHandler):
             self._hook(parsed.path[len("/hooks/"):].strip("/"))
             return
 
-        if parsed.path not in ("/api/client", "/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate", "/api/thread"):
+        if parsed.path not in ("/api/client", "/api/config", "/api/setup", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate", "/api/thread"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
-        if parsed.path in ("/api/config", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/thread") and not self._same_site():
+        if parsed.path in ("/api/config", "/api/setup", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/thread") and not self._same_site():
             metrics.crosssite_refused.inc()
             journal.denial("cross-site", parsed.path, f"Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')}")
             self._json({"error": "requisição cross-site recusada"}, status=403)
@@ -122,6 +126,14 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/config":
                 permissions.update(payload)
                 self._json(permissions.describe())
+                return
+            if parsed.path == "/api/setup":
+                # ⚠️ A recusa vem do próprio `config`, com a chave NOMEADA — a tela mostra o que
+                # foi recusado em vez de um "salvo" que não valeu.
+                try:
+                    self._json(setup_ambiente.aplicar(dict(payload)))
+                except ValueError as e:
+                    self._json({"error": str(e)}, status=400)
                 return
             if parsed.path == "/api/thread":
                 # Cortar o fio é o controle que torna a continuidade uma ESCOLHA: sem ele a única
@@ -302,6 +314,15 @@ class Handler(BaseHTTPRequestHandler):
                             "bridge": bridge.available()})
             elif route.startswith("/api/bridge/"):
                 self._bridge(route, parsed.query)
+            elif route == "/api/setup":
+                self._json(setup_ambiente.descrever())
+            elif route == "/api/setup/dirs":
+                self._json(setup_ambiente.listar(_first(query, "path")))
+            elif route == "/api/setup/prever":
+                try:
+                    self._json(setup_ambiente.prever(_first(query, "path") or ""))
+                except ValueError as e:
+                    self._json({"error": str(e)}, status=400)
             elif route == "/api/storage":
                 self._json(storage.describe())
             elif route == "/api/units":

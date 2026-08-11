@@ -700,6 +700,48 @@ Guarda estática dos blocos GLSL. Pega as duas armadilhas que já morderam quatr
 **falham em silêncio**: crase dentro de `/* glsl */` fechando o template literal, e o shader que
 compila mas perde a feição.
 
+## Ao mexer em configuração, na raiz do corpus ou no indexador
+
+    node scripts/lei-config.py    # no portão, offline — a precedência e as políticas
+    make smoke                    # fora do portão — as rotas contra o servidor VIVO
+
+☠️ **A ordem é UI > `.env` > default, e ela é DECLARADA.** `config.origem(chave)` devolve quem
+decidiu, e `/api/setup` publica isso ao lado de cada valor. Três camadas sobre a mesma chave sem a
+ordem legível é como esta base já perdeu um dia — o `.env` dizendo uma coisa e a tela outra.
+⚠️ **Declarado VAZIO é ESCOLHA em qualquer camada.** Campo esvaziado na tela é decisão de esvaziar;
+remover a chave (`definir({k: None})`) é o que devolve a palavra ao `.env`.
+
+⭑ **A RAIZ DO CORPUS É UMA.** `CORPUS_ROOT` é a escolha; `AGENT_CWD`, `FILE_ROOTS` e `FILES_ROOT`
+derivam dela **na escrita**, e aparecem no `.cache/ambiente.json` como qualquer valor — auditável,
+não mágico. Um segundo diretório para "onde o agente opera" foi o que fez `espatial-os/CLAUDE.md`
+resolver para `devshell/CLAUDE.md`, com leitura bem-sucedida e conteúdo de outra árvore.
+
+⚠️ **Só `ESPATIAL_HOST` e `ESPATIAL_PORT` ficam no `.env`**, e a régua é dura: eles decidem onde a
+tela é servida, então não há como pedi-los À tela.
+
+☠️ **DUAS listas de exclusão, e fundi-las seria o defeito.** A de RUÍDO é editável; o piso de
+SEGREDO (`.env`, `*.pem`, `id_rsa*`, `.ssh`) não é. Uma lista única deixaria alguém apagar `.env`
+limpando ruído, e a partir dali o agente responderia com a chave de API de dentro do próprio
+corpus — sem erro, com cara de resposta fundamentada.
+
+⭑ **Admissão NOMEIA o que entra** (REGRA DO CATÁLOGO): exclusão sozinha deixava passar **935 MB**
+numa raiz cuja política correta rende ~11 MB. Código-fonte está declarado e DESLIGADO — ligá-lo não
+é admitir mais um tipo, é redefinir a paisagem: ele é 13 mil dos 14 mil arquivos daquela raiz.
+⚠️ E há teto POR ARQUIVO, porque tipo admitido não é sinônimo de conhecimento — o que ele corta
+primeiro é `src/generated/` e spec de API.
+
+☠️ **O indexador NUNCA escreve na coleção servida.** Ele constrói uma coleção física com carimbo e
+move um APELIDO no fim. Indexar é longo; falhar no meio deixaria o céu servido por metade de um
+corpus, com o carimbo certo e a carga incompleta. O rollback é não trocar o apelido.
+⚠️ **O payload é CONTRATO** (`qdrant._normalize`): `document` = `"caminho § seção\n\ncorpo"` e
+`metadata` com `source · path · file_name · section · chunk_index · indexed_at`. Divergir devolve
+**resultado vazio, não erro**.
+
+⚠️ **Nenhuma API de navegador serve para escolher a pasta.** `showDirectoryPicker()` esconde o
+caminho absoluto do JS por projeto, e "apps no dispositivo" (Local Network Access) governa origem
+PÚBLICA alcançando loopback — o SpatIA já é servido de `127.0.0.1`, e ela governaria rede, não
+arquivo. O seletor é do SERVIDOR: `/api/setup/dirs` lista, a tela navega.
+
 ## Ao mexer em shader, pele, ou qualquer coisa que se VÊ
 
     make serve        # noutra aba — a lei exige a página no ar

@@ -88,6 +88,25 @@ def post_json(
         return json.load(r)
 
 
+def request_json(
+    service: str,
+    method: str,
+    url: str,
+    payload: Optional[dict] = None,
+    *,
+    timeout: float = 120.0,
+) -> Any:
+    """Qualquer verbo, para quem CRIA e APAGA recurso — o indexador precisa de PUT e DELETE.
+
+    ⚠️ O timeout é folgado de propósito: `PUT /points?wait=true` só volta quando o Qdrant terminou
+    de gravar o lote, e o default de 30 s cortaria um lote grande no meio, deixando a coleção
+    física a meio caminho com o cliente achando que falhou.
+    """
+    with _request(service, url, method=method, payload=payload, timeout=timeout) as response:
+        corpo = response.read()
+        return json.loads(corpo) if corpo else {}
+
+
 def stream_ndjson(service: str, url: str, payload: dict, *, timeout: float = 300.0) -> Iterator[dict]:
     """Lê uma resposta linha-a-linha de JSON (formato de stream do Ollama).
 
