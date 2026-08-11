@@ -68,17 +68,10 @@ async function cypher(statement, parameters = {}) {
  * A variável continua vencendo — para apontar um script a outra árvore de propósito —, só que
  * agora ela precisa ser verdade.
  */
-function raizDoDisco(doServidor) {
-  const doAmbiente = process.env.AGENT_CWD;
-  // ⚠️ E ele só vence se APONTAR PARA O MESMO LUGAR que o servidor, ou se o servidor não souber.
-  // Uma árvore diferente da que montou o céu não mede outro corpus: mede o vazio, porque nenhum
-  // caminho casa. Medido: com `AGENT_CWD=devshell-one` exportado no perfil, 0 de 188 arquivos.
-  if (doAmbiente && fs.existsSync(doAmbiente) && (!doServidor || doAmbiente === doServidor))
-    return doAmbiente;
-  if (doAmbiente) {
-    console.warn(
-      `\x1b[33m⚠ AGENT_CWD=${doAmbiente} não existe no disco — usando a raiz que o servidor publica\x1b[0m`
-    );
+function raizDoCorpus(doServidor) {
+  if (!doServidor) {
+    console.error('o /api/graph não publicou a raiz do corpus — escolha a pasta em #/storage.');
+    process.exit(1);
   }
   return doServidor;
 }
@@ -89,7 +82,7 @@ if (!graph.corpus) {
   console.error('o /api/graph não publicou `corpus` — servidor velho?');
   process.exit(1);
 }
-const RAIZ = raizDoDisco(graph.corpus.cwd);
+const RAIZ = raizDoCorpus(graph.corpus.cwd);
 /**
  * O CORPUS que este grafo descreve, carimbado em todo nó e toda aresta.
  *
@@ -111,7 +104,12 @@ console.log(
  * O `source` do céu é `<repo>/<caminho>`; o disco só conhece o caminho. O primeiro segmento é o
  * repo virtual (`graph.py`), então ele sai para virar caminho e volta para virar aresta.
  */
-const semRepo = (source) => source.slice(source.indexOf('/') + 1);
+/**
+ * ⚠️ **Refutação medida: não corte o primeiro segmento do `source`.** Ele é relativo à RAIZ DO
+ * CORPUS, e o primeiro segmento é o nome do repo — cortá-lo faz o caminho apontar para dentro de
+ * outra árvore, e a leitura devolve 0 de N sem erro nenhum.
+ */
+const semRepo = (source) => source;
 /** caminho relativo à raiz → `source` do céu. É a chave de resolução das duas relações. */
 const porCaminho = new Map(arquivos.map((n) => [semRepo(n.source), n.source]));
 /** nome do arquivo → sources que o têm. Para resolver citação que não traz o caminho inteiro. */

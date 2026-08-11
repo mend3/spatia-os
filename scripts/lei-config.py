@@ -44,6 +44,20 @@ def checa(secao: str, cond: bool, frase: str) -> None:
         print(f"{VERMELHO}✗ {secao} {frase}{FIM}")
 
 
+def _sem_leitores() -> bool:
+    """Varre `server/` procurando quem ainda LEIA `AGENT_CWD`.
+
+    ⚠️ A régua é a LEITURA (`config.get`), nunca a menção: comentários que explicam por que a
+    chave morreu são justamente o que impede alguém de ressuscitá-la, e apagá-los para satisfazer
+    um grep seria perder a refutação.
+    """
+    import re
+
+    raiz = Path(__file__).resolve().parent.parent / "server"
+    padrao = re.compile(r"""get\(\s*["'](AGENT_CWD|FILE_ROOTS|FILES_ROOT)["']\s*\)""")
+    return not any(padrao.search(f.read_text(encoding="utf-8")) for f in raiz.glob("*.py"))
+
+
 def main() -> int:
     real = config.RUNTIME_STORE
     antes = real.read_text(encoding="utf-8") if real.is_file() else None
@@ -52,12 +66,12 @@ def main() -> int:
         config.RUNTIME_STORE = Path(tmp) / "ambiente.json"
         config._runtime = None
 
-        do_env = config.get("AGENT_CWD")
-        checa("§1", config.origem("AGENT_CWD") in ("env", "default"), "sem runtime, quem decide é o `.env` ou o default")
+        do_env = config.get("QDRANT_URL")
+        checa("§1", config.origem("QDRANT_URL") in ("env", "default"), "sem runtime, quem decide é o `.env` ou o default")
 
-        config.definir({"AGENT_CWD": "/tmp/decidido-pela-ui"})
-        checa("§1", config.get("AGENT_CWD") == "/tmp/decidido-pela-ui", "a UI vence o `.env`")
-        checa("§3", config.origem("AGENT_CWD") == "ui", "e `origem` NOMEIA quem decidiu")
+        config.definir({"QDRANT_URL": "http://decidido-pela-ui:6333"})
+        checa("§1", config.get("QDRANT_URL") == "http://decidido-pela-ui:6333", "a UI vence o `.env`")
+        checa("§3", config.origem("QDRANT_URL") == "ui", "e `origem` NOMEIA quem decidiu")
 
         config.definir({"CORPUS_PREFIX": ""})
         checa(
@@ -66,9 +80,9 @@ def main() -> int:
             "vazio na UI é ESCOLHA — não cai para o default",
         )
 
-        config.definir({"AGENT_CWD": None})
-        checa("§1", config.get("AGENT_CWD") == do_env, "remover do runtime devolve a palavra ao `.env`")
-        checa("§3", config.origem("AGENT_CWD") != "ui", "e a origem deixa de ser `ui`")
+        config.definir({"QDRANT_URL": None})
+        checa("§1", config.get("QDRANT_URL") == do_env, "remover do runtime devolve a palavra ao `.env`")
+        checa("§3", config.origem("QDRANT_URL") != "ui", "e a origem deixa de ser `ui`")
 
         try:
             config.definir({"ESPATIAL_PORT": "9999"})
@@ -93,8 +107,13 @@ def main() -> int:
         # `/var/folders/…` é link para `/private/var/folders/…`. Guardar o caminho não resolvido
         # faria duas grafias da MESMA pasta virarem dois corpora, cada uma com sua coleção.
         esperado = str(alvo.resolve())
-        for derivada in config.DERIVADAS_DA_RAIZ:
-            checa("§6", config.get(derivada) == esperado, f"`{derivada}` deriva da raiz, sem segunda escolha")
+        checa("§6", config.get("CORPUS_ROOT") == esperado, "a raiz é a escolha, e ela grava resolvida")
+        # ☠️ **UMA raiz, e a lei conta.** Nome a mais para a mesma pasta é um lugar a mais onde ela
+        # discorda de si mesma — a §6c confere que ninguém em `server/` ainda os LÊ.
+        for extinta in ("AGENT_CWD", "FILE_ROOTS", "FILES_ROOT"):
+            checa("§6", extinta not in config.DEFAULTS, f"`{extinta}` não existe mais")
+            checa("§6", extinta not in config.CONFIGURAVEIS and extinta not in config.DERIVADAS,
+                  f"e `{extinta}` não é configurável nem derivada")
         checa("§6", config.get("CORPUS_PREFIX") == "", "indexando da raiz, não há recipiente a podar")
         checa("§6", escrito["QDRANT_COLLECTION"].startswith("spatia_"), "a coleção acompanha a raiz")
         gemea = Path(tmp) / "outra" / "corpus-de-prova"
@@ -104,7 +123,22 @@ def main() -> int:
             config.colecao_de(alvo) != config.colecao_de(gemea),
             "duas pastas de mesmo NOME em lugares diferentes não colidem de coleção",
         )
-        checa("§6", "AGENT_CWD" not in config.CONFIGURAVEIS, "`AGENT_CWD` deixou de ser escolha separada")
+        # ☠️ §6c — `AGENT_CWD` está EXTINTO, não desligado. Ele era a segunda raiz, e a segunda
+        # raiz é a causa raiz: `espatial-os/CLAUDE.md` resolvia para `devshell/CLAUDE.md`, com
+        # leitura bem-sucedida e conteúdo de outra árvore. Enquanto a chave existir, alguém a lê.
+        checa("§6c", "AGENT_CWD" not in config.DEFAULTS, "`AGENT_CWD` saiu dos defaults")
+        checa("§6c", "AGENT_CWD" not in config.CONFIGURAVEIS and "AGENT_CWD" not in config.DERIVADAS,
+              "e não é configurável nem derivada")
+        checa("§6c", _sem_leitores(), "nenhum módulo de `server/` ainda LÊ as chaves extintas")
+
+        # ☠️ §6b — SOBREVIVE A UM PROCESSO NOVO, e sem esta seção a lei é cega para uma classe
+        # inteira: `definir` atualiza o cache em memória, então tudo acima passa mesmo com o LEITOR
+        # descartando chaves. O defeito só aparece relendo o arquivo do zero.
+        config._runtime = None
+        for chave in ("CORPUS_ROOT",):
+            checa("§6b", config.origem(chave) == "ui", f"`{chave}` sobrevive à releitura do arquivo")
+        checa("§6b", config.get("CORPUS_PREFIX") == "" and config.origem("CORPUS_PREFIX") == "ui",
+              "`CORPUS_PREFIX` derivado sobrevive à releitura")
 
         # §7 — o que NÃO entra no índice. Duas listas, e só uma é editável.
         for caminho in ("espatial-os/CLAUDE.md", "docs/notas.md", "src/app/main.js"):
@@ -132,17 +166,23 @@ def main() -> int:
 
         # §8 — ADMISSÃO: nomear o que entra, não listar o que não entra.
         KB = 1024
-        for caminho in ("docs/notas.md", "infra/main.tf", "db/schema.sql", "app/Dockerfile", "Makefile"):
+        for caminho in ("docs/notas.md", "notas.txt", "app/Dockerfile", "Makefile", "LICENSE"):
             checa("§8", config.admitido(caminho, 4 * KB), f"`{caminho}` entra")
-        # ☠️ Código-fonte é FASE 2: declarado no módulo, fora do padrão.
+        # ☠️ **Só PROSA entra, e os outros dois grupos ficam DECLARADOS e desligados.**
+        # `schema`, `config` e `infra` têm mediana de UM chunk: eles dobram a contagem de corpos
+        # sem trazer massa, e `chunks` é o eixo que decide CLASSE — metade do céu vira asteroide e
+        # o porte "gigante" desaparece junto com o fenômeno que dele depende.
+        for fora in ("db/schema.sql", "infra/main.tf", "k8s/values.yaml", "pkg/tsconfig.json"):
+            checa("§8", not config.admitido(fora, 4 * KB), f"`{fora}` NÃO entra — estrutura é outra fase")
         for fonte in ("app/main.py", "web/App.tsx", "lib/index.ts", "s/x.js"):
             checa("§8", not config.admitido(fonte, 4 * KB), f"`{fonte}` NÃO entra — código é outra fase")
-        for grupo in config.CORPUS_ADMITE_CODIGO:
-            if grupo in config.CORPUS_ADMITE_PADRAO:
-                checa("§8", False, f"`{grupo}` vazou do grupo de código para o padrão")
-                break
-        else:
-            checa("§8", True, "nenhuma extensão de código vazou para o padrão")
+        vazados = [
+            e
+            for grupo in (config.CORPUS_ADMITE_CODIGO, config.CORPUS_ADMITE_ESTRUTURA)
+            for e in grupo
+            if e in config.CORPUS_ADMITE_PADRAO
+        ]
+        checa("§8", not vazados, f"nenhum grupo desligado vazou para o padrão{f' — {vazados}' if vazados else ''}")
 
         # ☠️ Tipo admitido não é sinônimo de conhecimento: o teto corta o GERADO.
         checa("§8", not config.admitido("pkg/generated/index.d.ts", 15_000 * KB), "arquivo gigante fica fora")

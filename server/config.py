@@ -50,9 +50,9 @@ DEFAULTS = {
     # ⭑ **A RAIZ DO CORPUS — o diretório que o operador escolhe, e a única que existe.**
     #
     # Ela não presume Obsidian, vault nem qualquer convenção: é a pasta que o SpatIA indexa e
-    # serve. Dela DERIVAM `AGENT_CWD`, `FILE_ROOTS` e `FILES_ROOT` — o agente trabalha onde o
-    # corpus mora, e um segundo diretório para "onde o agente opera" foi justamente o que fez um
-    # arquivo resolver para o homônimo de outra árvore (ver `scripts/conceitos.mjs`).
+    # serve, e é a ÚNICA raiz: o agente opera nela, o inspetor serve a partir dela, o índice sai
+    # dela. ⚠️ Um segundo diretório para "onde o agente opera" faz um arquivo resolver para o
+    # homônimo de outra árvore, com a leitura passando.
     #
     # ☠️ Vazio de propósito, pela mesma razão de `QDRANT_COLLECTION`: um default não falha, ele
     # indexa a árvore de outra pessoa com convicção total.
@@ -67,9 +67,6 @@ DEFAULTS = {
     "CORPUS_ADMITE": "",
     # Teto por ARQUIVO, em KB. Ver `CORPUS_MAX_KB_PADRAO`.
     "CORPUS_MAX_KB": "",
-    # Onde o agente enxerga arquivos. O default é o próprio projeto — apontar para o
-    # workspace de conhecimento é escolha explícita, porque o agente lê o que estiver lá.
-    "AGENT_CWD": "",
     "AGENT_MODEL": "",
     "AGENT_MAX_TURNS": "10",
     # Teto de custo por dia e execuções simultâneas. `0` = sem teto, e é o default porque um
@@ -80,13 +77,7 @@ DEFAULTS = {
     # Só leitura por default: a UI é um observatório, não um editor.
     "AGENT_ALLOWED_TOOLS": "Read Glob Grep WebSearch WebFetch",
     "AGENT_PERMISSION_MODE": "dontAsk",
-    # Vazio = ignora settings do usuário/projeto (sem hooks, sem 20k tokens de regras).
-    "AGENT_SETTING_SOURCES": "",
     "AGENT_MCP_CONFIG": "",
-    # Raízes que o leitor de arquivos aceita servir. Vazio = só o próprio projeto.
-    "FILE_ROOTS": "",
-    # Diretório inicial do app de Arquivos. Vazio = a raiz com mais arquivos do corpus.
-    "FILES_ROOT": "",
     # O SearXNG é global no oracle e NÃO usa chave, então tem default: o loopback dele.
     # Presença de variável não é prova de disponibilidade aqui — a checagem sonda de verdade.
     "SEARXNG_URL": "http://localhost:8888",
@@ -254,9 +245,14 @@ NUNCA_INDEXADOS = (
 
 CORPUS_ADMITE_PROSA = (".md", ".mdc", ".txt", ".rst", ".org", ".adoc")
 
-# ESTRUTURA — schema, configuração e infraestrutura. É o que o corpus servido já É hoje: o censo
-# lê `schema · agent · doc · config · infra · compose · script · lock`, e o próprio relatório
-# acusa "ZERO arquivos de código no índice".
+# ESTRUTURA — schema, configuração e infraestrutura. DECLARADO E DESLIGADO, como o código.
+#
+# ☠️ **Estes tipos são massa sem conhecimento.** A mediana de chunks deles é uma ORDEM DE GRANDEZA
+# abaixo da prosa, e `chunks` é o eixo que decide CLASSE: admiti-los dobra a contagem de corpos sem
+# trazer massa, metade do céu vira asteroide e o porte "gigante" desaparece — junto com o fenômeno
+# de colapso que depende dele. As duas distribuições saem de `make censos`.
+#
+# ⚠️ O lugar deles é como ATRIBUTO do sistema a que pertencem, não como corpo próprio.
 CORPUS_ADMITE_ESTRUTURA = (
     ".sql", ".yml", ".yaml", ".toml", ".json", ".ini", ".cfg", ".tf", ".tfvars", ".env.example",
 )
@@ -275,7 +271,8 @@ CORPUS_ADMITE_CODIGO = (
 # Arquivos SEM extensão que são conhecimento — casados pelo nome inteiro.
 CORPUS_ADMITE_NOMES = ("Makefile", "Dockerfile", "LICENSE", "README", "CHANGELOG", "Procfile")
 
-CORPUS_ADMITE_PADRAO = CORPUS_ADMITE_PROSA + CORPUS_ADMITE_ESTRUTURA
+# ⭑ Só PROSA entra por padrão. Conhecimento tem massa; o resto é propriedade de quem o carrega.
+CORPUS_ADMITE_PADRAO = CORPUS_ADMITE_PROSA
 
 # ☠️ **O TETO POR ARQUIVO, e ele existe porque TIPO admitido não é sinônimo de conhecimento.**
 #
@@ -350,7 +347,10 @@ def indexavel(relativo: str) -> bool:
     return True
 
 
-DERIVADAS_DA_RAIZ = ("AGENT_CWD", "FILE_ROOTS", "FILES_ROOT")
+# ☠️ **UMA raiz, e só uma** — a refutação está no comentário de `CORPUS_ROOT`, acima.
+# `CORPUS_PREFIX` fica porque NÃO é raiz: é a poda que um índice construído por FORA exige, e vale
+# vazio quando o índice é nosso.
+DERIVADAS_DA_RAIZ = ()
 # `CORPUS_PREFIX` também é derivado, mas para VAZIO e não para o caminho: indexando a partir da
 # raiz não existe recipiente a podar. Ele entra na permissão sem entrar no laço acima.
 DERIVADAS = DERIVADAS_DA_RAIZ + ("CORPUS_PREFIX",)
@@ -364,7 +364,14 @@ def _runtime_valores() -> dict:
     if _runtime is None:
         try:
             bruto = json.loads(RUNTIME_STORE.read_text(encoding="utf-8"))
-            _runtime = {k: str(v) for k, v in bruto.items() if k in CONFIGURAVEIS}
+            # ☠️ **AS DERIVADAS ENTRAM AQUI, e esquecê-las é um defeito que só aparece entre
+            # PROCESSOS.** `definir` grava e atualiza o cache em memória, então quem escreveu
+            # continua lendo certo; um processo NOVO relê o arquivo e descarta o que este filtro
+            # não conhece. Medido: o `ambiente.json` com `AGENT_CWD` e `CORPUS_PREFIX` gravados, e
+            # o servidor recém-subido respondendo com os valores do `.env` — arquivo certo, leitor
+            # cego, e `origem()` dizendo `env` com toda a convicção.
+            aceitas = set(CONFIGURAVEIS) | set(DERIVADAS)
+            _runtime = {k: str(v) for k, v in bruto.items() if k in aceitas}
         except (OSError, ValueError):
             _runtime = {}
     return _runtime
@@ -465,7 +472,23 @@ def get(key: str) -> str:
 
 
 def get_int(key: str) -> int:
-    return int(get(key))
+    """Valor inteiro, com o DEFAULT quando a chave está declarada vazia ou ilegível.
+
+    ☠️ **`int("")` levanta `ValueError` cru, e este arquivo ENSINA a declarar vazio.** "Vazio é
+    escolha" é a regra para texto — para número não existe escolha vazia, e uma linha
+    `AGENT_MAX_TURNS=` derrubava o servidor no boot com uma mensagem que não nomeia a chave.
+    Degradar para o default é o comportamento certo; morrer sem dizer qual linha do `.env` causou
+    é o que a Filosofia de Engenharia chama de falhar em silêncio, com barulho.
+    """
+    bruto = get(key)
+    try:
+        return int(bruto)
+    except (TypeError, ValueError):
+        padrao = DEFAULTS.get(key, "0")
+        try:
+            return int(padrao)
+        except (TypeError, ValueError):
+            return 0
 
 
 def vector_name(model: str) -> str:
@@ -491,28 +514,11 @@ def agent_dir() -> Optional[Path]:
     `None` quando o diretório não existe: nesse caso não há convenção a respeitar, e o chamador
     cai no `.cache/` do próprio servidor.
     """
-    raiz = get("AGENT_CWD")
+    raiz = get("CORPUS_ROOT")
     if not raiz:
         return None
     caminho = Path(raiz) / ".claude"
     return caminho if caminho.is_dir() else None
-
-
-def vault_path() -> Optional[Path]:
-    """O vault do Obsidian, quando existe — a SEGUNDA raiz do corpus.
-
-    `AGENT_CWD` é o workspace do agente e existe sempre; o vault é integração e pode não existir
-    nesta máquina. Por isso ele é `Optional` e nunca obrigatório: o servidor tem de subir e ler
-    arquivo num ambiente sem Obsidian nenhum.
-
-    O default (`$HOME/vault`) é o mesmo caminho que o `CLAUDE.md` do workspace declara como
-    `VAULT_PATH`. `None` quando o diretório não existe, para o chamador poder dizer "não há vault
-    aqui" em vez de reportar um caminho que nunca teve chance.
-    """
-    declarado = get("VAULT_PATH")
-    caminho = Path(declarado).expanduser() if declarado else Path.home() / "vault"
-    return caminho if caminho.is_dir() else None
-
 
 def file_roots() -> list[Path]:
     """Diretórios cujo conteúdo o leitor de arquivos pode devolver ao browser.
@@ -527,11 +533,7 @@ def file_roots() -> list[Path]:
     # chamadores justamente por isso. E não é ampliação de superfície: `/api/node` já devolve o
     # conteúdo desses mesmos arquivos, só que na versão de quando foram indexados. Negar o
     # disco e servir o índice não protege nada; só faz a tela mostrar texto velho sem avisar.
-    agent_cwd = get("AGENT_CWD")
-    if agent_cwd:
-        roots.append(Path(agent_cwd).expanduser().resolve())
-    for entry in get("FILE_ROOTS").split(":"):
-        entry = entry.strip()
-        if entry:
-            roots.append(Path(entry).expanduser().resolve())
+    corpus = get("CORPUS_ROOT")
+    if corpus:
+        roots.append(Path(corpus).expanduser().resolve())
     return roots

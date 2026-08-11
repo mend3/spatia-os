@@ -308,6 +308,50 @@ conferir(
 );
 conferir('§8 a sonda existe em window.spatia', /tela: \(\) => tela\.estado\(\)/.test(src('src/main.js')));
 
+// ---------------------------------------------------------------- §9 variantes de botão
+/*
+ * ☠️ **Variante inválida CONGELA a tela, e o console fica limpo.** `src/hud/button.js` falha alto
+ * no que não conhece — decisão certa —, mas o `throw` acontece dentro do `draw` de um widget, e o
+ * host o engole: a caixa fica no "lendo…" com o dado já carregado, sem erro em lugar nenhum.
+ *
+ * ⚠️ A régua é o CONJUNTO DECLARADO no próprio `button.js`, lido daqui — nunca uma lista repetida
+ * neste arquivo, que seria a segunda fonte que esta base passa o tempo desfazendo.
+ */
+{
+  const fonteBotao = src('src/hud/button.js');
+  const declaradas = new Set(
+    (fonteBotao.match(/const VARIANTS = new Set\(\[([^\]]+)\]/)?.[1] ?? '')
+      .split(',')
+      .map((x) => x.trim().replace(/^['"]|['"]$/g, ''))
+      .filter(Boolean)
+  );
+  conferir('§9 as variantes declaradas foram lidas de button.js', declaradas.size > 0, `${[...declaradas].join(', ')}`);
+
+  const varrer = (dir) => {
+    const achados = [];
+    for (const e of readdirSync(`${RAIZ}/${dir}`, { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) achados.push(...varrer(rel));
+      else if (e.name.endsWith('.js')) achados.push(rel);
+    }
+    return achados;
+  };
+
+  const usadas = new Map();
+  for (const arquivo of varrer('src')) {
+    if (arquivo.endsWith('hud/button.js')) continue;
+    const texto = src(arquivo);
+    for (const m of texto.matchAll(/variant:\s*['"]([a-z-]+)['"]/g)) {
+      if (!declaradas.has(m[1])) usadas.set(`${arquivo}:${m[1]}`, m[1]);
+    }
+  }
+  conferir(
+    '§9 nenhum call site usa variante que button.js não declara',
+    usadas.size === 0,
+    usadas.size ? `inválidas: ${[...usadas.keys()].join(', ')}` : 'todas declaradas'
+  );
+}
+
 // ---------------------------------------------------------------- veredito
 console.log(`\n${ok.length} leis provadas`);
 for (const f of falhas) console.log(`  ✗ ${f}`);

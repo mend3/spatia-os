@@ -112,6 +112,42 @@ console.log('\n\x1b[1mPELE que cada uma recebe\x1b[0m');
  * estão fora da tabela DE PROPÓSITO, cada uma com o motivo escrito em `AUSENTES_NA_TABELA`. O que a
  * regra do catálogo proíbe é a pele roteada que ninguém veste — não a pele que a tabela recusou.
  */
+/*
+ * ☠️ **POPULAÇÃO É FATO DE MUNDO; a lei tem de medir ALCANCE, que é fato de código.**
+ *
+ * A régua anterior reprovava toda pele roteada com zero corpos — e isso confunde duas coisas que
+ * pedem consertos opostos. Uma pele que NENHUMA combinação de fatos produz é rota morta: defeito,
+ * e a lei existe para isso. Uma pele que o roteamento produz mas que ESTE corpus não veste é
+ * censo: o `pulsar` exige um gigante (≥ 80 chunks) sem toque em 180 dias, e o mais pesado dos
+ * mortos deste corpus tem 73 — sete de margem, e nada de errado com o código.
+ *
+ * ⚠️ Reprovar por população faz a lei expirar sozinha quando o corpus muda, que é exatamente o
+ * defeito registrado em `leis.mjs` sobre a `lei-favoritos-ui §6` — um FATO DE MUNDO gravado como
+ * lei. O alcance é medido por PERTURBAÇÃO, no mesmo idioma da `lei-neo4j`: os fatos de cada corpo
+ * real são varridos por uma grade, e a pele que aparece em algum ponto tem rota viva.
+ */
+const alcancaveis = new Set();
+{
+  const amostra = corpos.slice(0, 240);
+  const GRADE = [];
+  for (const chunks of [1, 8, 30, 90, 400])
+    for (const dwarf of [0, 1])
+      for (const churn of [0, 27])
+        for (const dormant of [0, 3]) GRADE.push({ chunks, dwarf, churn, dormant });
+  for (const node of amostra) {
+    for (const g of GRADE) {
+      const sintetico = { ...node, chunks: g.chunks, dwarf: g.dwarf, churn: g.churn, dormant: g.dormant };
+      try {
+        const f = entityPhysics(sintetico, { dominante: true, sistema: sintetico.dir });
+        const c = classificar(f, sintetico);
+        alcancaveis.add(superficieDe(c, f, fenomenos(f, sintetico).map((x) => x.tipo)));
+      } catch {
+        /* combinação impossível não conta contra a pele */
+      }
+    }
+  }
+}
+
 let vazias = 0;
 for (const nome of Object.values(SUPERFICIE)) {
   const n = porSuperficie.get(nome) || 0;
@@ -120,9 +156,13 @@ for (const nome of Object.values(SUPERFICIE)) {
     console.log(
       `  \x1b[2m${nome.padEnd(12)}    —  fora da tabela: ${AUSENTES_NA_TABELA[nome].slice(0, 64)}…\x1b[0m`
     );
-  } else if (n === 0 && nome !== SUPERFICIE.NENHUMA) {
+  } else if (n === 0 && nome !== SUPERFICIE.NENHUMA && !alcancaveis.has(nome)) {
     vazias++;
-    console.log(`  \x1b[31m${nome.padEnd(12)} ${String(n).padStart(4)}  ← ROTEADA E VAZIA\x1b[0m`);
+    console.log(`  \x1b[31m${nome.padEnd(12)} ${String(n).padStart(4)}  ← ROTA MORTA: nenhuma combinação de fatos a produz\x1b[0m`);
+  } else if (n === 0 && nome !== SUPERFICIE.NENHUMA) {
+    console.log(
+      `  \x1b[33m${nome.padEnd(12)} ${String(n).padStart(4)}  ⚠ rota VIVA, sem vestidor neste corpus\x1b[0m`
+    );
   } else {
     console.log(
       `  ${nome.padEnd(12)} ${String(n).padStart(4)}  ${pct.padStart(5)}%  ${'█'.repeat(Math.ceil((n / corpos.length) * 40))}`

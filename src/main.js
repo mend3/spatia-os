@@ -1301,7 +1301,15 @@ function watchDirty(scene, streams, boot) {
         scene.forgetDirty();
         if (!failing) {
           failing = true;
-          anunciar('SEM RAIZ GIT CONFIGURADA (AGENT_CWD) · ANÉIS DESLIGADOS', 'bad');
+          /*
+           * ⚠️ A mensagem nomeia a AÇÃO e a TELA, nunca uma variável: a raiz é escolhida em
+           * `#/storage`, e citar uma chave manda o operador procurar no `.env` uma linha que
+           * ninguém lê.
+           *
+           * ⭑ `root: null` significa que nem a pasta É repo nem CONTÉM repos: sem histórico não
+           * há estado local a desenhar, e feature desligada tem de parecer desligada.
+           */
+          anunciar('SEM CORPUS COM GIT · ESCOLHA A PASTA EM #/storage · ANÉIS DESLIGADOS', 'bad');
         }
         return;
       }

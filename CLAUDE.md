@@ -8,17 +8,19 @@
 
 ---
 
-## Path & Root Assumptions
+## A raiz do corpus
 
-- The corpus/vault root is `~/vault` (via symlink mirror), NOT `$AGENT_CWD` and not the repo cwd. Scripts that read the corpus must resolve the vault root explicitly.
-- Before running any indexing/extraction script, echo the resolved root path and confirm it matches the live project — never index fixture or synthetic repos.
-- Verify env vars ($AGENT_CWD, NAMESPACE, compose project name = `workspace`) exist and point to real directories before use.
-
-⚠️ **`.env` (arquivo) vence o ambiente** — quem confere a raiz lê o `.env`, nunca o `export` do perfil.
-Hoje: `AGENT_CWD` aponta para um repo assistido, e `CORPUS_PREFIX=vault/` é o recipiente que a
-indexação podou. São duas raízes DIFERENTES, e `server/files.py` documenta qual decide o quê.
-⚠️ O corpus sintético do `scripts/fixture.py` mora em coleção PRÓPRIA (`espatial_fixture`) — indexar
-o fixture na coleção do céu servido é o defeito que a segunda regra existe para impedir.
+- Existe **uma** variável de raiz: `CORPUS_ROOT`, escolhida na tela (`#/storage`) e persistida em
+  `.cache/ambiente.json`. Ela não presume Obsidian, vault nem convenção — é a pasta que o operador
+  apontou, e pode conter repositórios em vez de ser um.
+- Todo `source` do índice é **relativo a ela**, e o primeiro segmento é o nome do container de topo.
+  ☠️ **Não corte esse segmento.** Cortá-lo faz o caminho cair na árvore errada, a leitura passar e o
+  conteúdo ser de outro arquivo — sem erro em lugar nenhum. Custou recência, anéis, citações e
+  conceitos nesta base, cada um em silêncio.
+- Antes de indexar, a tela PREVÊ: quantos arquivos e quantos MB aquela pasta rende. Escolher às
+  cegas e descobrir o tamanho depois custa uma indexação inteira.
+- O corpus sintético (`scripts/fixture.py`) mora em coleção PRÓPRIA (`espatial_fixture`) — indexar o
+  fixture na coleção do céu servido é o que a prévia e o carimbo de corpus existem para impedir.
 
 ## Shader Editing Rules
 
@@ -711,24 +713,53 @@ ordem legível é como esta base já perdeu um dia — o `.env` dizendo uma cois
 ⚠️ **Declarado VAZIO é ESCOLHA em qualquer camada.** Campo esvaziado na tela é decisão de esvaziar;
 remover a chave (`definir({k: None})`) é o que devolve a palavra ao `.env`.
 
-⭑ **A RAIZ DO CORPUS É UMA.** `CORPUS_ROOT` é a escolha; `AGENT_CWD`, `FILE_ROOTS` e `FILES_ROOT`
-derivam dela **na escrita**, e aparecem no `.cache/ambiente.json` como qualquer valor — auditável,
-não mágico. Um segundo diretório para "onde o agente opera" foi o que fez `espatial-os/CLAUDE.md`
-resolver para `devshell/CLAUDE.md`, com leitura bem-sucedida e conteúdo de outra árvore.
+☠️ **EXISTE UMA VARIÁVEL DE RAIZ: `CORPUS_ROOT`.** Nome novo para a mesma pasta é um lugar a mais
+onde ela discorda de si mesma. ⚠️ **Refutação medida:** resolver caminho por DUAS raízes, escolhendo
+pelo basename do primeiro segmento, acerta só para o repo homônimo — `espatial-os/CLAUDE.md` resolve
+para `devshell/CLAUDE.md`, a leitura passa, e o conteúdo é de outra árvore. A §6c varre `server/`
+procurando quem LEIA `AGENT_CWD`, `FILE_ROOTS` ou `FILES_ROOT`; a régua é `config.get`, nunca a
+menção, senão apagar o comentário que explica a armadilha satisfaz a lei.
 
 ⚠️ **Só `ESPATIAL_HOST` e `ESPATIAL_PORT` ficam no `.env`**, e a régua é dura: eles decidem onde a
 tela é servida, então não há como pedi-los À tela.
+
+☠️ **O TERMINAL NÃO ENTRA NO CAMINHO FELIZ.** Pedir um comando para que uma escolha feita na tela
+tenha efeito é o Princípio 3 invertido — e é onde quem não é técnico para, com o céu vazio e nenhuma
+pista. Indexar é `POST /api/setup/indexar`, em thread, com progresso consultável em `GET`; a tela
+relê sozinha enquanto corre, porque progresso que exige recarregar a página é tela travada com outra
+roupa.
+
+⚠️ **Estado vazio ENSINA o próximo passo.** Sem raiz, a tela não anuncia coleção — o valor viria do
+`.env` e nomearia um corpus que ninguém escolheu — e diz *PASSO 1 · escolha a pasta*. Quem chega não
+pergunta "o corpus é confiável?"; pergunta o que dá para fazer agora.
 
 ☠️ **DUAS listas de exclusão, e fundi-las seria o defeito.** A de RUÍDO é editável; o piso de
 SEGREDO (`.env`, `*.pem`, `id_rsa*`, `.ssh`) não é. Uma lista única deixaria alguém apagar `.env`
 limpando ruído, e a partir dali o agente responderia com a chave de API de dentro do próprio
 corpus — sem erro, com cara de resposta fundamentada.
 
-⭑ **Admissão NOMEIA o que entra** (REGRA DO CATÁLOGO): exclusão sozinha deixava passar **935 MB**
-numa raiz cuja política correta rende ~11 MB. Código-fonte está declarado e DESLIGADO — ligá-lo não
-é admitir mais um tipo, é redefinir a paisagem: ele é 13 mil dos 14 mil arquivos daquela raiz.
-⚠️ E há teto POR ARQUIVO, porque tipo admitido não é sinônimo de conhecimento — o que ele corta
+⭑ **Admissão NOMEIA o que entra** (REGRA DO CATÁLOGO). São TRÊS grupos declarados e só um ligado:
+**prosa** entra; **estrutura** (`sql · yml · json · tf`) e **código** ficam declarados e DESLIGADOS.
+⚠️ Ligar qualquer um dos dois não é "admitir mais um tipo" — é redefinir a paisagem do céu.
+
+☠️ **A razão é o EIXO DE MASSA, e ela decide a ontologia inteira.** `chunks` é o que classifica um
+corpo, e schema/config/infra têm mediana uma ordem de grandeza abaixo da prosa. Admiti-los dobra a
+contagem sem trazer massa: metade do céu vira asteroide, o porte "gigante" desaparece e o fenômeno
+de colapso — que dá o pulsar — some junto. As distribuições saem de `make censos`, nunca daqui.
+⚠️ E há teto POR ARQUIVO, porque tipo admitido não é sinônimo de conhecimento: o que ele corta
 primeiro é `src/generated/` e spec de API.
+
+☠️ **`censo-superficies` mede ALCANCE, não população.** Pele que NENHUMA combinação de fatos produz
+é rota morta e reprova; pele que a rota alcança mas que este corpus não veste é CENSO. Reprovar por
+população faz a lei expirar sozinha quando o corpus muda — o defeito que `leis.mjs` registra sobre
+a `lei-favoritos-ui §6`, um fato de mundo gravado como lei. O alcance é medido por PERTURBAÇÃO, no
+idioma da `lei-neo4j`.
+
+⚠️ **Grandeza de POSTO não decide CLASSE.** `dwarf` tinha uma quarta condição por percentil de
+recência, e era a única que zerava a população — a cadeia estreitava até zero no corte de posto. O
+limiar fixo já estava implícito nas outras duas condições (`churn` e `dormant` zerados cobrem 180
+dias). ⚠️ Quem mexer ali confere as TRÊS populações — supernova, anã branca e cometa-extinto — que
+não podem se sobrepor.
 
 ☠️ **O indexador NUNCA escreve na coleção servida.** Ele constrói uma coleção física com carimbo e
 move um APELIDO no fim. Indexar é longo; falhar no meio deixaria o céu servido por metade de um

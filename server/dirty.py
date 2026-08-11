@@ -80,23 +80,46 @@ def root() -> Optional[Path]:
     """A raiz do workspace, ou `None` quando não há uma configurada.
 
     ⚠️ `None` e "árvore limpa" são respostas DIFERENTES, e confundi-las desligava a feature em
-    silêncio: com `AGENT_CWD` vazio (que é o que o `.env.example` traz), `/api/dirty` respondia
+    silêncio: sem raiz de corpus escolhida, `/api/dirty` respondia
     `{}` para sempre — sem anel, sem nota, sem erro, e indistinguível de um repositório sem
     nenhuma alteração. Quem chama precisa poder dizer qual dos dois é.
     """
-    configured = config.get("AGENT_CWD")
+    configured = config.get("CORPUS_ROOT")
     if not configured:
         return None
     base = Path(configured).resolve()
-    return base if (base / ".git").exists() else None
+    # ☠️ **A raiz do corpus pode CONTER repositórios em vez de ser um**, e exigir `.git` nela
+    # desligava os anéis inteiros: a tela anunciava "SEM RAIZ GIT CONFIGURADA" com seis repos
+    # embaixo. Quem decide é a DESCOBERTA, não a suposição — e ter repos dentro basta.
+    return base if (base / ".git").exists() or repositorios(base) else None
+
+
+def repositorios(base: Path) -> list[Path]:
+    """Os repositórios git DESCOBERTOS sob `base` — a resposta a "o que aqui é repo?".
+
+    ⚠️ Ela é MEDIDA a cada chamada, nunca uma lista gravada na configuração. Um repo clonado
+    depois da escolha da pasta apareceria numa lista velha como ausente, e o sintoma seria anel
+    faltando sem nada acusar — o mesmo formato de "declarar não implementa" que esta base paga.
+    """
+    if (base / ".git").exists():
+        return []
+    try:
+        return sorted(f for f in base.iterdir() if f.is_dir() and (f / ".git").exists())
+    except OSError:
+        return []
 
 
 def _roots() -> list[Path]:
-    """A raiz do workspace e seus submódulos, em qualquer profundidade."""
+    """As árvores git sob a raiz: ela própria mais submódulos, ou os repos que ela contém."""
     base = root()
     if not base:
         return []
-    return [base, *_submodules(base)]
+    if (base / ".git").exists():
+        return [base, *_submodules(base)]
+    achados = []
+    for repo in repositorios(base):
+        achados.extend([repo, *_submodules(repo)])
+    return achados
 
 
 def _status(git_root: Path, prefix: str) -> dict[str, str]:
@@ -156,10 +179,13 @@ def table() -> dict[str, str]:
                 return cached
 
         started = time.monotonic()
-        base = _roots()
+        raiz = root()
         states: dict[str, str] = {}
-        for git_root in base:
-            prefix = "" if git_root == base[0] else f"{git_root.relative_to(base[0])}/"
+        for git_root in _roots():
+            # ⚠️ A âncora do prefixo é a RAIZ do corpus, não o primeiro repo da lista: com repos
+            # IRMÃOS, ancorar no primeiro faria os caminhos do segundo saírem relativos ao
+            # primeiro — e `source` é sempre relativo à raiz.
+            prefix = "" if git_root == raiz else f"{git_root.relative_to(raiz)}/"
             states.update(_status(git_root, prefix))
 
         if states:
@@ -177,5 +203,14 @@ def state_of(source: str) -> Optional[str]:
         # Caminho absoluto vem do `--include` do indexador (as memórias do agente), que está
         # fora de qualquer git. Não há "alteração local" a reportar.
         return None
-    relative = source.split("/", 1)[1] if "/" in source else source
-    return table().get(relative)
+    # ⚠️ O `source` INTEIRO é a chave. Ele cortava o primeiro segmento porque a raiz ERA o repo;
+    # com a raiz contendo repos, o primeiro segmento é o NOME DO REPO — e é ele o prefixo com que
+    # `table()` chaveia. Cortá-lo procurava `docs/x.md` numa tabela que guarda `redrex/docs/x.md`.
+    return table().get(source)
+
+
+def esquecer() -> None:
+    """Descarta a tabela de alterações locais em memória. Ver `recency.esquecer`."""
+    global _cache
+    with _lock:
+        _cache = (0.0, None)

@@ -36,7 +36,6 @@
  * `IMPORTS` com outro nome — e a spec é explícita: `MENTIONS` alimenta COMPOSIÇÃO, não estrutura.
  */
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 const BASE = process.env.NEO4J_HTTP || 'http://127.0.0.1:7474';
@@ -70,34 +69,27 @@ async function cypher(statement, parameters = {}) {
 }
 
 /**
- * A raiz de disco do corpus é o VAULT, e o `source` INTEIRO é relativo a ele.
+ * A raiz de disco vem do SERVIDOR, como a coleção — e o `source` INTEIRO é relativo a ela.
  *
- * ☠️ **`AGENT_CWD` não é raiz de leitura** — é onde o `claude -p` opera, e o vault espelha aquele
- * repo junto com todos os outros. Usá-lo como raiz obriga a descartar o primeiro segmento do
- * `source`, que é o NOME DO REPO, e aí `espatial-os/CLAUDE.md` resolve para `devshell/CLAUDE.md`:
- * o arquivo EXISTE, a leitura passa, e o assunto extraído é o de outro documento.
- *
- * ⭑ **A ordem de grandeza é o fato durável, e ela não é "pior": é quase tudo.** Medindo as duas
- * raízes contra os mesmos nós de prosa, o vault lê **100%** e o `AGENT_CWD` lê **~2%** — e dos
- * poucos que ele lê, quase todos são o arquivo TROCADO, não o pedido. Refaça com o `/api/graph` no
- * ar; a contagem do dia não mora neste comentário.
- *
- * É o mesmo defeito que `server/files.py:read_source` já nomeia — *"descartar o primeiro segmento
- * sempre era o defeito"* —, e ele se esconde na coincidência de um repo ter o nome do `AGENT_CWD`.
+ * ☠️ **Refutação medida: não descarte o primeiro segmento do `source`.** Ele é o nome do repo, e
+ * cortá-lo faz `espatial-os/CLAUDE.md` resolver para `<outra-raiz>/CLAUDE.md` — o arquivo existe,
+ * a leitura passa, e o assunto extraído é o de outro documento. Medindo as duas formas contra os
+ * mesmos nós de prosa, a raiz certa lê quase tudo e a errada quase nada — e a maioria do que ela
+ * acerta é o arquivo TROCADO, não o pedido. Refaça com o `/api/graph` no ar; a proporção do dia não
+ * mora neste comentário. É o mesmo defeito que `server/files.py:read_source` nomeia.
  */
-function vault() {
-  const declarado = process.env.VAULT_PATH;
-  const caminho = declarado
-    ? path.resolve(declarado.replace(/^~(?=$|\/)/, os.homedir()))
-    : path.join(os.homedir(), 'vault');
-  if (!fs.existsSync(caminho)) {
+function raizDoCorpus(doServidor) {
+  if (!doServidor) {
     console.error(
-      `\x1b[31mvault não existe em ${caminho}\x1b[0m — é dele que o índice foi construído ` +
-        `(\`CORPUS_PREFIX=vault/\`). Declare \`VAULT_PATH\` ou rode a reindexação que o espelha.`
+      '\x1b[31mo /api/graph não publicou a raiz do corpus\x1b[0m — escolha a pasta em #/storage.'
     );
     process.exit(1);
   }
-  return caminho;
+  if (!fs.existsSync(doServidor)) {
+    console.error(`\x1b[31mraiz do corpus não existe em ${doServidor}\x1b[0m`);
+    process.exit(1);
+  }
+  return doServidor;
 }
 
 // ─────────────────────────────────────────────────────── 1. a prosa
@@ -106,7 +98,7 @@ if (!graph.corpus) {
   console.error('o /api/graph não publicou `corpus` — servidor velho?');
   process.exit(1);
 }
-const RAIZ = vault();
+const RAIZ = raizDoCorpus(graph.corpus.cwd);
 /**
  * O CORPUS que este grafo descreve — ver o mesmo bloco em `vinculos.mjs`. Sem ele, dois céus se
  * somam no mesmo grafo e o `/api/health` conta os dois como um.

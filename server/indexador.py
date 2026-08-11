@@ -209,11 +209,16 @@ def indexar(
     # ☠️ **Apelido e coleção FÍSICA não podem disputar o mesmo nome.** O Qdrant recusa criar um
     # apelido que colida com uma coleção existente, e o erro dele não diz o que fazer. Isto acontece
     # de verdade ao migrar de um índice construído por fora, cujo nome era o da coleção real.
+    # ⚠️ A pergunta é ao REGISTRO GLOBAL de apelidos, nunca ao `/collections/<nome>/aliases`: para
+    # um APELIDO esse endpoint devolve lista VAZIA — o Qdrant resolve o apelido para achar a
+    # coleção e depois lista os apelidos DELA, que não incluem o nome consultado. Medido, e o
+    # efeito era um falso positivo que recusava justamente o REINDEX, o caso normal.
     try:
         existente = net.get_json("qdrant", _url(f"/collections/{apelido}"))
         if (existente.get("result") or {}).get("config") is not None:
-            aliases = net.get_json("qdrant", _url(f"/collections/{apelido}/aliases"))
-            if not (aliases.get("result") or {}).get("aliases"):
+            registro = net.get_json("qdrant", _url("/aliases"))
+            nomes = {a.get("alias_name") for a in (registro.get("result") or {}).get("aliases", [])}
+            if apelido not in nomes:
                 raise ValueError(
                     f"`{apelido}` já existe como COLEÇÃO, não como apelido. Escolha outro nome em "
                     f"QDRANT_COLLECTION, ou apague a coleção antiga — trocar o apelido por cima "
@@ -290,8 +295,22 @@ def indexar(
 
     descarregar()
 
+    # ☠️ **Reconfere antes de trocar.** Se a configuração mudou no meio da corrida, trocar o
+    # apelido CAPTURADO publicaria um céu que ninguém pediu — e a coleção que a tela agora nomeia
+    # nunca teria sido criada. Abortar deixa a física órfã (recolhível), o que é reversível;
+    # publicar o alvo errado não é.
+    if config.get("QDRANT_COLLECTION") != apelido:
+        raise ValueError(
+            f"a coleção mudou durante a indexação ({apelido} → {config.get('QDRANT_COLLECTION')}); "
+            f"nada foi publicado. A física `{fisica}` ficou órfã e pode ser apagada."
+        )
     relatar(Progresso("trocando", detalhe=fisica))
     anterior = trocar_apelido(apelido, fisica)
+    # ☠️ **A coleção ANTERIOR é recolhida, senão cada reindexação deixa um corpus inteiro em disco.**
+    # Ela só sai DEPOIS da troca do apelido: até ali é ela que responde, e apagá-la antes seria
+    # derrubar o céu para publicar o novo.
+    if anterior and anterior != fisica:
+        apagar_colecao(anterior)
 
     return {
         "raiz": str(raiz),

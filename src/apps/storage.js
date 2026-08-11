@@ -99,9 +99,53 @@ let navegando = null;
 let previa = null;
 let ocupado = false;
 
+let relogioDoTrabalho = null;
+
+function pararRelogio() {
+  if (relogioDoTrabalho) {
+    clearInterval(relogioDoTrabalho);
+    relogioDoTrabalho = null;
+  }
+}
+
 async function lerAmbiente() {
-  ambiente = await fetch('/api/setup').then((r) => r.json());
+  try {
+    ambiente = await fetch('/api/setup').then((r) => r.json());
+  } catch (e) {
+    // ⚠️ O relógio é liberado no ERRO também: sem isto um `fetch` que falha deixa um
+    // `setInterval` batendo para sempre contra um servidor que não responde.
+    pararRelogio();
+    erro = e.message;
+    notify();
+    return;
+  }
   notify();
+  /*
+   * ⚠️ Enquanto indexa, a tela RELÊ sozinha. Progresso que só aparece se o operador recarregar a
+   * página é a mesma tela travada com outra roupa.
+   */
+  if (ambiente?.trabalho?.estado === 'correndo') {
+    if (!relogioDoTrabalho) relogioDoTrabalho = setInterval(lerAmbiente, 1200);
+  } else {
+    pararRelogio();
+  }
+}
+
+async function indexarAgora() {
+  // ⚠️ A recusa do servidor (400) é MOSTRADA. Descartar a resposta faria o botão parecer que
+  // funcionou enquanto nada acontece.
+  const r = await fetch('/api/setup/indexar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  if (!r.ok) {
+    const corpo = await r.json().catch(() => ({}));
+    erro = corpo.error || `indexação recusada (${r.status})`;
+    notify();
+    return;
+  }
+  lerAmbiente();
 }
 
 async function navegar(caminho) {
@@ -132,12 +176,37 @@ function registerSetup() {
         const blocks = [];
         const raiz = ambiente.raiz;
 
-        blocks.push(kv('RAIZ', raiz || 'nenhuma escolhida'));
+        /*
+         * ⭑ **O ESTADO VAZIO ENSINA O PRÓXIMO PASSO.** Quem chega não pergunta "o corpus é
+         * confiável?" — pergunta o que fazer agora, e a resposta é UMA.
+         */
         if (!raiz) {
-          blocks.push(el('div', 'widget-hint', 'sem raiz o céu não tem corpus — escolha uma pasta abaixo'));
+          blocks.push(el('div', 'widget-hint', 'PASSO 1 · escolha a pasta que o SpatIA vai conhecer'));
+        } else {
+          blocks.push(kv('RAIZ', raiz));
+          const col = ambiente.chaves?.QDRANT_COLLECTION;
+          if (col?.valor) blocks.push(kv('COLEÇÃO', col.valor));
         }
-        const col = ambiente.chaves?.QDRANT_COLLECTION;
-        if (col?.valor) blocks.push(kv('COLEÇÃO', col.valor));
+
+        const t = ambiente.trabalho || {};
+        if (t.estado === 'correndo') {
+          const pct = t.total ? Math.round((t.feitos / t.total) * 100) : 0;
+          blocks.push(kv('INDEXANDO', `${t.feitos}/${t.total} · ${pct}%`));
+          blocks.push(el('div', 'widget-hint', t.detalhe || ''));
+        } else if (t.estado === 'falhou') {
+          blocks.push(el('div', 'widget-error', `indexação falhou: ${t.erro}`));
+        } else if (t.resumo) {
+          blocks.push(kv('INDEXADO', `${t.resumo.arquivos} arquivos · ${t.resumo.pontos} pontos`));
+        }
+        if (raiz && t.estado !== 'correndo') {
+          blocks.push(
+            button({
+              label: t.resumo ? 'REINDEXAR' : 'INDEXAR AGORA',
+              variant: 'select',
+              onClick: indexarAgora,
+            })
+          );
+        }
         blocks.push(kv('ADMITE', `${ambiente.admite.length} tipos · teto ${ambiente.teto_kb} KB`));
         blocks.push(
           el('div', 'widget-hint', `código-fonte fora (fase 2) · ${ambiente.nunca.length} padrões de segredo nunca entram`)
@@ -173,7 +242,7 @@ function registerSetup() {
             blocks.push(b);
           }
           blocks.push(
-            button({ label: 'PRÉ-VER ESTA PASTA', variant: 'solid', onClick: () => prever(navegando.caminho) })
+            button({ label: 'PRÉ-VER ESTA PASTA', variant: 'select', onClick: () => prever(navegando.caminho) })
           );
         }
 
@@ -189,7 +258,7 @@ function registerSetup() {
             blocks.push(
               button({
                 label: ocupado ? 'APLICANDO…' : 'USAR ESTA PASTA',
-                variant: 'solid',
+                variant: 'select',
                 onClick: async () => {
                   if (ocupado) return;
                   ocupado = true;
@@ -211,7 +280,11 @@ function registerSetup() {
              * operador precisa saber que o céu só muda depois dela. `make indexar` constrói a
              * coleção nova e troca o apelido no fim — até lá, o céu velho continua servindo.
              */
-            blocks.push(el('div', 'widget-hint', 'escolher grava a raiz; o céu só muda depois de `make indexar`'));
+            /*
+             * ⚠️ A tela nomeia a AÇÃO que ela mesma oferece, nunca um comando de terminal: exigir
+             * que o operador conheça o procedimento interno é o Princípio 3 invertido.
+             */
+            blocks.push(el('div', 'widget-hint', 'escolher grava a raiz — depois é só INDEXAR'));
           }
         }
         view.set(blocks);

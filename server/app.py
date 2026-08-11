@@ -53,6 +53,7 @@ ROUTE_LABELS = {
     "/api/setup": "setup",
     "/api/setup/dirs": "setup-dirs",
     "/api/setup/prever": "setup-prever",
+    "/api/setup/indexar": "setup-indexar",
     "/metrics": "metrics",
 }
 
@@ -88,12 +89,12 @@ class Handler(BaseHTTPRequestHandler):
             self._hook(parsed.path[len("/hooks/"):].strip("/"))
             return
 
-        if parsed.path not in ("/api/client", "/api/config", "/api/setup", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate", "/api/thread"):
+        if parsed.path not in ("/api/client", "/api/config", "/api/setup", "/api/setup/indexar", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/gate", "/api/thread"):
             self._json({"error": "rota não encontrada"}, status=404)
             return
         # Ação com efeito (muda permissão) ou com custo (sintetiza áudio): mesma barreira
         # do /api/ask, para que outra página não use este servidor como serviço próprio.
-        if parsed.path in ("/api/config", "/api/setup", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/thread") and not self._same_site():
+        if parsed.path in ("/api/config", "/api/setup", "/api/setup/indexar", "/api/tts", "/api/speech", "/api/attach", "/api/kill", "/api/oauth/start", "/api/oauth/forget", "/api/thread") and not self._same_site():
             metrics.crosssite_refused.inc()
             journal.denial("cross-site", parsed.path, f"Sec-Fetch-Site={self.headers.get('Sec-Fetch-Site')}")
             self._json({"error": "requisição cross-site recusada"}, status=403)
@@ -126,6 +127,12 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/config":
                 permissions.update(payload)
                 self._json(permissions.describe())
+                return
+            if parsed.path == "/api/setup/indexar":
+                try:
+                    self._json(setup_ambiente.indexar_em_fundo())
+                except ValueError as e:
+                    self._json({"error": str(e)}, status=400)
                 return
             if parsed.path == "/api/setup":
                 # ⚠️ A recusa vem do próprio `config`, com a chave NOMEADA — a tela mostra o que
@@ -318,6 +325,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(setup_ambiente.descrever())
             elif route == "/api/setup/dirs":
                 self._json(setup_ambiente.listar(_first(query, "path")))
+            elif route == "/api/setup/indexar":
+                self._json(setup_ambiente.progresso())
             elif route == "/api/setup/prever":
                 try:
                     self._json(setup_ambiente.prever(_first(query, "path") or ""))
@@ -449,7 +458,7 @@ class Handler(BaseHTTPRequestHandler):
             "embed_ready": embed.is_ready(),
             "providers": websearch.availability(),
             "claude_cli": bool(brain.available()),
-            "agent_cwd": config.get("AGENT_CWD") or str(config.ROOT),
+            "agent_cwd": config.get("CORPUS_ROOT") or str(config.ROOT),
             # O teto viaja no health porque a pergunta "posso perguntar?" é de saúde, não de
             # diário: quem abre a tela precisa ver a folga ANTES de gastar, não depois.
             "budget": budget.status(),

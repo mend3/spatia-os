@@ -50,7 +50,7 @@ _RAIZ = re.compile(r"^[A-Za-z0-9]")
 
 
 def _workspace_root() -> Optional[Path]:
-    root = config.get("AGENT_CWD")
+    root = config.get("CORPUS_ROOT")
     return Path(root).resolve() if root else None
 
 
@@ -63,7 +63,10 @@ def _absolute(source: str) -> Optional[Path]:
     if source.startswith("/"):
         return Path(source)
     root = _workspace_root()
-    return (root.parent / source) if root else None
+    # ⚠️ Sob a RAIZ, não sob o pai dela: `source` é relativo à raiz do corpus. Ancorar no pai
+    # errava TODOS os caminhos, e o `except OSError: continue` abaixo engolia a falha inteira —
+    # nenhum compose recebia `services`, a nebulosa sumia, e nada acusava.
+    return (root / source) if root else None
 
 
 def parse(text: str) -> list[str]:
@@ -93,6 +96,7 @@ def annotate(nodes: list[dict]) -> None:
     """
     lidos = 0
     total = 0
+    ilegiveis = 0
     for node in nodes:
         if node.get("kind") != "compose" or node.get("type") != "file":
             continue
@@ -102,8 +106,10 @@ def annotate(nodes: list[dict]) -> None:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
-            # Arquivo indexado que sumiu do disco. Acontece entre reindexações e não é erro:
-            # a nebulosa fica sem serviço, como era antes deste módulo.
+            # ☠️ CONTADO, nunca só pulado. Arquivo que sumiu entre reindexações não é erro — mas
+            # raiz errada produz o MESMO `continue` para o corpus inteiro, e sem o contador os
+            # dois casos ficam idênticos: nebulosa sem serviço, nenhum log, nada acusando.
+            ilegiveis += 1
             continue
         names = parse(text)
         lidos += 1
@@ -111,5 +117,9 @@ def annotate(nodes: list[dict]) -> None:
             continue
         node["services"] = names[:MAX_SERVICES]
         total += len(node["services"])
-    if lidos:
-        logger.info(f"serviços: {total} em {lidos} arquivos compose")
+    if lidos or ilegiveis:
+        logger.info(f"serviços: {total} em {lidos} arquivos compose · {ilegiveis} ilegíveis")
+    if ilegiveis and not lidos:
+        logger.warning(
+            f"NENHUM dos {ilegiveis} composes do céu existe sob a raiz — raiz errada, não corpus vazio"
+        )

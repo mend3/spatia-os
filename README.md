@@ -475,14 +475,14 @@ A configuração mora em **três lugares, com donos diferentes**, e a divisão n
 |---|---|---|
 | `.env` | endereços, chaves, tetos — o que é da MÁQUINA | muda por instalação, não por uso |
 | `.cache/config.json` | permissões, skills, agentes | é editado na UI e tem de sobreviver ao reload |
-| `config/*.json` e `AGENT_CWD/.claude/spatia/` | unidades e capacidades declaradas | é política, e política se lê num arquivo versionável |
+| `config/*.json` e `CORPUS_ROOT/.claude/spatia/` | unidades e capacidades declaradas | é política, e política se lê num arquivo versionável |
 
 ### `.env` — o que é da máquina
 
 ```ini
 # ---------- cérebro ----------
 BRAIN=claude                 # ou `ollama`: responde offline e de graça, sem ferramenta nenhuma
-AGENT_CWD=                   # onde o agente enxerga arquivos. Vazio = só este projeto
+CORPUS_ROOT=                 # a pasta que o SpatIA indexa e serve. O normal é escolhê-la NA TELA
 AGENT_MODEL=                 # vazio = default do CLI
 AGENT_MAX_TURNS=10
 AGENT_MCP_CONFIG=            # caminho de um --mcp-config; entra com --strict-mcp-config
@@ -503,7 +503,6 @@ BRAVE_API_KEY=               # satélite apagado até a chave existir
 SEARXNG_URL=http://localhost:8888
 ESPATIAL_HOST=127.0.0.1
 ESPATIAL_PORT=8787
-FILE_ROOTS=                  # raízes extras que o inspetor pode ler, separadas por `:`
 
 # ---------- portas de fora (opcional) ----------
 WEBHOOK_SECRET_GITHUB=       # SEM segredo o endpoint NÃO SOBE — devolve 401
@@ -545,7 +544,7 @@ assumir obrigatoriedade por omissão transformaria toda instalação enxuta num 
 Qdrant nem Ollama, e um painel que finge poder é a mesma classe de erro do interruptor que
 não controla.
 
-### `AGENT_CWD/.claude/spatia/capabilities.json` — capacidade, não lista de nomes
+### `CORPUS_ROOT/.claude/spatia/capabilities.json` — capacidade, não lista de nomes
 
 Uma lista de nomes negados não é autoridade: `Read` com a raiz no projeto e `Read` com a raiz
 no workspace inteiro são a mesma marca de seleção e duas autoridades separadas por ordens de
@@ -553,7 +552,7 @@ magnitude. Copie de `config/capabilities.example.json`:
 
 ```json
 [ { "id": "fs.read", "verb": "Read|Glob|Grep",
-    "scope": ["$AGENT_CWD"], "limit": { "calls_per_run": 40 } },
+    "scope": ["$CORPUS_ROOT"], "limit": { "calls_per_run": 40 } },
   { "id": "net.fetch", "verb": "WebFetch|WebSearch",
     "scope": [], "limit": { "calls_per_run": 5 } } ]
 ```
@@ -563,9 +562,9 @@ sempre permite seria uma requisição por chamada de ferramenta sem decisão em 
 um hook `PreToolUse` consulta `/api/gate` ANTES de cada chamada, e o que não está nomeado não
 passa.
 
-Ele mora no `.claude/` do `AGENT_CWD` porque é lá que as configurações do agente já moram
+Ele mora no `.claude/` da RAIZ DO CORPUS porque é lá que as configurações do agente já moram
 (skills, agentes, settings) — e porque a política é sobre o que o agente pode fazer NAQUELE
-workspace: trocar `AGENT_CWD` troca a política junto.
+workspace: trocar a raiz troca a política junto.
 
 ⚠️ **O portão depende de `jq` e `curl` no PATH.** Sem eles ele fica inerte **em silêncio** —
 `#/security` reporta `missing_tools` e o efeito vira "DECLARADO E NÃO APLICADO".
@@ -619,14 +618,20 @@ tipos gerados e specs de máquina.
 lockfiles). O piso de SEGREDO não: `.env`, `*.pem`, `id_rsa*`, `.ssh`. Indexar um segredo não é um
 arquivo a mais — é conteúdo dentro do vetor, recuperável por busca e citável numa resposta.
 
-Trocar de raiz derruba o que descrevia o corpus velho: a coleção é reconstruída, o grafo e os
+Trocar de raiz derruba o que descreve o corpus anterior: a coleção é reconstruída, o grafo e os
 snapshots são invalidados. ⭑ **A coleção servida nunca é escrita:** a nova é construída ao lado e um
 apelido é movido no fim, então uma indexação interrompida não degrada o céu que está no ar.
 
 ```
-make serve                      # e escolha a pasta na tela
-RAIZ=/caminho make reconfigurar # ou pela linha de comando
+make serve      # e pronto: escolha a pasta na tela e clique INDEXAR
 ```
+
+⭑ **Não há segundo passo no terminal.** Escolher a pasta e indexar acontecem na tela, com progresso
+à vista — se o app pedisse um comando para que a escolha tivesse efeito, ele estaria exigindo que
+você conhecesse o procedimento interno dele.
+
+⚠️ **Uma variável, e ela é a pasta.** `CORPUS_ROOT` é a única raiz — o agente opera nela, o inspetor
+serve a partir dela, o índice sai dela.
 
 ### Ollama — cérebro offline
 
@@ -764,7 +769,7 @@ controle que não controla. O painel mostra o comando resultante no pé, como pr
 | todas as skills desligadas | `--disable-slash-commands` |
 
 O catálogo é **descoberto** em `.claude/agents/*.md` e `.claude/skills/*/SKILL.md` do
-`AGENT_CWD`, lendo o frontmatter. Skill nova no repo aparece no painel sozinha.
+a raiz do corpus, lendo o frontmatter. Skill nova no repo aparece no painel sozinha.
 
 ⚠️ Um acoplamento que não dá para esconder: skills e agentes do projeto só existem para a
 sessão se as settings do projeto forem carregadas — e isso traz os **hooks do projeto** junto.

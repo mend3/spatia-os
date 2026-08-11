@@ -910,24 +910,21 @@ export function createGraph() {
   }
 
   /**
-   * Indexa o nó pelo caminho com que o `/api/dirty` fala.
+   * Indexa o nó pela MESMA chave com que o `/api/dirty` fala: o `source` inteiro.
    *
-   * ⚠️ Esta regra é a INVERSA de `dirty.state_of` no servidor, e as duas têm que continuar
-   * concordando: lá o primeiro segmento do `source` (o repo) é descartado para consultar a
-   * tabela do `git status`, que é relativa à raiz do workspace. Aqui ele é descartado para
-   * construir a mesma chave. Mudar o formato de `source` de um lado sem o outro não quebra
-   * nada visivelmente — só apaga todos os anéis, em silêncio.
+   * ☠️ **As duas pontas têm de usar a mesma convenção, e divergirem não produz erro — apaga TODOS
+   * os anéis em silêncio.** Medido nesta base: com o cliente cortando o primeiro segmento e o
+   * servidor chaveando pelo source inteiro, casavam ZERO chaves; a tela ainda anunciava dezenas de
+   * arquivos "FORA DO ÍNDICE" sobre arquivos que estavam no índice.
    *
-   * `source` absoluto fica de fora pelo mesmo motivo que lá: são as memórias do agente, que
-   * não moram em git nenhum e portanto não têm alteração local a reportar.
+   * `source` absoluto fica de fora pelo mesmo motivo que lá: são as memórias do agente, que não
+   * moram em git nenhum e portanto não têm alteração local a reportar.
    */
   function registerPath(node, i) {
     if (node.type !== 'file') return;
     const source = node.source || '';
     if (!source || source.startsWith('/')) return;
-    const slash = source.indexOf('/');
-    if (slash < 0) return;
-    byPath.set(source.slice(slash + 1), i);
+    byPath.set(source, i);
   }
 
   /*

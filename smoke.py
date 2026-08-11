@@ -94,6 +94,9 @@ def main() -> int:
         "fase 2, nomeado e não admitido",
     )
     checa("o piso de segredo é publicado", ".env" in estado.get("nunca", []), "")
+    # ☠️ UMA raiz. Cada nome a mais é um lugar onde ela discorda de si mesma.
+    for extinta in ("AGENT_CWD", "FILE_ROOTS", "FILES_ROOT"):
+        checa(f"`{extinta}` não é oferecida pela tela", extinta not in chaves, "")
 
     # ── 2. o seletor de diretório é do SERVIDOR
     status, dirs = pedir("GET", "/api/setup/dirs")
@@ -121,6 +124,17 @@ def main() -> int:
     checa("GET /api/setup/prever conta antes de indexar", status == 200 and previa.get("admitidos", 0) > 0,
           f"{previa.get('admitidos')} admitidos · {previa.get('mb')} MB")
     checa("e separa o que foi descartado", "descartados" in previa, f"{previa.get('descartados')} fora")
+
+    # ── 3b. indexar sem sair da tela
+    status, trab = pedir("GET", "/api/setup/indexar")
+    checa("GET /api/setup/indexar diz o estado", status == 200 and "estado" in trab, str(trab.get("estado")))
+    checa(
+        "e o estado é LEGÍVEL (não um booleano mudo)",
+        trab.get("estado") in ("parado", "correndo", "pronto", "falhou"),
+        str(trab.get("estado")),
+    )
+    # ⭑ Escolher a pasta e indexar sem abrir terminal — o caminho feliz inteiro pela tela.
+    checa("o setup publica o trabalho junto do estado", "trabalho" in estado, "")
 
     # ── 4. a escrita atravessa, e a recusa NOMEIA a chave
     antes = chaves.get("CORPUS_EXCLUDES", {}).get("valor", "")

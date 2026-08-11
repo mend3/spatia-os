@@ -359,13 +359,14 @@ def files_root(payload: dict) -> str:
 
     O corpus tem mais de uma raiz (o workspace e as memórias do agente), então não existe
     prefixo comum — e abrir na raiz vazia mostra duas pastas em vez do conteúdo. O padrão é a
-    raiz com mais arquivos, que é o workspace; `FILES_ROOT` sobrescreve.
+    raiz com mais arquivos.
 
     Derivado do dado, não fixo no código: se o corpus mudar, o ponto de partida acompanha.
+
+    ⚠️ **O que ele devolve é o NOME de um repo do céu, nunca um caminho de disco.** `CORPUS_ROOT` é
+    absoluto e não serve aqui: pô-lo como sobreposição faz a mesma chave carregar dois tipos, e o
+    app de Arquivos abre num diretório que não existe na árvore que ele desenha.
     """
-    override = config.get("FILES_ROOT")
-    if override:
-        return override
     repos = (payload.get("stats") or {}).get("repos") or {}
     # `key=lambda`, e não `key=repos.get`: `dict.get` é sobrecarregado e pode devolver `None`, o
     # que não satisfaz o `SupportsRichComparison` que o `max` exige — o checador de tipos reclama
@@ -419,7 +420,13 @@ def _hierarchy(files: list[dict]) -> tuple[list[dict], list[list[str]]]:
     dir_children: dict[str, int] = {}
     for node in files:
         dir_children[node["dir"]] = dir_children.get(node["dir"], 0) + 1
-    keep_dirs = {path for path, count in dir_children.items() if count > 1 and path}
+    # ☠️ **Caminho de diretório SEM barra é o próprio repo, e vira hub DUPLICADO.** Um arquivo na
+    # raiz do repositório tem `dir` igual ao primeiro segmento do `source`, que é exatamente o que
+    # `repo_of` devolve — então `redrex/README.md` fabricava `dir:redrex` ao lado de `repo:redrex`:
+    # dois corpos, mesmo nome, mesma coisa, no mesmo céu. Quem mora ali pendura direto no repo.
+    keep_dirs = {
+        path for path, count in dir_children.items() if count > 1 and path and "/" in path
+    }
 
     hubs: list[dict] = []
     for repo, weight in sorted(repo_weight.items()):
@@ -484,7 +491,7 @@ def _corpus() -> dict:
         # viaja como string, nunca omitido. Chave ausente devolveria o script ao `??` que o
         # defeito original tinha.
         "prefix": config.get("CORPUS_PREFIX"),
-        "cwd": config.get("AGENT_CWD") or str(config.ROOT),
+        "cwd": config.get("CORPUS_ROOT") or str(config.ROOT),
     }
 
 
@@ -508,7 +515,7 @@ def load(force: bool = False) -> dict:
     # enquanto `recency._tables()` calculava 1,0 para os mesmos caminhos, no mesmo instante.
     fingerprint = (
         f"{SCHEMA_VERSION}:{config.get('QDRANT_COLLECTION')}:{collection['points']}"
-        f":{config.get('CORPUS_PREFIX')}:{config.get('AGENT_CWD')}"
+        f":{config.get('CORPUS_PREFIX')}:{config.get('CORPUS_ROOT')}"
     )
 
     with _lock:

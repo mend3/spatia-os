@@ -181,7 +181,7 @@ def _executar(prompt: str, origin: str, resume: Optional[str]) -> Generator[dict
 
     process = subprocess.Popen(
         argv,
-        cwd=config.get("AGENT_CWD") or str(config.ROOT),
+        cwd=config.get("CORPUS_ROOT") or str(config.ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

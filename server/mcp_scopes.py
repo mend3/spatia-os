@@ -45,7 +45,7 @@ SCOPE_LABELS = {
 
 
 def _agent_root() -> Path:
-    return Path(config.get("AGENT_CWD") or config.ROOT)
+    return Path(config.get("CORPUS_ROOT") or config.ROOT)
 
 
 def _read_json(path: Path) -> dict:

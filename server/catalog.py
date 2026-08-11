@@ -41,7 +41,7 @@ def _frontmatter(path: Path) -> dict:
 
 
 def _root() -> Path:
-    return Path(config.get("AGENT_CWD") or config.ROOT)
+    return Path(config.get("CORPUS_ROOT") or config.ROOT)
 
 
 def agents() -> list[dict]:

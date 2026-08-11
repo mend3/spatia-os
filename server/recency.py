@@ -56,7 +56,7 @@ _cache: tuple[float, tuple[dict, dict, dict, dict]] = (0.0, ({}, {}, {}, {}))
 
 
 def _workspace_root() -> Optional[Path]:
-    root = config.get("AGENT_CWD")
+    root = config.get("CORPUS_ROOT")
     return Path(root).resolve() if root else None
 
 
@@ -67,7 +67,25 @@ def _git_roots(root: Path) -> list[Path]:
     entrada de gitlink, nunca como os arquivos dentro dele. Sem uma passada por submódulo, todo
     arquivo de `oracle`, `daimon` e `opensrc` ficaria sem data.
     """
-    roots = [root]
+    roots = [root] if (root / ".git").exists() else []
+    if not roots:
+        # ☠️ **A raiz do corpus pode CONTER repositórios em vez de ser um.** Sem este ramo
+        # `changed_at` volta `None` para o corpus INTEIRO, e recência é o RAIO ORBITAL desta cena:
+        # o céu colapsa numa casca só, sem erro em lugar nenhum.
+        try:
+            filhos = sorted(p for p in root.iterdir() if p.is_dir())
+        except OSError as e:
+            # Raiz configurada que sumiu ou sem permissão: sem árvore não há data a derivar, e
+            # explodir aqui derrubaria a montagem inteira da topologia.
+            logger.warning(f"não li a raiz {root}: {e}")
+            return []
+        for filho in filhos:
+            if (filho / ".git").exists():
+                # ⚠️ **Os submódulos dos repos IRMÃOS também entram.** Sem esta recursão eles caem
+                # no reserva de mtime — que reflete a hora do CLONE, não a história — e a recência
+                # deles vira uma data que não significa nada.
+                roots.extend(_git_roots(filho))
+        return roots
     try:
         out = subprocess.run(
             ["git", "-C", str(root), "config", "--file", ".gitmodules", "--get-regexp", r"\.path$"],
@@ -198,7 +216,7 @@ def _tables() -> tuple[dict[str, int], dict[str, int], dict[str, int], dict[str,
             return cached
 
         root = _workspace_root()
-        if not root or not (root / ".git").exists():
+        if not root or not _git_roots(root):
             _cache = (time.monotonic(), ({}, {}, {}, {}))
             return _cache[1]
 
@@ -264,8 +282,14 @@ def dormant_churn_of(source: str) -> int:
 
 
 def _git_key(source: str) -> str:
-    """O caminho como o git o conhece: sem o primeiro segmento, que é o nome da raiz."""
-    return source.split("/", 1)[1] if "/" in source else source
+    """O caminho como as tabelas o conhecem: o `source` INTEIRO.
+
+    ⚠️ Ele cortava o primeiro segmento, porque a raiz ERA o repo e o git falava relativo a ela.
+    Com a raiz contendo repos, o primeiro segmento é o NOME DO REPO — e é justamente ele o
+    prefixo com que `_tables` chaveia. Cortá-lo procurava `docs/x.md` numa tabela que guarda
+    `redrex/docs/x.md`, e devolvia `None` para tudo.
+    """
+    return source
 
 
 def changed_at(source: str) -> Optional[int]:
@@ -278,16 +302,17 @@ def changed_at(source: str) -> Optional[int]:
     root = _workspace_root()
 
     if not source.startswith("/") and root:
-        # Descarta o primeiro segmento (o nome da raiz) para casar com o path do git.
-        relative = source.split("/", 1)[1] if "/" in source else source
-        found = stamps.get(relative)
+        found = stamps.get(_git_key(source))
         if found:
             return found
 
     # Fallback por disco. Vale para o que está fora do git (as memórias do agente) e para
     # arquivo não commitado. É pior que git — num clone recém-feito o mtime é a hora do clone —
     # mas é melhor que nada, e só entra quando o git não respondeu.
-    path = source if source.startswith("/") else (str(root.parent / source) if root else source)
+    # ⚠️ Sob a RAIZ, não sob o pai dela: `source` é relativo à raiz do corpus desde que o
+    # indexador passou a construí-lo a partir dela. Procurar no pai errava todos os caminhos e o
+    # fallback nunca respondia — o segundo motivo de `changed_at` sair vazio no corpus inteiro.
+    path = source if source.startswith("/") else (str(root / source) if root else source)
     try:
         return int(os.path.getmtime(path))
     except OSError:
@@ -390,11 +415,20 @@ def _annotate_dwarf(nodes: list[dict]) -> None:
     for node in nodes:
         if node.get("type") != "file":
             continue
+        # ☠️ **`recency` é POSTO, e posto não decide CLASSE.** Ele saía daqui como quarta condição
+        # (`recency <= 0.25`) e era a única que zerava a população: medido, a cadeia estreitava
+        # 201 → 10 → **0**, e o corte final era o percentil. É a armadilha que o `CLAUDE.md` nomeia
+        # — grandeza de posto encolhe conforme o corpus cresce, porque a classe vive na cauda e a
+        # cauda ocupa fatia cada vez menor.
+        #
+        # ⭑ **E o limiar fixo já estava aqui, implícito:** `churn == 0` cobre 30 dias e
+        # `dormant == 0` cobre de 30 a 180. As duas juntas significam "sem toque em 180 dias" — que
+        # é exatamente *"não se move há muito"*, ancorado em DIAS e não em posição na fila. A
+        # condição de posto não acrescentava informação; ela só apagava a população.
         node["dwarf"] = int(
             node.get("chunks", 0) >= DWARF_MASS_FLOOR
             and not node.get("churn")
             and not node.get("dormant", 0) > 0
-            and node.get("recency", 0.5) <= DWARF_RECENCY
         )
 
 
@@ -450,3 +484,15 @@ def _annotate_supernova(nodes: list[dict]) -> None:
         # Churn da janela antiga, cru. Quem decide o que é "alto" é o cliente, com o mesmo
         # critério relativo ao pico que a supernova usa — normalizar aqui exigiria duas passadas.
         node["dormant"] = dormant_churn_of(node.get("source", ""))
+
+
+def esquecer() -> None:
+    """Descarta as tabelas de git em memória.
+
+    ☠️ **Trocar a raiz do corpus sem isto serve fatos da ÁRVORE ANTIGA por até 15 minutos** — o TTL
+    é de 900 s, e recência é o raio orbital: o céu novo nasceria com as distâncias do céu velho, sem
+    erro e sem nada acusando. Quem troca a raiz chama isto.
+    """
+    global _cache
+    with _lock:
+        _cache = (0.0, ({}, {}, {}, {}))
