@@ -36,6 +36,7 @@
  * `IMPORTS` com outro nome — e a spec é explícita: `MENTIONS` alimenta COMPOSIÇÃO, não estrutura.
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const BASE = process.env.NEO4J_HTTP || 'http://127.0.0.1:7474';
@@ -68,20 +69,35 @@ async function cypher(statement, parameters = {}) {
   return r.json();
 }
 
-/** Ver `citacoes.mjs`: `AGENT_CWD` do perfil aponta para uma árvore que não existe mais. */
-function raizDoDisco(doServidor) {
-  const doAmbiente = process.env.AGENT_CWD;
-  // ⚠️ E ele só vence se APONTAR PARA O MESMO LUGAR que o servidor, ou se o servidor não souber.
-  // Uma árvore diferente da que montou o céu não mede outro corpus: mede o vazio, porque nenhum
-  // caminho casa. Medido: com `AGENT_CWD=devshell-one` exportado no perfil, 0 de 188 arquivos.
-  if (doAmbiente && fs.existsSync(doAmbiente) && (!doServidor || doAmbiente === doServidor))
-    return doAmbiente;
-  if (doAmbiente) {
-    console.warn(
-      `\x1b[33m⚠ AGENT_CWD=${doAmbiente} não existe no disco — usando a raiz que o servidor publica\x1b[0m`
+/**
+ * A raiz de disco do corpus é o VAULT, e o `source` INTEIRO é relativo a ele.
+ *
+ * ☠️ **`AGENT_CWD` não é raiz de leitura** — é onde o `claude -p` opera, e o vault espelha aquele
+ * repo junto com todos os outros. Usá-lo como raiz obriga a descartar o primeiro segmento do
+ * `source`, que é o NOME DO REPO, e aí `espatial-os/CLAUDE.md` resolve para `devshell/CLAUDE.md`:
+ * o arquivo EXISTE, a leitura passa, e o assunto extraído é o de outro documento.
+ *
+ * ⭑ **A ordem de grandeza é o fato durável, e ela não é "pior": é quase tudo.** Medindo as duas
+ * raízes contra os mesmos nós de prosa, o vault lê **100%** e o `AGENT_CWD` lê **~2%** — e dos
+ * poucos que ele lê, quase todos são o arquivo TROCADO, não o pedido. Refaça com o `/api/graph` no
+ * ar; a contagem do dia não mora neste comentário.
+ *
+ * É o mesmo defeito que `server/files.py:read_source` já nomeia — *"descartar o primeiro segmento
+ * sempre era o defeito"* —, e ele se esconde na coincidência de um repo ter o nome do `AGENT_CWD`.
+ */
+function vault() {
+  const declarado = process.env.VAULT_PATH;
+  const caminho = declarado
+    ? path.resolve(declarado.replace(/^~(?=$|\/)/, os.homedir()))
+    : path.join(os.homedir(), 'vault');
+  if (!fs.existsSync(caminho)) {
+    console.error(
+      `\x1b[31mvault não existe em ${caminho}\x1b[0m — é dele que o índice foi construído ` +
+        `(\`CORPUS_PREFIX=vault/\`). Declare \`VAULT_PATH\` ou rode a reindexação que o espelha.`
     );
+    process.exit(1);
   }
-  return doServidor;
+  return caminho;
 }
 
 // ─────────────────────────────────────────────────────── 1. a prosa
@@ -90,13 +106,12 @@ if (!graph.corpus) {
   console.error('o /api/graph não publicou `corpus` — servidor velho?');
   process.exit(1);
 }
-const RAIZ = raizDoDisco(graph.corpus.cwd);
+const RAIZ = vault();
 /**
  * O CORPUS que este grafo descreve — ver o mesmo bloco em `vinculos.mjs`. Sem ele, dois céus se
  * somam no mesmo grafo e o `/api/health` conta os dois como um.
  */
 const CORPUS = graph.corpus.collection;
-const semRepo = (source) => source.slice(source.indexOf('/') + 1);
 const prosa = graph.nodes
   .filter((n) => n.type === 'file' && /\.(md|mdc|txt)$/i.test(n.source))
   .sort((a, b) => (b.chunks || 0) - (a.chunks || 0))
@@ -198,6 +213,8 @@ const REEXTRAIR = process.argv.includes('--reextrair');
 const conceitos = new Map();
 const porCorpo = new Map();
 let semResposta = 0;
+/** Arquivo que o céu indexa e o disco não tem sob a RAIZ — a testemunha da raiz errada. */
+let semArquivo = 0;
 
 let doCache = null;
 if (!REEXTRAIR) {
@@ -218,8 +235,9 @@ if (doCache) {
   for (const [i, node] of prosa.entries()) {
     let texto;
     try {
-      texto = fs.readFileSync(path.join(RAIZ, semRepo(node.source)), 'utf-8').slice(0, JANELA_CHARS);
+      texto = fs.readFileSync(path.join(RAIZ, node.source), 'utf-8').slice(0, JANELA_CHARS);
     } catch {
+      semArquivo++;
       continue;
     }
     const lista = await extrair(texto);
@@ -228,6 +246,26 @@ if (doCache) {
     process.stdout.write(`\r  extraindo: ${i + 1}/${prosa.length}`);
   }
   console.log('');
+  /*
+   * ☠️ **O `continue` acima era MUDO, e é assim que a raiz errada passa por extração pobre.** Com
+   * a raiz no `AGENT_CWD` ele engoliu 331 dos 337 arquivos e a saída seguiu adiante anunciando
+   * "extraindo: 337/337" — o cabeçalho AFIRMA e a carga está vazia, no formato que esta base já
+   * paga caro. Quem lê menos da metade do céu não extraiu pouco: leu OUTRO corpus, e escrever o
+   * cache aí sobrescreve uma extração boa por uma que descreve outra árvore.
+   */
+  if (semArquivo) {
+    const grave = semArquivo > prosa.length / 2;
+    console[grave ? 'error' : 'warn'](
+      `${grave ? '\x1b[31m' : '\x1b[33m⚠ '}${semArquivo} de ${prosa.length} arquivos não existem ` +
+        `sob ${RAIZ}\x1b[0m`
+    );
+    if (grave) {
+      console.error(
+        '  a raiz não é a árvore que montou o céu — nada extraído, e o cache fica como estava.'
+      );
+      process.exit(1);
+    }
+  }
   fs.mkdirSync('.cache', { recursive: true });
   fs.writeFileSync(
     CACHE,
