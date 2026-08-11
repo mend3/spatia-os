@@ -1392,7 +1392,7 @@ export function createUniverse() {
            * consertada como caso particular. Derivar do mesmo lugar é o que impede a quarta.
            *
            * `NENHUMA` cai na CLASSE, e ali ela é a resposta certa: sem corpo desenhado não há o que
-           * nomear pela pele (o asteroide sem pele é o caso vivo).
+           * nomear pela pele (agregado é o caso vivo — fora de `FAMILIA.CORPO` nada roteia pele).
            */
           tipos.set(f.source, NOME_DA_SUPERFICIE[identidade.pele] ?? classe.tipo.toUpperCase());
         }

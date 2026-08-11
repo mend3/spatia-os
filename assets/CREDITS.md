@@ -92,21 +92,40 @@ shasum -a 256 assets/textures/*.jpg
 
 ---
 
+### `3d/hubble-space-telescope.glb` — a malha da sonda
+
+| | |
+|---|---|
+| obra | modelo 3D do Telescópio Espacial Hubble |
+| autor | **NASA** — [NASA 3D Resources](https://science.nasa.gov/3d-resources/) |
+| licença | sem copyright, sob as [Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) — valem as ressalvas da **Fonte 2**, abaixo |
+| modificações | convertido de `.3ds` para glTF binário no Blender (glTF I/O v4.2.57): malha comprimida com **DRACO**, texturas reencodadas em WebP com reserva PNG |
+| consumidor | `src/space/sonda.js` |
+
+**Atribuição na publicação:** *Modelo 3D do Hubble por NASA (NASA 3D Resources).*
+
+⚠️ **A conversão impede a prova por hash contra o original** — o `sha256` abaixo identifica ESTE
+arquivo, não o da NASA. O que corrobora a origem está gravado no próprio cabeçalho glTF: o nó
+`<3DSRoot>` (importação de um `.3ds`, o formato do acervo) e os materiais `hbltel_*`, a
+nomenclatura do modelo Hubble da NASA.
+
+`e5ba4de15c7d359ac8fa1ab7e286aff42dec09c0fadae3db99252587f39fa384` · 1 694 988 bytes —
+reconferir: `shasum -a 256 assets/3d/hubble-space-telescope.glb`
+
 ## ☠️ Pendências
 
-### `interstellar.mp3` — destinado a virar a música de fundo (**T-32**)
+### Música de fundo (**T-32**) — o canal é tarefa; a faixa NÃO está na árvore
 
-10,15 MB, sem consumidor hoje: nada em `src/`, `server/` ou nos dois HTML o carrega. O motor de
-áudio é síntese procedural, zero asset — então música de fundo é **canal novo**, não substituição.
+O motor de áudio é síntese procedural, zero asset — música de fundo é **canal novo**, não
+substituição. A faixa candidata anterior (`interstellar.mp3`, vinda de
+`github.com/SoumyaEXE/3d-Solar-System-ThreeJS`) **saiu da árvore**, e a razão é durável: a licença
+dela não se resolve por inspeção — os metadados foram removidos (sobraram `TYER 2025` e o encoder,
+sem título, artista ou álbum) e a origem não declara licença nenhuma. Diferente do `sun.jpg`, não
+há um autor a rastrear por hash: não dá para provar o que a faixa é, e faixa que não se prova não
+se publica.
 
-☠️ **A licença é a parte que falta, e ela não se resolve por inspeção.** Os metadados foram
-REMOVIDOS: sobraram `TYER 2025` e o encoder, sem título, artista ou álbum. O que resta é o nome do
-arquivo e a origem — `github.com/SoumyaEXE/3d-Solar-System-ThreeJS`, que **não declara licença
-nenhuma**. Diferente do `sun.jpg`, não há um autor a rastrear por hash: não dá para provar o que a
-faixa é, e é exatamente por isso que ela não pode ser publicada assim.
-
-⚠️ **Uso local ≠ publicação.** Rodar na máquina de quem desenvolve não é distribuir. O bloqueio é a
-publicação — e ele vale para o repositório, não só para o build.
+⚠️ **O blob segue no HISTÓRICO do git.** Remover da árvore não remove do passado — publicar o
+repositório expõe o histórico junto, e apagar de lá é reescrita de história, decisão de quem opera.
 
 ⭑ **As saídas, em ordem de custo:**
 1. **Trocar a faixa** por uma de licença explícita. Ambiente/espacial com uso comercial permitido

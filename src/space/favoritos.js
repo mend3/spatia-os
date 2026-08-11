@@ -89,16 +89,15 @@ export const CONTEXTO = Object.freeze({
  * O que a marca ACEITA, por contexto. Nomear a aceitação é a REGRA DO CATÁLOGO; a proibição está em
  * `SEM_APARENCIA`, logo abaixo.
  *
- * ☠️ **NENHUM destes arquivos está em disco hoje, e isto é medida, não esquecimento.** T-34 (baixar
- * as texturas) está bloqueada por T-35 (isto aqui) exatamente porque era esta tarefa que decidia
- * quais valia a pena baixar. O modelo não afirma disponibilidade em lugar nenhum: `ler()` devolve
- * `disponivel: null` quando ninguém lhe disse o que existe, e **degrada anunciando** quando o
- * arquivo falta. Um catálogo que afirmasse a carga seria o pior padrão desta base — o cabeçalho
- * afirmando enquanto a carga está vazia.
+ * ☠️ **O catálogo NUNCA afirma que o arquivo está em disco.** `ler()` devolve `disponivel: null`
+ * quando ninguém lhe disse o que existe, e **degrada anunciando** quando o arquivo falta — um
+ * catálogo que afirmasse a carga seria o pior padrão desta base, o cabeçalho afirmando enquanto a
+ * carga está vazia. As texturas moram em `assets/textures/`; identidade e licença de cada uma, em
+ * `assets/CREDITS.md`.
  *
  * ⚠️ `origem` e `licenca` viajam com cada entrada porque atribuição descoberta depois da publicação
- * é atribuição que já faltou (regra do topo de `assets/CREDITS.md`). Quem baixar um destes escreve o
- * hash e a atribuição **no mesmo commit**.
+ * é atribuição que já faltou (regra do topo de `assets/CREDITS.md`). Entrada nova escreve o hash e
+ * a atribuição **no mesmo commit**.
  */
 const SSS = (nome) => `https://www.solarsystemscope.com/textures/download/2k_${nome}.jpg`;
 const CC_BY_4 = 'CC BY 4.0 · Solar System Scope (solarsystemscope.com)';
