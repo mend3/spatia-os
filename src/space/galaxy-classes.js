@@ -221,7 +221,7 @@ const CUTS = Object.freeze([0.669, 0.5, 0.375]);
  * `modelo-de-renderizacao.md:127-149` chama de escada por escala.
  *
  * `MIN_ARMS` continua sendo a escotilha para o caminho oposto. Medição em
- * `docs/medicoes-2026-08-07.md` §2.3.
+ * `docs/calibracao.md` §2.3.
  */
 export const MIN_FILES_FOR_ARMS = 9;
 

@@ -30,7 +30,7 @@
  *
  * ⚠️ Quem reindexar um corpus muito maior refaz a conta: os degraus são percentis CONGELADOS em
  * número absoluto, porque percentil vivo reclassifica um corpo quando OUTRO muda — refutado com
- * número em `docs/medicoes-2026-08-07.md` §3.1 (74,6% dos nós trocariam de classe).
+ * número em `docs/calibracao.md` §3.1 (74,6% dos nós trocariam de classe).
  */
 export const ESCADA = Object.freeze({
   ASTEROIDE: 0,

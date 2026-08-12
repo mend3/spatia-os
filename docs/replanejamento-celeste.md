@@ -294,7 +294,7 @@ A regra que substitui `MORPHOLOGY_BY_KIND`:
 
 | camada | decide | o fato | por que este fato |
 |---|---|---|---|
-| **escada de massa** | asteroide → lua → planeta → estrela | `chunks`, limiares **absolutos** | é o eixo que a física usa; percentil é não-estacionário (refutado em `medicoes-2026-08-07` §3.1) |
+| **escada de massa** | asteroide → lua → planeta → estrela | `chunks`, limiares **absolutos** | é o eixo que a física usa; percentil é não-estacionário (refutado em `calibracao` §3.1) |
 | **família** | que *tipo* de planeta ou estrela — pele e cor | `kind` | ele deixa de decidir o CORPO e passa a decidir a variação dentro do degrau |
 | **estado** | o que está em volta | churn · git · surto · massa parada | já é assim para anel e supernova; passa a valer para cometa também |
 

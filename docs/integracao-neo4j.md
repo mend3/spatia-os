@@ -145,7 +145,7 @@ similaridade vira propriedade solta que ninguém sabe quando expirou.
 
 ### 3.2.1 ⚠️ `CO_EDITED` já foi medido, e ele é ESPARSO demais para carregar centralidade
 
-`medicoes-2026-08-07` §4.4 mediu as arestas deriváveis sem embedding no corpus real:
+`calibracao` §4.4 mediu as arestas deriváveis sem embedding no corpus real:
 
 | aresta | como | quantidade |
 |---|---|---|
@@ -316,7 +316,7 @@ próxima sessão remede as três para descobrir o que esta já sabia.
 
 Ela não é um fato: é um **juízo**. Derivá-la de massa+atividade+centralidade a torna um **score
 composto** — e score composto já foi **refutado com número** nesta base: *"o score composto é
-tamanho com ofuscação"* (`medicoes-2026-08-07` §3.2).
+tamanho com ofuscação"* (`calibracao` §3.2).
 
 Só existe uma forma honesta dela: **declarada pelo usuário** (fixar, favoritar, marcar). Aí ela
 deixa de ser física da entidade e vira **intenção do operador** — outro eixo, com outra fonte, e que

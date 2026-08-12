@@ -230,7 +230,7 @@ módulo real, e o campo `watch` nomeia o defeito que ele pega.
 
 Outros docs vivos: `catalogo-celeste.md` · `modelo-de-renderizacao.md` · `OS-SCREENS.md` ·
 `cobertura.md` · `integracao-neo4j.md` (P0–P7 fechados) · `distancia-e-forma.md` ·
-`medicoes-2026-08-07.md`.
+`calibracao.md`.
 
 ☠️ **A ORDEM DE PRECEDÊNCIA, quando duas fontes discordam: o CÓDIGO vence o doc, e o doc vence o
 relatório de agente.** Relatório de subagente é leitura, não medida.

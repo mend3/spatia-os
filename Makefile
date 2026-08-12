@@ -41,6 +41,8 @@ ordem:  ## o que ja vem encadeado, e o que so roda quando voce manda
 	@printf '  make conceitos       inferencia, nao fato. QUANDO: a prosa mudou.\n'
 	@printf '                       Custa uma chamada de modelo por arquivo de prosa.\n'
 	@printf '  make censos          relatorio, nao muda nada. QUANDO: mexeu em limiar ou constante calibrada.\n'
+	@printf '  make relatorio       MEDE e reescreve docs/relatorio.md. QUANDO: reindexou, ou trocou de corpus.\n'
+	@printf '                       Exige "make serve" no ar — o relatorio descreve o ceu SERVIDO.\n'
 	@printf '  make pixel           exige "make serve" no ar e sobe um Chrome (~15 s). QUANDO: mexeu em shader ou pele.\n'
 	@printf '  make smoke           exige "make serve" no ar e MUTA a config (grava e restaura).\n'
 	@printf '                       QUANDO: mexeu em configuracao, raiz ou indexador.\n'
@@ -215,6 +217,11 @@ snapshots:  ## rematerializa .cache/ na ordem medida (centralidade → vizinhanc
 # nenhum. ⚠️ Quem acrescentar `:ABOUT` a um desses leitores traz `conceitos` para dentro da cadeia.
 conceitos:  ## os assuntos — inferência, não fato. Rode quando a PROSA mudar
 	@node scripts/conceitos.mjs
+
+# ⚠️ Ele ESCREVE um arquivo versionado, então fica fora do portão — e a medida de efeito colateral
+# do `leis.mjs` o reconhece pelo que ele FAZ, não por constar de uma lista.
+relatorio:  ## MEDE o corpus servido e reescreve docs/relatorio.md. Exige `make serve` no ar
+	@node scripts/relatorio.mjs
 
 censos:  ## o que o céu DESENHA e o que o corpus É — inclui a saúde das constantes calibradas
 	@node scripts/censo-corpus.mjs

@@ -14,7 +14,7 @@
  *
  * `SIMILAR_TO` tem `score` (0,51–0,97) e `CO_EDITED` tem `peso` (1–21 commits). Ordenar os dois na
  * mesma lista seria comparar cosseno com contagem — o tipo de número composto que esta base já
- * refutou ("tamanho com ofuscação", `medicoes-2026-08-07` §3.2). Aqui cada tipo é ordenado DENTRO
+ * refutou ("tamanho com ofuscação", `calibracao` §3.2). Aqui cada tipo é ordenado DENTRO
  * dele mesmo, e o corte final é um **rodízio**: um de cada tipo por vez, do mais forte para o mais
  * fraco. Nenhum tipo é comparado com outro, e nenhum tipo é silenciado pelo teto.
  *

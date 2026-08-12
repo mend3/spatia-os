@@ -7,7 +7,7 @@
  * um corpus e aplicada depois que ele mudou de tamanho ou de escopo**, degradando em silêncio.
  * `SPAN` (71 → 228 hubs), `K_RAIO` (3 644 → 20 308 chunks, 297 luas viraram 0) e o piso do
  * pulsar (medido no git, aplicado no índice, 0 corpos). O relatório completo, com o que foi
- * refutado e por quê, está em `docs/medicoes-2026-08-07.md`.
+ * refutado e por quê, está em `docs/calibracao.md`.
  *
  * Roda contra o servidor no ar, ou contra o cache:
  *
@@ -206,4 +206,4 @@ for (const n of aggs) dist[contencao(n)] = (dist[contencao(n)] || 0) + 1;
 console.log(`  por CONTENÇÃO (limiar absoluto, 0% de reclassificação espúria): ${JSON.stringify(dist)}`);
 console.log(`  hoje, TODO agregado é galáxia: ${aggs.length}`);
 console.log('  percentil sobre score composto: 74,6% dos nós trocam de classe ao indexar um vault de');
-console.log('  notas curtas — medido em 2026-08-07, ver docs/medicoes-2026-08-07.md §3.1');
+console.log('  notas curtas — medido em 2026-08-07, ver docs/calibracao.md §3.1');

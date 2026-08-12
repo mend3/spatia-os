@@ -376,7 +376,7 @@ SUPERNOVA_FLOOR = 5
 # Massa mínima, em chunks. **Constante calibrada, e por isso ela EXPIRA** — 13 é o P75 de chunks
 # do corpus de 2026-08-07 (P50 5 · P90 25 · máx 289), transcrito como número ABSOLUTO de
 # propósito: percentil vivo reclassificaria este corpo quando OUTRO arquivo mudasse, e
-# `docs/medicoes-2026-08-07.md` §3.1 refuta percentil com número (74,6% dos nós trocam de classe
+# `docs/calibracao.md` §3.1 refuta percentil com número (74,6% dos nós trocam de classe
 # sem que nenhum deles mude). Quem reindexar um corpus muito maior refaz a conta: é o P75 de
 # chunks, e nada além disso.
 DWARF_MASS_FLOOR = 13

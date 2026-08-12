@@ -37,7 +37,8 @@ documentação* — leia-a antes de acrescentar arquivo ou parágrafo.
 
 | arquivo | responde |
 |---|---|
-| [`medicoes-2026-08-07.md`](medicoes-2026-08-07.md) | **por que** cada constante calibrada é o que é, e o que foi REFUTADO (percentil, score composto, Louvain). ⚠️ O nome tem data mas o conteúdo não é um evento — **oito lugares o citam pelo número da seção** |
+| [`calibracao.md`](calibracao.md) | **por que** cada constante calibrada é o que é, e o que foi REFUTADO (percentil, score composto). Endereçado por CLÁUSULA — o código cita `§2.1`, `§3.1`, `§3.2`. **Não renumere.** |
+| [`relatorio.md`](relatorio.md) | ⚠️ **GERADO** por `make relatorio`: o retrato do corpus SERVIDO — forma, distribuições, saúde das constantes, estado dos subsistemas. Reescrito inteiro a cada corrida; não edite à mão |
 | [`distancia-e-forma.md`](distancia-e-forma.md) | quantos pixels um corpo tem a cada distância, e o que isso proíbe |
 | [`cobertura.md`](cobertura.md) | o que cada corpus PROVA, e o que ele não prova |
 

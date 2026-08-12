@@ -1,14 +1,20 @@
-# Medições de 2026-08-07 — corpus, calibração e o que os dados autorizam
+# Calibração — por que cada constante é o que é, e o que foi REFUTADO
 
-**O que este documento é:** o registro completo de uma rodada de medição sobre o corpus vivo, feita
-para responder se o catálogo devia trocar a classificação por filesystem por um modelo de escala.
-Ele guarda os NÚMEROS e o MÉTODO; as decisões que sobreviveram viraram código e comentário, e é lá
-que elas moram.
+**O que este documento é:** a RAZÃO por trás das constantes calibradas e das recusas de modelagem —
+o método, e o número que decidiu cada uma. Ele responde *"por que não percentil?"*, *"de onde sai o
+`SPAN`?"*, *"por que não um score composto?"*. As decisões que sobreviveram viraram código e
+comentário, e é lá que elas moram.
+
+☠️ **Ele NÃO é o retrato do corpus, e essa distinção é o que o mantém vivo.** Contagem, distribuição
+e saúde das constantes contra o corpus DE HOJE saem de `make relatorio`, que as MEDE e escreve
+[`relatorio.md`](./relatorio.md). Aqui fica só o que nenhuma medição reproduz: a refutação e a
+derivação. Misturar os dois foi o que fez este arquivo nascer com uma data no nome e envelhecer
+parecendo obsoleto quando o conteúdo dele não envelhece.
 
 **O que ele não é:** um plano. Nada aqui está pendente por estar escrito aqui.
 
-☠️ **E ele NÃO PODE SER APAGADO, apesar do nome com data.** Oito lugares o citam **pelo número da
-seção**, e cada citação existe para justificar por que uma constante ou uma recusa é o que é:
+☠️ **E ele NÃO PODE SER APAGADO.** Oito lugares o citam **pelo número da seção**, e cada citação
+existe para justificar por que uma constante ou uma recusa é o que é:
 
 | quem cita | seção | o que a citação sustenta |
 |---|---|---|
@@ -18,17 +24,17 @@ seção**, e cada citação existe para justificar por que uma constante ou uma 
 | `src/space/galaxy-classes.js:224` | **§2.3** | quem realmente controla quantos corpos espiralam |
 | `docs/integracao-neo4j.md:148` | **§4.4** | quais arestas saem sem embedding |
 
-A data no nome engana: o que ficou aqui **não é um evento**, é a razão de recusas que continuam
-valendo. Apagar não perde história — perde o **porquê**, e a próxima sessão reimplementa o que já
-foi medido como errado. ⚠️ **Não renumere as seções.**
+O que está aqui **não é um evento**, é a razão de recusas que continuam valendo. Apagar não perde
+história — perde o **porquê**, e a próxima sessão reimplementa o que já foi medido como errado.
+⚠️ **Não renumere as seções:** os números são endereço, e código aponta para eles.
 
-⭑ **O que foi cortado em 2026-08-09** por ser fotografia reproduzível, não razão: o censo do corpus
-daquele dia (§1 e §5, ambos refeitos por `scripts/censo-corpus.mjs`), o inventário de disco
-(§4.1–4.3) e a lista do que aquela rodada aplicou (§8, que é o `git log`).
+⭑ **O que NÃO está aqui, por ser fotografia reproduzível:** o censo do corpus, o inventário de disco
+e a lista do que uma rodada aplicou. Os dois primeiros são `make relatorio`; o terceiro é o
+`git log`. ⚠️ As lacunas na numeração são disso, e são deliberadas.
 
-> Refazer: `node scripts/censo-corpus.mjs`, que confere as constantes da §2 contra o corpus de hoje
-> e acusa em vermelho a classe que ficou sem população. A §3 e a §4 dependem do browser e do git, e
-> trazem o comando junto.
+> Conferir contra o corpus de hoje: **`make relatorio`**. Ele roda os censos, confere as constantes
+> da §2 e acusa em vermelho a classe que ficou sem população. A §3 e a §4 dependem do browser e do
+> git, e trazem o comando junto.
 
 ---
 

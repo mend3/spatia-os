@@ -1031,7 +1031,7 @@ sem população.
 
 > **Toda constante derivada de `M_total` ou da contagem de hubs expira.** Quem reindexar um corpus
 > muito maior refaz a conta — ela está no comentário de cada uma. O relatório completo, com o que
-> foi refutado e por quê, está em [`docs/medicoes-2026-08-07.md`](./docs/medicoes-2026-08-07.md).
+> foi refutado e por quê, está em [`docs/calibracao.md`](./docs/calibracao.md).
 
 ⚠️ **E existe um modo de falha PIOR que a constante expirada: a grandeza que piora sozinha.** Uma
 constante calibrada funcionou um dia e o comentário dela diz quando refazer a conta. Já uma

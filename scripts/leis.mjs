@@ -51,6 +51,7 @@ const SO_LISTAR = process.argv.includes('--lista');
  * escrever, o portão acusa a divergência em vez de seguir com a lista velha.
  */
 const NAO_RODAM = {
+  'relatorio.mjs': 'reescreve docs/relatorio.md — arquivo VERSIONADO',
   'centralidade.mjs': 'materializa .cache/influencia.json',
   'uso.mjs': 'materializa .cache/uso.json',
   'conectividade.mjs': 'materializa .cache/conectividade.json',
@@ -86,9 +87,14 @@ const mutaCompartilhado = (nome) => {
   const emCache =
     /writeFileSync\(\s*(SAIDA|CACHE|['"`][^'"`]*\.cache\/)/.test(src) ||
     /['"`]\.cache\/[^'"`]*['"`][^\n]*writeFileSync/.test(src);
+  // ☠️ **Doc escrito por script é MAIS compartilhado que `.cache/`, não menos: ele é VERSIONADO.**
+  // A medida só olhava `.cache/`, o grafo e o fixture — um gerador de relatório passaria por aqui
+  // como guarda e reescreveria um arquivo rastreado a cada commit, sujando o diff de quem só
+  // queria commitar outra coisa.
+  const emDocs = /writeFileSync\(\s*(SAIDA|['"`][^'"`]*docs\/)/.test(src);
   const noGrafo = /\b(MERGE|CREATE|SET)\s/.test(src) && /cypher|neo4j/i.test(src);
   const apagaCorpus = /rmtree|--limpar/.test(src);
-  return emCache || noGrafo || apagaCorpus;
+  return emCache || emDocs || noGrafo || apagaCorpus;
 };
 
 /**
@@ -158,16 +164,30 @@ for (const r of resultados) {
   console.log(`  ${marca} ${r.nome.padEnd(24)} ${String(r.ms).padStart(5)}ms`);
 }
 
-if (divergentes.length) {
+// ☠️ **DIVERGÊNCIA DERRUBA O PORTÃO — e por várias sessões ela só IMPRIMIU.** O docblock deste
+// arquivo sempre afirmou isto; o código emitia uma linha AMARELA entre 39 vistos verdes e saía 0.
+// Era a invariante declarada e não implementada, dentro do guarda que existe para pegar
+// exatamente isso: script novo que escreve em `.cache/`, no grafo ou num doc versionado passava a
+// rodar a cada commit, mutando estado compartilhado, e o aviso rolava a tela.
+const divergiu = divergentes.length > 0;
+if (divergiu) {
   console.log(
-    `\n\x1b[33m⚠ a lista e a medida discordam\x1b[0m — quem escreve, ou sobe navegador, tem de estar em NAO_RODAM:`
+    `\n\x1b[31m✗ a lista e a medida discordam\x1b[0m — quem escreve, ou sobe navegador, tem de estar em NAO_RODAM:`
   );
   for (const d of divergentes) {
     console.log(`  ${d.nome.padEnd(24)} declarado fora: ${d.declaradoFora} · inadmissível: ${d.mede}`);
   }
+  console.log(
+    '  \x1b[2mdeclarado fora + inadmissível FALSO = entrada velha, tire da lista\x1b[0m\n' +
+      '  \x1b[2mdeclarado fora FALSO + inadmissível = escreve e está rodando no portão, acrescente\x1b[0m'
+  );
 }
 
-if (caidos.length) {
+if (caidos.length || divergiu) {
+  if (!caidos.length) {
+    console.log(`\n\x1b[31m✗ o portão cai pela DIVERGÊNCIA acima\x1b[0m — as leis passaram, a cobertura não.`);
+    process.exit(1);
+  }
   console.log(`\n\x1b[31m✗ ${caidos.length} LEI(S) CAÍRAM\x1b[0m`);
   for (const r of caidos) {
     console.log(`\n\x1b[1m── ${r.nome}\x1b[0m`);

@@ -177,7 +177,7 @@ import { MOTION, rateOf } from './motion-catalog.js';
  * ⚠️ Mexer aqui OBRIGA a mexer em `LOD_ARM_PX`: o degrau é em px de DISCO, e o disco mudou de
  * escala. Ver a nota lá embaixo — sem isso os braços somem por acidente aritmético.
  *
- * Medição e método completos em `docs/medicoes-2026-08-07.md` §2.1.
+ * Medição e método completos em `docs/calibracao.md` §2.1.
  */
 export const SPAN = 1.5;
 
