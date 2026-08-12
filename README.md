@@ -623,8 +623,14 @@ snapshots são invalidados. ⭑ **A coleção servida nunca é escrita:** a nova
 apelido é movido no fim, então uma indexação interrompida não degrada o céu que está no ar.
 
 ```
+make up         # as memórias: Qdrant + Neo4j, em loopback
 make serve      # e pronto: escolha a pasta na tela e clique INDEXAR
 ```
+
+⚠️ **Só as memórias sobem em contêiner.** O servidor lê a pasta que você escolheu — qualquer pasta
+do disco —, embute na CPU do host e roda o `claude` como subprocesso. Num contêiner isso vira
+bind-mount do seu HOME mais tradução de caminho, que é a classe de defeito mais cara deste projeto.
+O Ollama também fica nativo: no macOS o Docker não passa GPU.
 
 ⭑ **Não há segundo passo no terminal.** Escolher a pasta e indexar acontecem na tela, com progresso
 à vista — se o app pedisse um comando para que a escolha tivesse efeito, ele estaria exigindo que

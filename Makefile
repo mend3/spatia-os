@@ -10,7 +10,7 @@
 # `make` não muda como um arquivo é interpretado. É despachante, e só.
 
 .DEFAULT_GOAL := ajuda
-.PHONY: ajuda leis leis-lista pixel pixel-gravar smoke hooks serve cerebro indexar reconfigurar rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
+.PHONY: ajuda leis leis-lista pixel pixel-gravar smoke hooks serve cerebro up down indexar reconfigurar rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
 
 # ⚠️ CRASE em receita de make é SUBSTITUIÇÃO DE COMANDO no shell — a primeira versão desta
 # receita escreveu "o portão é `make leis`" e o `make ajuda` RODOU o portão inteiro para montar a
@@ -52,6 +52,16 @@ hooks:  ## aponta o git para os hooks VERSIONADOS de .githooks/
 	@echo "✓ core.hooksPath = .githooks  (pre-commit · post-checkout)"
 
 # ─────────────────────────────────────────────────────────────────────── rodar
+
+# ⚠️ Só as MEMÓRIAS sobem em contêiner. O servidor lê a pasta que o operador escolheu — qualquer
+# pasta do disco —, embute com ONNX na CPU do host e roda o `claude` como subprocesso; num contêiner
+# isso vira bind-mount do HOME e tradução de caminho, a classe de defeito mais cara desta base.
+up:  ## sobe as memórias (Qdrant + Neo4j) em loopback
+	@docker compose up -d
+	@docker compose ps
+
+down:  ## para as memórias SEM apagar dado (os volumes ficam)
+	@docker compose down
 
 serve:  ## sobe o servidor em 127.0.0.1:8787 (Qdrant 6333 · Neo4j 7474)
 	@./serve.py

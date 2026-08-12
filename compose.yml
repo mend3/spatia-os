@@ -1,0 +1,81 @@
+# As MEMÓRIAS do SpatIA — Qdrant (vetores) e Neo4j (relações).
+#
+#     make up      # sobe
+#     make down    # para, sem apagar dado
+#
+# ☠️ **O SERVIDOR NÃO ESTÁ AQUI, e isso é decisão.** `serve.py` lê a pasta que o operador escolheu
+# — qualquer pasta do disco dele. Num contêiner isso vira um bind-mount do HOME inteiro mais uma
+# tradução entre o caminho de dentro e o de fora; é exatamente a classe de defeito que custou caro
+# nesta base (caminho que resolve para a árvore errada com a leitura passando). Ele também roda o
+# `claude` como subprocesso e embute com ONNX na CPU do host. Ele fica nativo: `make serve`.
+#
+# ⚠️ **O OLLAMA também não está aqui.** No macOS o Docker não passa GPU: um Ollama em contêiner roda
+# na CPU e desperdiça a máquina. Instalação nativa, e para modelo MLX existe `make cerebro`.
+#
+# ⚠️ **SearXNG e TTS não estão aqui** porque são GLOBAIS no `oracle` (`shared/search.compose.yml`,
+# `shared/speech.compose.yml`). Declará-los de novo criaria dois donos para o mesmo serviço.
+
+name: spatia
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    ports:
+      # ☠️ **LOOPBACK, nunca `0.0.0.0`.** O Qdrant sobe SEM autenticação: exposto na interface de
+      # rede, qualquer um do outro lado lê e escreve o corpus inteiro — os vetores são o conteúdo
+      # dos seus arquivos, não um índice opaco. O `127.0.0.1:` do lado esquerdo é a barreira.
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant:/qdrant/storage
+    healthcheck:
+      # ☠️ **`bash` explícito, nunca `CMD-SHELL`.** Esta imagem não tem `curl` nem `wget`, e o
+      # `CMD-SHELL` roda `sh` — que no Debian é o `dash`, e o `dash` NÃO tem `/dev/tcp`: a sonda
+      # falha com "cannot create /dev/tcp" a cada 10 s e o serviço aparece `unhealthy` para sempre.
+      # Medido dentro da imagem; com `bash` a mesma linha devolve `HTTP/1.0 200 OK`.
+      #
+      # ⚠️ `/healthz` diz que o SERVIÇO está de pé, nunca que há corpus. Quem responde sobre corpus
+      # é o `/api/health` do SpatIA.
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/6333 && printf "GET /healthz HTTP/1.0\r\n\r\n" >&3 && head -1 <&3 | grep -q 200'
+
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  neo4j:
+    image: neo4j:5.26.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7474:7474"   # HTTP — é por aqui que os scripts falam Cypher
+      - "127.0.0.1:7687:7687"   # Bolt — para o browser oficial, se você o usar
+    environment:
+      # ⚠️ A senha vem do `.env` e NÃO tem default aqui. Um default viraria a senha real de todo
+      # clone que não a trocou, e ela é a única barreira do banco.
+      NEO4J_AUTH: "${NEO4J_USER:?defina NEO4J_USER no .env}/${NEO4J_PASSWORD:?defina NEO4J_PASSWORD no .env}"
+      # O grafo desta base é pequeno (milhares de nós) e cabe folgado. Tetos explícitos evitam que
+      # o Neo4j reserve heap de servidor numa máquina de trabalho.
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512m
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7474 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+# ⚠️ **Volumes NOMEADOS e do projeto `spatia`.** Eles não são os `oracle_*` que já existem nesta
+# máquina — subir isto aqui começa com bancos VAZIOS, e as portas colidem com o que já está no ar.
+# Adotar os volumes antigos seria dar dois donos ao mesmo dado, que é o defeito que este repositório
+# passa o tempo desfazendo. Migrar é escolha explícita, não efeito colateral de um `up`.
+volumes:
+  qdrant:
+  neo4j-data:
+  neo4j-logs:
