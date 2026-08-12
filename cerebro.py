@@ -140,28 +140,63 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return self._json(400, {"error": "corpo não é JSON"})
 
-        # Só o cérebro é nosso. `/api/chat` e `/api/embeddings` seguem para o Ollama.
-        if not self.path.startswith("/api/generate") or pedido.get("model") != MODELO:
+        # ☠️ **`/api/chat` do NOSSO modelo é NOSSO — encaminhá-lo é um 404 garantido.** O Ollama
+        # de cima não tem o modelo MLX, então repassar `/api/chat` com ele devolve
+        # `model '<mlx>' not found`: um erro que culpa o modelo em vez de dizer que a rota não foi
+        # servida aqui. Quem pergunta por `/api/chat` — e o `conceitos.mjs` pergunta — recebia isso
+        # e desistia do arquivo em silêncio, com o campo `done_reason` intacto.
+        # ⚠️ `/api/embeddings` continua subindo: aquilo é outro modelo, e não é este cérebro.
+        nosso = pedido.get("model") == MODELO and (
+            self.path.startswith("/api/generate") or self.path.startswith("/api/chat")
+        )
+        if not nosso:
             return self._encaminhar(corpo)
 
-        return self._gerar(pedido)
+        return self._gerar(pedido, chat=self.path.startswith("/api/chat"))
 
-    def _gerar(self, pedido: dict):
+    def _gerar(self, pedido: dict, chat: bool = False):
         from mlx_lm import stream_generate
         from mlx_lm.sample_utils import make_sampler
 
         opcoes = pedido.get("options") or {}
-        mensagens = []
-        if pedido.get("system"):
-            mensagens.append({"role": "system", "content": pedido["system"]})
-        mensagens.append({"role": "user", "content": pedido.get("prompt", "")})
+        if chat:
+            # No dialeto de chat as mensagens JÁ vêm montadas — remontá-las a partir de `prompt`
+            # perderia os papéis, e é deles que o template do modelo depende.
+            mensagens = list(pedido.get("messages") or [])
+        else:
+            mensagens = []
+            if pedido.get("system"):
+                mensagens.append({"role": "system", "content": pedido["system"]})
+            mensagens.append({"role": "user", "content": pedido.get("prompt", "")})
 
-        self.send_response(200)
-        self.send_header("Content-Type", "application/x-ndjson")
-        self.send_header("Transfer-Encoding", "chunked")
-        self.end_headers()
+        # ☠️ **`stream` default é TRUE no Ollama, e quem pede `false` espera UM objeto JSON.**
+        # Responder NDJSON a esse cliente faz o `.json()` dele estourar na segunda linha — um erro
+        # de parse que não menciona streaming e manda procurar defeito no prompt.
+        fluir = pedido.get("stream", True)
+        pedacos: list = []
+
+        def corpo_de(texto: str, fim: bool) -> dict:
+            # A forma da resposta é do DIALETO, não do modelo: `/api/chat` devolve `message`,
+            # `/api/generate` devolve `response`. Um cliente lê só a sua.
+            base = {"model": MODELO, "done": fim}
+            if chat:
+                base["message"] = {"role": "assistant", "content": texto}
+            else:
+                base["response"] = texto
+            return base
+
+        if fluir:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
 
         def quadro(obj: dict):
+            if not fluir:
+                # Sem stream nada vai pelo fio agora: o texto é acumulado e sai inteiro no fim.
+                if not obj.get("done"):
+                    pedacos.append((obj.get("message") or {}).get("content") if chat else obj.get("response"))
+                return
             linha = (json.dumps(obj) + "\n").encode()
             self.wfile.write(f"{len(linha):X}\r\n".encode() + linha + b"\r\n")
             self.wfile.flush()
@@ -180,13 +215,16 @@ class Handler(BaseHTTPRequestHandler):
                     modelo, tok, prompt=prompt, max_tokens=limite, sampler=sampler
                 ):
                     if passo.text:
-                        quadro({"model": MODELO, "response": passo.text, "done": False})
-            quadro({"model": MODELO, "response": "", "done": True})
+                        quadro(corpo_de(passo.text, False))
+            quadro(corpo_de("", True))
         except Exception as e:  # noqa: BLE001 — o cliente precisa saber, não o traceback
-            quadro({"model": MODELO, "response": f"\n[cérebro falhou: {e}]", "done": True})
+            quadro(corpo_de(f"\n[cérebro falhou: {e}]", True))
         finally:
-            self.wfile.write(b"0\r\n\r\n")
-            self.wfile.flush()
+            if fluir:
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            else:
+                self._json(200, corpo_de("".join(x for x in pedacos if x), True))
 
 
 def main():

@@ -42,8 +42,35 @@ const BASE = process.env.NEO4J_HTTP || 'http://127.0.0.1:7474';
 const USER = process.env.NEO4J_USER;
 const PASS = process.env.NEO4J_PASSWORD;
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
-const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
-const MODELO = process.env.OLLAMA_MODEL || 'qwen3:8b';
+// ☠️ **O CÉREBRO SE PERGUNTA AO SERVIDOR, e um default aqui é a armadilha que esta base já pagou.**
+// Quem decide `OLLAMA_URL`/`OLLAMA_MODEL` é a ordem UI > `.env` > default, e só o servidor a
+// conhece — `/api/setup` publica o valor com a ORIGEM ao lado. Um `|| 'http://127.0.0.1:11434'`
+// aqui não falha: ele fala com OUTRO cérebro, roda inteiro e grava conceitos de um modelo que o
+// operador não escolheu. Medido: com `.env` declarando `11500` (cérebro MLX via `cerebro.py`), o
+// default silencioso mandava tudo para `11434` e para `qwen3:8b`.
+//
+// ⚠️ A variável de ambiente CONTINUA vencendo, e isso é diferente de um default: `OLLAMA_URL=x`
+// na linha de comando é escolha declarada para esta execução; cair num literal é escolha de
+// ninguém. Ver a mesma refutação em `graph.py:_corpus` — os scripts adivinhavam, e adivinhar
+// casa zero em silêncio.
+const setup = await fetch(`${SPATIA}/api/setup`)
+  .then((r) => r.json())
+  .catch(() => null);
+if (!setup && !process.env.OLLAMA_URL) {
+  console.error(
+    `\x1b[31m${SPATIA}/api/setup não responde.\x1b[0m Suba o \`./serve.py\` — é ele que sabe qual cérebro este corpus usa.`
+  );
+  process.exit(1);
+}
+const declarado = (chave) => ((setup?.chaves || {})[chave] || {}).valor || '';
+const OLLAMA = process.env.OLLAMA_URL || declarado('OLLAMA_URL');
+const MODELO = process.env.OLLAMA_MODEL || declarado('OLLAMA_MODEL');
+if (!OLLAMA || !MODELO) {
+  console.error(
+    `\x1b[31mcérebro não configurado.\x1b[0m \`OLLAMA_URL\`=${OLLAMA || '(vazio)'} · \`OLLAMA_MODEL\`=${MODELO || '(vazio)'} — declare em \`#/storage\` ou no \`.env\`.`
+  );
+  process.exit(1);
+}
 const SO_MEDIR = process.argv.includes('--medir');
 const LIMITE = Number(process.argv[process.argv.indexOf('--limite') + 1]) || Infinity;
 const ROTULO = 'Astro';
@@ -109,8 +136,10 @@ const prosa = graph.nodes
   .sort((a, b) => (b.chunks || 0) - (a.chunks || 0))
   .slice(0, LIMITE);
 
+const origemCerebro = process.env.OLLAMA_URL ? 'ambiente' : ((setup?.chaves || {}).OLLAMA_URL || {}).origem || '?';
 console.log(
-  `\x1b[1mP7 — conceitos\x1b[0m  ${prosa.length} arquivos de prosa · modelo ${MODELO} · raiz ${RAIZ}`
+  `\x1b[1mP7 — conceitos\x1b[0m  ${prosa.length} arquivos de prosa · raiz ${RAIZ}\n` +
+  `  cérebro ${OLLAMA} · modelo ${MODELO}  \x1b[2m(decidido por: ${origemCerebro})\x1b[0m`
 );
 if (!prosa.length) {
   console.error('nenhum arquivo de prosa no céu — nada a extrair.');
@@ -258,6 +287,39 @@ if (doCache) {
       process.exit(1);
     }
   }
+
+  /*
+   * ☠️ **CÉREBRO MORTO PRODUZ O MESMO CACHE QUE "não há conceito aqui" — e a guarda acima só
+   * vigiava a RAIZ.** As duas falhas terminam no mesmo artefato: um `porCorpo` de listas vazias,
+   * gravado, e relido para sempre por toda execução seguinte, que então nem chama o modelo. O
+   * sintoma é uma corrida instantânea anunciando "0 conceitos" — indistinguível de um corpus que
+   * de fato não tem assunto compartilhado.
+   *
+   * ⚠️ A régua é a mesma metade da guarda de raiz, e o alvo é OUTRO: ali a suspeita é a árvore,
+   * aqui é quem responde em `OLLAMA_URL`. Nomear o alvo errado manda procurar defeito no corpus.
+   */
+  if (semResposta > prosa.length / 2) {
+    console.error(
+      `\x1b[31m${semResposta} de ${prosa.length} arquivos não devolveram JSON utilizável.\x1b[0m`
+    );
+    console.error(
+      `  o cérebro em ${OLLAMA} (modelo ${MODELO}) não está respondendo o que o P7 pede —\n` +
+        '  o cache fica como estava, porque gravá-lo aqui cala a próxima execução.'
+    );
+    process.exit(1);
+  }
+
+  /*
+   * ☠️ **Corrida com `--limite` NÃO grava: ela extraiu uma AMOSTRA, e o cache é lido como se
+   * fosse o corpus.** A execução seguinte, sem limite, relê essas poucas entradas e anuncia
+   * cobertura sobre o céu inteiro — o cabeçalho AFIRMA e a carga é de outra corrida. É a mesma
+   * família do `semArquivo` acima: extração parcial gravada por cima de uma completa.
+   */
+  if (Number.isFinite(LIMITE)) {
+    console.log(
+      `  \x1b[2mcorrida com --limite: o cache NÃO foi gravado (amostra de ${prosa.length})\x1b[0m`
+    );
+  } else {
   fs.mkdirSync('.cache', { recursive: true });
   fs.writeFileSync(
     CACHE,
@@ -267,6 +329,7 @@ if (doCache) {
       porCorpo: Object.fromEntries(porCorpo),
     })
   );
+  }
 }
 
 // ─────────────────────────────────────────── 3.5 CONSOLIDAÇÃO por significado
