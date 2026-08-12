@@ -1,0 +1,10 @@
+# ☠️ NEGA TUDO, e libera só o que a imagem realmente copia.
+#
+# A imagem copia UM arquivo: o `serve.py`, dono da lista de dependências (bloco PEP 723). Todo o
+# resto do repo chega por bind-mount em runtime, então mandá-lo ao daemon seria custo puro — e o
+# `.cache/` (snapshots, `ambiente.json`) e o `.env` iriam junto, o que é pior que lento.
+#
+# ⚠️ Nomear o que ENTRA, nunca excluir o que não entra — REGRA DO CATÁLOGO. Uma lista de exclusões
+# deixa o arquivo novo entrar por omissão, e ninguém percebe até ele estar dentro da imagem.
+*
+!serve.py

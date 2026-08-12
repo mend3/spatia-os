@@ -308,6 +308,47 @@ console.log(`\n${C.forte}§4  O DOC CONTRA A MEDIDA${C.fim}`);
   );
 }
 
+// ────────────────────── §5 · O MAPA DE «QUANDO RODAR» NÃO PODE ESQUECER NINGUÉM
+/*
+ * ☠️ **`make ordem` é a única lista deste tooling escrita à MÃO, e por isso ela precisa de guarda.**
+ * Ela responde o que nenhuma medida responde — QUANDO disparar cada alvo — mas alvo novo não entra
+ * nela sozinho, e o modo de falha é o silêncio: o alvo existe, funciona, e ninguém sabe que existe
+ * nem quando usá-lo. É o mesmo defeito de um briefing entregue que o README não anuncia.
+ *
+ * ⚠️ A régua é o alvo DOCUMENTADO (`## `), não todo alvo: `grafo`, `snapshots` e `docker-env` são
+ * degraus internos de uma receita maior, e listá-los convidaria a rodá-los soltos.
+ */
+console.log(`\n${C.forte}§5  O MAPA DE QUANDO RODAR${C.fim}  ${C.fraco}\`make ordem\` conhece todo alvo documentado${C.fim}`);
+{
+  const mk = ler('Makefile');
+  // ☠️ **DÍGITO NO NOME, e `[a-z-]+` o corta em silêncio.** `neo4j-auth` casava como `neo`, e a
+  // lei acusava um fantasma que ela própria inventou. Esta base tem exatamente um alvo assim, e
+  // o mesmo padrão já mordeu noutro lugar — classe de caractere que esquece dígito não falha,
+  // ela TRUNCA.
+  const documentados = [...mk.matchAll(/^([a-z][a-z0-9-]*):.*?##\s/gm)].map((m) => m[1]);
+  const receita = (mk.split(/^ordem:/m)[1] || '').split(/\n[a-z]/)[0];
+  const citados = new Set([...receita.matchAll(/make ([a-z][a-z0-9-]*)/g)].map((m) => m[1]));
+
+  // `ajuda` e `ordem` são as duas superfícies de navegação — elas não se listam.
+  const esperados = documentados.filter((t) => !['ajuda', 'ordem', 'leis-lista'].includes(t));
+  const faltando = esperados.filter((t) => !citados.has(t));
+  checar(
+    '§5',
+    faltando.length === 0,
+    `todo alvo documentado aparece em \`make ordem\`` +
+      (faltando.length ? ` — falta(m): ${faltando.join(', ')}` : ` (${esperados.length})`)
+  );
+
+  const alvos = new Set([...mk.matchAll(/^([a-z][a-z0-9-]*):/gm)].map((m) => m[1]));
+  const fantasmas = [...citados].filter((t) => !alvos.has(t));
+  checar(
+    '§5b',
+    fantasmas.length === 0,
+    'nenhum alvo citado em `make ordem` deixou de existir' +
+      (fantasmas.length ? ` — fantasma(s): ${fantasmas.join(', ')}` : '')
+  );
+}
+
 console.log('');
 if (falhas) {
   console.log(

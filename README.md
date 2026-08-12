@@ -39,10 +39,15 @@ apagado quando não está lá.
 ## Rodar
 
 ```bash
-cp .env.example .env            # nada é obrigatório; os defaults casam com a infra local
+cp .env.example .env            # nada a preencher: o que precisa de segredo é GERADO
 make hooks                      # UMA vez por clone — ver abaixo
 make serve                      # http://127.0.0.1:8787
 ```
+
+⭑ **Nenhum segredo se escreve à mão.** No primeiro `make serve` a credencial do Neo4j e o
+`secret_key` do SearXNG são criados na sua máquina, e o alvo detecta a plataforma antes de subir a
+infra. ☠️ O que o `.env.example` NÃO pode trazer escrito é justamente o que protege o banco: um
+valor ali viraria a senha real de todo clone que não a trocou.
 
 É isso. Sem `npm install`, sem build, sem bundler — o `three.js` está vendorizado em
 `vendor/` e resolvido por importmap. A única dependência Python é o `fastembed`, declarada
@@ -69,13 +74,16 @@ receitas é derivada do fonte — quem lê um `.cache/X.json` depende de quem o 
 | | Para quê | Sem ele |
 |---|---|---|
 | `uv` | resolve a única dependência Python | não sobe |
-| CLI `claude` no PATH | é o cérebro: ferramentas reais, custo real | nenhuma pergunta é respondida |
-| Qdrant com uma coleção indexada | é o corpus: o céu inteiro sai dele | o céu abre vazio |
+| Docker | Qdrant e Neo4j — `make serve` os sobe sozinho | não sobe |
+| CLI `claude` no PATH | é o cérebro: ferramentas reais, custo real | nenhuma pergunta é respondida, o resto funciona |
 | `jq` e `curl` | só se você ativar o portão de capacidades | o portão fica inerte **em silêncio** |
 
-O SpatIA **não indexa**. Ele lê uma coleção que outro pipeline escreveu — ver
-[Integrar](#integrar). Por isso não existe botão REINDEXAR em lugar nenhum: existe o comando
-exibido, e a data em que o índice mudou.
+⭑ **O SpatIA INDEXA, e é na tela.** Você aponta uma pasta em `#/storage`, clica INDEXAR e acompanha
+o progresso ali mesmo — sem comando, sem reiniciar. ☠️ Pedir um comando de terminal para que uma
+escolha feita na tela tenha efeito é onde quem não é técnico para, com o céu vazio e nenhuma pista.
+
+⚠️ Ele também LÊ uma coleção construída por fora, se você já tiver uma — ver
+[Integrar](#integrar). Nesse caso o primeiro segmento do caminho pode precisar de `CORPUS_PREFIX`.
 
 A tela de boot mostra o estado **real** de cada subsistema antes de deixar entrar. Se algo
 estiver degradado, ela diz o quê — e o observatório abre em modo parcial em vez de fingir.
@@ -626,12 +634,25 @@ apelido é movido no fim, então uma indexação interrompida não degrada o cé
 make up         # Qdrant, Neo4j e SearXNG — todos em loopback
 make serve      # e pronto: escolha a pasta na tela e clique INDEXAR
 make speech     # opcional: a voz (Kokoro TTS), ~2 GB
+make app        # opcional: o SpatIA inteiro em contêiner, no lugar do `make serve`
 ```
 
-⚠️ **Só as memórias sobem em contêiner.** O servidor lê a pasta que você escolheu — qualquer pasta
-do disco —, embute na CPU do host e roda o `claude` como subprocesso. Num contêiner isso vira
-bind-mount do seu HOME mais tradução de caminho, que é a classe de defeito mais cara deste projeto.
-O Ollama também fica nativo: no macOS o Docker não passa GPU.
+⭑ **O `make app` é uma ALTERNATIVA ao `make serve`, nunca um complemento** — os dois são o mesmo
+servidor na mesma porta, e subir os dois é uma porta com dois donos.
+
+Ele pede uma linha no `.env`: `SPATIA_CORPUS_MOUNT`, o caminho do host que o contêiner enxerga.
+☠️ **Ele é montado no MESMO caminho lá dentro**, e é essa identidade que apaga a tradução entre "o
+caminho de fora" e "o de dentro" — a classe de defeito mais cara deste projeto é o caminho que
+resolve para a árvore ERRADA com a leitura passando. A raiz que você escolher na tela tem de estar
+dentro dele: mount é fixo na subida, e a raiz é escolhida em runtime.
+
+⚠️ **O contêiner não tem o CLI `claude`**, e a tela diz isso (`claude_cli: false` em `/api/health`):
+o cérebro `claude` não responde ali, o `ollama` continua. Instalá-lo na imagem traria a sua
+autenticação para dentro dela. O Ollama também fica nativo — no macOS o Docker não passa GPU.
+
+⚠️ **`SPATIA_GIT_EXCLUDES` aponta o seu excludes pessoal do git** (`~/.config/git/ignore`). Sem ele
+o contêiner conta como arquivo novo o que a sua máquina ignora, e a cena desenha ANEL onde a nativa
+não desenha — mesma pergunta, duas respostas, sem erro em lugar nenhum.
 
 ⭑ **Não há segundo passo no terminal.** Escolher a pasta e indexar acontecem na tela, com progresso
 à vista — se o app pedisse um comando para que a escolha tivesse efeito, ele estaria exigindo que

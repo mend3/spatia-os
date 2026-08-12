@@ -341,6 +341,17 @@ Sempre prefira:
 
 Cada nova funcionalidade deve tornar o sistema mais inteligente, não apenas maior.
 
+## O idioma de cada superfície
+
+☠️ **Código novo em Python e JS se escreve em INGLÊS** — identificadores e comentários. O pt-BR é
+das superfícies de PROSA: docs, briefings, planos, corpo de commit e o texto que o operador LÊ na
+tela ou na saída de um guarda.
+
+⚠️ **Isto governa o que se ESCREVE, não uma renomeação em massa.** A base existente é majoritariamente
+portuguesa; trocar nome em massa é o `sed` que a seção *Antes de corrigir um nome em massa* proíbe, e
+consistência DENTRO de um arquivo vale mais que uniformidade entre arquivos — editar um módulo
+português segue o módulo.
+
 ---
 
 # As leis desta base
@@ -764,6 +775,13 @@ não podem se sobrepor.
 ☠️ **O indexador NUNCA escreve na coleção servida.** Ele constrói uma coleção física com carimbo e
 move um APELIDO no fim. Indexar é longo; falhar no meio deixaria o céu servido por metade de um
 corpus, com o carimbo certo e a carga incompleta. O rollback é não trocar o apelido.
+
+⚠️ **E a troca RECOLHE a anterior — o portão é `scripts/lei-apelido.py`.** ☠️ A coleção anterior se
+procura no REGISTRO GLOBAL (`/aliases`), nunca em `/collections/<apelido>/aliases`: consultado por
+um nome de APELIDO, esse endpoint devolve lista **VAZIA** (medido no Qdrant v1.19), então quem
+pergunta ali recebe `None` SEMPRE e cada reindexação vaza uma cópia inteira do corpus em disco, sem
+erro em lugar nenhum. O oráculo sobe um Qdrant de mentira que REPRODUZ o vazio — um dublê que
+respondesse "certo" deixaria a régua errada passar verde.
 ⚠️ **O payload é CONTRATO** (`qdrant._normalize`): `document` = `"caminho § seção\n\ncorpo"` e
 `metadata` com `source · path · file_name · section · chunk_index · indexed_at`. Divergir devolve
 **resultado vazio, não erro**.
@@ -1065,6 +1083,7 @@ O Neo4j **nunca está no caminho do quadro**: cada dimensão é materializada po
 arquivo em `.cache/`, o servidor anexa ao servir a topologia, e o renderer lê pronto. Rematerializar
 é rodar o script — **a ordem importa**, porque a rede lê o snapshot e não o banco:
 
+    make indexar                 # ⭑ indexar JÁ chama a rematerialização — a consequência vem junto
     make rematerializar          # a cadeia inteira, na ordem — é este o comando
       make grafo                 # ESCREVEM no Neo4j:  vinculos · similares · citacoes · uso
       make snapshots             # LEEM o grafo:       centralidade → vizinhanca → conectividade
@@ -1073,6 +1092,10 @@ arquivo em `.cache/`, o servidor anexa ao servir a topologia, e o renderer lê p
 pergunta dele é justamente se a dimensão nova REPETE a velha. ⚠️ `uso` está na fase de ESCRITA
 porque dá `MERGE` em `Astro`/`Run`/`Agent`, embora também materialize um snapshot. `conceitos` fica
 fora (`make conceitos`): é a única dimensão que não é fato, e só se roda quando a prosa muda.
+☠️ **E ela é a única do tooling que depende de INFERÊNCIA, então o cérebro escolhido decide se ela
+é viável:** ela fala com `OLLAMA_URL` uma vez por arquivo de prosa. Com o cérebro em contêiner CPU
+num Mac — 1,25 tok/s medidos contra 16,2 nativos — o custo sai da escala de uma sessão. Confira
+quem responde ali ANTES de disparar.
 
 ⭑ **A ordem não é mantida à mão.** `scripts/lei-tooling.mjs` a DERIVA do fonte — quem lê um
 `.cache/X.json` depende de quem o escreve — e reprova a receita que chame um dependente sem a

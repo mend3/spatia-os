@@ -1,16 +1,22 @@
-# As MEMÓRIAS do SpatIA — Qdrant (vetores) e Neo4j (relações).
+# O SpatIA em contêiner — as MEMÓRIAS (Qdrant · Neo4j), a busca, a voz e o próprio servidor.
 #
-#     make up      # sobe
-#     make down    # para, sem apagar dado
+#     make up      # as memórias e a busca, em loopback
+#     make app     # + o SpatIA em 127.0.0.1:8787
+#     make down    # para tudo, sem apagar dado
 #
-# ☠️ **O SERVIDOR NÃO ESTÁ AQUI, e isso é decisão.** `serve.py` lê a pasta que o operador escolheu
-# — qualquer pasta do disco dele. Num contêiner isso vira um bind-mount do HOME inteiro mais uma
-# tradução entre o caminho de dentro e o de fora; é exatamente a classe de defeito que custou caro
-# nesta base (caminho que resolve para a árvore errada com a leitura passando). Ele também roda o
-# `claude` como subprocesso e embute com ONNX na CPU do host. Ele fica nativo: `make serve`.
+# ☠️ **O SERVIDOR É OPT-IN (`profiles: [app]`), e a razão é COLISÃO, não gosto:** `make serve` roda
+# o mesmo servidor NATIVO na mesma porta. Subir os dois é uma porta ocupada com dois donos, e o que
+# perde a corrida morre com uma mensagem que não diz que existe outro SpatIA de pé.
 #
-# ⚠️ **O OLLAMA também não está aqui.** No macOS o Docker não passa GPU: um Ollama em contêiner roda
-# na CPU e desperdiça a máquina. Instalação nativa, e para modelo MLX existe `make cerebro`.
+# ⚠️ **O que o contêiner NÃO tem, e é visível em `/api/health`:** o CLI `claude` (`claude_cli:
+# false` → o cérebro `claude` não responde; o `ollama` continua). Instalá-lo aqui traria a
+# autenticação do operador para dentro da imagem, que é preço alto por uma degradação que a tela
+# já anuncia.
+#
+# ⚠️ **O OLLAMA tem PERFIL, e a escolha é da máquina:** `make ollama-gpu` em Linux/Windows com
+# NVIDIA, `make ollama-cpu` em qualquer lugar. ☠️ **No macOS não existe passagem de GPU** — lá o
+# cérebro rápido é o NATIVO, e o perfil `cpu` serve para paridade de ambiente, não para velocidade.
+# Modelo MLX é sempre nativo: Metal não alcança contêiner (`make cerebro`).
 #
 # ⭑ **SearXNG e TTS estão aqui, adaptados do `oracle`** (`shared/search.compose.yml`,
 # `shared/speech.compose.yml`). Duas coisas daquele contexto NÃO vieram, e a omissão é deliberada:
@@ -20,6 +26,170 @@
 name: spatia
 
 services:
+  spatia:
+    # O backend e o frontend são o MESMO processo: `serve.py` responde a API e serve os estáticos.
+    profiles: [app]
+    # ⚠️ O contexto é a RAIZ porque a camada de dependência copia o `serve.py`, que é o dono
+    # da lista (bloco PEP 723). O `.dockerignore` deixa só ele atravessar — o resto do repo
+    # chega por bind-mount, e mandá-lo ao daemon só tornaria o build lento e frágil.
+    build:
+      context: .
+      dockerfile: .docker/spatia/Dockerfile
+    restart: unless-stopped
+    # ⚠️ o ONNX do embedding carrega na memória do processo; o resto é stdlib.
+    deploy:
+      resources:
+        limits:
+          memory: ${SPATIA_MEM:-2g}
+    depends_on:
+      qdrant: {condition: service_healthy}
+      neo4j: {condition: service_healthy}
+    ports:
+      # ⚠️ Loopback do lado de FORA; `0.0.0.0` do lado de dentro (ver o Dockerfile). O servidor não
+      # tem autenticação — `exposure.auth` em `/api/health` diz "nenhuma" —, então quem faz a
+      # barreira é este `127.0.0.1:` e mais nada.
+      - "127.0.0.1:${ESPATIAL_PORT:-8787}:8787"
+    extra_hosts:
+      # Para alcançar o que roda NATIVO no host: Ollama e o `cerebro.py` do MLX. No macOS o Docker
+      # Desktop já resolve este nome; no Linux é esta linha que o cria.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # ☠️ **MONTAGEM IDENTIDADE: o mesmo caminho absoluto dos dois lados.** É isto que apaga a
+      # tradução entre "o caminho de dentro" e "o de fora" — a classe de defeito mais cara desta
+      # base é o caminho que resolve para a árvore ERRADA com a leitura passando. Com origem e
+      # destino idênticos, `CORPUS_ROOT` significa a mesma coisa no contêiner e no host, e não há
+      # o que traduzir.
+      #
+      # ⚠️ **A raiz escolhida na TELA tem de estar DENTRO deste caminho.** Mount é fixo na subida e
+      # a raiz é escolhida em runtime: apontar `#/storage` para fora daqui deixa o seletor sem
+      # nada para listar. Aponte `SPATIA_CORPUS_MOUNT` para o ancestral que cobre suas escolhas.
+      #
+      # ⚠️ `ro` de propósito: o indexador só LÊ, e o default de ferramentas do agente é só leitura
+      # ("a UI é um observatório, não um editor"). Ligar escrita é decisão, e ela se toma aqui.
+      # ☠️ **DEFAULT INÓCUO, e a exigência mora no `make app`.** Um `:?` aqui parece a guarda
+      # certa e é a errada: o compose interpola o arquivo INTEIRO antes de olhar perfil, então
+      # um `make up` — que nem sobe este serviço — morre com uma variável que não é da conta
+      # dele. Medido em checkout limpo: `docker compose up -d` saía 1 sem subir nada.
+      # Quem RECUSA de verdade é `scripts/setup-docker-env.sh`, dependência do `make app`.
+      - "${SPATIA_CORPUS_MOUNT:-/dev/null}:${SPATIA_CORPUS_MOUNT:-/dev/null}:ro"
+      # O repo, para escrita: `.cache/` mora aqui, e é dele que saem os snapshots que o servidor
+      # anexa ao servir a topologia. ⚠️ Quando o repo está DENTRO do corpus, ele aparece montado
+      # duas vezes — só-leitura no caminho de identidade e escrita aqui. É esperado: são dois
+      # papéis (ser corpus × ser código), não dois donos do mesmo dado.
+      - ./:/app
+      # ☠️ O `.env` do repo VENCERIA o bloco `environment:` do compose (`config._load_env_file`
+      # escreve `os.environ[chave]` sem condição), e o contêiner herdaria `localhost:6333` para o
+      # Qdrant — falando consigo mesmo. Este arquivo é o `.env` DERIVADO, com os endereços da rede
+      # do compose; quem o gera é `make docker-env`, e o dono da verdade continua sendo o `.env`.
+      - ./.docker/spatia.env:/app/.env:ro
+      # ⚠️ O excludes pessoal do operador (ver o Dockerfile). `/dev/null` é a lista VAZIA
+      # quando ele não declara o seu — e é seguro justamente por EXISTIR: um caminho
+      # inexistente faria o Docker criar um diretório e o git ignoraria o arquivo todo.
+      - "${SPATIA_GIT_EXCLUDES:-/dev/null}:/etc/gitignore-global:ro"
+      # O ONNX do embedding (~120 MB) baixa uma vez.
+      - spatia-models:/models
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8787/api/health').status==200 else 1)
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      # O primeiro boot aquece os modelos de embedding antes de responder com folga.
+      start_period: 90s
+
+  # ─────────────────────────────────────────────────────────────── o cérebro offline
+  #
+  # ☠️ **DOIS SERVIÇOS, UM NOME.** `ollama-cpu` e `ollama-gpu` são a MESMA peça com aceleração
+  # diferente, e os dois respondem por `ollama` na rede via `aliases`. Sem o alias, trocar de
+  # perfil obrigaria a reescrever `OLLAMA_URL` — o endereço passaria a depender de como a máquina
+  # foi acelerada, que é exatamente o detalhe que quem escreve config não deveria conhecer.
+  #
+  # ⚠️ **Suba UM.** Os dois compartilham o volume de modelos e a porta; juntos são dois donos do
+  # mesmo acervo. `make ollama-cpu` e `make ollama-gpu` sobem um de cada vez.
+  #
+  # ☠️ **O perfil `gpu` é Linux e Windows (WSL2) com NVIDIA. No macOS ele NÃO funciona** — o Docker
+  # não passa GPU no macOS, em nenhuma versão, e o contêiner cai em CPU sem dizer que caiu.
+  #
+  # ☠️ **O CUSTO ESTÁ MEDIDO, e é de uma ordem de grandeza.** `qwen3:8b`, mesma prompt, mesma seed:
+  # **16,2 tok/s** com Metal nativo contra **1,25 tok/s** neste contêiner — **13× mais lento**, com
+  # 5,27 GiB residentes. Num Mac, o cérebro rápido é o NATIVO, e o perfil `cpu` serve para paridade
+  # de ambiente e para CI, nunca para trabalhar.
+  #
+  # ☠️ **E o teto REAL no macOS/Windows não é o `limits` abaixo: é a VM do Docker Desktop.** Um
+  # `memory:` acima dela é no-op que se LÊ como garantia. Medido: numa VM de 7,75 GiB o `gpt-oss:20b`
+  # (13,8 GB) morre com `llama runner process has terminated: signal: killed` — uma mensagem que não
+  # nomeia memória nem modelo. `docker info` diz o orçamento; modelo grande pede a VM maior ANTES.
+  #
+  # ⭑ **O acervo é a mesma variável nos dois, e ela decide o tipo de montagem sozinha:** valor com
+  # `/` é caminho do host (bind), valor simples é volume nomeado. É o que deixa o operador
+  # reaproveitar `~/.ollama/models` — dezenas de GB que ninguém quer baixar de novo — sem que o
+  # default deixe de ser portátil para quem não tem acervo nenhum.
+  #
+  # ⚠️ **Aponte para `models`, nunca para `~/.ollama` inteiro:** o diretório-pai guarda a chave
+  # privada `id_ed25519` do operador, e montá-lo põe a chave ao alcance do contêiner.
+  ollama-cpu:
+    profiles: [ollama-cpu]
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.12.6}
+    restart: unless-stopped
+    # ⚠️ ☠️ TEM DE CABER O MAIOR MODELO — `gpt-oss:20b` sozinho pesa 13,8 GB, e um teto abaixo disso mata o contêiner NO MEIO DA CARGA, com um `exit 137` que não nomeia o modelo.
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEM:-16g}
+    networks:
+      default:
+        aliases: [ollama]
+    ports:
+      # ⚠️ Publicado em loopback como todo o resto — e é por esta porta que o `cerebro.py` NATIVO
+      # (MLX, `make cerebro`) fala com o acervo, sem precisar saber que ele virou contêiner.
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    environment:
+      # Sem isto o Ollama escuta só no loopback DO CONTÊINER e o mapeamento de porta não alcança.
+      OLLAMA_HOST: "0.0.0.0"
+    volumes:
+      - "${SPATIA_OLLAMA_MODELS:-ollama-models}:/root/.ollama/models"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  ollama-gpu:
+    profiles: [ollama-gpu]
+    # ⚠️ ROCm (AMD) é a MESMA peça noutra etiqueta: `OLLAMA_IMAGE=ollama/ollama:0.12.6-rocm`, e
+    # aí os `devices` abaixo saem no lugar de `/dev/kfd` + `/dev/dri`. Por isso a imagem é variável.
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.12.6}
+    restart: unless-stopped
+    # ⚠️ ☠️ mesmo teto do perfil CPU: com NVIDIA os pesos vão para a VRAM, mas a carga passa pela RAM do contêiner antes.
+    networks:
+      default:
+        aliases: [ollama]
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+    volumes:
+      - "${SPATIA_OLLAMA_MODELS:-ollama-models}:/root/.ollama/models"
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEM:-16g}
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
   qdrant:
     # ☠️ **A versão é FIXADA, e fixar a errada é pior que não fixar.** O formato do storage evolui:
     # apontar para uma versão MAIS VELHA que a que escreveu os dados faz o Qdrant entrar em crash
@@ -28,6 +198,11 @@ services:
     # que o escreveu antes de escolher a etiqueta.
     image: qdrant/qdrant:v1.19.0
     restart: unless-stopped
+    # ⚠️ o índice HNSW é mapeado em memória e cresce com o corpus — reveja se `points` passar de alguns milhões.
+    deploy:
+      resources:
+        limits:
+          memory: ${QDRANT_MEM:-2g}
     ports:
       # ☠️ **LOOPBACK, nunca `0.0.0.0`.** O Qdrant sobe SEM autenticação: exposto na interface de
       # rede, qualquer um do outro lado lê e escreve o corpus inteiro — os vetores são o conteúdo
@@ -56,6 +231,11 @@ services:
   neo4j:
     image: neo4j:5.26.0
     restart: unless-stopped
+    # ⚠️ ☠️ TEM DE SER MAIOR QUE heap + pagecache: os `1G` de heap e `512m` de pagecache declarados abaixo são o que a JVM PEDE, e fora deles ainda há metaspace, buffers diretos e as threads. Teto igual à soma faz o kernel matar a JVM antes de ela dizer que faltou memória.
+    deploy:
+      resources:
+        limits:
+          memory: ${NEO4J_MEM:-3g}
     ports:
       - "127.0.0.1:${NEO4J_HTTP_PORT:-7474}:7474"   # HTTP — é por aqui que os scripts falam Cypher
       - "127.0.0.1:${NEO4J_BOLT_PORT:-7687}:7687"   # Bolt — para o browser oficial, se você o usar
@@ -83,6 +263,11 @@ services:
     # Digest fixado: `latest` mudaria o comportamento da busca sem ninguém pedir.
     image: searxng/searxng:latest@sha256:1081d08bdcd6126533de497ee597f64de94064339e7bc03bc046352adfe320e6
     restart: unless-stopped
+    # ⚠️ um agregador de HTTP; não guarda índice.
+    deploy:
+      resources:
+        limits:
+          memory: ${SEARXNG_MEM:-512m}
     ports:
       # Loopback pelo mesmo motivo do Qdrant: o searxng não tem auth.
       - "127.0.0.1:${SEARXNG_PORT:-8888}:8080"
@@ -113,6 +298,11 @@ services:
     profiles: [speech]
     image: ${TTS_IMAGE:-ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.4}
     restart: unless-stopped
+    # ⚠️ os modelos de voz carregam no boot — é por isso que o `start_period` dele é generoso.
+    deploy:
+      resources:
+        limits:
+          memory: ${TTS_MEM:-4g}
     ports:
       - "127.0.0.1:${TTS_PORT:-8880}:8880"
     volumes:
@@ -138,3 +328,6 @@ volumes:
   neo4j-data:
   neo4j-logs:
   tts-models:
+  spatia-models:
+  # ⭑ O default de `SPATIA_OLLAMA_MODELS`: acervo próprio, portátil, para quem não tem um no host.
+  ollama-models:

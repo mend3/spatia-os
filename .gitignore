@@ -6,3 +6,6 @@ node_modules/
 
 # Carrega `secret_key` — gerado por `make searxng-settings`, nunca versionado.
 .docker/searxng/settings.yml
+
+# DERIVADO do `.env` por `make docker-env` — carrega os mesmos segredos que ele.
+.docker/spatia.env
