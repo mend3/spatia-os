@@ -160,12 +160,20 @@ def trocar_apelido(apelido: str, para: str) -> Optional[str]:
     """Move o APELIDO para a coleção nova, atomicamente. Devolve a física anterior, se havia.
 
     ☠️ É esta linha que torna o reindex seguro: até ela, quem consulta lê a coleção velha INTEIRA.
+
+    ☠️ **A pergunta é ao REGISTRO GLOBAL de apelidos, nunca ao `/collections/<apelido>/aliases`.**
+    Para um APELIDO esse endpoint devolve lista VAZIA — medido —, então `anterior` saía `None`
+    SEMPRE e a coleção velha nunca era recolhida: uma cópia inteira do corpus vazando em disco a
+    cada reindexação, sem erro em lugar nenhum. É a mesma armadilha que a guarda de colisão em
+    `indexar()` já documenta; ela mordeu duas vezes porque a régua estava certa numa função e
+    errada na outra.
     """
     anterior = None
     try:
-        atuais = net.get_json("qdrant", _url(f"/collections/{apelido}/aliases"))
-        for a in (atuais.get("result") or {}).get("aliases", []):
-            anterior = a.get("collection_name")
+        registro = net.get_json("qdrant", _url("/aliases"))
+        for a in (registro.get("result") or {}).get("aliases", []):
+            if a.get("alias_name") == apelido:
+                anterior = a.get("collection_name")
     except net.UpstreamError:
         pass
     acoes = [{"create_alias": {"collection_name": para, "alias_name": apelido}}]
