@@ -21,7 +21,12 @@ name: spatia
 
 services:
   qdrant:
-    image: qdrant/qdrant:v1.12.4
+    # ☠️ **A versão é FIXADA, e fixar a errada é pior que não fixar.** O formato do storage evolui:
+    # apontar para uma versão MAIS VELHA que a que escreveu os dados faz o Qdrant entrar em crash
+    # loop com panic de desserialização (`invalid type: sequence, expected a map`) — visto aqui com
+    # `v1.12.4` sobre um store gravado pela 1.19. Ao migrar dado de outro lugar, confira a versão
+    # que o escreveu antes de escolher a etiqueta.
+    image: qdrant/qdrant:v1.19.0
     restart: unless-stopped
     ports:
       # ☠️ **LOOPBACK, nunca `0.0.0.0`.** O Qdrant sobe SEM autenticação: exposto na interface de
