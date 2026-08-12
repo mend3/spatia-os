@@ -1273,9 +1273,11 @@ mesmo fato).
   falsa** — `orbitaMinima(mass)` já É `2,44·R`, e a constante mora em `raioDeCorpo`.
 - **T-26** — as quatro candidatas estão prontas em `src/sandbox/ring-variants.js` com a pesquisa em
   `catalogo-celeste.md`. **Falta o número:** a comparação a 25 px foi feita a olho, sem timer de
-  GPU, e as quatro custam coisas diferentes. ⚠️ O anel **não aparece no corpus real** (a varredura
-  de sujos é enraizada no `AGENT_CWD` e os arquivos que o `git status` acusa não estão indexados) —
-  só se julga no fixture ou na bancada.
+  GPU, e as quatro custam coisas diferentes. ⚠️ **O anel é raro no corpus real, e a causa é a
+  ADMISSÃO, não a raiz** — a varredura de sujos enxerga todos os repositórios sob `CORPUS_ROOT`,
+  mas só prosa é indexada, e o que o `git status` acusa é quase todo código e config. Medido no
+  corpus deste ambiente: **90 sujos relatados, 1 casando com um corpo do céu** (a régua é
+  `/api/dirty` contra `/api/graph`; refaça, não herde o número). Julgue no fixture ou na bancada.
 - **T-27** — o custo não é traduzir: são ~210 literais, e essa é a parte fácil. Os rótulos são
   curtos e caixa-alta porque a HUD é hairline, e as réguas da systray, do `.config-key` (68 px para
   a tecla) e do `.headstat` foram dimensionadas para o português. **Alemão e francês estouram
@@ -1313,6 +1315,13 @@ mesmo fato).
   portão medido em 9,7%. O `quasar-enhance` pede sete coisas e **quatro já existem**.
 - **`anexar` já é meia nave**: prende a câmera a um corpo que viaja com ele, e `scene.js` já declara
   por escrito o destino *"uma sonda 3D representando o operador"*.
+- **A pilha inteira sobe por compose, e o servidor também** — `make app` roda o SpatIA em
+  contêiner com **montagem-identidade** (o mesmo caminho absoluto dos dois lados, que é o que apaga
+  a tradução de caminho), `make ollama-cpu`/`ollama-gpu` dão o cérebro offline com perfil por
+  plataforma, e `make serve` DERIVA qual perfil esta máquina pede. Todo serviço tem teto de
+  memória. ⚠️ **Antes de propor "conteinerizar o servidor", leia o cabeçalho do `compose.yml`:** o
+  que está recusado não é o contêiner, é a tradução de caminho e a GPU no macOS — e os dois têm
+  medida ao lado.
 - **A influência cognitiva JÁ governa o brilho** — `universe.js:brilhoDe`, `centrality` a 0,9 e
   `usage` a 0,45 atrás do portão de evidência, com `null` caindo para a atividade sozinha em vez de
   para zero. Toda proposta de *"gravidade cognitiva"* / *"campo de influência"* deve começar por

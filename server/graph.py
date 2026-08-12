@@ -507,7 +507,7 @@ def load(force: bool = False) -> dict:
     # `CORPUS_PREFIX` entra no fingerprint porque mudá-lo reescreve TODO id de nó sem mover o
     # `points_count` — o cache continuaria casando e serviria ids que o leitor não resolve.
     #
-    # ⚠️ `AGENT_CWD` entra pelo MESMO motivo, e faltava. Ele decide qual repositório git alimenta
+    # ⚠️ A RAIZ do corpus entra pelo MESMO motivo. Ela decide qual repositório git alimenta
     # `recency`, `churn`, `dormant` e `regularity` — ou seja, o raio orbital, o anel, a supernova e
     # a classe PULSAR de todo nó. Trocar de árvore mantendo a coleção deixava o cache casando e
     # servindo esses quatro campos calculados do repo ERRADO, em silêncio. O sintoma observado em

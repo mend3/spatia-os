@@ -18,32 +18,41 @@
 
 ## 0. ⚠️ AMBIENTE — confira ANTES de medir qualquer coisa
 
-O `.env` é a verdade; isto aqui é lembrança. Um censo rodado contra o corpus errado responde com
-convicção total sobre um céu que ninguém está vendo.
+Um censo rodado contra o corpus errado responde com convicção total sobre um céu que ninguém está
+vendo. ☠️ **A verdade é o SERVIDOR, não o `.env`** — a ordem é **UI > `.env` > default**, e
+`/api/setup` publica a ORIGEM ao lado de cada valor. Perguntar a ele é o primeiro diagnóstico de
+"corpus vazio"; grepar o `.env` lê a camada do MEIO e responde com convicção sobre quem não decidiu.
 
 ```bash
-grep -E 'AGENT_CWD|QDRANT_COLLECTION|CORPUS_PREFIX' .env    # a verdade
-echo $AGENT_CWD                                             # o primeiro diagnóstico de "corpus vazio"
+curl -s localhost:8787/api/setup | python3 -m json.tool   # a raiz, a coleção, e QUEM decidiu cada uma
+curl -s localhost:8787/api/graph                          # a contagem do dia sai daqui, nunca de um doc
 ```
 
-☠️ **Três variáveis estão EXPORTADAS no perfil do shell e apontam para lugares que não existem**
-(`AGENT_CWD=devshell-one`, `QDRANT_COLLECTION=workspace_embedding`, `CORPUS_PREFIX=vault/`). Elas
-vencem o servidor e produzem **zero com cara de medida** — um relatório inteiro certo, menos a
-premissa. Os scripts atuais conferem ou ignoram o override; **script novo precisa da mesma guarda.**
+☠️ **Existe UMA raiz: `CORPUS_ROOT`**, escolhida em `#/storage` e persistida em
+`.cache/ambiente.json`. `AGENT_CWD`, `FILE_ROOTS` e `FILES_ROOT` não têm leitor — `lei-config.py`
+§6c varre `server/` para garantir, e a régua dela é `config.get`, nunca a menção.
 
-⚠️ **`.env` (arquivo) vence o ambiente.** `VAR=x ./serve.py` só funciona se a chave não estiver lá.
+⚠️ **Três variáveis continuam EXPORTADAS no perfil do shell** (`AGENT_CWD`,
+`QDRANT_COLLECTION=workspace_embedding`, `CORPUS_PREFIX=vault/`) apontando para lugares que não
+existem. Hoje elas são o FUNDO da pilha: a UI vence, e o `.env` **como arquivo** vence o ambiente
+(o carregador escreve `os.environ[key]`). Elas voltam a morder num consumidor que leia `os.environ`
+direto — **nenhum faz isso hoje; todo script pergunta ao `/api/graph`**, e script novo herda a
+obrigação.
 
-| corpus | coleção | `AGENT_CWD` | tamanho | para quê |
-|---|---|---|---|---|
-| **fixture** *(ativo hoje)* | `espatial_fixture` | `~/workspace/espatial-fixtures` | **72 corpos · 20 sistemas** (09/08) | CAPACIDADE — todos os `kind`, exercita `untracked`/`staged` e as 11 morfologias |
-| vivo | `espatial_vivo` | o próprio projeto | 188 corpos · 191 arq | COMPORTAMENTO — o `git status` casa com os nós por construção |
-| real | `workspace_embedding` | `~/workspace/devshell` (prefixo `vault/`) | 1.432 arq | ZERO código; e **não tem anel** (os sujos não estão indexados) |
+**Trocar de corpus é na TELA:** `#/storage` → escolher a pasta → INDEXAR, com o progresso na própria
+tela. O terminal não entra no caminho feliz. A indexação constrói uma coleção FÍSICA carimbada e move
+o APELIDO no fim — falhar no meio não toca o céu servido.
 
-☠️ **Só existe `.cache/env.fixture.bak`** — confira com `ls .cache/env.*.bak` antes de contar com um
-backup. Trocar de corpus é **guardar o `.env` atual primeiro**, editar as três chaves à mão (a tabela
-acima tem os valores) e **REINICIAR o servidor**. Recriar o fixture:
+| corpus | coleção | para quê |
+|---|---|---|
+| o que você apontou | derivada da raiz (`spatia_<pasta>_<hash>`) | o céu de trabalho |
+| **fixture** | `espatial_fixture`, **própria** | CAPACIDADE — leva cada eixo ao extremo e exercita `kind`, morfologia e `untracked`/`staged` que o corpus real não produz |
+
+⚠️ **O fixture tem coleção PRÓPRIA de propósito** — indexá-lo por cima do céu servido é o que a
+prévia e o carimbo de corpus existem para impedir. Recriar:
 `FIXTURE_ROOT=~/workspace/espatial-fixtures uv run --with fastembed python scripts/fixture.py`
-(⚠️ há `rmtree` em `fixture.py` — passar `FIXTURE_ROOT` explícito é hábito, não paranoia).
+(⚠️ há `rmtree` em `fixture.py` — passar `FIXTURE_ROOT` explícito é hábito, não paranoia), e ele
+imprime no fim a raiz e a coleção para pôr na tela.
 
 ⚠️ **A coleção precisa de DOIS vetores nomeados** (denso `fast-<modelo>` + esparso `bm25` com
 `modifier: idf`) — declarar só um derruba a busca inteira.
@@ -62,9 +71,15 @@ propósito). A janela de depuração é **`window.spatia`**.
 ```bash
 make            # o que dá para rodar — o tooling inteiro está no Makefile
 make hooks      # UMA vez por clone: o git passa a usar os hooks VERSIONADOS de .githooks/
-make serve      # 127.0.0.1:8787 · Qdrant 6333 · Neo4j 7474
+make serve      # 127.0.0.1:8787 — DERIVA o ambiente e sobe a infra que esta máquina pede
 make leis       # ☠️ o portão. Já roda no pre-commit
 ```
+
+⭑ **`make serve` decide o perfil sozinho** (`scripts/setup-ambiente.sh`): detecta a plataforma,
+pergunta se algo já responde no `OLLAMA_URL` do `.env` e só põe cérebro em contêiner quando não há
+nativo — no macOS o contêiner é **13× mais lento** (medido, `qwen3:8b`). ☠️ **Ele nunca sobe o
+perfil `app`**, que é o servidor EM contêiner na mesma porta; `make app` é a alternativa, nunca o
+complemento.
 
 Abra, clique em **IGNORAR** na tela de boot (obrigatório depois de TODO reload, senão ela fica por
 cima e as sondas devolvem `null`).

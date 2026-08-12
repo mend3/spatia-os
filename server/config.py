@@ -403,8 +403,8 @@ def definir_corpus(raiz: str) -> dict:
     """Escolhe a RAIZ e escreve as derivadas junto, num ato só.
 
     ⭑ **A derivação é escrita, não calculada na leitura**, e é o que a torna auditável: quem abrir
-    `.cache/ambiente.json` vê `AGENT_CWD` com o mesmo valor da raiz, e não precisa conhecer uma
-    regra escondida no leitor para entender por quê.
+    `.cache/ambiente.json` vê cada derivada com o valor que a raiz lhe deu, e não precisa conhecer
+    uma regra escondida no leitor para entender por quê. Quais são elas está em `DERIVADAS`.
 
     ⚠️ **A coleção acompanha a raiz.** Corpus diferente é céu diferente, e reaproveitar o nome faria
     o snapshot velho passar no carimbo — o servidor recusa o que não é do céu servido, e essa recusa
@@ -504,7 +504,7 @@ SPARSE_VECTOR_NAME = "bm25"
 
 
 def agent_dir() -> Optional[Path]:
-    """`AGENT_CWD/.claude`, quando existe.
+    """`CORPUS_ROOT/.claude`, quando existe.
 
     É onde as configurações do agente já moram: `catalog.py` descobre skills e agentes ali, e as
     `setting_sources` do CLI leem dali. Tudo que este servidor escreve PARA o agente vai para o

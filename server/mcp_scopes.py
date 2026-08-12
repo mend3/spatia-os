@@ -13,8 +13,8 @@ de `--mcp-config`.
 
 | Escopo | Arquivo | O que traz |
 |---|---|---|
-| `project` | `<AGENT_CWD>/.mcp.json` | versionado; precisa de aprovação em `enabledMcpjsonServers` |
-| `local` | `~/.claude.json` → `projects[<AGENT_CWD>].mcpServers` | só desta máquina, para este repo |
+| `project` | `<CORPUS_ROOT>/.mcp.json` | versionado; precisa de aprovação em `enabledMcpjsonServers` |
+| `local` | `~/.claude.json` → `projects[<CORPUS_ROOT>].mcpServers` | só desta máquina, para este repo |
 | `user` | `~/.claude.json` → `mcpServers` (topo) | global do usuário |
 
 O escopo que faltava era o **`local`**, não o `user`: `claude mcp add` sem `--scope` grava no

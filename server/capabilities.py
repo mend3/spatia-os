@@ -1,14 +1,14 @@
 """Capacidade = (verbo, escopo, limite), e o portão que a torna real.
 
-Uma lista de nomes negados (`--disallowedTools Read`) não é autoridade. `Read` com `AGENT_CWD` no
-projeto e `Read` com `AGENT_CWD` no workspace inteiro são a MESMA marca de seleção e duas
+Uma lista de nomes negados (`--disallowedTools Read`) não é autoridade. `Read` com a raiz no
+projeto e `Read` com a raiz no workspace inteiro são a MESMA marca de seleção e duas
 autoridades separadas por ordens de magnitude. `mcp__*` não aparece na lista de ferramentas e é o
 que o sistema tem de mais poderoso. E nada tem limite quantitativo: permitida é permitida N vezes.
 
 ⚠️ **A parte honesta: o CLI só aceita NOMES, não escopos.** A capacidade se materializa por dois
 caminhos, e confundi-los é vender sandbox que não existe:
 
-- **O que o CLI aceita** — `--allowedTools`/`--disallowedTools`, `AGENT_CWD` como raiz, e
+- **O que o CLI aceita** — `--allowedTools`/`--disallowedTools`, a raiz do corpus como cwd, e
   `--mcp-config` + `--strict-mcp-config`. Isso é prevenção real, aplicada ANTES de o processo
   existir.
 - **O que o CLI não aceita** — escopo e limite. Para isso existe este portão: um hook
@@ -35,8 +35,8 @@ logger = logging.getLogger("espatial.capabilities")
 def _paths() -> list:
     """Onde procurar as capacidades, na ordem.
 
-    O `.claude/` do `AGENT_CWD` vem PRIMEIRO: a política é sobre o que o agente pode fazer
-    NAQUELE workspace, então ela viaja com o workspace. Trocar `AGENT_CWD` troca a política junto,
+    O `.claude/` da raiz do corpus vem PRIMEIRO: a política é sobre o que o agente pode fazer
+    NAQUELE workspace, então ela viaja com o workspace. Trocar `CORPUS_ROOT` troca a política junto,
     do mesmo jeito que já troca o catálogo de skills — e uma política que ficasse aqui seguiria
     valendo para um workspace que ela nunca viu.
     """
@@ -221,7 +221,7 @@ def settings_file(run: str) -> Optional[str]:
     }
     # A settings efêmera vai para o `.claude/` do agente quando ele existe: é o diretório de
     # configuração DELE, e é lá que quem for depurar vai procurar. `.cache/` daqui é o fallback
-    # de quem não tem `AGENT_CWD` configurado.
+    # de quem ainda não escolheu a raiz do corpus.
     agente = config.agent_dir()
     base = (agente / "spatia") if agente else (config.ROOT / ".cache")
     destino = base / f"gate-{chave}.json"

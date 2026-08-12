@@ -386,8 +386,8 @@ Três escritores possíveis, do mais barato ao mais caro:
 
 ⚠️ **Nenhum deles no caminho da requisição.** O `/api/ask` não pode esperar por escrita de grafo, e
 o céu não pode esperar por grafo nenhum para montar. Ingestão é sempre fora de banda — a mesma
-regra que o SpatIA já aplica ao índice ("o SpatIA não indexa; lê uma coleção que outro pipeline
-escreve").
+regra que o SpatIA já aplica ao índice: indexar acontece FORA do quadro, e o que a requisição lê é
+o resultado pronto.
 
 ### ⚠️ Já existe outro grafo neste Neo4j
 

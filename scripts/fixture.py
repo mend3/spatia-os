@@ -2,10 +2,11 @@
 """
 Monta um CORPUS DE TESTE completo para a cena — repo git próprio + coleção Qdrant própria.
 
-Por que existe: a cena real indexa `~/vault` enquanto o `AGENT_CWD` aponta para o workspace, então
-o estado git quase nunca casa com um nó — só `Makefile` e `opensrc` aparecem, os dois `modified`.
-Não há como validar `untracked` nem `staged` na cena real, e nem como exercitar as morfologias de
-propósito. Aqui as duas pontas são construídas juntas e casam por construção.
+Por que existe: no corpus real o estado git quase nunca casa com um nó. A varredura de sujos
+enxerga todos os repositórios sob a raiz, mas só PROSA é indexada, e o que o `git status` acusa é
+quase todo código e config — a régua é `/api/dirty` contra `/api/graph`, e neste ambiente ela deu
+90 sujos para 1 casamento. Não há como validar `untracked` nem `staged` assim, nem exercitar as
+morfologias de propósito. Aqui as duas pontas são construídas juntas e casam por construção.
 
 O que ele garante, e cada linha é deliberada:
 
@@ -465,9 +466,12 @@ def main() -> None:
     print("estados  " + " · ".join(f"{k}={v}" for k, v in sorted(estados.items())))
     print(f"coleção  {COLECAO} em {QDRANT}")
     print()
-    print("aponte o servidor:  AGENT_CWD=" + str(RAIZ))
-    print("                    QDRANT_COLLECTION=" + COLECAO)
-    print("                    CORPUS_PREFIX=")
+    # ⚠️ O caminho é a TELA, não o `.env`: a ordem é UI > `.env` > default, e um valor escrito no
+    # arquivo não vence a raiz que o operador já escolheu em `#/storage`.
+    print("aponte o SpatIA em #/storage:")
+    print(f"  raiz     {RAIZ}")
+    print(f"  coleção  {COLECAO}   (o fixture tem coleção PRÓPRIA — não reindexe por cima do céu servido)")
+    print("  prefixo  (vazio)")
 
 
 if __name__ == "__main__":
