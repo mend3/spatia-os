@@ -9,6 +9,11 @@
 // de centenas — o trabalho de formatação enterrando o trabalho de verdade. `formatOnSaveMode:
 // "modifications"` limita ao que o git vê como alterado.
 {
+  // ────────────────────────────────────────────────────── agente: UM portão de confirmação
+  // O agente já pede permissão antes de chamar as tools de escrita. Com "confirm" aqui, cada
+  // edição pediria confirmação DUAS vezes — uma no terminal e um modal por cima do editor.
+  "agentBridge.writeMode": "auto",
+
   // ─────────────────────────────────────────────────────────────── formato: UM dono
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "modifications",
@@ -19,13 +24,23 @@
   // ⚠️ HTML fica FORA do formato automático: medido, prettier não muda o `index.html` — mas ele é
   // o arquivo onde vivem o CSS e os nós que quatro oráculos leem, e formatá-lo por acidente num
   // save é risco sem ganho.
+  // ☠️ **Python fica FORA do formato automático, e é uma decisão explícita — não um esquecimento.**
+  // `editor.defaultFormatter` no topo vale para TODA linguagem, inclusive as que o prettier não
+  // formata. Medido na fonte do VS Code (`formatActionsMultiple.ts`): quando o formatador
+  // configurado não atende à linguagem, ele NÃO cai para outro provedor, e em `FormattingMode.
+  // Silent` — que é o do salvar — não mostra diálogo nenhum. O `.py` simplesmente não era
+  // formatado, sem sintoma. Dizer `false` aqui troca uma falha calada por uma escolha legível.
+  //
+  // ⭑ Para ligar: `"[python]": { "editor.defaultFormatter": "ms-python.black-formatter" }` — o
+  // black já está instalado e ativo. Com `formatOnSaveMode: "modifications"` ele tocaria só as
+  // linhas alteradas, mas o estilo dele passa a conviver com o que já existe: é a mesma decisão
+  // que este arquivo tomou para o JS, e ela é de quem opera.
+  "[python]": { "editor.formatOnSave": false },
+
   "[html]": { "editor.formatOnSave": false },
 
   // O formatador embutido, desligado — é o que impede dois donos do mesmo save.
-  // ⚠️ Chave `js/ts.*`: as antigas `javascript.format.enable`/`typescript.format.enable` estão
-  // DEPRECIADAS e as duas foram fundidas nesta. Manter as velhas deixaria o aviso do editor de pé
-  // sobre uma configuração que ainda funciona — ruído que ensina a ignorar aviso.
-  "js/ts.format.enable": false,
+  "js/ts.format.enabled": false,
   // Só formata onde há `.prettierrc`; sem isto o prettier aplica os padrões dele em qualquer
   // arquivo aberto, inclusive fora deste repo.
   "prettier.requireConfig": true,

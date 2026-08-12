@@ -570,6 +570,7 @@ faz alguém refazer um trabalho já pago, ela fica.
 | **por que é assim** | comentário do MÓDULO | é onde a próxima pessoa tropeça |
 | o que está aberto AGORA | `docs/HANDOFF.md` | |
 | ordem, e o que cada peça destrava | `docs/roadmap.md` | |
+| o que o EDITOR responde, e onde ele cala | `docs/ponte-vscode.md` | a ponte do VS Code some sem janela aberta, e cala em três lugares |
 | **a história** | corpo do commit | e ele é longo aqui **de propósito** |
 
 ☠️ **A ORDEM DE PRECEDÊNCIA, quando duas fontes discordam: o CÓDIGO vence o doc, e o doc vence o

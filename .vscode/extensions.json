@@ -4,8 +4,21 @@
 //
 // A conferência de tipos NÃO precisa de extensão: o TypeScript vem no VS Code e lê o
 // `tsconfig.json` sozinho.
+//
+// ⚠️ **A segunda entrada é pelo AGENTE, não pelo editor.** Sem `ms-python.python` e o Pylance, as
+// ferramentas semânticas sobre `.py` respondem `language_service_cold` e os 47 arquivos Python
+// viram texto — quem trabalha com agente aqui perde definição, referências e diagnostics neles.
+// Um humano continua editando sem elas; um agente não continua entendendo.
+//
+// ⭑ Conferir o que está de fato RESPONDENDO, e não o que está instalado: `get_language_support`
+// da ponte do VS Code sonda os provedores. Extensão desabilitada no global pode estar ligada
+// neste workspace, e o inverso também — a lista não é a verdade.
 {
-  "recommendations": ["esbenp.prettier-vscode"],
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "ms-python.python",
+    "ms-python.vscode-pylance"
+  ],
   // O ESLint está FORA por decisão registrada: ele exigiria `package.json`, e o cabeçalho do
   // `Makefile` mede os dois efeitos colaterais que este repo recusa.
   "unwantedRecommendations": ["dbaeumer.vscode-eslint"]
