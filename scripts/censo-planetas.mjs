@@ -114,9 +114,20 @@ async function buscaGrafo() {
         `sintético: um número tirado de nós inventados responderia sobre um céu que não existe.`
     );
   }
-  if (!resposta.ok) throw new Error(`${URL_GRAFO} devolveu HTTP ${resposta.status}`);
-  const grafo = await resposta.json();
-  if (!Array.isArray(grafo.nodes)) throw new Error(`${URL_GRAFO} não devolveu {nodes: [...]}`);
+  /*
+   * ☠️ **`throw` aqui imprimia STACK TRACE, e traço de pilha lê como código quebrado.** A causa
+   * mais comum destes dois ramos é banal — o corpus ainda não foi indexado —, e o operador que
+   * roda `make leis` num clone novo concluía que o repositório está com defeito. Recusar por
+   * NOME, saindo 1, diz a mesma coisa sem acusar o código.
+   */
+  const grafo = resposta.ok ? await resposta.json().catch(() => null) : null;
+  if (!grafo || grafo.error || !Array.isArray(grafo.nodes)) {
+    const porque = grafo?.error || (resposta.ok ? 'a resposta não é uma topologia' : `HTTP ${resposta.status}`);
+    console.error(`${URL_GRAFO} não entregou topologia: ${porque}`);
+    console.error('  se a indexação ainda não correu, é isso — indexe em #/storage e rode de novo.');
+    // 2 = "não pude medir", nunca 1 = "a lei caiu". Ver `scripts/lib/ceu-servido.mjs`.
+    process.exit(2);
+  }
   return grafo;
 }
 

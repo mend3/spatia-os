@@ -21,16 +21,11 @@
  */
 import { entityPhysics, classificar, fenomenos, dominanteDe } from '../src/space/entity-physics.js';
 import { SUPERFICIE, superficieDe, AUSENTES_NA_TABELA } from '../src/space/superficies.js';
+import { ceuServido } from './lib/ceu-servido.mjs';
 
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
 
-const graph = await fetch(`${SPATIA}/api/graph`)
-  .then((r) => r.json())
-  .catch(() => null);
-if (!graph) {
-  console.error(`sem resposta de ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
-  process.exit(1);
-}
+const graph = await ceuServido(SPATIA, { porque: 'as peles alcançáveis' });
 
 /*
  * A dominância é contexto e vem da CONTENÇÃO, não do grafo.

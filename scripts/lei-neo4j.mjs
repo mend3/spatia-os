@@ -36,6 +36,7 @@
 import { readFile } from 'node:fs/promises';
 import { entityPhysics, classificar, fenomenos, dominanteDe } from '../src/space/entity-physics.js';
 import { posicaoCanonica } from '../src/space/posicao-canonica.js';
+import { ceuServido } from './lib/ceu-servido.mjs';
 
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
 
@@ -44,13 +45,7 @@ const VALORES = [null, 0, 0.001, 0.5, 0.999, 1];
 /** As dimensões que o Neo4j alimenta. Nenhuma delas pode aparecer numa decisão de classe. */
 const DO_GRAFO = ['centrality', 'usage', 'connectivity'];
 
-const graph = await fetch(`${SPATIA}/api/graph`)
-  .then((r) => r.json())
-  .catch(() => null);
-if (!graph) {
-  console.error(`sem resposta de ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
-  process.exit(1);
-}
+const graph = await ceuServido(SPATIA, { porque: 'as perturbações do grafo' });
 
 /** A assinatura de identidade de um corpo: o que NÃO pode mudar. */
 const assinatura = (node, extra) => {

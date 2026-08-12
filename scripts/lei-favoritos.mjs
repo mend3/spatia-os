@@ -44,6 +44,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { ceuServido } from './lib/ceu-servido.mjs';
 
 const RAIZ = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
@@ -77,17 +78,7 @@ const { superficieDe, SUPERFICIE } = await import(`${RAIZ}/src/space/superficies
  * exportadas no perfil apontando para lugares que não existem, e um oráculo rodado contra o corpus
  * errado responde com convicção total sobre um céu que ninguém está vendo.
  */
-const graph = await fetch(`${SPATIA}/api/graph`)
-  .then((r) => r.json())
-  .catch(() => null);
-if (!graph?.corpus?.collection) {
-  console.error(
-    `sem \`corpus\` em ${SPATIA}/api/graph — suba o ./serve.py primeiro.\n` +
-      `  Sem saber de que céu vieram, os corpos abaixo não sustentam afirmação nenhuma, e um zero\n` +
-      `  aqui teria cara de medida. Carimbo ausente não é carimbo neutro.`
-  );
-  process.exit(1);
-}
+const graph = await ceuServido(SPATIA, { porque: 'os favoritos medidos' });
 const CORPUS = graph.corpus.collection;
 const corpos = graph.nodes.filter((n) => n.type === 'file');
 const estruturas = graph.nodes.filter((n) => n.type !== 'file');

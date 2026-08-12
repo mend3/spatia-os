@@ -155,12 +155,14 @@ const rodar = (nome) =>
 const resultados = [];
 for (const nome of guardas) resultados.push(await rodar(nome));
 
-const caidos = resultados.filter((r) => r.code !== 0);
+// ⚠️ `2` sai daqui de propósito: ele é "não pude medir" e tem caixa própria abaixo. Deixá-lo
+// em `caidos` é o que fazia um banco vazio ser relatado como oito leis quebradas.
+const caidos = resultados.filter((r) => r.code !== 0 && r.code !== 2);
 const total = resultados.reduce((s, r) => s + r.ms, 0);
 
 console.log(`\x1b[1mAS LEIS\x1b[0m  ${guardas.length} guardas · ${(total / 1000).toFixed(1)}s\n`);
 for (const r of resultados) {
-  const marca = r.code === 0 ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
+  const marca = r.code === 0 ? '\x1b[32m✓\x1b[0m' : r.code === 2 ? '\x1b[33m⚠\x1b[0m' : '\x1b[31m✗\x1b[0m';
   console.log(`  ${marca} ${r.nome.padEnd(24)} ${String(r.ms).padStart(5)}ms`);
 }
 
@@ -183,9 +185,33 @@ if (divergiu) {
   );
 }
 
-if (caidos.length || divergiu) {
+/*
+ * ☠️ **"NÃO PUDE MEDIR" NÃO É "A LEI CAIU", e confundir os dois acusa o código de um banco vazio.**
+ * Guarda que depende do céu servido sai com 2 quando não há topologia (`scripts/lib/ceu-servido.mjs`)
+ * — a causa quase sempre é banal: ninguém indexou ainda. Contá-los como quebra faz um clone novo
+ * ler "8 LEIS CAÍRAM" e concluir que o repositório está com defeito.
+ *
+ * ⚠️ O portão CONTINUA saindo 1: nada foi verificado ali, e sair 0 seria o verde de mentira que
+ * esta base passa o tempo removendo. O que muda é de quem é a culpa.
+ */
+const semMedida = resultados.filter((r) => r.code === 2);
+if (semMedida.length) {
+  console.log(
+    `\n\x1b[33m⚠ ${semMedida.length} não puderam MEDIR\x1b[0m — falta topologia, não é defeito de código:`
+  );
+  for (const r of semMedida) {
+    console.log(`  ${r.nome.padEnd(24)} ${(r.saida.split('\n').find((l) => l.trim()) || '').slice(0, 92)}`);
+  }
+  console.log('  \x1b[2mindexe em #/storage (ou `make indexar`) e rode de novo\x1b[0m');
+}
+
+if (caidos.length || divergiu || semMedida.length) {
   if (!caidos.length) {
-    console.log(`\n\x1b[31m✗ o portão cai pela DIVERGÊNCIA acima\x1b[0m — as leis passaram, a cobertura não.`);
+    console.log(
+      divergiu
+        ? `\n\x1b[31m✗ o portão cai pela DIVERGÊNCIA acima\x1b[0m — as leis passaram, a cobertura não.`
+        : `\n\x1b[33m✗ nenhuma lei quebrou\x1b[0m — mas ${semMedida.length} não puderam medir, e isso não é aprovação.`
+    );
     process.exit(1);
   }
   console.log(`\n\x1b[31m✗ ${caidos.length} LEI(S) CAÍRAM\x1b[0m`);

@@ -38,9 +38,10 @@ import { classify, MORPHOLOGY_BY_KIND, RING_BY_STATE } from '../src/space/catalo
 import { resolveBody, MODIFIER } from '../src/space/solver.js';
 import { SUPERFICIE } from '../src/space/superficies.js';
 import { indexar } from '../src/space/sistemas.js';
+import { ceuServido } from './lib/ceu-servido.mjs';
 
 const BASE = 'http://127.0.0.1:8787';
-const graph = await (await fetch(`${BASE}/api/graph`)).json();
+const graph = await ceuServido(BASE, { porque: 'as classes, peles e morfologias' });
 const dirty = await (await fetch(`${BASE}/api/dirty`)).json();
 const sujos = new Map(Object.entries(dirty.files || {}));
 // O `source` do céu tem a raiz do repo na frente; o `git status` não.

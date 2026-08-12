@@ -657,6 +657,13 @@ medido numa sessão só, quatro deles não guardavam o que diziam (lista branca 
 arquivo; lei cega para uma das duas cenas; fato de mundo gravado como lei; `RAIZ` que fazia o
 oráculo passar sobre uma cópia MUTADA). **Quantidade de arquivo não é cobertura.**
 
+☠️ **A saída tem TRÊS caixas, e a do meio existe para não acusar o código de um banco vazio.**
+`✗ caíram` é lei conferida que quebrou; **`⚠ não puderam MEDIR` é guarda que depende do céu servido
+sem topologia para ler** — quase sempre porque ninguém indexou ainda. O portão continua saindo 1
+(nada foi verificado ali), mas a culpa fica no lugar certo. A régua é o código de saída: `1` quebrou,
+`2` não mediu (`scripts/lib/ceu-servido.mjs`), e guarda novo que leia `/api/graph` herda isso
+importando o helper em vez de copiar a checagem.
+
 ⭑ `--lista` mostra o que roda e o que NÃO roda com o motivo. Quem não roda é só quem **muta estado
 compartilhado** (`.cache/`, o Neo4j, o fixture) — e isso é MEDIDO no fonte, não listado à mão: a
 lista e a medida discordarem derruba o portão.

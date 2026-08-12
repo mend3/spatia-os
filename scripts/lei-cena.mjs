@@ -76,6 +76,7 @@ import { superficieDe, SUPERFICIE } from '../src/space/superficies.js';
  * — nem `surface`, nem chave nenhuma cujo valor esteja no vocabulário de `SUPERFICIE`.
  */
 import { resolveBody } from '../src/space/solver.js';
+import { ceuServido } from './lib/ceu-servido.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SPATIA = process.env.SPATIA_HTTP || 'http://127.0.0.1:8787';
@@ -226,20 +227,7 @@ if (cenas.length < 2) {
  * variáveis estão exportadas no perfil apontando para lugares que não existem, e um censo rodado
  * contra o corpus errado responde com convicção total sobre um céu que ninguém está vendo.
  */
-const graph = await fetch(`${SPATIA}/api/graph`)
-  .then((r) => r.json())
-  .catch(() => null);
-if (!graph) {
-  console.error(`sem resposta de ${SPATIA}/api/graph — suba o ./serve.py primeiro.`);
-  process.exit(1);
-}
-if (!graph.corpus?.collection) {
-  console.error(
-    `${SPATIA}/api/graph respondeu sem \`corpus\` — sem saber de que céu vieram, os corpos abaixo\n` +
-      `  não sustentam afirmação nenhuma. Carimbo ausente não é carimbo neutro.`
-  );
-  process.exit(1);
-}
+const graph = await ceuServido(SPATIA, { porque: 'os corpos perturbados pela cena' });
 
 const corpos = graph.nodes.filter((n) => n.type === 'file');
 if (!corpos.length) {
