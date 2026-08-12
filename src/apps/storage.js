@@ -12,22 +12,32 @@ import { listWidget } from './widgets-core.js';
 import { el, plural } from '../hud/dom.js';
 import { button } from '../hud/button.js';
 import { KIND_COLORS as SKY_COLORS } from '../space/graph.js';
+import { explicarVazio } from '../core/estado-do-indice.js';
 
 const COLOR = 0xffd166;
 
 let storage = null;
 let graph = null;
 let erro = null;
+/** O que dizer quando falta topologia — resolvido por `estado-do-indice`, nunca colado à mão. */
+let vazioDoCeu = 'lendo…';
 const listeners = new Set();
 const notify = () => listeners.forEach((fn) => fn());
 
+/*
+ * ☠️ **`Promise.all` fazia UMA falha apagar TRÊS painéis.** `/api/storage` e `/api/graph` são
+ * independentes — o primeiro responde 200 com a política de admissão, os excludes e a raiz mesmo
+ * sem índice nenhum. Com `all`, a rejeição do segundo descartava o primeiro junto, e a tela de
+ * armazenamento ficava inteira em branco anunciando um erro de Qdrant. `allSettled` mantém cada
+ * painel vivo pelo que ELE depende.
+ */
 async function load(api) {
-  try {
-    [storage, graph] = await Promise.all([api.storage(), api.graph()]);
-    erro = null;
-  } catch (error) {
-    erro = error.message;
-  }
+  const [s, g] = await Promise.allSettled([api.storage(), api.graph()]);
+  storage = s.status === 'fulfilled' ? s.value : null;
+  graph = g.status === 'fulfilled' ? g.value : null;
+  erro = s.status === 'rejected' ? s.reason?.message : null;
+  const erroDoCeu = g.status === 'rejected' ? g.reason?.message : null;
+  vazioDoCeu = await explicarVazio(erroDoCeu);
   notify();
 }
 
@@ -227,20 +237,20 @@ function registerSetup() {
           })
         );
 
+        /*
+         * ☠️ **A AÇÃO VEM ANTES DA LISTA, e a ordem inversa tornava o seletor inutilizável.**
+         * `PRÉ-VER ESTA PASTA` é o único caminho até `USAR ESTA PASTA`, e ele era empurrado para
+         * depois de até 40 botões de pasta. Medido no DOM: a fenda tem 503 px para 1176 px de
+         * conteúdo — o operador navegava, a lista empurrava a ação para fora da caixa, e ele
+         * concluía que dá para navegar mas não dá para escolher. A lista é para DESCER; a decisão
+         * é sobre onde já se está, e ela não pode depender de rolar o que a soterra.
+         *
+         * ⚠️ A prévia continua OBRIGATÓRIA antes de escolher — apontar uma pasta e descobrir o
+         * tamanho depois custa uma indexação inteira. O que mudou é a ordem na tela, nunca o passo.
+         */
         if (navegando) {
           blocks.push(kv('EM', navegando.caminho));
           if (navegando.erro) blocks.push(el('div', 'widget-error', navegando.erro));
-          if (navegando.pai) {
-            blocks.push(button({ label: '↑ ACIMA', onClick: () => navegar(navegando.pai) }));
-          }
-          for (const e of navegando.entradas.slice(0, 40)) {
-            const b = button({
-              label: `${e.ruido ? '· ' : ''}${e.nome}`,
-              title: e.legivel ? e.caminho : `sem permissão: ${e.caminho}`,
-              onClick: () => navegar(e.caminho),
-            });
-            blocks.push(b);
-          }
           blocks.push(
             button({ label: 'PRÉ-VER ESTA PASTA', variant: 'select', onClick: () => prever(navegando.caminho) })
           );
@@ -285,6 +295,29 @@ function registerSetup() {
              * que o operador conheça o procedimento interno é o Princípio 3 invertido.
              */
             blocks.push(el('div', 'widget-hint', 'escolher grava a raiz — depois é só INDEXAR'));
+          }
+        }
+
+        // A NAVEGAÇÃO, por último: ela é o que faz descer, e quem desce rola de propósito.
+        if (navegando) {
+          if (navegando.pai) {
+            blocks.push(button({ label: '↑ ACIMA', onClick: () => navegar(navegando.pai) }));
+          }
+          for (const e of navegando.entradas.slice(0, 40)) {
+            blocks.push(
+              button({
+                label: `${e.ruido ? '· ' : ''}${e.nome}`,
+                title: e.legivel ? e.caminho : `sem permissão: ${e.caminho}`,
+                onClick: () => navegar(e.caminho),
+              })
+            );
+          }
+          // ⚠️ O corte em 40 é MUDO hoje: uma pasta com 200 subpastas mostra 40 e não diz que
+          // cortou, e o operador conclui que a pasta que ele procura não existe.
+          if (navegando.entradas.length > 40) {
+            blocks.push(
+              el('div', 'widget-hint', `mostrando 40 de ${navegando.entradas.length} — desça por uma delas`)
+            );
           }
         }
         view.set(blocks);
@@ -373,7 +406,7 @@ function registerCoverage() {
     surface: true,
     render(view, ctx) {
       function draw() {
-        if (!graph) return view.empty(erro ? `indisponível: ${erro}` : 'lendo…');
+        if (!graph) return view.empty(vazioDoCeu);
         const stats = graph.stats || {};
         const blocks = [];
 

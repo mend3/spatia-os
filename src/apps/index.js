@@ -38,6 +38,7 @@ import * as prefs from '../core/prefs.js';
 import { PROFILES } from '../core/profiles.js';
 import { SPEC as TUNING_SPEC } from '../core/tuning.js';
 import { DIRTY_LABELS } from '../space/rings.js';
+import { explicarVazio } from '../core/estado-do-indice.js';
 import { KIND_COLORS as SKY_COLORS } from '../space/graph.js';
 import { morphologyOf } from '../space/catalog.js';
 
@@ -218,7 +219,8 @@ function registerFilesWidgets() {
             nodes = payload.nodes || [];
             if (cwd === null) cwd = payload.files_root || '';
           } catch (error) {
-            view.empty(`topologia indisponível: ${error.message}`);
+            // A instrução vem antes do motivo — ver `core/estado-do-indice.js`.
+            view.empty(await explicarVazio(error.message));
             return;
           }
         }
@@ -428,7 +430,8 @@ function registerFilesWidgets() {
 
           desenhar();
         })
-        .catch((error) => view.empty(`indisponível: ${error.message}`));
+        // Este painel também depende do céu: a instrução vem antes do motivo do upstream.
+        .catch(async (error) => view.empty(await explicarVazio(error.message)));
       /*
        * Destruir o painel SOLTA o filtro. Um céu filtrado por um controle que não está mais na
        * tela é um estado sem dono — e o operador não teria onde clicar para desfazê-lo.

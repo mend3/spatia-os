@@ -131,7 +131,7 @@ export function createBoot(root, { onEngage }) {
      * `corpos === null` é *"não carregou"* e `motivo` diz por quê — zero corpo com cara de céu
      * vazio é exatamente a leitura que não pode acontecer aqui.
      */
-    ceu({ corpos = null, luas = null, corpus = null, motivo = '' } = {}) {
+    ceu({ corpos = null, luas = null, corpus = null, motivo = '', indexando = null } = {}) {
       if (corpus?.collection) {
         // A raiz pelo último segmento, como o `agent_cwd` logo abaixo: o caminho inteiro rouba a
         // linha e a parte que identifica está no fim. O prefixo só entra quando existe — ele é
@@ -144,7 +144,38 @@ export function createBoot(root, { onEngage }) {
       }
 
       if (corpos === null) {
-        linha(CEU, 'TOPOLOGIA', motivo ? `indisponível — ${motivo}` : 'indisponível', 'bad');
+        /*
+         * ☠️ **Corpus DECLARADO e topologia ausente é um estado que ENSINA, não um erro a relatar.**
+         * A causa técnica não muda o que o operador faz a seguir: a coleção que ele escolheu não
+         * tem índice, e o próximo passo é indexá-la. Mostrar só o motivo do upstream ocupa a linha
+         * com uma frase sobre a qual ele não pode agir — e foi o que a tela fez com a coleção
+         * apagada, dizendo NÃO DECLARADO acima e citando o nome dela aqui.
+         *
+         * ⚠️ O motivo NÃO some: ele fica na segunda parte, depois da instrução. Esconder a causa
+         * para deixar a tela limpa é como se perde o diagnóstico de quem sabe lê-lo.
+         */
+        /*
+         * ⚠️ A instrução SUBSTITUI a palavra `indisponível` só quando ela é acionável — isto é,
+         * quando há um corpus escolhido para indexar. Sem corpus declarado não há passo a ensinar,
+         * e `indisponível` continua sendo a liderança certa: o motivo sozinho ("servidor não
+         * respondeu") não diz de QUE grandeza se fala. `lei-entrada §6` guarda esses dois ramos.
+         *
+         * ☠️ **E o TERCEIRO ramo existe porque o segundo mandava fazer o que já estava sendo
+         * feito.** O apelido do Qdrant só se move no FIM da indexação — é o que impede uma corrida
+         * interrompida de servir meio corpus —, então durante a corrida inteira a coleção não
+         * existe e a topologia falha de verdade. Sem este ramo a tela dizia "indexe em #/storage"
+         * com a indexação correndo, e o próximo passo ali não é indexar: é esperar.
+         */
+        const pc = indexando?.total ? Math.round((100 * (indexando.feitos || 0)) / indexando.total) : null;
+        const lider = indexando
+          ? `INDEXANDO · ${indexando.feitos ?? 0}/${indexando.total ?? '?'}${pc === null ? '' : ` (${pc}%)`}`
+          : corpus?.collection
+            ? 'SEM ÍNDICE · indexe em #/storage'
+            : 'indisponível';
+        // Com trabalho em curso o motivo do upstream é RUÍDO: ele descreve a ausência que a
+        // própria corrida está resolvendo, e ocupa a linha que agora carrega o progresso.
+        const cauda = indexando ? '' : motivo;
+        linha(CEU, 'TOPOLOGIA', [lider, cauda].filter(Boolean).join(' — '), indexando ? 'warn' : 'bad');
       } else {
         linha(CEU, 'TOPOLOGIA', corpos ? plural(corpos, 'corpo') : 'VAZIA', corpos ? 'ok' : 'bad');
       }

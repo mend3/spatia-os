@@ -23,12 +23,18 @@ const MOTIVOS = {
 
 /**
  * Dentro de `http_client` o status separa causas que o operador trata de formas MUITO diferentes:
- * chave errada é config dele, limite excedido é esperar, rota inexistente é versão trocada.
+ * chave errada é config dele, limite excedido é esperar, e 404 é alguma coisa que não está lá.
+ *
+ * ☠️ **O 404 dizia `ROTA INEXISTENTE`, e isso era um PALPITE sobre qual 404 aconteceria.** O 404
+ * que esta base de fato produz é o Qdrant respondendo por uma COLEÇÃO ausente — a rota está
+ * perfeitamente lá. O rótulo mandava procurar versão trocada de API enquanto o que faltava era o
+ * índice. `NÃO ENCONTRADO` cobre os dois sem afirmar qual, e quem precisa da distinção lê o
+ * `detail`, que agora chega legível (`server/net.py:_mensagem_de`).
  */
 const POR_STATUS = {
   401: 'CHAVE RECUSADA',
   403: 'ACESSO NEGADO',
-  404: 'ROTA INEXISTENTE',
+  404: 'NÃO ENCONTRADO',
   429: 'LIMITE EXCEDIDO',
 };
 

@@ -76,6 +76,12 @@ export const cutThread = (origin) =>
     body: JSON.stringify({ origin }),
   }).then((r) => (r.ok ? r.json() : r.json().then((b) => Promise.reject(new Error(b.error || r.status)))));
 
+/**
+ * O progresso da indexação. ⚠️ Ela é LONGA e o apelido do Qdrant só se move no fim — até lá a
+ * coleção servida não existe, e quem pergunta pela topologia recebe uma falha legítima. É esta
+ * rota que distingue "ninguém indexou" de "está indexando agora".
+ */
+export const indexacao = () => json('/api/setup/indexar');
 export const integrations = () => json('/api/integrations');
 export const mcp = () => json('/api/mcp');
 export const speech = () => json('/api/speech');

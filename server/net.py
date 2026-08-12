@@ -38,6 +38,39 @@ class UpstreamError(RuntimeError):
         self.reason = reason or _reason_of(status)
 
 
+def _mensagem_de(corpo: str) -> str:
+    """A frase LEGÍVEL de um corpo de erro, ou o corpo cru quando ele não é JSON conhecido.
+
+    ☠️ **O corpo cru vazava até a TELA DE ENTRADA.** Com a coleção ausente, o operador lia
+    `{"status":{"error":"Not found: Collection \u0060x\u0060 doesn't exist!"},"time":5.8e-6}` —
+    payload de upstream apresentado como diagnóstico, com um tempo de resposta em notação
+    científica no meio. Ele não diz o que fazer e ocupa a linha que deveria dizer.
+
+    ⚠️ **Isto NÃO mexe em `status` nem em `reason`** — os dois continuam saindo do FATO, e é sobre
+    eles que `scripts/motivo-upstream.py` legisla. Aqui é só a frase.
+
+    ⭑ As três formas cobrem o que esta base fala: Qdrant aninha em `status.error`, o padrão de
+    APIs JSON é `error`/`message`, e o resto volta como veio — nunca vazio, porque perder a única
+    pista seria pior que mostrá-la feia.
+    """
+    corpo = corpo.strip()
+    if not corpo.startswith("{"):
+        return corpo
+    try:
+        dados = json.loads(corpo)
+    except ValueError:
+        return corpo
+    if not isinstance(dados, dict):
+        return corpo
+    aninhado = dados.get("status")
+    if isinstance(aninhado, dict) and isinstance(aninhado.get("error"), str):
+        return aninhado["error"]
+    for chave in ("error", "message", "detail"):
+        if isinstance(dados.get(chave), str) and dados[chave]:
+            return dados[chave]
+    return corpo
+
+
 def _reason_of(status: int) -> str:
     """Rótulo de `metrics.UPSTREAM_REASONS` para um status HTTP. 0 = nem chegou a haver resposta."""
     if status >= 500:
@@ -66,7 +99,7 @@ def _request(
     try:
         return urllib.request.urlopen(request, timeout=timeout)
     except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "replace")[:MAX_ERROR_BODY]
+        detail = _mensagem_de(e.read().decode("utf-8", "replace")[:MAX_ERROR_BODY])
         raise UpstreamError(service, detail or e.reason, e.code) from e
     except urllib.error.URLError as e:
         raise UpstreamError(service, f"inalcançável ({e.reason})", reason="unreachable") from e

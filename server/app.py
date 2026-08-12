@@ -481,10 +481,16 @@ class Handler(BaseHTTPRequestHandler):
                 "file_roots": [str(root) for root in config.file_roots()],
             },
         }
+        # ☠️ **A COLEÇÃO É PUBLICADA NOS DOIS RAMOS, e é o ramo de FALHA que precisa dela.** Ela é
+        # configuração — sempre conhecida, mesmo com o Qdrant fora —, e sem ela o nome do corpus só
+        # existe DENTRO da string crua do erro. A tela de entrada pagava isso: com o índice ausente
+        # ela anunciava CORPUS · NÃO DECLARADO na linha de cima e citava a coleção pelo nome na de
+        # baixo, mandando o operador escolher uma pasta que ele já tinha escolhido.
+        colecao = config.get("QDRANT_COLLECTION")
         try:
-            health["qdrant"] = {"online": True, **qdrant.info()}
+            health["qdrant"] = {"online": True, "collection": colecao, **qdrant.info()}
         except net.UpstreamError as e:
-            health["qdrant"] = {"online": False, "error": e.detail}
+            health["qdrant"] = {"online": False, "collection": colecao, "error": e.detail}
 
         # Idade do índice: lida do cache da topologia, sem chamada upstream. O cabeçalho a
         # mostra em toda tela porque é a métrica que envelhece sem ninguém perceber.

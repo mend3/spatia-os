@@ -101,7 +101,17 @@ def prever(caminho: str) -> dict:
 
     ⭑ Existe para a escolha não ser às cegas: apontar para uma pasta e descobrir só depois que ela
     rende 15 mil arquivos é o tipo de surpresa que custa uma indexação inteira.
+
+    ☠️ **Caminho VAZIO cai na raiz CONFIGURADA, nunca no diretório de trabalho.** `Path("")` resolve
+    para o CWD do processo — que é o repositório do SpatIA, não o corpus —, então a prévia
+    respondia com convicção total sobre a árvore errada: 41 arquivos do próprio repo onde o corpus
+    escolhido tem milhares. Sem raiz configurada ela RECUSA, porque "não sei qual pasta" é uma
+    resposta melhor que o número de uma pasta que ninguém escolheu.
     """
+    if not caminho:
+        caminho = config.get("CORPUS_ROOT")
+        if not caminho:
+            raise ValueError("nenhuma raiz: passe `path=`, ou escolha a pasta em #/storage")
     raiz = Path(caminho).expanduser().resolve()
     if not raiz.is_dir():
         raise ValueError(f"não é um diretório: {raiz}")

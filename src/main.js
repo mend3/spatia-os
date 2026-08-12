@@ -1035,7 +1035,26 @@ async function main() {
     streams.note(`TOPOLOGIA INDISPONÍVEL: ${error.message}`, 'bad');
     // `null`, nunca 0: um céu que não carregou e um céu vazio dão a mesma imagem, e só um deles
     // é um defeito. A tela de entrada não pode ser o lugar onde essa diferença se perde.
-    boot.ceu({ corpos: null, corpus: null, motivo: error.message });
+    /*
+     * ☠️ **`corpus: null` aqui AFIRMAVA que nenhum corpus foi escolhido, e isso é outra mentira.**
+     * O comentário acima recusa um DEFAULT, e com razão — inventar `vault/` mediria o corpus
+     * errado. Mas passar `null` numa falha não é recusar um default: é trocar "o índice sumiu" por
+     * "você nunca escolheu", e mandar o operador refazer uma escolha que está gravada. Medido: com
+     * a coleção apagada, a tela dizia CORPUS · NÃO DECLARADO e a linha de baixo citava o nome dela.
+     *
+     * A identidade sai do `/api/health`, que SOBREVIVE ao índice ausente porque a coleção é
+     * configuração, não medida. `cwd` vem de `agent_cwd`, o mesmo campo que a linha do núcleo lê.
+     */
+    const declarado = health?.qdrant?.collection
+      ? { collection: health.qdrant.collection, cwd: health.agent_cwd }
+      : null;
+    // ⚠️ A pergunta é feita só no ramo de FALHA: com topologia carregada não há corrida que
+    // interesse, e sondar sempre seria uma requisição por boot para nada.
+    const emCurso = await api
+      .indexacao()
+      .then((p) => (p?.estado === 'correndo' ? p : null))
+      .catch(() => null);
+    boot.ceu({ corpos: null, corpus: declarado, motivo: error.message, indexando: emCurso });
   }
 
   // Sem topologia não há estrela para receber anel — sondar o disco só gastaria `git status`.
