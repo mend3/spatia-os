@@ -108,11 +108,13 @@ async function buscaGrafo() {
   try {
     resposta = await fetch(URL_GRAFO);
   } catch (erro) {
-    throw new Error(
-      `não consegui falar com ${URL_GRAFO} (${erro.message}).\n` +
-        `  Suba o servidor com ./serve.py e rode de novo. Este censo NÃO fabrica corpus ` +
-        `sintético: um número tirado de nós inventados responderia sobre um céu que não existe.`
-    );
+    // ⚠️ Mesmo tratamento do ramo abaixo: servidor fora é "não pude medir" (2), nunca "a lei
+    // caiu" (1). Este era o último `throw` do arquivo, e era ele que imprimia pilha quando a
+    // porta estava livre — um modo de falha diferente do corpus vazio, e por isso esquecido.
+    console.error(`não consegui falar com ${URL_GRAFO} (${erro.message}).`);
+    console.error('  suba com `make serve`. Este censo NÃO fabrica corpus sintético: um número');
+    console.error('  tirado de nós inventados responderia sobre um céu que não existe.');
+    process.exit(2);
   }
   /*
    * ☠️ **`throw` aqui imprimia STACK TRACE, e traço de pilha lê como código quebrado.** A causa

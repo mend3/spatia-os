@@ -12,6 +12,7 @@ import logging
 import mimetypes
 import signal
 import socket
+import sys
 import threading
 import time
 import urllib.parse
@@ -724,6 +725,37 @@ def _first(query: dict, key: str) -> str:
     return values[0] if values else ""
 
 
+class Servidor(ThreadingHTTPServer):
+    """O servidor HTTP desta base — e o lugar ÚNICO onde desconexão do cliente deixa de virar ruído.
+
+    ☠️ **Cliente que vai embora no meio da resposta é NORMAL, e o `socketserver` relata isso com um
+    traceback completo.** Trocar de página com áudio tocando, cancelar uma busca, fechar a aba: o
+    `wfile.write` encontra o socket já fechado e levanta `ConnectionResetError`. O log recebe vinte
+    linhas de pilha idênticas às de uma quebra de verdade, e quem lê perde a capacidade de
+    distinguir as duas — que é o defeito, não a exceção.
+
+    ⚠️ **Ela era tratada por ROTA, e por isso faltava numa.** Três caminhos tinham o `try` copiado
+    (o stream ambiente, o `_attach`, o `/api/ask`) e o `_tts` não — foi ele que apareceu no log. Uma
+    quarta cópia consertaria o sintoma e deixaria a quinta rota para a próxima vez: aqui a regra
+    vale para toda rota, inclusive as que ainda não existem.
+
+    ⭑ **O escopo é ESTREITO de propósito:** só as três exceções que, num write de socket, só podem
+    significar "o outro lado sumiu". Qualquer outra continua subindo com a pilha inteira — engolir
+    mais que isto trocaria ruído por cegueira.
+    """
+
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):  # noqa: D102 — contrato do socketserver
+        erro = sys.exc_info()[1]
+        if isinstance(erro, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+            # `debug` e não `warning`: é legível para quem for procurar e invisível para quem não
+            # for. Silêncio total deixaria "o áudio não tocou" sem uma única pista em lugar nenhum.
+            logger.debug(f"cliente desistiu da resposta ({type(erro).__name__})")
+            return
+        super().handle_error(request, client_address)
+
+
 def serve() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s · %(message)s", datefmt="%H:%M:%S"
@@ -735,8 +767,7 @@ def serve() -> None:
     graph.warm()
     ambient.watch()
 
-    httpd = ThreadingHTTPServer((host, port), Handler)
-    httpd.daemon_threads = True
+    httpd = Servidor((host, port), Handler)
 
     # Segundo listener em ::1 quando o host é o loopback IPv4.
     #
@@ -747,11 +778,10 @@ def serve() -> None:
     secondary = None
     if host in ("127.0.0.1", "localhost"):
         try:
-            class V6(ThreadingHTTPServer):
+            class V6(Servidor):
                 address_family = socket.AF_INET6
 
             secondary = V6(("::1", port), Handler)
-            secondary.daemon_threads = True
             threading.Thread(target=secondary.serve_forever, name="http-v6", daemon=True).start()
         except OSError as e:
             logger.warning(f"sem listener IPv6 (use 127.0.0.1 no browser): {e}")

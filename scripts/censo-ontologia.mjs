@@ -28,12 +28,15 @@ import {
   FAMILIA,
   dominanteDe,
 } from '../src/space/entity-physics.js';
+import { ceuServido } from './lib/ceu-servido.mjs';
 
 const BASE = 'http://127.0.0.1:8787';
 const arg = process.argv[2];
+// ⚠️ O arquivo por argv é uma foto que o operador escolheu — ele responde por ela. Só o ramo de
+// REDE passa pelo helper, que é onde o servidor pode não estar de pé.
 const graph = arg
   ? JSON.parse(fs.readFileSync(arg, 'utf8'))
-  : await (await fetch(`${BASE}/api/graph`)).json();
+  : await ceuServido(BASE, { porque: 'a família, o tipo, o porte e o fenômeno' });
 
 const nodes = graph.nodes || [];
 const files = nodes.filter((n) => n.type === 'file');
