@@ -16,6 +16,17 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# ☠️ **NODE, porque a REMATERIALIZAÇÃO é Node — e sem ele a indexação termina e o grafo não.**
+# `setup.indexar_em_fundo` roda a cadeia inteira (`vinculos`, `similares`, `citacoes`, `uso`,
+# `centralidade`, `vizinhanca`, `conectividade`), e todos são `.mjs`. Medido: o índice fechou com
+# 14 872 pontos e o apelido trocou, e a corrida morreu logo depois com
+# `[Errno 2] No such file or directory: 'node'` — céu com memória e sem relação nenhuma.
+#
+# ⭑ Só o BINÁRIO é copiado, de uma imagem `bookworm` igual à base: os scripts da cadeia não têm
+# dependência de pacote (este repositório não tem `package.json`, e o cabeçalho do `Makefile` diz
+# por quê), então `npm` seria peso sem uso.
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+
 WORKDIR /app
 
 # Só o `serve.py` entra na camada de dependência: o resto do repo chega por bind-mount, então
