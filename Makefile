@@ -10,7 +10,7 @@
 # `make` não muda como um arquivo é interpretado. É despachante, e só.
 
 .DEFAULT_GOAL := ajuda
-.PHONY: ajuda leis leis-lista pixel pixel-gravar smoke hooks serve cerebro up down indexar reconfigurar rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
+.PHONY: ajuda leis leis-lista pixel pixel-gravar smoke hooks serve cerebro up down speech searxng-settings indexar reconfigurar rematerializar grafo snapshots conceitos censos fixture fixture-limpar tipos
 
 # ⚠️ CRASE em receita de make é SUBSTITUIÇÃO DE COMANDO no shell — a primeira versão desta
 # receita escreveu "o portão é `make leis`" e o `make ajuda` RODOU o portão inteiro para montar a
@@ -56,9 +56,18 @@ hooks:  ## aponta o git para os hooks VERSIONADOS de .githooks/
 # ⚠️ Só as MEMÓRIAS sobem em contêiner. O servidor lê a pasta que o operador escolheu — qualquer
 # pasta do disco —, embute com ONNX na CPU do host e roda o `claude` como subprocesso; num contêiner
 # isso vira bind-mount do HOME e tradução de caminho, a classe de defeito mais cara desta base.
-up:  ## sobe as memórias (Qdrant + Neo4j) em loopback
+# ☠️ `searxng-settings` é PRÉ-REQUISITO, não conveniência: o bind-mount do searxng precisa do
+# arquivo existindo, e esquecer disso produz um erro que não aponta para a causa.
+up: searxng-settings  ## sobe as memórias e a busca, em loopback
 	@docker compose up -d
 	@docker compose ps
+
+searxng-settings:  ## gera .docker/searxng/settings.yml com um secret novo (idempotente)
+	@./scripts/setup-searxng-settings.sh
+
+# ⚠️ Fora do `up` de propósito: a imagem baixa ~2 GB e carrega os modelos no boot.
+speech:  ## sobe a voz (Kokoro TTS) — opt-in, ~2 GB
+	@docker compose --profile speech up -d tts
 
 down:  ## para as memórias SEM apagar dado (os volumes ficam)
 	@docker compose down

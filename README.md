@@ -623,8 +623,9 @@ snapshots são invalidados. ⭑ **A coleção servida nunca é escrita:** a nova
 apelido é movido no fim, então uma indexação interrompida não degrada o céu que está no ar.
 
 ```
-make up         # as memórias: Qdrant + Neo4j, em loopback
+make up         # Qdrant, Neo4j e SearXNG — todos em loopback
 make serve      # e pronto: escolha a pasta na tela e clique INDEXAR
+make speech     # opcional: a voz (Kokoro TTS), ~2 GB
 ```
 
 ⚠️ **Só as memórias sobem em contêiner.** O servidor lê a pasta que você escolheu — qualquer pasta

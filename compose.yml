@@ -12,8 +12,10 @@
 # ⚠️ **O OLLAMA também não está aqui.** No macOS o Docker não passa GPU: um Ollama em contêiner roda
 # na CPU e desperdiça a máquina. Instalação nativa, e para modelo MLX existe `make cerebro`.
 #
-# ⚠️ **SearXNG e TTS não estão aqui** porque são GLOBAIS no `oracle` (`shared/search.compose.yml`,
-# `shared/speech.compose.yml`). Declará-los de novo criaria dois donos para o mesmo serviço.
+# ⭑ **SearXNG e TTS estão aqui, adaptados do `oracle`** (`shared/search.compose.yml`,
+# `shared/speech.compose.yml`). Duas coisas daquele contexto NÃO vieram, e a omissão é deliberada:
+# os rótulos do Traefik e a rede `workspace` (este compose é autossuficiente), e o `valkey` do
+# searxng, que apontava para um Redis global inexistente aqui — ver `.docker/searxng/settings.yml.example`.
 
 name: spatia
 
@@ -25,7 +27,7 @@ services:
       # ☠️ **LOOPBACK, nunca `0.0.0.0`.** O Qdrant sobe SEM autenticação: exposto na interface de
       # rede, qualquer um do outro lado lê e escreve o corpus inteiro — os vetores são o conteúdo
       # dos seus arquivos, não um índice opaco. O `127.0.0.1:` do lado esquerdo é a barreira.
-      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
     volumes:
       - qdrant:/qdrant/storage
     healthcheck:
@@ -50,8 +52,8 @@ services:
     image: neo4j:5.26.0
     restart: unless-stopped
     ports:
-      - "127.0.0.1:7474:7474"   # HTTP — é por aqui que os scripts falam Cypher
-      - "127.0.0.1:7687:7687"   # Bolt — para o browser oficial, se você o usar
+      - "127.0.0.1:${NEO4J_HTTP_PORT:-7474}:7474"   # HTTP — é por aqui que os scripts falam Cypher
+      - "127.0.0.1:${NEO4J_BOLT_PORT:-7687}:7687"   # Bolt — para o browser oficial, se você o usar
     environment:
       # ⚠️ A senha vem do `.env` e NÃO tem default aqui. Um default viraria a senha real de todo
       # clone que não a trocou, e ela é a única barreira do banco.
@@ -71,6 +73,57 @@ services:
       retries: 12
       start_period: 30s
 
+  searxng:
+    # Metabuscador que agrega vários motores e devolve JSON — busca web sem chave e sem cota.
+    # Digest fixado: `latest` mudaria o comportamento da busca sem ninguém pedir.
+    image: searxng/searxng:latest@sha256:1081d08bdcd6126533de497ee597f64de94064339e7bc03bc046352adfe320e6
+    restart: unless-stopped
+    ports:
+      # Loopback pelo mesmo motivo do Qdrant: o searxng não tem auth.
+      - "127.0.0.1:${SEARXNG_PORT:-8888}:8080"
+    volumes:
+      # ☠️ **O arquivo precisa EXISTIR antes do `up`.** Sem ele o Docker cria um DIRETÓRIO no
+      # caminho e o searxng não sobe, com uma mensagem que não aponta para a causa. `make up`
+      # depende de `searxng-settings`, que o gera. ⚠️ `rw` de propósito: o searxng reescreve o
+      # próprio settings no boot.
+      - ./.docker/searxng/settings.yml:/etc/searxng/settings.yml:rw
+    environment:
+      SEARXNG_BASE_URL: "${SEARXNG_BASE_URL:-http://localhost:8888/}"
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/healthz').status==200 else 1)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  tts:
+    # ⚠️ **Atrás de um profile, fora do `up` padrão.** A imagem baixa ~2 GB e o contêiner carrega
+    # os modelos de voz no boot — não é custo que um `make up` deva impor a quem só quer o céu.
+    #
+    #     docker compose --profile speech up -d tts
+    profiles: [speech]
+    image: ${TTS_IMAGE:-ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.4}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${TTS_PORT:-8880}:8880"
+    volumes:
+      - tts-models:/app/models
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8880/health').status==200 else 1)
+      interval: 15s
+      timeout: 5s
+      # Generoso de propósito: o primeiro boot baixa e carrega os modelos de voz.
+      retries: 5
+      start_period: 120s
+
 # ⚠️ **Volumes NOMEADOS e do projeto `spatia`.** Eles não são os `oracle_*` que já existem nesta
 # máquina — subir isto aqui começa com bancos VAZIOS, e as portas colidem com o que já está no ar.
 # Adotar os volumes antigos seria dar dois donos ao mesmo dado, que é o defeito que este repositório
@@ -79,3 +132,4 @@ volumes:
   qdrant:
   neo4j-data:
   neo4j-logs:
+  tts-models:

@@ -1,0 +1,41 @@
+# Overrides sobre os defaults do SearXNG. Copiado para `settings.yml` por
+# `scripts/setup-searxng-settings.sh`, que injeta um `secret_key` gerado.
+#
+# ☠️ **A lista curta de engines NÃO faz o que parece.** `use_default_settings.engines.keep_only`
+# RESTRINGE o conjunto default em vez de ativar o que vem desligado — medido no oracle: das seis
+# engines listadas só três ficavam ativas, google devolvia vazio e startpage caía em CAPTCHA, e a
+# busca inteira retornava `results: []` sem erro nenhum. Busca que não busca e não reclama é o pior
+# modo de falha possível para infra de agente.
+#
+# Com o default ATIVO a medida vira 23 resultados e zero engine com erro numa consulta geral. A
+# lista abaixo só ajusta os casos conhecidos: liga as boas e desliga as duas que quebram.
+use_default_settings: true
+
+engines:
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: mojeek
+    disabled: false
+  - name: wikipedia
+    disabled: false
+  - name: google
+    disabled: true # parser frágil, devolve vazio
+  - name: startpage
+    disabled: true # CAPTCHA
+
+server:
+  secret_key: 'GENERATE_ME'
+  limiter: false # acesso programático de agente, sem rate limiter
+  image_proxy: true
+
+# ⚠️ **SEM `valkey` aqui, e é adaptação deliberada.** O `search.compose.yml` do oracle aponta para
+# `redis://redis:6379/5` — um Redis GLOBAL daquele projeto, que este compose não tem. Apontar para
+# um host inexistente faria o searxng logar falha de conexão a cada requisição. Com `limiter: false`
+# o cache do limitador não é usado, então a ausência não custa nada.
+
+search:
+  formats:
+    - html
+    - json # obrigatório: é o formato que o SpatIA consome
